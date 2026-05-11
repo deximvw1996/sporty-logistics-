@@ -2990,6 +2990,36 @@ async function addLocMat(locId){
   renderLocaties();
   document.getElementById('lm-body-'+locId).style.display='block';
 }
+async 
+async function addLocMat(locId){
+  const name=document.getElementById('alm-n-'+locId)?.value.trim();
+  const qty=parseInt(document.getElementById('alm-q-'+locId)?.value)||1;
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  const r=await api('POST','/locaties/'+locId+'/materiaal',{name,qty,cat:'andere'});
+  if(r.error){showToast(r.error,'error');return;}
+  if(!S.locMat[locId])S.locMat[locId]=[];
+  S.locMat[locId].push(r);
+  const ni=document.getElementById('alm-n-'+locId);if(ni)ni.value='';
+  renderLocaties();
+  setTimeout(()=>{const b=document.getElementById('lm-body-'+locId);if(b)b.style.display='block';},50);
+  showToast('Materiaal toegevoegd','success');
+}
+
+function editLocMat(id){
+  editingLocMat=id;
+  renderLocaties();
+}
+
+function renderLocMat(locId){
+  // Re-render just the materiaal section for a locatie
+  renderLocaties();
+  setTimeout(()=>{const b=document.getElementById('lm-body-'+locId);if(b)b.style.display='block';},50);
+}
+
+function renderLocMatSection(){
+  renderLocaties();
+}
+
 async function saveLocMat(locId,id){
   const name=document.getElementById('elm-n-'+id).value.trim();
   const qty=Math.max(1,parseInt(document.getElementById('elm-q-'+id).value)||1);
