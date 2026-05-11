@@ -1376,6 +1376,24 @@ async function deleteThemaCat(id, name){
   showToast('Categorie verwijderd','info');
 }
 
+
+async function addThemaCat(){
+  const name = document.getElementById('th-cat-new')?.value.trim();
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  const r = await api('POST','/thema-categorieen',{name});
+  if(r.error){showToast(r.error,'error');return;}
+  // Reload fresh from server to avoid duplicates
+  S_thema_cats = await api('GET','/thema-categorieen');
+  document.getElementById('th-cat-new').value='';
+  renderThemaCatBeheer();
+  // Update all category dropdowns
+  document.querySelectorAll('.th-cat-sel').forEach(sel=>{
+    const cur=sel.value;
+    sel.innerHTML=renderThemaCatSelect(cur);
+  });
+  showToast(name+' toegevoegd','success');
+}
+
 function renderThemaCatBeheer(){
   const el = document.getElementById('th-cat-list');
   if(!el) return;
