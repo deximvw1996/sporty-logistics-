@@ -1372,7 +1372,6 @@ function renderThemaCatSelect(selectedCat){
     + S_thema_cats.map(c=>`<option value="${c.name}" ${c.name===selectedCat?'selected':''}>${c.name}</option>`).join('');
 }
 
-sync 
 async function addThemaCat(){
   const name = document.getElementById('th-cat-new').value.trim();
   if(!name){showToast('Naam is verplicht','warn');return;}
