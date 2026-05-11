@@ -1,4 +1,8 @@
-node_modules/
-*.db
-*.db-journal
-.env
+json{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "node backend/server.js"
+  }
+}
