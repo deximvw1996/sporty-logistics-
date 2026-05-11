@@ -628,6 +628,92 @@ async function startServer() {
     ['Jan','Marie','Tom'].forEach(n=>{ try{ins('INSERT INTO chauffeurs (name) VALUES (?)',[n]);}catch(e){} });
   }
 
+
+  // ── DATA EXPORT / IMPORT ──
+  app.get('/api/export', (req, res) => {
+    const data = {
+      versie: 2,
+      datum: new Date().toISOString(),
+      locaties: all('SELECT * FROM locaties'),
+      themas: all('SELECT * FROM themas'),
+      thema_categorieen: all('SELECT * FROM thema_categorieen'),
+      thema_materiaal: all('SELECT * FROM thema_materiaal'),
+      standaard_materiaal: all('SELECT * FROM standaard_materiaal'),
+      kampmomenten: all('SELECT * FROM kampmomenten'),
+      kampmoment_themas: all('SELECT * FROM kampmoment_themas'),
+      kalender_dagen: all('SELECT * FROM kalender_dagen'),
+      gesloten_dagen: all('SELECT * FROM gesloten_dagen'),
+      spoedmeldingen: all('SELECT * FROM spoedmeldingen'),
+      locatie_materiaal: all('SELECT * FROM locatie_materiaal'),
+      materiaal_items: all('SELECT * FROM materiaal_items'),
+      materiaal_eenheden: all('SELECT * FROM materiaal_eenheden'),
+      verplaatsingen: all('SELECT * FROM verplaatsingen'),
+      set_planning: all('SELECT * FROM set_planning'),
+      verbruik_stock: all('SELECT * FROM verbruik_stock'),
+      verbruik_log: all('SELECT * FROM verbruik_log'),
+      transport_taken: all('SELECT * FROM transport_taken'),
+      transport_regels: all('SELECT * FROM transport_regels'),
+      chauffeurs: all('SELECT * FROM chauffeurs'),
+      ploeg_shifts: all('SELECT * FROM ploeg_shifts'),
+    };
+    res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
+    res.setHeader('Content-Type', 'application/json');
+    res.json(data);
+  });
+
+  app.post('/api/import', (req, res) => {
+    const data = req.body;
+    if (!data || !data.versie) return res.status(400).json({ error: 'Ongeldig backup bestand' });
+    try {
+      // Wis alle bestaande data
+      const tables = ['ploeg_shifts','transport_regels','transport_taken','verbruik_log',
+        'verbruik_stock','set_planning','verplaatsingen','materiaal_eenheden','materiaal_items',
+        'locatie_materiaal','spoedmeldingen','gesloten_dagen','kalender_dagen',
+        'kampmoment_themas','kampmomenten','standaard_materiaal','thema_materiaal',
+        'thema_categorieen','themas','locaties','chauffeurs'];
+      tables.forEach(t => { try { db.run('DELETE FROM ' + t); } catch(e) {} });
+
+      // Importeer in volgorde (foreign keys)
+      function imp(table, rows, cols) {
+        if (!rows || !rows.length) return;
+        rows.forEach(r => {
+          const vals = cols.map(c => r[c] !== undefined ? r[c] : null);
+          const placeholders = cols.map(() => '?').join(',');
+          try { db.run('INSERT OR IGNORE INTO ' + table + ' (' + cols.join(',') + ') VALUES (' + placeholders + ')', vals); } catch(e) {}
+        });
+      }
+
+      imp('locaties', data.locaties, ['id','name','addr','type','contact_naam','contact_tel','notities']);
+      imp('thema_categorieen', data.thema_categorieen, ['id','name']);
+      imp('themas', data.themas, ['id','name','color','categorie']);
+      imp('thema_materiaal', data.thema_materiaal, ['id','thema_id','name','qty']);
+      imp('standaard_materiaal', data.standaard_materiaal, ['id','name','qty','cat']);
+      imp('kampmomenten', data.kampmomenten, ['id','locatie_id','week']);
+      imp('kampmoment_themas', data.kampmoment_themas, ['id','kampmoment_id','thema_id']);
+      imp('kalender_dagen', data.kalender_dagen, ['id','locatie_id','datum','open']);
+      imp('gesloten_dagen', data.gesloten_dagen, ['id','datum','reden']);
+      imp('spoedmeldingen', data.spoedmeldingen, ['id','item','qty','locatie_id','prio','note','done','done_time','created_at']);
+      imp('locatie_materiaal', data.locatie_materiaal, ['id','locatie_id','name','qty','cat']);
+      imp('materiaal_items', data.materiaal_items, ['id','name','tracking','cat','created_at']);
+      imp('materiaal_eenheden', data.materiaal_eenheden, ['id','item_id','label','qty','locatie_id']);
+      imp('verplaatsingen', data.verplaatsingen, ['id','eenheid_id','van_locatie_id','naar_locatie_id','qty','reden','datum']);
+      imp('set_planning', data.set_planning, ['id','eenheid_id','locatie_id','week']);
+      imp('verbruik_stock', data.verbruik_stock, ['id','item_id','locatie_id','qty','minimum','eenheid']);
+      imp('verbruik_log', data.verbruik_log, ['id','item_id','locatie_id','delta','reden','wie','transport_id','datum','created_at']);
+      imp('transport_taken', data.transport_taken, ['id','type','datum','tijd','van_locatie_id','naar_locatie_id','opmerking','wie','kampmoment_id','status','created_at']);
+      imp('transport_regels', data.transport_regels, ['id','taak_id','naam','qty','soort']);
+      imp('chauffeurs', data.chauffeurs, ['id','name']);
+      imp('ploeg_shifts', data.ploeg_shifts, ['id','chauffeur_id','datum','start_tijd','eind_tijd','type','opmerking']);
+
+      saveDb();
+      const counts = {};
+      tables.forEach(t => { try { counts[t] = get('SELECT COUNT(*) as c FROM ' + t).c; } catch(e) {} });
+      res.json({ ok: true, counts });
+    } catch(e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
   app.listen(PORT,()=>console.log(`Sporty vzw logistiek draait op http://localhost:${PORT}`));
 }

@@ -874,6 +874,46 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 </div>
 
 <script>
+
+// ── EXPORT / IMPORT ──
+async function exportData(){
+  try {
+    const r = await fetch('/api/export');
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sporty-backup-' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Backup gedownload!', 'success');
+  } catch(e) {
+    showToast('Export mislukt: ' + e.message, 'error');
+  }
+}
+
+async function importData(){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = async (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    if (!confirm('Alle huidige data wordt vervangen door de backup. Doorgaan?')) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const r = await api('POST', '/import', data);
+      if (r.error) { showToast('Import mislukt: ' + r.error, 'error'); return; }
+      showToast('Import geslaagd! Pagina herladen...', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } catch(e) {
+      showToast('Import mislukt: ' + e.message, 'error');
+    }
+  };
+  input.click();
+}
+
 // ── INVENTARIS SYSTEEM ──
 let invSetsData = [];
 let invVerbruikData = [];
@@ -3923,5 +3963,16 @@ loadAll()
   </div>
 </div>
 
+
+<div style="position:fixed;bottom:16px;right:16px;display:flex;gap:8px;z-index:9999">
+  <button class="btn-o" onclick="importData()" title="Data importeren van backup"
+    style="font-size:11px;height:32px;padding:0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+    &#8679; Importeer backup
+  </button>
+  <button class="btn-g" onclick="exportData()" title="Data exporteren als backup"
+    style="font-size:11px;height:32px;padding:0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+    &#8681; Exporteer backup
+  </button>
+</div>
 </body>
 </html>
