@@ -1,8 +1,0 @@
-json{
-  "build": {
-    "builder": "NIXPACKS"
-  },
-  "deploy": {
-    "startCommand": "node backend/server.js"
-  }
-}
