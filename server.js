@@ -143,44 +143,7 @@ async function startServer() {
   try { db.run("ALTER TABLE locaties ADD COLUMN type TEXT DEFAULT 'kamp'"); } catch(e){}
   saveDb();
 
-  // Seed gesloten dag 15 aug
-  try { ins("INSERT INTO gesloten_dagen (datum,reden) VALUES (?,?)",['2026-08-15','Nationale feestdag']); } catch(e){}
 
-  // Seed demo data if empty
-  if (get('SELECT COUNT(*) as c FROM locaties').c == 0) {
-    const l1=ins("INSERT INTO locaties (name,addr,type) VALUES (?,?,?)",['Sporthal Kessel-Lo','Kessel-Lo, Leuven','kamp']);
-    const l2=ins("INSERT INTO locaties (name,addr,type) VALUES (?,?,?)",['Fablab','Brussel','kamp']);
-    const l3=ins("INSERT INTO locaties (name,addr,type) VALUES (?,?,?)",['Boutersem','Boutersem','kamp']);
-    const l4=ins("INSERT INTO locaties (name,addr,type) VALUES (?,?,?)",['Stockage Hoofddepot','Magazijn, Leuven','stockage']);
-    const th1=ins("INSERT INTO themas (name,color) VALUES (?,?)",['Voetbalkamp','#1D9E75']);
-    ins("INSERT INTO thema_materiaal (thema_id,name,qty) VALUES (?,?,?)",[th1,'Bakken met materiaal',2]);
-    ins("INSERT INTO thema_materiaal (thema_id,name,qty) VALUES (?,?,?)",[th1,'Zakken met voetballen',2]);
-    const th2=ins("INSERT INTO themas (name,color) VALUES (?,?)",['Zwemkamp','#378ADD']);
-    ins("INSERT INTO thema_materiaal (thema_id,name,qty) VALUES (?,?,?)",[th2,'Bak zwemmateriaal',1]);
-    ins("INSERT INTO thema_materiaal (thema_id,name,qty) VALUES (?,?,?)",[th2,'Reddingsboeien',4]);
-    const th3=ins("INSERT INTO themas (name,color) VALUES (?,?)",['Klim- en avontuurstage','#D85A30']);
-    ins("INSERT INTO thema_materiaal (thema_id,name,qty) VALUES (?,?,?)",[th3,'Klimmateriaal (set)',1]);
-    ins("INSERT INTO standaard_materiaal (name,qty,cat) VALUES (?,?,?)",['Ehbo kist',1,'ehbo']);
-    ins("INSERT INTO standaard_materiaal (name,qty,cat) VALUES (?,?,?)",['Administratie kast',1,'admin']);
-    ins("INSERT INTO standaard_materiaal (name,qty,cat) VALUES (?,?,?)",['Muziekbox',1,'audio']);
-    // Demo kampmoment: week 4 Kessel-Lo met 2 themas
-    const km1=ins("INSERT INTO kampmomenten (locatie_id,week) VALUES (?,?)",[l1,4]);
-    ins("INSERT INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)",[km1,th1]);
-    ins("INSERT INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)",[km1,th2]);
-    // Open wo-vr voor Kessel-Lo week 4 (wo=22 jul, do=23, vr=24)
-    ['2026-07-22','2026-07-23','2026-07-24'].forEach(d=>ins("INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)",[l1,d,1]));
-    // Mark ma,di as closed
-    ['2026-07-20','2026-07-21'].forEach(d=>ins("INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)",[l1,d,0]));
-    // Seed locatie materiaal per locatie
-    [l1,l2,l3].forEach(lid=>{
-      ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[lid,'Ehbo kist',1,'ehbo']);
-      ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[lid,'Administratie kast',1,'admin']);
-    });
-    ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[l1,'Muziekbox',2,'audio']);
-    ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[l2,'Muziekbox',1,'audio']);
-    ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[l3,'Muziekbox',1,'audio']);
-    ins("INSERT INTO spoedmeldingen (item,qty,locatie_id,prio,note,created_at) VALUES (?,?,?,?,?,?)",['Wc-papier',4,l1,'hoog','Kinderen wachten','Demo']);
-  }
 
   // ── LOCATIES ──
   app.get('/api/locaties',(req,res)=>res.json(all('SELECT * FROM locaties ORDER BY type,name')));
@@ -623,10 +586,6 @@ async function startServer() {
   app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taak_id,naam,qty||1,soort||'andere']);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
   app.delete('/api/transport-regels/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE id=?',[req.params.id]);res.json({ok:true});});
 
-  // Seed chauffeurs if empty
-  if(get('SELECT COUNT(*) as c FROM chauffeurs').c==0){
-    ['Jan','Marie','Tom'].forEach(n=>{ try{ins('INSERT INTO chauffeurs (name) VALUES (?)',[n]);}catch(e){} });
-  }
 
 
   // ── DATA EXPORT / IMPORT ──
@@ -661,57 +620,58 @@ async function startServer() {
     res.json(data);
   });
 
-  app.post('/api/import', (req, res) => {
-    const data = req.body;
-    if (!data || !data.versie) return res.status(400).json({ error: 'Ongeldig backup bestand' });
+  // Reset: wis alle data voor import
+  app.post('/api/import/reset', (req, res) => {
     try {
-      // Wis alle bestaande data
       const tables = ['ploeg_shifts','transport_regels','transport_taken','verbruik_log',
         'verbruik_stock','set_planning','verplaatsingen','materiaal_eenheden','materiaal_items',
         'locatie_materiaal','spoedmeldingen','gesloten_dagen','kalender_dagen',
         'kampmoment_themas','kampmomenten','standaard_materiaal','thema_materiaal',
         'thema_categorieen','themas','locaties','chauffeurs'];
       tables.forEach(t => { try { db.run('DELETE FROM ' + t); } catch(e) {} });
-
-      // Importeer in volgorde (foreign keys)
-      function imp(table, rows, cols) {
-        if (!rows || !rows.length) return;
-        rows.forEach(r => {
-          const vals = cols.map(c => r[c] !== undefined ? r[c] : null);
-          const placeholders = cols.map(() => '?').join(',');
-          try { db.run('INSERT OR IGNORE INTO ' + table + ' (' + cols.join(',') + ') VALUES (' + placeholders + ')', vals); } catch(e) {}
-        });
-      }
-
-      imp('locaties', data.locaties, ['id','name','addr','type','contact_naam','contact_tel','notities']);
-      imp('thema_categorieen', data.thema_categorieen, ['id','name']);
-      imp('themas', data.themas, ['id','name','color','categorie']);
-      imp('thema_materiaal', data.thema_materiaal, ['id','thema_id','name','qty']);
-      imp('standaard_materiaal', data.standaard_materiaal, ['id','name','qty','cat']);
-      imp('kampmomenten', data.kampmomenten, ['id','locatie_id','week']);
-      imp('kampmoment_themas', data.kampmoment_themas, ['id','kampmoment_id','thema_id']);
-      imp('kalender_dagen', data.kalender_dagen, ['id','locatie_id','datum','open']);
-      imp('gesloten_dagen', data.gesloten_dagen, ['id','datum','reden']);
-      imp('spoedmeldingen', data.spoedmeldingen, ['id','item','qty','locatie_id','prio','note','done','done_time','created_at']);
-      imp('locatie_materiaal', data.locatie_materiaal, ['id','locatie_id','name','qty','cat']);
-      imp('materiaal_items', data.materiaal_items, ['id','name','tracking','cat','created_at']);
-      imp('materiaal_eenheden', data.materiaal_eenheden, ['id','item_id','label','qty','locatie_id']);
-      imp('verplaatsingen', data.verplaatsingen, ['id','eenheid_id','van_locatie_id','naar_locatie_id','qty','reden','datum']);
-      imp('set_planning', data.set_planning, ['id','eenheid_id','locatie_id','week']);
-      imp('verbruik_stock', data.verbruik_stock, ['id','item_id','locatie_id','qty','minimum','eenheid']);
-      imp('verbruik_log', data.verbruik_log, ['id','item_id','locatie_id','delta','reden','wie','transport_id','datum','created_at']);
-      imp('transport_taken', data.transport_taken, ['id','type','datum','tijd','van_locatie_id','naar_locatie_id','opmerking','wie','kampmoment_id','status','created_at']);
-      imp('transport_regels', data.transport_regels, ['id','taak_id','naam','qty','soort']);
-      imp('chauffeurs', data.chauffeurs, ['id','name']);
-      imp('ploeg_shifts', data.ploeg_shifts, ['id','chauffeur_id','datum','start_tijd','eind_tijd','type','opmerking']);
-
       saveDb();
-      const counts = {};
-      tables.forEach(t => { try { counts[t] = get('SELECT COUNT(*) as c FROM ' + t).c; } catch(e) {} });
-      res.json({ ok: true, counts });
-    } catch(e) {
-      res.status(500).json({ error: e.message });
-    }
+      res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Importeer één tabel per keer
+  app.post('/api/import/tabel', (req, res) => {
+    const { table, rows } = req.body;
+    if (!table || !rows) return res.status(400).json({ error: 'Tabel of rijen ontbreken' });
+    const colMap = {
+      locaties: ['id','name','addr','type','contact_naam','contact_tel','notities'],
+      thema_categorieen: ['id','name'],
+      themas: ['id','name','color','categorie'],
+      thema_materiaal: ['id','thema_id','name','qty'],
+      standaard_materiaal: ['id','name','qty','cat'],
+      kampmomenten: ['id','locatie_id','week'],
+      kampmoment_themas: ['id','kampmoment_id','thema_id'],
+      kalender_dagen: ['id','locatie_id','datum','open'],
+      gesloten_dagen: ['id','datum','reden'],
+      spoedmeldingen: ['id','item','qty','locatie_id','prio','note','done','done_time','created_at'],
+      locatie_materiaal: ['id','locatie_id','name','qty','cat'],
+      materiaal_items: ['id','name','tracking','cat','created_at'],
+      materiaal_eenheden: ['id','item_id','label','qty','locatie_id'],
+      verplaatsingen: ['id','eenheid_id','van_locatie_id','naar_locatie_id','qty','reden','datum'],
+      set_planning: ['id','eenheid_id','locatie_id','week'],
+      verbruik_stock: ['id','item_id','locatie_id','qty','minimum','eenheid'],
+      verbruik_log: ['id','item_id','locatie_id','delta','reden','wie','transport_id','datum','created_at'],
+      transport_taken: ['id','type','datum','tijd','van_locatie_id','naar_locatie_id','opmerking','wie','kampmoment_id','status','created_at'],
+      transport_regels: ['id','taak_id','naam','qty','soort'],
+      chauffeurs: ['id','name'],
+      ploeg_shifts: ['id','chauffeur_id','datum','start_tijd','eind_tijd','type','opmerking'],
+    };
+    const cols = colMap[table];
+    if (!cols) return res.status(400).json({ error: 'Onbekende tabel: ' + table });
+    try {
+      rows.forEach(r => {
+        const vals = cols.map(c => r[c] !== undefined ? r[c] : null);
+        const ph = cols.map(() => '?').join(',');
+        try { db.run('INSERT OR IGNORE INTO ' + table + ' (' + cols.join(',') + ') VALUES (' + ph + ')', vals); } catch(e) {}
+      });
+      saveDb();
+      res.json({ ok: true, count: rows.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
   app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
