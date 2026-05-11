@@ -12,7 +12,7 @@ const DB_PATH = path.join(DATA_DIR, 'sporty.db');
 console.log('Database pad:', DB_PATH);
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 // Zoek frontend: eerst ../frontend (lokaal), dan zelfde map (Railway flat deploy)
 let FRONTEND_PATH = path.join(__dirname, '../frontend');
 if (!fs.existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
