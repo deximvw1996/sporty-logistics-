@@ -903,8 +903,22 @@ async function importData(){
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      const r = await api('POST', '/import', data);
-      if (r.error) { showToast('Import mislukt: ' + r.error, 'error'); return; }
+      showToast('Bezig met importeren...', 'info');
+      // Stuur tabel per tabel
+      const tables = ['locaties','thema_categorieen','themas','thema_materiaal',
+        'standaard_materiaal','kampmomenten','kampmoment_themas','kalender_dagen',
+        'gesloten_dagen','spoedmeldingen','locatie_materiaal','materiaal_items',
+        'materiaal_eenheden','verplaatsingen','set_planning','verbruik_stock',
+        'verbruik_log','transport_taken','transport_regels','chauffeurs','ploeg_shifts'];
+      // Stuur eerst een reset
+      const reset = await api('POST', '/import/reset', {});
+      if (reset.error) { showToast('Reset mislukt: ' + reset.error, 'error'); return; }
+      // Dan elke tabel apart
+      for (const table of tables) {
+        if (!data[table] || !data[table].length) continue;
+        const r = await api('POST', '/import/tabel', { table, rows: data[table] });
+        if (r && r.error) { showToast('Fout bij ' + table + ': ' + r.error, 'error'); return; }
+      }
       showToast('Import geslaagd! Pagina herladen...', 'success');
       setTimeout(() => location.reload(), 1500);
     } catch(e) {
@@ -918,6 +932,9 @@ async function importData(){
 let invSetsData = [];
 let invVerbruikData = [];
 let invTab = 'sets';
+
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 function setInvTab(tab, btn){
   invTab = tab;
