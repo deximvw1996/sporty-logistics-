@@ -894,34 +894,37 @@ async function renderInventarisTab(){
   const matInv = document.getElementById('mat-sub-inventaris');
   if(matInv) matInv.style.display = 'block';
   const c = document.getElementById('inv-content');
-  if(!c){return;}
-  c.innerHTML = '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
+  if(!c) return;
+  // Show loading state with tabs visible
+  c.style.display = 'block';
+  c.innerHTML = _buildTabs() + '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
   try {
-    const sportRes = await api('GET', '/sport');
-    const gedeeldRes = await api('GET', '/gedeeld');
+    const [sportRes, gedeeldRes] = await Promise.all([
+      api('GET', '/sport'),
+      api('GET', '/gedeeld'),
+    ]);
     _invSport = Array.isArray(sportRes) ? sportRes : [];
     _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
     _renderInv();
   } catch(err) {
-    c.innerHTML = '<div style="padding:2rem;color:red;font-size:14px">Fout bij laden inventaris:<br><code>'+err.message+'</code><br><br>Controleer of de server de /api/sport en /api/gedeeld endpoints heeft.</div>';
-    console.error('Inventaris error:', err);
+    c.innerHTML = '<div style="padding:2rem;color:red">Fout: '+err.message+'</div>';
   }
+}
+
+function _buildTabs(){
+  const s = _invTab==='sport', t = _invTab==='thema', g = _invTab==='gedeeld';
+  return '<div style="display:flex;gap:6px;margin-bottom:1rem">'
+    + '<button class="ov-view-btn '+(s?'active':'')+'" onclick="_setInvTab(String.fromCharCode(115,112,111,114,116))">&#9917; Sportmateriaal</button>'
+    + '<button class="ov-view-btn '+(t?'active':'')+'" onclick="_setInvTab(String.fromCharCode(116,104,101,109,97))">&#127912; Themamateriaal</button>'
+    + '<button class="ov-view-btn '+(g?'active':'')+'" onclick="_setInvTab(String.fromCharCode(103,101,100,101,101,108,100))">&#128295; Gedeeld materiaal</button>'
+    + '</div>';
 }
 
 function _renderInv(){
   const c = document.getElementById('inv-content');
   if(!c) return;
   c.style.display = 'block';
-  
-  // Tab knoppen
-  const tabs = `
-    <div style="display:flex;gap:6px;margin-bottom:1rem">
-      <button class="ov-view-btn ${_invTab==='sport'?'active':''}" onclick="_setInvTab('sport')">⚽ Sportmateriaal</button>
-      <button class="ov-view-btn ${_invTab==='thema'?'active':''}" onclick="_setInvTab('thema')">🎨 Themamateriaal</button>
-      <button class="ov-view-btn ${_invTab==='gedeeld'?'active':''}" onclick="_setInvTab('gedeeld')">🔧 Gedeeld materiaal</button>
-    </div>`;
-  
-  let content = tabs;
+  let content = _buildTabs();
   
   if(_invTab === 'sport') content += _buildSport();
   else if(_invTab === 'thema') content += _buildThema();
