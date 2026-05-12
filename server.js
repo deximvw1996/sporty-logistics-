@@ -19,7 +19,15 @@ if (!fs.existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
   FRONTEND_PATH = __dirname;
 }
 console.log('Frontend pad:', FRONTEND_PATH);
-app.use(express.static(FRONTEND_PATH));
+app.use(express.static(FRONTEND_PATH, {
+  etag: false,
+  lastModified: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+}));
 
 let db;
 
