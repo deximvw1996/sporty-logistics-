@@ -758,17 +758,17 @@ button:disabled{opacity:.45;cursor:not-allowed;}
   <div class="card" style="border-color:#F09595">
     <div class="card-hd" style="color:#A32D2D">&#128680; Nieuwe spoedlevering</div>
     <div class="fr">
-      <div class="fg grow"><label>Wat ontbreekt?</label><input class="inp" type="text" id="sp-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoed()"></div>
-      <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="sp-qty" value="1" min="1"></div>
+      <div class="fg grow"><label>Wat ontbreekt?</label><input class="inp" type="text" id="sp2-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoedDirect()"></div>
+      <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="sp2-qty" value="1" min="1"></div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Locatie</label><select class="sel" id="sp-loc"></select></div>
-      <div class="fg md"><label>Prioriteit</label><select class="sel" id="sp-prio">
+      <div class="fg md"><label>Locatie</label><select class="sel" id="sp2-loc"></select></div>
+      <div class="fg md"><label>Prioriteit</label><select class="sel" id="sp2-prio">
         <option value="hoog">&#128308; Hoog &mdash; zo snel mogelijk</option>
         <option value="midden">&#128993; Midden &mdash; vandaag nog</option>
         <option value="laag">&#128309; Laag &mdash; zo snel als mogelijk</option>
       </select></div>
-      <div class="fg grow"><label>Opmerking</label><input class="inp" type="text" id="sp-note" placeholder="bv. Kinderen wachten&hellip;"></div>
+      <div class="fg grow"><label>Opmerking</label><input class="inp" type="text" id="sp2-note" placeholder="bv. Kinderen wachten&hellip;"></div>
     </div>
     <button class="btn-r" onclick="addSpoed()">&#128680; Spoedlevering melden</button>
   </div>
@@ -2852,6 +2852,58 @@ async function api(m,p,b){
     }
     return m==='GET'?[]:{};
   }
+}
+
+async function addSpoedInline(){
+  const item=document.getElementById('sp2-item')?.value.trim();
+  const qty=parseInt(document.getElementById('sp2-qty')?.value)||1;
+  const locatie_id=document.getElementById('sp2-loc')?.value;
+  const prio=document.getElementById('sp2-prio')?.value||'hoog';
+  const note=document.getElementById('sp2-note')?.value.trim()||'';
+  if(!item){showToast('Omschrijving is verplicht','warn');return;}
+  if(!locatie_id){showToast('Kies een locatie','warn');return;}
+  const r=await api('POST','/spoed',{item,qty,locatie_id:parseInt(locatie_id),prio,note});
+  if(r.error)return;
+  S.spoed=await api('GET','/spoed');
+  updateSpoedBadge();
+  ['sp2-item','sp2-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const qEl=document.getElementById('sp2-qty');if(qEl)qEl.value='1';
+  showToast('Spoedmelding gemeld!','success');
+  renderTransportenOV();
+}
+
+async function addSpoedDirect(){
+  const item=document.getElementById('sp2-item')?.value.trim();
+  const qty=parseInt(document.getElementById('sp2-qty')?.value)||1;
+  const locatie_id=document.getElementById('sp2-loc')?.value;
+  const prio=document.getElementById('sp2-prio')?.value||'hoog';
+  const note=document.getElementById('sp2-note')?.value.trim()||'';
+  if(!item){showToast('Omschrijving is verplicht','warn');return;}
+  const r=await api('POST','/spoed',{item,qty,locatie_id:parseInt(locatie_id)||null,prio,note});
+  if(r.error)return;
+  S.spoed=await api('GET','/spoed');
+  updateSpoedBadge();
+  ['sp2-item','sp2-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const qEl=document.getElementById('sp2-qty');if(qEl)qEl.value='1';
+  showToast('Spoedmelding gemeld!','success');
+  renderTransportenOV();
+}
+
+async function addSpoedDirect(){
+  const item=document.getElementById('sp2-item')?.value.trim();
+  const qty=parseInt(document.getElementById('sp2-qty')?.value)||1;
+  const locatie_id=document.getElementById('sp2-loc')?.value;
+  const prio=document.getElementById('sp2-prio')?.value||'hoog';
+  const note=document.getElementById('sp2-note')?.value.trim()||'';
+  if(!item){showToast('Omschrijving is verplicht','warn');return;}
+  const r=await api('POST','/spoed',{item,qty,locatie_id:parseInt(locatie_id)||null,prio,note});
+  if(r.error)return;
+  S.spoed=await api('GET','/spoed');
+  updateSpoedBadge();
+  ['sp2-item','sp2-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const qEl=document.getElementById('sp2-qty');if(qEl)qEl.value='1';
+  showToast('Spoedmelding gemeld!','success');
+  renderTransportenOV();
 }
 async function loadAll(){const[a,b,c,d,e,f,g,h]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/spoed'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,spoed:e,materiaal:f,overzicht:g,locMat:{}};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
 S_chauffeurs=await api('GET','/chauffeurs');fillChaufDatalist();
