@@ -3376,6 +3376,28 @@ function toggleThemaBody(id){
   const b=document.getElementById('thema-body-'+id);
   if(b) b.style.display=b.style.display==='block'?'none':'block';
 }
+
+async function saveThemaMat(themaId, matId){
+  const name = document.getElementById('etm-n-'+matId)?.value.trim();
+  const qty = parseInt(document.getElementById('etm-q-'+matId)?.value)||1;
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  const r = await api('PUT','/themas/'+themaId+'/materiaal/'+matId,{name,qty});
+  if(r.error){showToast(r.error,'error');return;}
+  S.themas = S.themas.map(t=>t.id===themaId?{...t,materiaal:(t.materiaal||[]).map(m=>m.id===matId?r:m)}:t);
+  editingThemaMat = null;
+  renderThemas();
+  setTimeout(()=>{const b=document.getElementById('thema-body-'+themaId);if(b)b.style.display='block';},50);
+  showToast('Opgeslagen','success');
+}
+
+async function deleteThemaMat(themaId, matId){
+  if(!confirm('Materiaal verwijderen?'))return;
+  await api('DELETE','/themas/'+themaId+'/materiaal/'+matId);
+  S.themas = S.themas.map(t=>t.id===themaId?{...t,materiaal:(t.materiaal||[]).filter(m=>m.id!==matId)}:t);
+  renderThemas();
+  setTimeout(()=>{const b=document.getElementById('thema-body-'+themaId);if(b)b.style.display='block';},50);
+}
+
 function renderThemas(){
   // Ensure the themas subtab is visible
   const subDiv=document.getElementById('mat-sub-themas');
@@ -3417,7 +3439,7 @@ function renderThemas(){
       const card=document.createElement('div');card.className='exp-card';
       const mat=t.materiaal||[];
       const hd=document.createElement('div');hd.className='exp-hd';
-      hd.onclick=()=>toggleThemaBody(t.id);
+      hd.onclick=(e)=>{if(e.target.tagName!=='BUTTON'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='SELECT')toggleThemaBody(t.id);};
 
       if(editingThema===t.id){
         hd.innerHTML=`<span class="thema-swatch" style="background:${t.color}"></span>
