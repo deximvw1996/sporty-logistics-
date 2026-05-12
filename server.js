@@ -23,7 +23,15 @@ app.use(express.static(FRONTEND_PATH));
 
 let db;
 
-function saveDb() { fs.writeFileSync(DB_PATH, Buffer.from(db.export())); }
+function saveDb() {
+  const data = Buffer.from(db.export());
+  fs.writeFileSync(DB_PATH, data);
+  // Auto-backup: keep last 3 hourly backups
+  const now = new Date();
+  const hour = now.getHours();
+  const backupPath = DB_PATH.replace('.db', `-backup-h${hour}.db`);
+  try { fs.writeFileSync(backupPath, data); } catch(e) {}
+}
 function run(sql, p=[]) { db.run(sql, p); saveDb(); }
 function get(sql, p=[]) { const s=db.prepare(sql); s.bind(p); const r=s.step()?s.getAsObject():null; s.free(); return r; }
 function all(sql, p=[]) { const s=db.prepare(sql); s.bind(p); const r=[]; while(s.step())r.push(s.getAsObject()); s.free(); return r; }
