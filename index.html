@@ -3439,7 +3439,7 @@ function renderThemas(){
       const card=document.createElement('div');card.className='exp-card';
       const mat=t.materiaal||[];
       const hd=document.createElement('div');hd.className='exp-hd';
-      hd.onclick=(e)=>{if(e.target.tagName!=='BUTTON'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='SELECT')toggleThemaBody(t.id);};
+      hd.onclick=(e)=>{if(editingThema===t.id)return;if(e.target.tagName!=='BUTTON'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='SELECT'&&!e.target.closest('button'))toggleThemaBody(t.id);};
 
       if(editingThema===t.id){
         hd.innerHTML=`<span class="thema-swatch" style="background:${t.color}"></span>
@@ -4032,7 +4032,9 @@ loadAll()
   const r=await api('PUT','/themas/'+id,{name,color,categorie});
   if(r.error)return;
   S.themas=S.themas.map(t=>t.id===id?{...t,...r,materiaal:t.materiaal}:t);
-  editingThema=null;renderThemas();showToast('Thema opgeslagen','success');
+  editingThema=null;
+  renderThemas();
+  showToast('Thema opgeslagen','success');
 }
 
 function renderThemaCatSelect(selectedCat){
