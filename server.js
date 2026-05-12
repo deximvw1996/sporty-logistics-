@@ -67,6 +67,16 @@ async function startServer() {
   }
 
   // Migration 3: add color to transport categories, notes to locaties
+  if (schemaVersion < 6) {
+    createTableIfMissing('CREATE TABLE IF NOT EXISTS sport_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cat TEXT DEFAULT \'sport\', notities TEXT DEFAULT \'\')');
+    createTableIfMissing('CREATE TABLE IF NOT EXISTS sport_sets (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, label TEXT NOT NULL, locatie_id INTEGER, FOREIGN KEY(item_id) REFERENCES sport_items(id) ON DELETE CASCADE)');
+    createTableIfMissing('CREATE TABLE IF NOT EXISTS sport_planning (id INTEGER PRIMARY KEY AUTOINCREMENT, set_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, week INTEGER NOT NULL, UNIQUE(set_id, week), FOREIGN KEY(set_id) REFERENCES sport_sets(id) ON DELETE CASCADE)');
+    createTableIfMissing('CREATE TABLE IF NOT EXISTS gedeeld_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cat TEXT DEFAULT \'gedeeld\', totaal INTEGER DEFAULT 1, notities TEXT DEFAULT \'\')');
+    createTableIfMissing('CREATE TABLE IF NOT EXISTS gedeeld_gebruik (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, thema_id INTEGER NOT NULL, qty INTEGER DEFAULT 1, UNIQUE(item_id, thema_id), FOREIGN KEY(item_id) REFERENCES gedeeld_items(id) ON DELETE CASCADE)');
+    db.run('PRAGMA user_version = 6');
+    if (schemaVersion > 0) console.log('  Migratie 6: sport + gedeeld materiaal');
+  }
+
   if (schemaVersion < 5) {
     createTableIfMissing(`CREATE TABLE IF NOT EXISTS set_planning (id INTEGER PRIMARY KEY AUTOINCREMENT, eenheid_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, week INTEGER NOT NULL, UNIQUE(eenheid_id,week), FOREIGN KEY(eenheid_id) REFERENCES materiaal_eenheden(id) ON DELETE CASCADE)`);
     createTableIfMissing(`CREATE TABLE IF NOT EXISTS verbruik_stock (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, qty REAL NOT NULL DEFAULT 0, minimum REAL DEFAULT 0, eenheid TEXT DEFAULT 'stuks', UNIQUE(item_id,locatie_id), FOREIGN KEY(item_id) REFERENCES materiaal_items(id) ON DELETE CASCADE)`);
@@ -136,6 +146,15 @@ async function startServer() {
     CREATE TABLE IF NOT EXISTS transport_regels (id INTEGER PRIMARY KEY AUTOINCREMENT, taak_id INTEGER NOT NULL, naam TEXT NOT NULL, qty INTEGER DEFAULT 1, soort TEXT DEFAULT 'andere');
     CREATE TABLE IF NOT EXISTS set_planning (id INTEGER PRIMARY KEY AUTOINCREMENT, eenheid_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, week INTEGER NOT NULL, UNIQUE(eenheid_id,week), FOREIGN KEY(eenheid_id) REFERENCES materiaal_eenheden(id) ON DELETE CASCADE);
     CREATE TABLE IF NOT EXISTS verbruik_stock (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, qty REAL NOT NULL DEFAULT 0, minimum REAL DEFAULT 0, eenheid TEXT DEFAULT 'stuks', UNIQUE(item_id,locatie_id), FOREIGN KEY(item_id) REFERENCES materiaal_items(id) ON DELETE CASCADE);
+
+    -- SPORT MATERIAAL
+    CREATE TABLE IF NOT EXISTS sport_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cat TEXT DEFAULT 'sport', notities TEXT DEFAULT '');
+    CREATE TABLE IF NOT EXISTS sport_sets (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, label TEXT NOT NULL, locatie_id INTEGER, FOREIGN KEY(item_id) REFERENCES sport_items(id) ON DELETE CASCADE);
+    CREATE TABLE IF NOT EXISTS sport_planning (id INTEGER PRIMARY KEY AUTOINCREMENT, set_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, week INTEGER NOT NULL, UNIQUE(set_id, week), FOREIGN KEY(set_id) REFERENCES sport_sets(id) ON DELETE CASCADE);
+    -- GEDEELD MATERIAAL (blazers, ovens, frames...)
+    CREATE TABLE IF NOT EXISTS gedeeld_items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, cat TEXT DEFAULT 'gedeeld', totaal INTEGER DEFAULT 1, notities TEXT DEFAULT '');
+    CREATE TABLE IF NOT EXISTS gedeeld_gebruik (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, thema_id INTEGER NOT NULL, qty INTEGER DEFAULT 1, UNIQUE(item_id, thema_id), FOREIGN KEY(item_id) REFERENCES gedeeld_items(id) ON DELETE CASCADE);
+
     CREATE TABLE IF NOT EXISTS verbruik_log (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, delta REAL NOT NULL, reden TEXT DEFAULT '', wie TEXT DEFAULT '', transport_id INTEGER, datum TEXT DEFAULT '', created_at TEXT DEFAULT '');
   `);
 
@@ -672,6 +691,121 @@ async function startServer() {
       saveDb();
       res.json({ ok: true, count: rows.length });
     } catch(e) { res.status(500).json({ error: e.message }); }
+  });
+
+
+  // ── SPORT MATERIAAL ──
+  app.get('/api/sport', (req,res) => {
+    const items = all('SELECT * FROM sport_items ORDER BY cat, name');
+    const sets = all('SELECT ss.*, l.name as locatie_name FROM sport_sets ss LEFT JOIN locaties l ON l.id=ss.locatie_id ORDER BY ss.item_id, ss.label');
+    const planning = all('SELECT sp.*, l.name as locatie_name FROM sport_planning sp LEFT JOIN locaties l ON l.id=sp.locatie_id');
+    res.json(items.map(item => ({
+      ...item,
+      sets: sets.filter(s => s.item_id === item.id).map(s => ({
+        ...s,
+        planning: planning.filter(p => p.set_id === s.id)
+      }))
+    })));
+  });
+
+  app.post('/api/sport', (req,res) => {
+    const {name, cat, notities} = req.body;
+    if (!name) return res.status(400).json({error: 'Naam vereist'});
+    const id = ins('INSERT INTO sport_items (name,cat,notities) VALUES (?,?,?)', [name, cat||'sport', notities||'']);
+    res.json({...get('SELECT * FROM sport_items WHERE id=?', [id]), sets: []});
+  });
+  app.put('/api/sport/:id', (req,res) => {
+    const {name,cat,notities} = req.body;
+    run('UPDATE sport_items SET name=?,cat=?,notities=? WHERE id=?', [name,cat||'sport',notities||'',req.params.id]);
+    res.json(get('SELECT * FROM sport_items WHERE id=?', [req.params.id]));
+  });
+  app.delete('/api/sport/:id', (req,res) => {
+    const sets = all('SELECT id FROM sport_sets WHERE item_id=?', [req.params.id]);
+    sets.forEach(s => run('DELETE FROM sport_planning WHERE set_id=?', [s.id]));
+    run('DELETE FROM sport_sets WHERE item_id=?', [req.params.id]);
+    run('DELETE FROM sport_items WHERE id=?', [req.params.id]);
+    saveDb(); res.json({ok:true});
+  });
+
+  // Sport sets
+  app.post('/api/sport/:id/sets', (req,res) => {
+    const {label, locatie_id} = req.body;
+    if (!label) return res.status(400).json({error: 'Label vereist'});
+    const id = ins('INSERT INTO sport_sets (item_id,label,locatie_id) VALUES (?,?,?)', [req.params.id, label, locatie_id||null]);
+    saveDb();
+    res.json({...get('SELECT ss.*, l.name as locatie_name FROM sport_sets ss LEFT JOIN locaties l ON l.id=ss.locatie_id WHERE ss.id=?', [id]), planning:[]});
+  });
+  app.put('/api/sport/sets/:id', (req,res) => {
+    const {label, locatie_id} = req.body;
+    run('UPDATE sport_sets SET label=?,locatie_id=? WHERE id=?', [label, locatie_id||null, req.params.id]);
+    saveDb();
+    res.json(get('SELECT ss.*, l.name as locatie_name FROM sport_sets ss LEFT JOIN locaties l ON l.id=ss.locatie_id WHERE ss.id=?', [req.params.id]));
+  });
+  app.delete('/api/sport/sets/:id', (req,res) => {
+    run('DELETE FROM sport_planning WHERE set_id=?', [req.params.id]);
+    run('DELETE FROM sport_sets WHERE id=?', [req.params.id]);
+    saveDb(); res.json({ok:true});
+  });
+
+  // Sport planning (which set is where which week)
+  app.post('/api/sport/sets/:id/plan', (req,res) => {
+    const {week, locatie_id} = req.body;
+    if (locatie_id === null || locatie_id === undefined || locatie_id === '') {
+      run('DELETE FROM sport_planning WHERE set_id=? AND week=?', [req.params.id, week]);
+    } else {
+      run('INSERT OR REPLACE INTO sport_planning (set_id,locatie_id,week) VALUES (?,?,?)', [req.params.id, locatie_id, week]);
+    }
+    saveDb(); res.json({ok:true});
+  });
+
+  // ── GEDEELD MATERIAAL ──
+  app.get('/api/gedeeld', (req,res) => {
+    const items = all('SELECT * FROM gedeeld_items ORDER BY cat, name');
+    const gebruik = all('SELECT gg.*, t.name as thema_name FROM gedeeld_gebruik gg LEFT JOIN themas t ON t.id=gg.thema_id');
+    // Calculate conflicts per week: for each week, sum qty needed across all themas active that week
+    const kts = all('SELECT * FROM kampmoment_themas');
+    const kms = all('SELECT * FROM kampmomenten');
+    res.json(items.map(item => {
+      const g = gebruik.filter(u => u.item_id === item.id);
+      // Per week: which themas are active, how many of this item needed
+      const weekConflicts = {};
+      for (let week = 1; week <= 9; week++) {
+        const activeKms = kms.filter(km => km.week === week);
+        const activeThemas = new Set(kts.filter(kt => activeKms.some(km => km.id === kt.kampmoment_id)).map(kt => kt.thema_id));
+        const needed = g.filter(u => activeThemas.has(u.thema_id)).reduce((sum, u) => sum + u.qty, 0);
+        if (needed > 0) weekConflicts[week] = {needed, alarm: needed > item.totaal};
+      }
+      return {...item, gebruik: g, weekConflicts};
+    }));
+  });
+
+  app.post('/api/gedeeld', (req,res) => {
+    const {name, cat, totaal, notities} = req.body;
+    if (!name) return res.status(400).json({error: 'Naam vereist'});
+    const id = ins('INSERT INTO gedeeld_items (name,cat,totaal,notities) VALUES (?,?,?,?)', [name, cat||'gedeeld', totaal||1, notities||'']);
+    res.json({...get('SELECT * FROM gedeeld_items WHERE id=?', [id]), gebruik: [], weekConflicts: {}});
+  });
+  app.put('/api/gedeeld/:id', (req,res) => {
+    const {name,cat,totaal,notities} = req.body;
+    run('UPDATE gedeeld_items SET name=?,cat=?,totaal=?,notities=? WHERE id=?', [name,cat||'gedeeld',totaal||1,notities||'',req.params.id]);
+    saveDb(); res.json(get('SELECT * FROM gedeeld_items WHERE id=?', [req.params.id]));
+  });
+  app.delete('/api/gedeeld/:id', (req,res) => {
+    run('DELETE FROM gedeeld_gebruik WHERE item_id=?', [req.params.id]);
+    run('DELETE FROM gedeeld_items WHERE id=?', [req.params.id]);
+    saveDb(); res.json({ok:true});
+  });
+
+  // Gedeeld gebruik per thema
+  app.post('/api/gedeeld/:id/gebruik', (req,res) => {
+    const {thema_id, qty} = req.body;
+    run('INSERT OR REPLACE INTO gedeeld_gebruik (item_id,thema_id,qty) VALUES (?,?,?)', [req.params.id, thema_id, qty||1]);
+    saveDb();
+    res.json(get('SELECT gg.*, t.name as thema_name FROM gedeeld_gebruik gg LEFT JOIN themas t ON t.id=gg.thema_id WHERE gg.item_id=? AND gg.thema_id=?', [req.params.id, thema_id]));
+  });
+  app.delete('/api/gedeeld/:id/gebruik/:thema_id', (req,res) => {
+    run('DELETE FROM gedeeld_gebruik WHERE item_id=? AND thema_id=?', [req.params.id, req.params.thema_id]);
+    saveDb(); res.json({ok:true});
   });
 
   app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
