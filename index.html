@@ -964,16 +964,19 @@ let _invGedeeld = [];
 let _invTab = 'sport';
 
 async function renderInventarisTab(){
-  // Toon laadstatus
-  document.getElementById('inv-content').innerHTML = '<div style="padding:2rem;color:var(--text2)">Laden...</div>';
-  
-  // Laad data
-  const sportRes = await api('GET', '/sport');
-  const gedeeldRes = await api('GET', '/gedeeld');
-  _invSport = Array.isArray(sportRes) ? sportRes : [];
-  _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
-  
-  _renderInv();
+  const c = document.getElementById('inv-content');
+  if(!c){console.error('inv-content not found!');return;}
+  c.innerHTML = '<div style="padding:2rem;color:var(--text2)">Laden...</div>';
+  try {
+    const sportRes = await api('GET', '/sport');
+    const gedeeldRes = await api('GET', '/gedeeld');
+    _invSport = Array.isArray(sportRes) ? sportRes : [];
+    _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
+    _renderInv();
+  } catch(err) {
+    c.innerHTML = '<div style="padding:2rem;color:red;font-size:14px">Fout bij laden inventaris:<br><code>'+err.message+'</code><br><br>Controleer of de server de /api/sport en /api/gedeeld endpoints heeft.</div>';
+    console.error('Inventaris error:', err);
+  }
 }
 
 function _renderInv(){
@@ -2840,22 +2843,6 @@ async function addSpoedInline(){
   renderTransportenOV();
 }
 
-async function addSpoedDirect(){
-  const item=document.getElementById('sp2-item')?.value.trim();
-  const qty=parseInt(document.getElementById('sp2-qty')?.value)||1;
-  const locatie_id=document.getElementById('sp2-loc')?.value;
-  const prio=document.getElementById('sp2-prio')?.value||'hoog';
-  const note=document.getElementById('sp2-note')?.value.trim()||'';
-  if(!item){showToast('Omschrijving is verplicht','warn');return;}
-  const r=await api('POST','/spoed',{item,qty,locatie_id:parseInt(locatie_id)||null,prio,note});
-  if(r.error)return;
-  S.spoed=await api('GET','/spoed');
-  updateSpoedBadge();
-  ['sp2-item','sp2-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const qEl=document.getElementById('sp2-qty');if(qEl)qEl.value='1';
-  showToast('Spoedmelding gemeld!','success');
-  renderTransportenOV();
-}
 
 async function addSpoedDirect(){
   const item=document.getElementById('sp2-item')?.value.trim();
