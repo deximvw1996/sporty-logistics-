@@ -269,6 +269,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
     <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
     <button class="nb" onclick="goTo('transport-plan')">&#128667; Plannen</button>
     <button class="nb" onclick="goTo('transporten')">&#128202; Transporten</button>
+    <button class="nb" onclick="goTo('inventaris')">&#128230; Inventaris</button>
   </div>
 
   <div class="content">
@@ -432,7 +433,6 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       <button class="kal-subtab active" onclick="setMatSubtab('themas',this)">&#127991; Thema&apos;s</button>
       <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128450; Standaard</button>
       <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Stockage &amp; voorraad</button>
-      <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#127890; Inventaris</button>
     </div>
 
     <!-- Thema's -->
@@ -874,6 +874,463 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 </div>
 
 <script>
+// ═══════════════════════════════════════════════
+// TAB 6: INVENTARIS
+// Drie secties: Sport | Thema | Gedeeld
+// ═══════════════════════════════════════════════
+
+let invData = { sport: [], gedeeld: [] };
+let invSectie = 'sport';
+let invSportFilter = '';
+let invGedeeldFilter = '';
+
+async function loadInventaris() {
+  const [sport, gedeeld] = await Promise.all([
+    api('GET', '/sport'),
+    api('GET', '/gedeeld'),
+  ]);
+  invData.sport = sport;
+  invData.gedeeld = gedeeld;
+}
+
+async function renderInventarisTab() {
+  await loadInventaris();
+  renderInvSectie();
+  checkGedeeldAlarms();
+}
+
+function setInvSectie(sectie, btn) {
+  invSectie = sectie;
+  document.querySelectorAll('.inv-sectie-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInvSectie();
+}
+
+function renderInvSectie() {
+  ['inv-sport','inv-thema','inv-gedeeld'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const active = document.getElementById('inv-' + invSectie);
+  if (active) active.style.display = 'block';
+
+  if (invSectie === 'sport') renderInvSport();
+  else if (invSectie === 'thema') renderInvThema();
+  else if (invSectie === 'gedeeld') renderInvGedeeld();
+}
+
+// ─── SPORT MATERIAAL ───────────────────────────
+function renderInvSport() {
+  const el = document.getElementById('inv-sport-list');
+  if (!el) return;
+
+  const filtered = invData.sport.filter(item =>
+    !invSportFilter || item.cat === invSportFilter || item.name.toLowerCase().includes(invSportFilter.toLowerCase())
+  );
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">Nog geen sportmateriaal. Klik op "+ Nieuw artikel" om te starten.</div>';
+    return;
+  }
+
+  // Group by cat
+  const groups = {};
+  filtered.forEach(item => {
+    const c = item.cat || 'sport';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push(item);
+  });
+
+  el.innerHTML = '';
+  Object.entries(groups).sort().forEach(([cat, items]) => {
+    const catDiv = document.createElement('div');
+    catDiv.style.cssText = 'font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin-bottom:8px;margin-top:16px';
+    catDiv.textContent = cat;
+    el.appendChild(catDiv);
+
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.marginBottom = '.75rem';
+
+      // Header
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px';
+      const totalSets = item.sets ? item.sets.length : 0;
+      const inGebruik = item.sets ? item.sets.filter(s => s.planning && s.planning.length > 0).length : 0;
+      hdr.innerHTML = `
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${item.name}</div>
+          <div style="font-size:11px;color:var(--text2)">${totalSets} sets · ${inGebruik} ingepland</div>
+        </div>
+        <button class="btn-xs" onclick="openNieuweSportSet(${item.id},'${item.name.replace(/'/g,"\\'")}')">+ Set</button>
+        <button class="bi" style="color:var(--red)" onclick="deleteSportItem(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>
+      `;
+      card.appendChild(hdr);
+
+      // Sets grid
+      if (item.sets && item.sets.length) {
+        const grid = document.createElement('div');
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px';
+
+        item.sets.forEach(set => {
+          const setCard = document.createElement('div');
+          const hasPlanning = set.planning && set.planning.length > 0;
+          setCard.style.cssText = `border:.5px solid ${hasPlanning ? '#5DCAA5' : 'var(--border)'};border-radius:var(--rl);padding:10px;background:${hasPlanning ? '#FAFFFE' : 'var(--bg2)'}`;
+
+          // Current location
+          const curLoc = set.locatie_name || 'Stockage';
+
+          // Week planning row
+          const weeks = [1,2,3,4,5,6,7,8,9];
+          const planningHtml = weeks.map(w => {
+            const p = set.planning ? set.planning.find(pl => pl.week === w) : null;
+            return `<span onclick="toggleSportPlanning(${set.id},${w},${p ? p.locatie_id : 'null'},this)"
+              title="${p ? p.locatie_name : 'Niet ingepland'}"
+              style="display:inline-block;width:20px;height:20px;border-radius:4px;text-align:center;line-height:20px;font-size:10px;cursor:pointer;font-weight:600;background:${p ? '#1D9E75' : 'var(--border)'};color:${p ? 'white' : 'var(--text3)'}">
+              ${w}
+            </span>`;
+          }).join('');
+
+          setCard.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-size:12px;font-weight:600">${set.label}</div>
+              <button class="bi" style="color:var(--red);font-size:10px" onclick="deleteSportSet(${set.id})">✕</button>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:8px">📍 ${curLoc}</div>
+            <div style="display:flex;gap:2px;flex-wrap:wrap;margin-bottom:6px">${planningHtml}</div>
+            <button class="btn-o" style="width:100%;font-size:10px;height:24px" onclick="openSportVerplaats(${set.id},'${set.label.replace(/'/g,"\\'")}')">📦 Verplaatsen</button>
+          `;
+          grid.appendChild(setCard);
+        });
+        card.appendChild(grid);
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = 'Geen sets. Klik op "+ Set" om een set toe te voegen.';
+        card.appendChild(empty);
+      }
+      el.appendChild(card);
+    });
+  });
+}
+
+async function toggleSportPlanning(setId, week, currentLocId, el) {
+  if (currentLocId && currentLocId !== 'null') {
+    // Remove planning
+    await api('POST', '/sport/sets/' + setId + '/plan', {week, locatie_id: null});
+    el.style.background = 'var(--border)';
+    el.style.color = 'var(--text3)';
+    el.title = 'Niet ingepland';
+  } else {
+    // Pick location - show a quick select
+    const kamps = S.locaties.filter(l => l.type === 'kamp');
+    if (!kamps.length) { showToast('Geen kamplocaties', 'warn'); return; }
+    const names = kamps.map((l,i) => `${i+1}. ${l.name}`).join('\n');
+    const choice = prompt(`Week ${week} — Kies locatie:\n${names}`);
+    if (!choice) return;
+    const loc = kamps[parseInt(choice)-1];
+    if (!loc) { showToast('Ongeldige keuze', 'warn'); return; }
+    await api('POST', '/sport/sets/' + setId + '/plan', {week, locatie_id: loc.id});
+    el.style.background = '#1D9E75';
+    el.style.color = 'white';
+    el.title = loc.name;
+  }
+  // Reload to keep data fresh
+  await loadInventaris();
+}
+
+async function openNieuweSportSet(itemId, itemNaam) {
+  const label = prompt(`Naam voor nieuwe set (bv. "Voetbalzak 1"):`);
+  if (!label) return;
+  const locs = S.locaties;
+  const names = locs.map((l,i) => `${i+1}. ${l.name}`).join('\n');
+  const choice = prompt(`Huidige locatie (nummer, 0 = geen):\n${names}`);
+  const loc = (!choice || choice === '0') ? null : locs[parseInt(choice)-1];
+  await api('POST', '/sport/' + itemId + '/sets', {label, locatie_id: loc?.id || null});
+  await loadInventaris();
+  renderInvSport();
+  showToast(label + ' toegevoegd', 'success');
+}
+
+async function deleteSportItem(id, naam) {
+  if (!confirm(`"${naam}" en alle sets verwijderen?`)) return;
+  await api('DELETE', '/sport/' + id);
+  await loadInventaris();
+  renderInvSport();
+  showToast('Verwijderd', 'info');
+}
+
+async function deleteSportSet(id) {
+  if (!confirm('Set verwijderen?')) return;
+  await api('DELETE', '/sport/sets/' + id);
+  await loadInventaris();
+  renderInvSport();
+}
+
+async function openSportVerplaats(setId, label) {
+  const locs = S.locaties;
+  const names = locs.map((l,i) => `${i+1}. ${l.name} (${l.type})`).join('\n');
+  const choice = prompt(`"${label}" verplaatsen naar (nummer):\n${names}`);
+  if (!choice) return;
+  const loc = locs[parseInt(choice)-1];
+  if (!loc) { showToast('Ongeldige keuze', 'warn'); return; }
+  await api('PUT', '/sport/sets/' + setId, {label, locatie_id: loc.id});
+  await loadInventaris();
+  renderInvSport();
+  showToast(`Verplaatst naar ${loc.name}`, 'success');
+}
+
+async function addSportItem() {
+  const name = document.getElementById('sport-naam')?.value.trim();
+  const cat = document.getElementById('sport-cat')?.value || 'sport';
+  if (!name) { showToast('Naam is verplicht', 'warn'); return; }
+  await api('POST', '/sport', {name, cat});
+  document.getElementById('sport-naam').value = '';
+  await loadInventaris();
+  renderInvSport();
+  showToast(name + ' aangemaakt', 'success');
+}
+
+// ─── THEMA MATERIAAL ───────────────────────────
+function renderInvThema() {
+  const el = document.getElementById('inv-thema-list');
+  if (!el) return;
+
+  if (!S.themas || !S.themas.length) {
+    el.innerHTML = '<div class="empty">Geen themas gevonden.</div>';
+    return;
+  }
+
+  // Group themas by categorie
+  const groups = {};
+  S.themas.forEach(t => {
+    const c = t.categorie || 'Geen categorie';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push(t);
+  });
+
+  el.innerHTML = '';
+  Object.entries(groups).sort().forEach(([cat, themas]) => {
+    const catDiv = document.createElement('div');
+    catDiv.style.cssText = 'font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin-bottom:8px;margin-top:16px';
+    catDiv.textContent = cat;
+    el.appendChild(catDiv);
+
+    themas.forEach(thema => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cssText = 'margin-bottom:.5rem;cursor:pointer';
+
+      const mat = thema.materiaal || [];
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'display:flex;align-items:center;gap:10px';
+      hdr.innerHTML = `
+        <span style="width:12px;height:12px;border-radius:50%;background:${thema.color};display:inline-block;flex-shrink:0"></span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">${thema.name}</div>
+          <div style="font-size:11px;color:var(--text2)">${mat.length} materiaalitems</div>
+        </div>
+        <span style="font-size:11px;color:var(--text2)">▸</span>
+      `;
+
+      const body = document.createElement('div');
+      body.style.cssText = 'display:none;margin-top:12px;border-top:.5px solid var(--border);padding-top:10px';
+
+      if (mat.length) {
+        mat.forEach(m => {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;border-bottom:.5px solid var(--bg2)';
+          row.innerHTML = `<span style="font-weight:600;min-width:28px;color:var(--green-dk)">×${m.qty}</span><span>${m.name}</span>`;
+          body.appendChild(row);
+        });
+      } else {
+        body.innerHTML = '<div class="empty" style="font-size:11px">Geen materiaal gekoppeld aan dit thema.</div>';
+      }
+
+      hdr.onclick = () => {
+        const isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : 'block';
+        hdr.querySelector('span:last-child').textContent = isOpen ? '▸' : '▾';
+      };
+
+      card.appendChild(hdr);
+      card.appendChild(body);
+      el.appendChild(card);
+    });
+  });
+}
+
+// ─── GEDEELD MATERIAAL ─────────────────────────
+function checkGedeeldAlarms() {
+  const alarms = invData.gedeeld.filter(item =>
+    item.weekConflicts && Object.values(item.weekConflicts).some(w => w.alarm)
+  );
+  const bar = document.getElementById('inv-gedeeld-alarm');
+  if (!bar) return;
+  if (alarms.length) {
+    bar.style.display = 'flex';
+    const details = alarms.map(item => {
+      const conflictWeeks = Object.entries(item.weekConflicts)
+        .filter(([w,c]) => c.alarm)
+        .map(([w,c]) => `week ${w}: ${c.needed}/${item.totaal}`)
+        .join(', ');
+      return `${item.name} (${conflictWeeks})`;
+    }).join(' | ');
+    document.getElementById('inv-gedeeld-alarm-items').textContent = details;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function renderInvGedeeld() {
+  const el = document.getElementById('inv-gedeeld-list');
+  if (!el) return;
+
+  if (!invData.gedeeld.length) {
+    el.innerHTML = '<div class="empty">Nog geen gedeeld materiaal. Klik op "+ Nieuw artikel".</div>';
+    return;
+  }
+
+  const groups = {};
+  invData.gedeeld.forEach(item => {
+    const c = item.cat || 'gedeeld';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push(item);
+  });
+
+  el.innerHTML = '';
+  Object.entries(groups).sort().forEach(([cat, items]) => {
+    const catDiv = document.createElement('div');
+    catDiv.style.cssText = 'font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin-bottom:8px;margin-top:16px';
+    catDiv.textContent = cat;
+    el.appendChild(catDiv);
+
+    items.forEach(item => {
+      const hasAlarm = item.weekConflicts && Object.values(item.weekConflicts).some(w => w.alarm);
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.cssText = `margin-bottom:.75rem;${hasAlarm ? 'border-color:var(--red)' : ''}`;
+
+      // Header
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px';
+      hdr.innerHTML = `
+        ${hasAlarm ? '<span style="font-size:18px">⚠️</span>' : '<span style="font-size:18px">🔧</span>'}
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${item.name} ${hasAlarm ? '<span style="color:var(--red);font-size:11px">— CONFLICT</span>' : ''}</div>
+          <div style="font-size:11px;color:var(--text2)">Totaal: <strong>${item.totaal}</strong> stuks</div>
+        </div>
+        <button class="btn-xs" onclick="editGedeeldTotaal(${item.id},${item.totaal})">✏️ Aantal</button>
+        <button class="bi" style="color:var(--red)" onclick="deleteGedeeldItem(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>
+      `;
+      card.appendChild(hdr);
+
+      // Week conflict overview
+      if (item.weekConflicts && Object.keys(item.weekConflicts).length) {
+        const weekRow = document.createElement('div');
+        weekRow.style.cssText = 'display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap';
+        for (let w = 1; w <= 9; w++) {
+          const wc = item.weekConflicts[w];
+          const span = document.createElement('span');
+          span.style.cssText = `display:inline-flex;flex-direction:column;align-items:center;border-radius:6px;padding:4px 6px;font-size:10px;min-width:32px;background:${!wc ? 'var(--bg2)' : wc.alarm ? '#FEF2F2' : '#E8F9F3'};border:.5px solid ${!wc ? 'var(--border)' : wc.alarm ? '#F09595' : '#5DCAA5'}`;
+          span.innerHTML = `<span style="font-weight:700;color:${!wc ? 'var(--text3)' : wc.alarm ? 'var(--red)' : 'var(--green-dk)'}">W${w}</span>${wc ? `<span>${wc.needed}</span>` : ''}`;
+          weekRow.appendChild(span);
+        }
+        card.appendChild(weekRow);
+      }
+
+      // Gebruik per thema
+      const gebruikDiv = document.createElement('details');
+      gebruikDiv.innerHTML = `<summary style="font-size:11px;color:var(--text2);cursor:pointer">Gebruik per thema (${item.gebruik ? item.gebruik.length : 0})</summary>`;
+      const gebruikBody = document.createElement('div');
+      gebruikBody.style.marginTop = '8px';
+
+      (item.gebruik || []).forEach(g => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px';
+        row.innerHTML = `
+          <span style="flex:1">${g.thema_name || '?'}</span>
+          <input type="number" value="${g.qty}" min="1" style="width:50px" class="inp" onchange="updateGedeeldGebruik(${item.id},${g.thema_id},this.value)">
+          <button class="bi" style="color:var(--red);font-size:10px" onclick="removeGedeeldGebruik(${item.id},${g.thema_id})">✕</button>
+        `;
+        gebruikBody.appendChild(row);
+      });
+
+      // Add thema
+      const addRow = document.createElement('div');
+      addRow.style.cssText = 'display:flex;gap:6px;margin-top:8px';
+      addRow.innerHTML = `
+        <select class="sel" id="gedeeld-thema-${item.id}" style="flex:1">
+          <option value="">— Kies thema —</option>
+          ${(S.themas||[]).map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+        </select>
+        <input type="number" id="gedeeld-qty-${item.id}" value="1" min="1" style="width:60px" class="inp">
+        <button class="btn-xs" onclick="addGedeeldGebruik(${item.id})">+ Koppel</button>
+      `;
+      gebruikBody.appendChild(addRow);
+      gebruikDiv.appendChild(gebruikBody);
+      card.appendChild(gebruikDiv);
+      el.appendChild(card);
+    });
+  });
+}
+
+async function addGedeeldItem() {
+  const name = document.getElementById('gedeeld-naam')?.value.trim();
+  const cat = document.getElementById('gedeeld-cat')?.value || 'gedeeld';
+  const totaal = parseInt(document.getElementById('gedeeld-totaal')?.value) || 1;
+  if (!name) { showToast('Naam is verplicht', 'warn'); return; }
+  await api('POST', '/gedeeld', {name, cat, totaal});
+  document.getElementById('gedeeld-naam').value = '';
+  await loadInventaris();
+  renderInvGedeeld();
+  showToast(name + ' aangemaakt', 'success');
+}
+
+async function editGedeeldTotaal(id, current) {
+  const nieuw = prompt('Aantal stuks:', current);
+  if (!nieuw || isNaN(parseInt(nieuw))) return;
+  const item = invData.gedeeld.find(i => i.id === id);
+  await api('PUT', '/gedeeld/' + id, {name: item.name, cat: item.cat, totaal: parseInt(nieuw), notities: item.notities});
+  await loadInventaris();
+  renderInvGedeeld();
+  checkGedeeldAlarms();
+}
+
+async function deleteGedeeldItem(id, naam) {
+  if (!confirm(`"${naam}" verwijderen?`)) return;
+  await api('DELETE', '/gedeeld/' + id);
+  await loadInventaris();
+  renderInvGedeeld();
+  showToast('Verwijderd', 'info');
+}
+
+async function addGedeeldGebruik(itemId) {
+  const thema_id = parseInt(document.getElementById('gedeeld-thema-' + itemId)?.value);
+  const qty = parseInt(document.getElementById('gedeeld-qty-' + itemId)?.value) || 1;
+  if (!thema_id) { showToast('Kies een thema', 'warn'); return; }
+  await api('POST', '/gedeeld/' + itemId + '/gebruik', {thema_id, qty});
+  await loadInventaris();
+  renderInvGedeeld();
+  checkGedeeldAlarms();
+}
+
+async function updateGedeeldGebruik(itemId, themaId, qty) {
+  await api('POST', '/gedeeld/' + itemId + '/gebruik', {thema_id: themaId, qty: parseInt(qty)||1});
+  await loadInventaris();
+  checkGedeeldAlarms();
+}
+
+async function removeGedeeldGebruik(itemId, themaId) {
+  await api('DELETE', '/gedeeld/' + itemId + '/gebruik/' + themaId);
+  await loadInventaris();
+  renderInvGedeeld();
+  checkGedeeldAlarms();
+}
+
+
+
 async function renderThemaCatBeheer(){
   var el=document.getElementById("th-cat-list");
   if(!el)return;
@@ -1420,7 +1877,7 @@ async function addSpoed(){
 
 
 // ── NIEUWE 5-TAB ROUTING ──
-const SECS=['overzicht','planning','materiaal','transport-plan','transporten'];
+const SECS=['overzicht','planning','materiaal','transport-plan','transporten','inventaris'];
 
 function goTo(id){
   SECS.forEach(s=>{
@@ -1436,6 +1893,7 @@ function goTo(id){
     materiaal:renderMateriaal,
     'transport-plan':renderTransportPlan,
     transporten:renderTransportenOV,
+    inventaris:renderInventarisTab,
   };
   try {
     const p = renderMap[id]?.();
@@ -1483,7 +1941,7 @@ document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.i
   document.getElementById('voorraad-list').style.display='block';
   renderVoorraad();
 }
-else if(tab==='inventaris'){renderInventaris();}
+else if(tab==='inventaris'){goTo('inventaris');}
 }
 
 function setMatSubtabToMBeheer(){
@@ -3756,5 +4214,80 @@ loadAll()
     &#8681; Exporteer backup
   </button>
 </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 6: INVENTARIS
+  ═══════════════════════════════════════════════════════ -->
+  <div class="sec" id="sec-inventaris">
+    <!-- Sectie knoppen -->
+    <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
+      <button class="inv-sectie-btn ov-view-btn active" onclick="setInvSectie('sport',this)">⚽ Sportmateriaal</button>
+      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('thema',this)">🎨 Themamateriaal</button>
+      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('gedeeld',this)">🔧 Gedeeld materiaal</button>
+    </div>
+
+    <!-- SPORT -->
+    <div id="inv-sport">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Sportmateriaal — sets per locatie per week</div>
+          <div style="font-size:11px;color:var(--text2)">Klik op een weeknummer om een set in te plannen op een locatie.</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="inp" type="text" id="sport-naam" placeholder="Naam (bv. Voetbalzak)" style="width:180px">
+          <select class="sel" id="sport-cat">
+            <option value="sport">⚽ Sport</option>
+            <option value="zwembad">🏊 Zwembad</option>
+            <option value="outdoor">🌿 Outdoor</option>
+            <option value="indoor">🏠 Indoor</option>
+            <option value="andere">📦 Andere</option>
+          </select>
+          <button class="btn-g" onclick="addSportItem()">+ Nieuw artikel</button>
+        </div>
+      </div>
+      <div id="inv-sport-list"></div>
+    </div>
+
+    <!-- THEMA -->
+    <div id="inv-thema" style="display:none">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Themamateriaal — per thema</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:1rem">Materiaal dat vast bij een thema hoort. Beheer dit via Materiaal → Thema's.</div>
+      <div id="inv-thema-list"></div>
+    </div>
+
+    <!-- GEDEELD -->
+    <div id="inv-gedeeld" style="display:none">
+      <!-- Alarm bar -->
+      <div id="inv-gedeeld-alarm" style="display:none;background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px 14px;margin-bottom:.875rem;align-items:center;gap:10px">
+        <span style="font-size:18px">⚠️</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:#A32D2D">Conflict — te weinig gedeeld materiaal!</div>
+          <div id="inv-gedeeld-alarm-items" style="font-size:11px;color:#C05050"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Gedeeld materiaal — blazers, ovens, frames...</div>
+          <div style="font-size:11px;color:var(--text2)">Materiaal dat bij meerdere thema's gebruikt wordt. Alarm als er te weinig zijn die week.</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="inp" type="text" id="gedeeld-naam" placeholder="Naam (bv. Blazer)" style="width:160px">
+          <select class="sel" id="gedeeld-cat">
+            <option value="opblaas">💨 Opblaas</option>
+            <option value="keuken">🍳 Keuken</option>
+            <option value="constructie">🏗️ Constructie</option>
+            <option value="electro">🔌 Electro</option>
+            <option value="gedeeld">🔧 Andere</option>
+          </select>
+          <input class="inp" type="number" id="gedeeld-totaal" value="1" min="1" style="width:60px" placeholder="Aantal">
+          <button class="btn-g" onclick="addGedeeldItem()">+ Nieuw artikel</button>
+        </div>
+      </div>
+      <div id="inv-gedeeld-list"></div>
+    </div>
+  </div>
+
 </body>
 </html>
