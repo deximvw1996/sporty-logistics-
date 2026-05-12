@@ -432,8 +432,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       <button class="kal-subtab active" onclick="setMatSubtab('themas',this)">&#127991; Thema&apos;s</button>
       <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128450; Standaard</button>
       <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Stockage &amp; voorraad</button>
-      <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#128230; Inventaris</button>
-      
+      <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#127890; Inventaris</button>
     </div>
 
     <!-- Thema's -->
@@ -540,34 +539,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
   </div>
 
     <!-- Inventaris -->
-    <div id="mat-sub-inventaris" style="display:none">
-      <div id="inv-alarm-bar" style="display:none;background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px 14px;margin-bottom:.875rem;align-items:center;gap:10px">
-        <span style="font-size:18px">&#9888;&#65039;</span>
-        <div style="flex:1"><div style="font-size:13px;font-weight:600;color:#A32D2D">Laag voorraad alarm</div><div id="inv-alarm-items" style="font-size:11px;color:#C05050"></div></div>
-      </div>
-      <div style="display:flex;border:.5px solid var(--border2);border-radius:var(--r);overflow:hidden;width:fit-content;margin-bottom:1rem">
-        <button class="ov-view-btn active" id="inv-tab-sets" onclick="setInvTab('sets',this)">&#127890; Thema-sets</button>
-        <button class="ov-view-btn" id="inv-tab-verbruik" onclick="setInvTab('verbruik',this)">&#128230; Verbruiksstock</button>
-      </div>
-      <div id="inv-sub-sets">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.875rem">
-          <div style="font-size:12px;color:var(--text2)">Klik op een set voor locatiegeschiedenis en planning.</div>
-          <button class="btn-g" onclick="openNieuwMateriaalItem('per_stuk')">+ Nieuw item (sets)</button>
-        </div>
-        <div id="inv-sets-list"></div>
-      </div>
-      <div id="inv-sub-verbruik" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.875rem">
-          <div style="font-size:12px;color:var(--text2)">Voorraad per locatie. Transporten trekken automatisch af.</div>
-          <button class="btn-g" onclick="openNieuwMateriaalItem('verbruik')">+ Nieuw artikel</button>
-        </div>
-        <div id="inv-verbruik-list"></div>
-      </div>
-    </div>
-
-      </div>
-    </div>
-
+    <div id="mat-sub-inventaris" style="display:none"><div id="inv-content" style="min-height:100px"></div></div>
 
   <!-- ═══════════════════════════════════════════════════════
        TAB 4: TRANSPORT PLANNEN
@@ -878,538 +850,417 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 </div>
 
 <script>
-
-
-
-
-
-
-// ── INVENTARIS ──
-let _invSport = [];
-let _invGedeeld = [];
-let _invTab = 'sport';
+// ── INVENTARIS TAB ──
+let invData = { sport: [], gedeeld: [] };
+let invSectie = 'sport';
 
 async function renderInventarisTab(){
-  // Show the subtab div
-  const matInv = document.getElementById('mat-sub-inventaris');
-  if(matInv) matInv.style.display = 'block';
-  const c = document.getElementById('inv-content');
-  if(!c) return;
-  // Show loading state with tabs visible
-  c.style.display = 'block';
-  c.innerHTML = _buildTabs() + '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
+  // Show loading state
+  const sportList = document.getElementById('inv-sport-list');
+  const themaList = document.getElementById('inv-thema-list');
+  const gedeeldList = document.getElementById('inv-gedeeld-list');
+  if(sportList) sportList.innerHTML = '<div class="empty">Laden...</div>';
+
+  // Show correct sectie
+  ['inv-sport','inv-thema','inv-gedeeld'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const active=document.getElementById('inv-'+invSectie);
+  if(active) active.style.display='block';
+
+  // Load data
   try {
-    const [sportRes, gedeeldRes] = await Promise.all([
-      api('GET', '/sport'),
-      api('GET', '/gedeeld'),
+    const [sport, gedeeld] = await Promise.all([
+      api('GET','/sport'),
+      api('GET','/gedeeld'),
     ]);
-    _invSport = Array.isArray(sportRes) ? sportRes : [];
-    _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
-    _renderInv();
+    invData.sport = Array.isArray(sport) ? sport : [];
+    invData.gedeeld = Array.isArray(gedeeld) ? gedeeld : [];
   } catch(err) {
-    c.innerHTML = '<div style="padding:2rem;color:red">Fout: '+err.message+'</div>';
+    if(sportList) sportList.innerHTML = '<div class="empty" style="color:var(--red)">Fout: '+err.message+'</div>';
+    return;
   }
+
+  renderInvActief();
 }
 
-function _buildTabs(){
-  const s = _invTab==='sport', t = _invTab==='thema', g = _invTab==='gedeeld';
-  return '<div style="display:flex;gap:6px;margin-bottom:1rem">'
-    + '<button class="ov-view-btn '+(s?'active':'')+'" onclick="_setInvTab(String.fromCharCode(115,112,111,114,116))">&#9917; Sportmateriaal</button>'
-    + '<button class="ov-view-btn '+(t?'active':'')+'" onclick="_setInvTab(String.fromCharCode(116,104,101,109,97))">&#127912; Themamateriaal</button>'
-    + '<button class="ov-view-btn '+(g?'active':'')+'" onclick="_setInvTab(String.fromCharCode(103,101,100,101,101,108,100))">&#128295; Gedeeld materiaal</button>'
-    + '</div>';
-}
-
-function _renderInv(){
-  const c = document.getElementById('inv-content');
-  if(!c) return;
-  c.style.display = 'block';
-  let content = _buildTabs();
-  
-  if(_invTab === 'sport') content += _buildSport();
-  else if(_invTab === 'thema') content += _buildThema();
-  else content += _buildGedeeld();
-  
-  c.innerHTML = content;
-}
-
-function _setInvTab(tab){
-  _invTab = tab;
-  _renderInv();
-}
-
-function _buildSport(){
-  let h = `<div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
-    <div style="display:flex;gap:6px;align-items:center">
-      <input class="inp" type="text" id="inv-s-naam" placeholder="Naam artikel (bv. Voetbalzak)" style="width:200px">
-      <select class="sel" id="inv-s-cat">
-        <option value="sport">⚽ Sport</option>
-        <option value="zwembad">🏊 Zwembad</option>
-        <option value="outdoor">🌿 Outdoor</option>
-        <option value="andere">📦 Andere</option>
-      </select>
-      <button class="btn-g" onclick="_addSport()">+ Artikel</button>
-    </div>
-  </div>`;
-  
-  if(!_invSport.length) return h + '<div class="empty">Nog geen sportmateriaal. Voeg een artikel toe.</div>';
-  
-  // Groepeer per categorie
-  const groups = {};
-  _invSport.forEach(item => {
-    const c = item.cat || 'andere';
-    if(!groups[c]) groups[c] = [];
-    groups[c].push(item);
+function renderInvActief(){
+  ['inv-sport','inv-thema','inv-gedeeld'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
   });
-  
-  Object.entries(groups).sort().forEach(([cat, items]) => {
-    h += `<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:10px 0 4px;border-bottom:.5px solid var(--border);margin-bottom:8px">${cat}</div>`;
-    items.forEach(item => {
-      const sets = item.sets || [];
-      h += `<div class="card" style="margin-bottom:.75rem">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:${sets.length?'12px':'0'}">
-          <div style="flex:1">
-            <div style="font-size:14px;font-weight:600">${item.name}</div>
-            <div style="font-size:11px;color:var(--text2)">${sets.length} sets</div>
+  const active=document.getElementById('inv-'+invSectie);
+  if(active) active.style.display='block';
+
+  if(invSectie==='sport') renderInvSport();
+  else if(invSectie==='thema') renderInvThema();
+  else if(invSectie==='gedeeld') renderInvGedeeld();
+}
+
+function setInvSectie(sectie,btn){
+  invSectie=sectie;
+  document.querySelectorAll('.inv-sectie-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderInvActief();
+}
+
+// ── SPORT ──
+function renderInvSport(){
+  const el=document.getElementById('inv-sport-list');
+  if(!el) return;
+  if(!invData.sport.length){
+    el.innerHTML='<div class="empty">Nog geen sportmateriaal. Voeg een artikel toe via de knop hierboven.</div>';
+    return;
+  }
+  el.innerHTML='';
+  invData.sport.forEach(item=>{
+    const sets=item.sets||[];
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.marginBottom='.75rem';
+
+    // Header
+    card.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${sets.length?'12px':'0'}">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${item.name}</div>
+          <div style="font-size:11px;color:var(--text2)">${sets.length} sets · categorie: ${item.cat||'sport'}</div>
+        </div>
+        <button class="btn-xs" onclick="invAddSet(${item.id},'${item.name.replace(/'/g,"\\'")}')">+ Set</button>
+        <button class="bi" style="color:var(--red)" onclick="invDeleteSport(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>
+      </div>`;
+
+    if(sets.length){
+      const grid=document.createElement('div');
+      grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px';
+      sets.forEach(set=>{
+        const planned=set.planning&&set.planning.length>0;
+        const sc=document.createElement('div');
+        sc.style.cssText=`border:.5px solid ${planned?'#5DCAA5':'var(--border)'};border-radius:var(--rl);padding:10px;background:${planned?'#FAFFFE':'var(--bg2)'}`;
+        
+        // Week badges
+        const weeks=[1,2,3,4,5,6,7,8,9];
+        const weekBadges=weeks.map(w=>{
+          const p=set.planning?set.planning.find(pl=>pl.week===w):null;
+          return `<span onclick="invToggleWeek(${set.id},${w},${p?p.locatie_id:'null'})" title="${p?p.locatie_name:'Niet ingepland'}" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:${p?'var(--green-dk)':'var(--border)'};color:${p?'white':'var(--text3)'}">${w}</span>`;
+        }).join('');
+
+        sc.innerHTML=`
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:600">${set.label}</span>
+            <button class="bi" style="font-size:10px;color:var(--red)" onclick="invDeleteSet(${set.id})">✕</button>
           </div>
-          <button class="btn-xs" onclick="_addSet(${item.id},'${item.name.replace(/'/g,"\'")}')">+ Set</button>
-          <button class="bi" style="color:var(--red)" onclick="_delSport(${item.id},'${item.name.replace(/'/g,"\'")}')">🗑️</button>
-        </div>`;
-      
-      if(sets.length){
-        h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">';
-        sets.forEach(set => {
-          const planned = set.planning && set.planning.length > 0;
-          const weeks = [1,2,3,4,5,6,7,8,9].map(w => {
-            const p = set.planning ? set.planning.find(pl=>pl.week===w) : null;
-            return `<span onclick="_togWeek(${set.id},${w},${p?p.locatie_id:'null'})" title="${p?p.locatie_name:'—'}" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:${p?'var(--green-dk)':'var(--border)'};color:${p?'white':'var(--text3)'}">${w}</span>`;
-          }).join('');
-          h += `<div style="border:.5px solid ${planned?'#5DCAA5':'var(--border)'};border-radius:var(--rl);padding:10px;background:${planned?'#FAFFFE':'var(--bg2)'}">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <span style="font-size:12px;font-weight:600">${set.label}</span>
-              <button class="bi" style="font-size:10px;color:var(--red)" onclick="_delSet(${set.id})">✕</button>
-            </div>
-            <div style="font-size:11px;color:var(--text2);margin-bottom:7px">📍 ${set.locatie_name||'Stockage'}</div>
-            <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">${weeks}</div>
-            <button class="btn-o" style="width:100%;font-size:10px;height:26px" onclick="_verplaatsSet(${set.id},'${set.label.replace(/'/g,"\'")}')">📦 Verplaatsen</button>
-          </div>`;
-        });
-        h += '</div>';
-      }
-      h += '</div>';
-    });
+          <div style="font-size:11px;color:var(--text2);margin-bottom:7px">📍 ${set.locatie_name||'Stockage'}</div>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">${weekBadges}</div>
+          <button class="btn-o" style="width:100%;font-size:10px;height:26px" onclick="invVerplaatsSet(${set.id},'${set.label.replace(/'/g,"\\'")}')">📦 Verplaatsen</button>`;
+        grid.appendChild(sc);
+      });
+      card.appendChild(grid);
+    }
+    el.appendChild(card);
   });
-  return h;
 }
 
-async function _addSport(){
-  const name = document.getElementById('inv-s-naam')?.value.trim();
-  const cat = document.getElementById('inv-s-cat')?.value || 'sport';
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/sport',{name,cat});
-  _invSport = await api('GET','/sport');
-  _renderInv();
-  showToast(name+' aangemaakt','success');
-}
-
-async function _delSport(id,naam){
-  if(!confirm('"'+naam+'" verwijderen?'))return;
-  await api('DELETE','/sport/'+id);
-  _invSport = await api('GET','/sport');
-  _renderInv();
-}
-
-async function _addSet(itemId,naam){
-  const label = prompt('Naam voor nieuwe set (bv. "Voetbalzak 1"):');
-  if(!label)return;
-  await api('POST','/sport/'+itemId+'/sets',{label,locatie_id:null});
-  _invSport = await api('GET','/sport');
-  _renderInv();
-  showToast(label+' toegevoegd','success');
-}
-
-async function _delSet(id){
-  if(!confirm('Set verwijderen?'))return;
-  await api('DELETE','/sport/sets/'+id);
-  _invSport = await api('GET','/sport');
-  _renderInv();
-}
-
-async function _togWeek(setId,week,currentLocId){
-  if(currentLocId && currentLocId !== 'null'){
+async function invToggleWeek(setId,week,currentLocId){
+  if(currentLocId&&currentLocId!=='null'){
     await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:null});
   } else {
-    const kamps = S.locaties.filter(l=>l.type==='kamp');
+    const kamps=S.locaties.filter(l=>l.type==='kamp');
     if(!kamps.length){showToast('Geen kamplocaties','warn');return;}
-    const keuze = prompt('Week '+week+' inplannen op:\n'+kamps.map((l,i)=>(i+1)+'. '+l.name).join('\n'));
-    if(!keuze)return;
-    const loc = kamps[parseInt(keuze)-1];
+    const names=kamps.map((l,i)=>`${i+1}. ${l.name}`).join('\n');
+    const choice=prompt('Week '+week+' — Kies locatie:\n'+names);
+    if(!choice)return;
+    const loc=kamps[parseInt(choice)-1];
     if(!loc){showToast('Ongeldige keuze','warn');return;}
     await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:loc.id});
   }
-  _invSport = await api('GET','/sport');
-  _renderInv();
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
 }
 
-async function _verplaatsSet(setId,label){
-  const locs = S.locaties;
-  const keuze = prompt('"'+label+'" verplaatsen naar:\n'+locs.map((l,i)=>(i+1)+'. '+l.name+' ('+l.type+')').join('\n'));
-  if(!keuze)return;
-  const loc = locs[parseInt(keuze)-1];
-  if(!loc){showToast('Ongeldige keuze','warn');return;}
-  await api('PUT','/sport/sets/'+setId,{label,locatie_id:loc.id});
-  _invSport = await api('GET','/sport');
-  _renderInv();
-  showToast('Verplaatst naar '+loc.name,'success');
+async function invAddSet(itemId,itemNaam){
+  const label=prompt('Naam voor nieuwe set (bv. "Voetbalzak 1"):');
+  if(!label)return;
+  await api('POST','/sport/'+itemId+'/sets',{label,locatie_id:null});
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+  showToast(label+' toegevoegd','success');
 }
 
-function _buildThema(){
-  if(!S.themas||!S.themas.length) return '<div class="empty">Geen themas. Voeg toe via Materiaal → Themas.</div>';
-  
-  const groups = {};
-  S.themas.forEach(t=>{
-    const c = t.categorie||'Geen categorie';
-    if(!groups[c])groups[c]=[];
-    groups[c].push(t);
-  });
-  
-  let h = '';
-  Object.entries(groups).sort().forEach(([cat,themas])=>{
-    h += `<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:10px 0 4px;border-bottom:.5px solid var(--border);margin-bottom:8px">${cat}</div>`;
-    themas.forEach(t=>{
-      const mat = t.materiaal||[];
-      const id = 'inv-th-'+t.id;
-      h += `<div class="card" style="margin-bottom:.5rem">
-        <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="document.getElementById('${id}').style.display=document.getElementById('${id}').style.display==='none'?'block':'none'">
-          <span style="width:12px;height:12px;border-radius:50%;background:${t.color};display:inline-block;flex-shrink:0"></span>
-          <div style="flex:1"><div style="font-size:13px;font-weight:600">${t.name}</div><div style="font-size:11px;color:var(--text2)">${mat.length} items</div></div>
-          <span style="font-size:11px;color:var(--text2)">▸</span>
-        </div>
-        <div id="${id}" style="display:none;margin-top:10px;border-top:.5px solid var(--border);padding-top:8px">
-          ${mat.length ? mat.map(m=>`<div style="display:flex;gap:8px;padding:3px 0;font-size:12px"><span style="font-weight:600;min-width:28px;color:var(--green-dk)">×${m.qty}</span><span>${m.name}</span></div>`).join('') : '<div style="font-size:11px;color:var(--text2)">Geen materiaal gekoppeld.</div>'}
-        </div>
-      </div>`;
-    });
-  });
-  return h;
-}
-
-function _buildGedeeld(){
-  const alarms = _invGedeeld.filter(i=>i.weekConflicts&&Object.values(i.weekConflicts).some(w=>w.alarm));
-  let h = '';
-  
-  if(alarms.length){
-    h += `<div style="background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px 14px;margin-bottom:.875rem;display:flex;align-items:center;gap:10px">
-      <span style="font-size:18px">⚠️</span>
-      <div><div style="font-size:13px;font-weight:600;color:#A32D2D">Conflict — te weinig materiaal!</div>
-      <div style="font-size:11px;color:#C05050">${alarms.map(i=>{const weeks=Object.entries(i.weekConflicts).filter(([w,c])=>c.alarm).map(([w,c])=>'week '+w+': '+c.needed+'/'+i.totaal).join(', ');return i.name+' ('+weeks+')'}).join(' | ')}</div></div>
-    </div>`;
-  }
-  
-  h += `<div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">
-    <div style="display:flex;gap:6px;align-items:center">
-      <input class="inp" type="text" id="inv-g-naam" placeholder="Naam (bv. Blazer)" style="width:160px">
-      <select class="sel" id="inv-g-cat">
-        <option value="opblaas">💨 Opblaas</option>
-        <option value="keuken">🍳 Keuken</option>
-        <option value="constructie">🏗️ Constructie</option>
-        <option value="gedeeld">🔧 Andere</option>
-      </select>
-      <input class="inp" type="number" id="inv-g-totaal" value="1" min="1" style="width:60px" placeholder="Aantal">
-      <button class="btn-g" onclick="_addGedeeld()">+ Artikel</button>
-    </div>
-  </div>`;
-  
-  if(!_invGedeeld.length) return h + '<div class="empty">Nog geen gedeeld materiaal.</div>';
-  
-  _invGedeeld.forEach(item=>{
-    const alarm = item.weekConflicts&&Object.values(item.weekConflicts).some(w=>w.alarm);
-    h += `<div class="card" style="margin-bottom:.75rem;${alarm?'border-color:var(--red)':''}">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <span style="font-size:18px">${alarm?'⚠️':'🔧'}</span>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:600">${item.name}${alarm?' <span style="color:var(--red);font-size:11px">— CONFLICT</span>':''}</div>
-          <div style="font-size:11px;color:var(--text2)">Totaal: <strong>${item.totaal}</strong> stuks</div>
-        </div>
-        <button class="btn-xs" onclick="_editTotaal(${item.id},${item.totaal},'${item.name.replace(/'/g,"\'")}','${item.cat||'gedeeld'}')">✏️ Aantal</button>
-        <button class="bi" style="color:var(--red)" onclick="_delGedeeld(${item.id},'${item.name.replace(/'/g,"\'")}')">🗑️</button>
-      </div>`;
-    
-    // Weekoverzicht
-    if(item.weekConflicts&&Object.keys(item.weekConflicts).length){
-      h += '<div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">';
-      for(let w=1;w<=9;w++){
-        const wc=item.weekConflicts[w];
-        h += `<span style="display:inline-flex;flex-direction:column;align-items:center;border-radius:6px;padding:4px 6px;font-size:10px;min-width:34px;background:${!wc?'var(--bg2)':wc.alarm?'#FEF2F2':'#E8F9F3'};border:.5px solid ${!wc?'var(--border)':wc.alarm?'#F09595':'#5DCAA5'}"><span style="font-weight:700;color:${!wc?'var(--text3)':wc.alarm?'var(--red)':'var(--green-dk)'}">W${w}</span>${wc?'<span>'+wc.needed+'</span>':''}</span>`;
-      }
-      h += '</div>';
-    }
-    
-    // Gebruik per thema
-    h += `<details><summary style="font-size:11px;color:var(--text2);cursor:pointer">Gebruik per thema (${item.gebruik?item.gebruik.length:0})</summary><div style="margin-top:8px">`;
-    (item.gebruik||[]).forEach(g=>{
-      h += `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
-        <span style="flex:1">${g.thema_name||'?'}</span>
-        <input type="number" value="${g.qty}" min="1" style="width:50px" class="inp" onchange="_updGebruik(${item.id},${g.thema_id},this.value)">
-        <button class="bi" style="color:var(--red);font-size:10px" onclick="_delGebruik(${item.id},${g.thema_id})">✕</button>
-      </div>`;
-    });
-    h += `<div style="display:flex;gap:6px;margin-top:8px">
-      <select class="sel" id="gsel-${item.id}" style="flex:1"><option value="">— Kies thema —</option>
-      ${(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
-      </select>
-      <input type="number" id="gqty-${item.id}" value="1" min="1" style="width:60px" class="inp">
-      <button class="btn-xs" onclick="_addGebruik(${item.id})">+ Koppel</button>
-    </div></div></details></div>`;
-  });
-  return h;
-}
-
-async function _addGedeeld(){
-  const name=document.getElementById('inv-g-naam')?.value.trim();
-  const cat=document.getElementById('inv-g-cat')?.value||'gedeeld';
-  const totaal=parseInt(document.getElementById('inv-g-totaal')?.value)||1;
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/gedeeld',{name,cat,totaal});
-  _invGedeeld=await api('GET','/gedeeld');
-  _renderInv();
-  showToast(name+' aangemaakt','success');
-}
-
-async function _editTotaal(id,current,naam,cat){
-  const nieuw=prompt('Aantal stuks:',current);
-  if(!nieuw||isNaN(parseInt(nieuw)))return;
-  await api('PUT','/gedeeld/'+id,{name:naam,cat,totaal:parseInt(nieuw)});
-  _invGedeeld=await api('GET','/gedeeld');
-  _renderInv();
-}
-
-async function _delGedeeld(id,naam){
-  if(!confirm('"'+naam+'" verwijderen?'))return;
-  await api('DELETE','/gedeeld/'+id);
-  _invGedeeld=await api('GET','/gedeeld');
-  _renderInv();
+async function invDeleteSport(id,naam){
+  if(!confirm('"'+naam+'" en alle sets verwijderen?'))return;
+  await api('DELETE','/sport/'+id);
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
   showToast('Verwijderd','info');
 }
 
-async function _addGebruik(itemId){
-  const thema_id=parseInt(document.getElementById('gsel-'+itemId)?.value);
-  const qty=parseInt(document.getElementById('gqty-'+itemId)?.value)||1;
-  if(!thema_id){showToast('Kies een thema','warn');return;}
-  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id,qty});
-  _invGedeeld=await api('GET','/gedeeld');
-  _renderInv();
+async function invDeleteSet(id){
+  if(!confirm('Set verwijderen?'))return;
+  await api('DELETE','/sport/sets/'+id);
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
 }
 
-async function _updGebruik(itemId,themaId,qty){
-  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id:themaId,qty:parseInt(qty)||1});
-  _invGedeeld=await api('GET','/gedeeld');
+async function invVerplaatsSet(setId,label){
+  const locs=S.locaties;
+  const names=locs.map((l,i)=>`${i+1}. ${l.name} (${l.type})`).join('\n');
+  const choice=prompt('"'+label+'" verplaatsen naar:\n'+names);
+  if(!choice)return;
+  const loc=locs[parseInt(choice)-1];
+  if(!loc){showToast('Ongeldige keuze','warn');return;}
+  await api('PUT','/sport/sets/'+setId,{label,locatie_id:loc.id});
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+  showToast('Verplaatst naar '+loc.name,'success');
 }
 
-async function _delGebruik(itemId,themaId){
-  await api('DELETE','/gedeeld/'+itemId+'/gebruik/'+themaId);
-  _invGedeeld=await api('GET','/gedeeld');
-  _renderInv();
+async function invAddSport(){
+  const name=document.getElementById('inv-sport-naam')?.value.trim();
+  const cat=document.getElementById('inv-sport-cat')?.value||'sport';
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  await api('POST','/sport',{name,cat});
+  document.getElementById('inv-sport-naam').value='';
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+  showToast(name+' aangemaakt','success');
 }
 
-
-
-
-
-
-
-
-
-
-
-async function renderThemaCatBeheer(){
-  var el=document.getElementById("th-cat-list");
+// ── THEMA ──
+function renderInvThema(){
+  const el=document.getElementById('inv-thema-list');
   if(!el)return;
-  S_thema_cats=await api("GET","/thema-categorieen");
-  document.querySelectorAll(".th-cat-sel").forEach(function(sel){var cur=sel.value;sel.innerHTML=renderThemaCatSelect(cur);});
-  if(!S_thema_cats.length){el.innerHTML="<span style='font-size:12px;color:var(--text2)'>Nog geen categorieën.</span>";return;}
-  el.innerHTML="";
-  S_thema_cats.forEach(function(c){
-    var span=document.createElement("span");
-    span.className="pill p-gray";
-    span.style.cssText="padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:5px;margin:2px";
-    span.textContent=c.name+" ";
-    var btn=document.createElement("button");
-    btn.style.cssText="background:transparent;border:none;cursor:pointer;color:var(--text3);font-size:11px";
-    btn.title="Verwijderen";btn.textContent="x";
-    btn.onclick=function(){deleteThemaCat(c.id,c.name);};
-    span.appendChild(btn);
-    el.appendChild(span);
-  });
-}
-
-
-// ── EXPORT / IMPORT ──
-async function exportData(){
-  try {
-    const r = await fetch('/api/export');
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'sporty-backup-' + new Date().toISOString().split('T')[0] + '.json';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Backup gedownload!', 'success');
-  } catch(e) {
-    showToast('Export mislukt: ' + e.message, 'error');
-  }
-}
-
-async function importData(){
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = async (ev) => {
-    const file = ev.target.files[0];
-    if (!file) return;
-    if (!confirm('Alle huidige data wordt vervangen door de backup. Doorgaan?')) return;
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      showToast('Bezig met importeren...', 'info');
-      // Stuur tabel per tabel
-      const tables = ['locaties','thema_categorieen','themas','thema_materiaal',
-        'standaard_materiaal','kampmomenten','kampmoment_themas','kalender_dagen',
-        'gesloten_dagen','spoedmeldingen','locatie_materiaal','materiaal_items',
-        'materiaal_eenheden','verplaatsingen','set_planning','verbruik_stock',
-        'verbruik_log','transport_taken','transport_regels','chauffeurs','ploeg_shifts'];
-      // Stuur eerst een reset
-      const reset = await api('POST', '/import/reset', {});
-      if (reset.error) { showToast('Reset mislukt: ' + reset.error, 'error'); return; }
-      // Dan elke tabel apart
-      for (const table of tables) {
-        if (!data[table] || !data[table].length) continue;
-        const r = await api('POST', '/import/tabel', { table, rows: data[table] });
-        if (r && r.error) { showToast('Fout bij ' + table + ': ' + r.error, 'error'); return; }
-      }
-      showToast('Import geslaagd! Pagina herladen...', 'success');
-      setTimeout(() => location.reload(), 1500);
-    } catch(e) {
-      showToast('Import mislukt: ' + e.message, 'error');
-    }
-  };
-  input.click();
-}
-
-// ── INVENTARIS SYSTEEM ──
-let invSetsData = [];
-let invVerbruikData = [];
-let invTab = 'sets';
-
-function openModal(id){document.getElementById(id).classList.add('open');}
-
-
-function setInvTab(tab, btn){
-  invTab = tab;
-  document.querySelectorAll('#inv-sub-sets,#inv-sub-verbruik').forEach(el=>el.style.display='none');
-  document.getElementById('inv-sub-'+tab).style.display='block';
-  document.querySelectorAll('#inv-tab-sets,#inv-tab-verbruik').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  if(tab==='sets') renderInvSets();
-  else renderInvVerbruik();
-}
-
-async function renderInventaris(){
-  await Promise.all([loadInvSets(), loadInvVerbruik()]);
-  if(invTab==='sets') renderInvSets();
-  else renderInvVerbruik();
-  checkAlarms();
-}
-
-async function loadInvSets(){ invSetsData = await api('GET','/inventaris/sets'); }
-async function loadInvVerbruik(){ invVerbruikData = await api('GET','/verbruik'); }
-
-function checkAlarms(){
-  const alarms = invVerbruikData.filter(item=>item.alarm);
-  const bar = document.getElementById('inv-alarm-bar');
-  if(!bar) return;
-  if(alarms.length){
-    bar.style.display='flex';
-    document.getElementById('inv-alarm-items').textContent =
-      alarms.map(a=>{
-        const laag = a.stock.filter(s=>s.qty<=s.minimum&&s.minimum>0);
-        return laag.map(s=>`${a.name}: ${s.qty} ${s.eenheid} op ${s.locatie_name} (min ${s.minimum})`).join(', ');
-      }).join(' | ');
-  } else {
-    bar.style.display='none';
-  }
-}
-
-// ── THEMA-SETS ──
-function renderInvSets(){
-  const el = document.getElementById('inv-sets-list');
-  if(!el) return;
-  if(!invSetsData.length){
-    el.innerHTML='<div class="empty">Nog geen thema-materiaal met sets. Klik op "+ Nieuw item" om te starten.</div>';
+  if(!S.themas||!S.themas.length){
+    el.innerHTML='<div class="empty">Geen themas gevonden. Voeg themas toe via Materiaal → Themas.</div>';
     return;
   }
-  // Group by cat
-  const groups = {};
-  invSetsData.forEach(item=>{
-    const c = item.cat||'andere';
-    if(!groups[c]) groups[c]=[];
-    groups[c].push(item);
+  const groups={};
+  S.themas.forEach(t=>{
+    const c=t.categorie||'Geen categorie';
+    if(!groups[c])groups[c]=[];
+    groups[c].push(t);
   });
-  const catLabel = {sport:'⚽ Sport',keuken:'🍳 Keuken',audio:'🔊 Audio',slaap:'🛏 Slaap',ehbo:'🏥 EHBO',andere:'📦 Andere'};
-  el.innerHTML = '';
-  Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([cat,items])=>{
-    const catHdr = document.createElement('div');
-    catHdr.style.cssText='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin-bottom:6px';
-    catHdr.textContent = catLabel[cat]||cat;
-    el.appendChild(catHdr);
-    items.forEach(item=>{
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.marginBottom = '.5rem';
-      // Header row
-      const hdr = document.createElement('div');
-      hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:10px';
-      const sets = item.sets||[];
-      const locs = [...new Set(sets.map(s=>s.locatie_name||'Stockage'))];
-      hdr.innerHTML = `<div style="flex:1">
-        <div style="font-size:14px;font-weight:600">${item.name}</div>
-        <div style="font-size:11px;color:var(--text2)">${sets.length} sets beschikbaar · ${locs.join(', ')||'geen locatie'}</div>
-      </div>
-      <button class="btn-g" style="font-size:11px;height:28px" onclick="openNieuwSet(${item.id},'${item.name.replace(/'/g,"\\'")}')">+ Set toevoegen</button>
-      <button class="bi" style="color:var(--red)" onclick="deleteMatItem(${item.id})">🗑️</button>`;
-      card.appendChild(hdr);
-      // Sets grid
-      if(sets.length){
-        const grid = document.createElement('div');
-        grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px';
-        sets.forEach(set=>{
-          const setCard = document.createElement('div');
-          const isStockage = !set.locatie_id || (S.locaties.find(l=>l.id===set.locatie_id)?.type==='stockage');
-          setCard.style.cssText=`border:.5px solid ${isStockage?'var(--border2)':'#5DCAA5'};border-radius:var(--rl);padding:10px;cursor:pointer;background:${isStockage?'var(--bg2)':'#FAFFFE'};transition:box-shadow .15s`;
-          setCard.onmouseenter=()=>setCard.style.boxShadow='0 2px 8px rgba(0,0,0,.1)';
-          setCard.onmouseleave=()=>setCard.style.boxShadow='';
-          setCard.innerHTML=`
-            <div style="font-size:12px;font-weight:600;margin-bottom:4px">${set.label||('Set '+(sets.indexOf(set)+1))}</div>
-            <div style="font-size:11px;color:${isStockage?'var(--text2)':'var(--green-dk)'}">📍 ${set.locatie_name||'Stockage'}</div>
-            ${set.planning?.length?`<div style="font-size:10px;color:var(--text2);margin-top:4px">📅 Week ${set.planning.map(p=>p.week+' → '+p.locatie_name).join(', ')}</div>`:''}
-          `;
-          setCard.onclick=()=>openSetDetail(item, set);
-          const moveBtn = document.createElement('button');
-          moveBtn.className='btn-o';moveBtn.style.cssText='width:100%;margin-top:8px;font-size:10px;height:24px';
-          moveBtn.textContent='📦 Verplaatsen';
-          moveBtn.onclick=e=>{e.stopPropagation();openSetVerplaats(set);};
-          setCard.appendChild(moveBtn);
-          grid.appendChild(setCard);
+  el.innerHTML='';
+  Object.entries(groups).sort().forEach(([cat,themas])=>{
+    const catDiv=document.createElement('div');
+    catDiv.style.cssText='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin:12px 0 8px';
+    catDiv.textContent=cat;
+    el.appendChild(catDiv);
+    themas.forEach(thema=>{
+      const mat=thema.materiaal||[];
+      const card=document.createElement('div');
+      card.className='card';
+      card.style.cssText='margin-bottom:.5rem;cursor:pointer';
+      const hdr=document.createElement('div');
+      hdr.style.cssText='display:flex;align-items:center;gap:10px';
+      hdr.innerHTML=`<span style="width:12px;height:12px;border-radius:50%;background:${thema.color};display:inline-block;flex-shrink:0"></span><div style="flex:1"><div style="font-size:13px;font-weight:600">${thema.name}</div><div style="font-size:11px;color:var(--text2)">${mat.length} items</div></div><span style="font-size:11px;color:var(--text2)">▸</span>`;
+      const body=document.createElement('div');
+      body.style.cssText='display:none;margin-top:10px;border-top:.5px solid var(--border);padding-top:8px';
+      if(mat.length){
+        mat.forEach(m=>{
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;gap:8px;padding:3px 0;font-size:12px';
+          row.innerHTML=`<span style="font-weight:600;min-width:28px;color:var(--green-dk)">×${m.qty}</span><span>${m.name}</span>`;
+          body.appendChild(row);
         });
-        card.appendChild(grid);
       } else {
-        const empty=document.createElement('div');empty.className='empty';empty.textContent='Geen sets aangemaakt.';card.appendChild(empty);
+        body.innerHTML='<div style="font-size:11px;color:var(--text2)">Geen materiaal gekoppeld.</div>';
       }
+      hdr.onclick=()=>{
+        const open=body.style.display!=='none';
+        body.style.display=open?'none':'block';
+        hdr.querySelector('span:last-child').textContent=open?'▸':'▾';
+      };
+      card.appendChild(hdr);card.appendChild(body);
       el.appendChild(card);
     });
   });
 }
+
+// ── GEDEELD ──
+function renderInvGedeeld(){
+  const el=document.getElementById('inv-gedeeld-list');
+  if(!el)return;
+  
+  // Check alarms
+  const alarms=invData.gedeeld.filter(item=>item.weekConflicts&&Object.values(item.weekConflicts).some(w=>w.alarm));
+  const bar=document.getElementById('inv-gedeeld-alarm');
+  if(bar){
+    bar.style.display=alarms.length?'flex':'none';
+    const detail=document.getElementById('inv-gedeeld-alarm-items');
+    if(detail&&alarms.length){
+      detail.textContent=alarms.map(item=>{
+        const weeks=Object.entries(item.weekConflicts).filter(([w,c])=>c.alarm).map(([w,c])=>'week '+w+': '+c.needed+'/'+item.totaal).join(', ');
+        return item.name+' ('+weeks+')';
+      }).join(' | ');
+    }
+  }
+
+  if(!invData.gedeeld.length){
+    el.innerHTML='<div class="empty">Nog geen gedeeld materiaal. Voeg een artikel toe.</div>';
+    return;
+  }
+  el.innerHTML='';
+  invData.gedeeld.forEach(item=>{
+    const alarm=item.weekConflicts&&Object.values(item.weekConflicts).some(w=>w.alarm);
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.cssText='margin-bottom:.75rem;'+(alarm?'border-color:var(--red)':'');
+    
+    // Header
+    const hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:10px';
+    hdr.innerHTML=`${alarm?'<span style="font-size:18px">⚠️</span>':'<span style="font-size:18px">🔧</span>'}<div style="flex:1"><div style="font-size:14px;font-weight:600">${item.name}${alarm?' <span style="color:var(--red);font-size:11px">— CONFLICT</span>':''}</div><div style="font-size:11px;color:var(--text2)">Totaal: <strong>${item.totaal}</strong> stuks</div></div><button class="btn-xs" onclick="invEditTotaal(${item.id},${item.totaal},'${item.name.replace(/'/g,"\\'")}','${item.cat||'gedeeld'}')">✏️</button><button class="bi" style="color:var(--red)" onclick="invDeleteGedeeld(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>`;
+    card.appendChild(hdr);
+
+    // Week overview
+    if(item.weekConflicts&&Object.keys(item.weekConflicts).length){
+      const weekRow=document.createElement('div');
+      weekRow.style.cssText='display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap';
+      for(let w=1;w<=9;w++){
+        const wc=item.weekConflicts[w];
+        const sp=document.createElement('span');
+        sp.style.cssText=`display:inline-flex;flex-direction:column;align-items:center;border-radius:6px;padding:4px 6px;font-size:10px;min-width:34px;background:${!wc?'var(--bg2)':wc.alarm?'#FEF2F2':'#E8F9F3'};border:.5px solid ${!wc?'var(--border)':wc.alarm?'#F09595':'#5DCAA5'}`;
+        sp.innerHTML=`<span style="font-weight:700;color:${!wc?'var(--text3)':wc.alarm?'var(--red)':'var(--green-dk)'}">W${w}</span>${wc?'<span>'+wc.needed+'</span>':''}`;
+        weekRow.appendChild(sp);
+      }
+      card.appendChild(weekRow);
+    }
+
+    // Gebruik per thema
+    const details=document.createElement('details');
+    details.innerHTML=`<summary style="font-size:11px;color:var(--text2);cursor:pointer">Gebruik per thema (${item.gebruik?item.gebruik.length:0})</summary>`;
+    const body=document.createElement('div');
+    body.style.marginTop='8px';
+    (item.gebruik||[]).forEach(g=>{
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px';
+      row.innerHTML=`<span style="flex:1">${g.thema_name||'?'}</span><input type="number" value="${g.qty}" min="1" style="width:50px" class="inp" onchange="invUpdateGebruik(${item.id},${g.thema_id},this.value)"><button class="bi" style="color:var(--red);font-size:10px" onclick="invRemoveGebruik(${item.id},${g.thema_id})">✕</button>`;
+      body.appendChild(row);
+    });
+    const addRow=document.createElement('div');
+    addRow.style.cssText='display:flex;gap:6px;margin-top:8px';
+    addRow.innerHTML=`<select class="sel" id="gd-th-${item.id}" style="flex:1"><option value="">— Kies thema —</option>${(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><input type="number" id="gd-qty-${item.id}" value="1" min="1" style="width:60px" class="inp"><button class="btn-xs" onclick="invAddGebruik(${item.id})">+ Koppel</button>`;
+    body.appendChild(addRow);
+    details.appendChild(body);
+    card.appendChild(details);
+    el.appendChild(card);
+  });
+}
+
+async function invAddGedeeld(){
+  const name=document.getElementById('inv-gedeeld-naam')?.value.trim();
+  const cat=document.getElementById('inv-gedeeld-cat')?.value||'gedeeld';
+  const totaal=parseInt(document.getElementById('inv-gedeeld-totaal')?.value)||1;
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  await api('POST','/gedeeld',{name,cat,totaal});
+  document.getElementById('inv-gedeeld-naam').value='';
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+  showToast(name+' aangemaakt','success');
+}
+
+async function invEditTotaal(id,current,naam,cat){
+  const nieuw=prompt('Aantal stuks voor "'+naam+'":', current);
+  if(!nieuw||isNaN(parseInt(nieuw)))return;
+  await api('PUT','/gedeeld/'+id,{name:naam,cat,totaal:parseInt(nieuw)});
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+async function invDeleteGedeeld(id,naam){
+  if(!confirm('"'+naam+'" verwijderen?'))return;
+  await api('DELETE','/gedeeld/'+id);
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+  showToast('Verwijderd','info');
+}
+
+async function invAddGebruik(itemId){
+  const thema_id=parseInt(document.getElementById('gd-th-'+itemId)?.value);
+  const qty=parseInt(document.getElementById('gd-qty-'+itemId)?.value)||1;
+  if(!thema_id){showToast('Kies een thema','warn');return;}
+  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id,qty});
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+async function invUpdateGebruik(itemId,themaId,qty){
+  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id:themaId,qty:parseInt(qty)||1});
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+async function invRemoveGebruik(itemId,themaId){
+  await api('DELETE','/gedeeld/'+itemId+'/gebruik/'+themaId);
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+
+
+async function renderInventarisTab(){
+  var matInv = document.getElementById('mat-sub-inventaris');
+  if(matInv) matInv.style.display = 'block';
+  var c = document.getElementById('inv-content');
+  if(!c) return;
+  var tabs = '<div style="display:flex;gap:6px;margin-bottom:1rem">'
+    + '<button class="ov-view-btn active" id="inv-btn-sport" onclick="_setInvTab(\'sport\')">&#9917; Sportmateriaal</button>'
+    + '<button class="ov-view-btn" id="inv-btn-thema" onclick="_setInvTab(\'thema\')">&#127912; Themamateriaal</button>'
+    + '<button class="ov-view-btn" id="inv-btn-gedeeld" onclick="_setInvTab(\'gedeeld\')">&#128295; Gedeeld materiaal</button>'
+    + '</div>';
+  c.innerHTML = tabs + '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
+  try {
+    var sportRes = await api('GET','/sport');
+    var gedeeldRes = await api('GET','/gedeeld');
+    _invSport = Array.isArray(sportRes) ? sportRes : [];
+    _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
+    _renderInv();
+  } catch(e) {
+    var c2 = document.getElementById('inv-content');
+    if(c2) c2.innerHTML = tabs + '<div style="color:red;padding:1rem">Fout: '+e.message+'</div>';
+  }
+}
+
+function _buildTabs(){
+  return '<div style="display:flex;gap:6px;margin-bottom:1rem">'
+    + '<button class="ov-view-btn '+(_invTab==="sport"?"active":"")+'" onclick="_setInvTab(\'sport\')">&#9917; Sportmateriaal</button>'
+    + '<button class="ov-view-btn '+(_invTab==="thema"?"active":"")+'" onclick="_setInvTab(\'thema\')">&#127912; Themamateriaal</button>'
+    + '<button class="ov-view-btn '+(_invTab==="gedeeld"?"active":"")+'" onclick="_setInvTab(\'gedeeld\')">&#128295; Gedeeld materiaal</button>'
+    + '</div>';
+}
+
+
+
+// ── INVENTARIS SYSTEEM ──
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ── THEMA-SETS ──
+
 
 // ── SET DETAIL MODAL ──
 function openSetDetail(item, set){
@@ -1526,197 +1377,69 @@ async function openNieuwSet(itemId, itemNaam){
 }
 
 // ── VERBRUIKSSTOCK ──
-function renderInvVerbruik(){
-  const el = document.getElementById('inv-verbruik-list');
-  if(!el) return;
-  if(!invVerbruikData.length){
-    el.innerHTML='<div class="empty">Nog geen verbruiksartikelen. Klik op "+ Nieuw artikel" om te starten.</div>';
-    return;
-  }
-  el.innerHTML='';
-  invVerbruikData.forEach(item=>{
-    const alarm = item.alarm;
-    const card = document.createElement('div');
-    card.className='card';
-    card.style.cssText='margin-bottom:.75rem;'+(alarm?'border-color:#F09595':'');
 
-    // Header
-    const totalQty = item.totaal;
-    const hdr = document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px';
-    hdr.innerHTML=`
-      ${alarm?'<span style="font-size:18px">⚠️</span>':'<span style="font-size:18px">📦</span>'}
-      <div style="flex:1">
-        <div style="font-size:14px;font-weight:600">${item.name} ${alarm?'<span style="color:var(--red);font-size:11px">— LAAG</span>':''}</div>
-        <div style="font-size:11px;color:var(--text2)">Totaal: <strong>${totalQty}</strong> ${item.stock[0]?.eenheid||'stuks'}</div>
-      </div>
-      <button class="bi" style="color:var(--red)" onclick="deleteMatItem(${item.id})">🗑️</button>`;
-    card.appendChild(hdr);
-
-    // Stock per location
-    const stockGrid = document.createElement('div');
-    stockGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:10px';
-
-    // Add "all locations" option if no stock defined yet
-    const allLocs = S.locaties;
-    const hasStock = (locId) => item.stock.find(s=>s.locatie_id===locId);
-
-    // Show all locaties + add empty ones
-    allLocs.forEach(loc=>{
-      const s = hasStock(loc.id);
-      const qty = s?.qty??0;
-      const min = s?.minimum??0;
-      const eenheid = s?.eenheid||'stuks';
-      const isLow = s&&min>0&&qty<=min;
-      const locCard = document.createElement('div');
-      locCard.style.cssText=`border:.5px solid ${isLow?'var(--red)':'var(--border)'};border-radius:var(--rl);padding:10px;background:${isLow?'var(--red-bg)':'var(--bg)'}`;
-      locCard.innerHTML=`
-        <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">${loc.type==='stockage'?'📦':'⛺'} ${loc.name}</div>
-        <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:6px">
-          <span style="font-size:22px;font-weight:700;color:${isLow?'var(--red)':'var(--text)'}">${qty}</span>
-          <span style="font-size:11px;color:var(--text2)">${eenheid}${min>0?' (min '+min+')':''}</span>
-        </div>
-        <div style="display:flex;gap:4px">
-          <button class="btn-xs" style="flex:1" onclick="openMutatie(${item.id},'${item.name.replace(/'/g,"\\'")}',${loc.id},${qty},-1)">− Verbruik</button>
-          <button class="btn-xs" style="flex:1;background:var(--green-bg);color:var(--green-dk)" onclick="openMutatie(${item.id},'${item.name.replace(/'/g,"\\'")}',${loc.id},${qty},1)">+ Aanvul</button>
-        </div>`;
-      // Settings button
-      const settBtn = document.createElement('button');
-      settBtn.style.cssText='margin-top:6px;width:100%;font-size:10px;color:var(--text2);background:transparent;border:none;cursor:pointer;text-decoration:underline';
-      settBtn.textContent='⚙ Min/eenheid instellen';
-      settBtn.onclick=()=>openVerbruikInstellingen(item.id,loc.id,eenheid,min);
-      locCard.appendChild(settBtn);
-      stockGrid.appendChild(locCard);
-    });
-    card.appendChild(stockGrid);
-
-    // Log (last 3 entries)
-    if(item.log?.length){
-      const logDiv = document.createElement('details');
-      logDiv.innerHTML=`<summary style="font-size:11px;color:var(--text2);cursor:pointer">🕐 Laatste mutaties (${item.log.length})</summary>`;
-      const logBody=document.createElement('div');logBody.style.marginTop='6px';
-      item.log.slice(0,5).forEach(l=>{
-        const row=document.createElement('div');row.className='row';
-        row.style.padding='4px 0';
-        const sign=l.delta>0?'+':'';
-        const col=l.delta>0?'var(--green-dk)':'var(--red-dk)';
-        row.innerHTML=`<span style="font-size:13px;font-weight:700;color:${col};min-width:36px">${sign}${l.delta}</span><div class="ri"><div class="rm" style="font-size:12px">${l.locatie_name}${l.wie?' · '+l.wie:''}</div><div class="rs">${l.datum}${l.reden?' · '+l.reden:''}</div></div>`;
-        logBody.appendChild(row);
-      });
-      logDiv.appendChild(logBody);
-      card.appendChild(logDiv);
-    }
-    el.appendChild(card);
-  });
-}
 
 // ── MUTATIE MODAL ──
-function openMutatie(itemId, itemNaam, locId, currentQty, defaultActie){
-  document.getElementById('mutatie-titel').textContent = itemNaam + ' — voorraad aanpassen';
-  document.getElementById('mut-item-id').value = itemId;
-  document.getElementById('mut-current-qty').value = currentQty;
-  document.getElementById('mut-actie').value = defaultActie;
-  document.getElementById('mut-qty').value = 1;
-  document.getElementById('mut-reden').value = '';
-  const locSel = document.getElementById('mut-loc');
-  locSel.innerHTML = S.locaties.map(l=>`<option value="${l.id}" ${l.id===locId?'selected':''}>${l.type==='stockage'?'📦':'⛺'} ${l.name}</option>`).join('');
-  openModal('modal-mutatie');
-}
+
 
 function updateMutatieSign(){} // placeholder
 
-async function saveMutatie(){
-  const itemId = document.getElementById('mut-item-id').value;
-  const locId = parseInt(document.getElementById('mut-loc').value);
-  const actie = parseInt(document.getElementById('mut-actie').value);
-  const qty = parseFloat(document.getElementById('mut-qty').value)||0;
-  const reden = document.getElementById('mut-reden').value.trim();
-  const currentQty = parseFloat(document.getElementById('mut-current-qty').value)||0;
-  if(!qty&&actie!==0){showToast('Voer een aantal in','warn');return;}
-  let delta;
-  if(actie===0){ // correctie: set exact value
-    delta = qty - currentQty;
-  } else {
-    delta = actie * qty; // +1 or -1 * qty
-  }
-  const r = await api('POST','/verbruik/'+itemId+'/mutatie',{locatie_id:locId,delta,reden,wie:reden});
-  closeModal('modal-mutatie');
-  await loadInvVerbruik();
-  renderInvVerbruik();
-  checkAlarms();
-  showToast('Voorraad bijgewerkt','success');
-  if(r.stock&&r.stock.minimum>0&&r.stock.qty<=r.stock.minimum){
-    showToast('⚠️ Laag voorraad alarm!','error');
-  }
-}
 
-async function openVerbruikInstellingen(itemId, locId, currentEenheid, currentMin){
-  const eenheid = prompt('Eenheid (bv. pakken, rollen, liter):', currentEenheid||'stuks');
-  if(eenheid===null) return;
-  const min = parseFloat(prompt('Alarm bij minder dan (0 = geen alarm):', currentMin||0));
-  if(isNaN(min)) return;
-  // Get current stock first
-  const stock = invVerbruikData.find(i=>i.id===itemId)?.stock.find(s=>s.locatie_id===locId);
-  await api('POST','/verbruik/'+itemId+'/stock',{locatie_id:locId,qty:stock?.qty??0,minimum:min,eenheid});
-  await loadInvVerbruik();
-  renderInvVerbruik();
-  checkAlarms();
-}
+
+
 
 // ── NIEUW MATERIAAL ITEM ──
-function openNieuwMateriaalItem(tracking){
-  document.getElementById('nm-tracking').value = tracking;
-  document.getElementById('modal-nieuw-mat-titel').textContent = tracking==='per_stuk'?'Nieuw thema-item (sets)':'Nieuw verbruiksartikel';
-  document.getElementById('nm-name').value='';
-  document.getElementById('nm-eenheid-wrap').style.display = tracking==='verbruik'?'block':'none';
-  document.getElementById('nm-min-wrap').style.display = tracking==='verbruik'?'block':'none';
-  openModal('modal-nieuw-mat');
-}
 
-async function saveNieuwMateriaalItem(){
-  const name = document.getElementById('nm-name').value.trim();
-  if(!name){showToast('Naam is verplicht','warn');document.getElementById('nm-name').focus();return;}
-  const cat = document.getElementById('nm-cat').value;
-  const tracking = document.getElementById('nm-tracking').value;
-  const r = await api('POST','/materiaal',{name,cat,tracking});
-  if(r.error){showToast(r.error,'error');return;}
-  // For verbruik: set initial stock at first stockage location
-  if(tracking==='verbruik'){
-    const eenheid = document.getElementById('nm-eenheid').value||'stuks';
-    const minimum = parseFloat(document.getElementById('nm-minimum').value)||0;
-    const stockageLoc = S.locaties.find(l=>l.type==='stockage');
-    if(stockageLoc){
-      await api('POST','/verbruik/'+r.id+'/stock',{locatie_id:stockageLoc.id,qty:0,minimum,eenheid});
-    }
-  }
-  closeModal('modal-nieuw-mat');
-  S.materiaal = await api('GET','/materiaal');
-  await Promise.all([loadInvSets(),loadInvVerbruik()]);
-  if(tracking==='per_stuk') renderInvSets();
-  else renderInvVerbruik();
-  showToast(name+' aangemaakt','success');
-}
+
+
 
 
 
 
 // ── THEMA CATEGORIEËN ──
-let S_thema_cats = [];
+
 
 async function loadThemaCats(){
   S_thema_cats = await api('GET','/thema-categorieen');
 }
 
+function renderThemaCatSelect(selectedCat){
+  return '<option value="">— Geen categorie —</option>'
+    + S_thema_cats.map(c=>`<option value="${c.name}" ${c.name===selectedCat?'selected':''}>${c.name}</option>`).join('');
+}
 
+async function addThemaCat(){
+  const name = document.getElementById('th-cat-new').value.trim();
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  const r = await api('POST','/thema-categorieen',{name});
+  if(r.error){showToast(r.error,'error');return;}
+  S_thema_cats.push(r);
+  S_thema_cats.sort((a,b)=>a.name.localeCompare(b.name));
+  document.getElementById('th-cat-new').value='';
+  renderThemaCatBeheer();
+  // Update all cat selects on page
+  document.querySelectorAll('.th-cat-sel').forEach(sel=>{
+    const cur = sel.value;
+    sel.innerHTML = renderThemaCatSelect(cur);
+  });
+  showToast(name+' toegevoegd','success');
+}
 
+async function deleteThemaCat(id, name){
+  if(!confirm(`Categorie "${name}" verwijderen? Thema's in deze categorie krijgen geen categorie meer.`))return;
+  await api('DELETE','/thema-categorieen/'+id);
+  S_thema_cats = S_thema_cats.filter(c=>c.id!==id);
+  renderThemaCatBeheer();
+  showToast('Categorie verwijderd','info');
+}
 
-
-
-
-
-
-
-
+function renderThemaCatBeheer(){
+  const el = document.getElementById('th-cat-list');
+  if(!el) return;
+  el.innerHTML = S_thema_cats.length
+    ? S_thema_cats.map(c=>`<span class="pill p-gray" style="padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:5px;margin:2px">${c.name} <button style="background:transparent;border:none;cursor:pointer;color:var(--text3);font-size:11px" onclick="deleteThemaCat(${c.id},'${c.name.replace(/'/g,"\\'")}')" title="Verwijderen">✕</button></span>`).join('')
+    : '<span style="font-size:12px;color:var(--text2)">Nog geen categorieën.</span>';
+}
 
 
 async function addSpoed(){
@@ -1743,22 +1466,205 @@ async function addSpoed(){
 }
 
 // ── DAGRAPPORT PER CHAUFFEUR ──
+async function openDagrapport(datum, chaufNaam) {
+  // Load fresh data
+  const [taken, shifts] = await Promise.all([
+    api('GET', '/transport-taken'),
+    api('GET', '/ploeg'),
+  ]);
 
+  // Filter for this chauffeur on this date
+  const mijnTaken = taken
+    .filter(t => t.datum === datum && (t.wie||'').toLowerCase() === (chaufNaam||'').toLowerCase())
+    .sort((a,b) => a.tijd.localeCompare(b.tijd));
+
+  const mijnShift = shifts.find(sh =>
+    sh.datum === datum && sh.chauffeur_name?.toLowerCase() === chaufNaam?.toLowerCase()
+  );
+
+  const DOW = ['zo','ma','di','wo','do','vr','za'];
+  const d = new Date(datum + 'T12:00:00');
+  const datumStr = DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MND[d.getMonth()+1] + ' ' + d.getFullYear();
+
+  const shiftInfo = mijnShift
+    ? `${mijnShift.start_tijd}–${mijnShift.eind_tijd} (${{vol:'volledige dag',vm:'voormiddag',nm:'namiddag',standby:'standby',vrij:'vrij'}[mijnShift.type]||mijnShift.type})`
+    : '—';
+
+  const taakHtml = mijnTaken.length ? mijnTaken.map(t => {
+    const van = S.locaties.find(l => l.id === t.van_locatie_id);
+    const naar = S.locaties.find(l => l.id === t.naar_locatie_id);
+    const icn = {levering:'🟢',ophaling:'🔵',extra:'🟡',opdracht:'📋',spoed:'🔴'}[t.type]||'📦';
+    const regels = (t.regels||[]);
+    const matHtml = regels.length
+      ? `<table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px">
+          <tr style="background:#f5f5f3"><th style="text-align:left;padding:4px 8px;border:.5px solid #ddd">Materiaal</th><th style="padding:4px 8px;border:.5px solid #ddd;text-align:center">Aantal</th><th style="padding:4px 8px;border:.5px solid #ddd;text-align:center">✓</th></tr>
+          ${regels.map(r=>`<tr><td style="padding:5px 8px;border:.5px solid #ddd">${r.naam}</td><td style="text-align:center;padding:5px 8px;border:.5px solid #ddd">×${r.qty}</td><td style="text-align:center;padding:5px 8px;border:.5px solid #ddd;width:40px">☐</td></tr>`).join('')}
+        </table>`
+      : '<div style="font-size:11px;color:#888;margin-top:4px">Geen materiaallijst.</div>';
+    return `<div style="border:.5px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px;break-inside:avoid">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:18px">${icn}</span>
+        <div>
+          <div style="font-weight:600;font-size:13px">${t.opmerking||t.type}</div>
+          <div style="font-size:11px;color:#666">${t.tijd||'—'} &nbsp;|&nbsp; ${van?.name||'?'} → ${naar?.name||'?'}</div>
+          ${t.opmerking&&t.type!=='opdracht'?`<div style="font-size:11px;color:#666">Status: <strong>${t.status}</strong></div>`:''}
+        </div>
+      </div>
+      ${matHtml}
+    </div>`;
+  }).join('') : '<div style="color:#888;font-size:12px">Geen transporten gepland voor deze chauffeur.</div>';
+
+  const printHtml = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+  <title>Dagrapport ${chaufNaam} – ${datumStr}</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;color:#1a1a18}
+    h1{font-size:18px;margin:0 0 4px}h2{font-size:14px;font-weight:500;color:#555;margin:0 0 16px}
+    .meta{display:flex;gap:24px;background:#f5f5f3;border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px}
+    .meta div{display:flex;flex-direction:column;gap:2px}
+    .meta strong{font-size:13px;color:#1a1a18}
+    .meta span{color:#666}
+    .footer{margin-top:32px;padding-top:12px;border-top:.5px solid #ddd;font-size:10px;color:#aaa;text-align:center}
+    @media print{body{margin:0.5cm 1cm}button{display:none!important}}
+  </style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+    <div><h1>Dagrapport – ${chaufNaam}</h1><h2>Sporty vzw &nbsp;|&nbsp; ${datumStr}</h2></div>
+    <button onclick="window.print()" style="padding:8px 16px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 Afdrukken</button>
+  </div>
+  <div class="meta">
+    <div><span>Dienst</span><strong>${shiftInfo}</strong></div>
+    <div><span>Transporten</span><strong>${mijnTaken.length}</strong></div>
+    <div><span>Materiaalitems</span><strong>${mijnTaken.reduce((sum,t)=>(t.regels||[]).reduce((s,r)=>s+r.qty,0)+sum,0)}</strong></div>
+  </div>
+  ${taakHtml}
+  <div class="footer">Gegenereerd op ${new Date().toLocaleString('nl-BE')} &nbsp;|&nbsp; Sporty vzw Logistiek</div>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (win) {
+    win.document.write(printHtml);
+    win.document.close();
+  } else {
+    showToast('Pop-up geblokkeerd. Sta pop-ups toe voor dit venster.', 'warn');
+  }
+}
 
 // Quick rapportgenerator - kies datum en chauffeur
+function openDagrapportKiezer() {
+  document.getElementById('modal-dagrapport').classList.add('open');
+  // Populate chauffeur select
+  const sel = document.getElementById('dr-chauf');
+  sel.innerHTML = '<option value="">— Kies chauffeur —</option>' +
+    S_chauffeurs.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  // Default datum = today (or first kamp day)
+  document.getElementById('dr-datum').value = new Date().toISOString().split('T')[0];
+}
 
-
-
+function generateDagrapport() {
+  const datum = document.getElementById('dr-datum').value;
+  const chauf = document.getElementById('dr-chauf').value;
+  if (!datum || !chauf) { showToast('Kies een datum en chauffeur', 'warn'); return; }
+  document.getElementById('modal-dagrapport').classList.remove('open');
+  openDagrapport(datum, chauf);
+}
 
 
 // ── MATERIAALCHECKLIST & INVENTARIS ──
 
 // Open checklist voor een transport
+async function openTransportChecklist(taakId) {
+  const taken = await api('GET', '/transport-taken');
+  const t = taken.find(x => x.id === taakId);
+  if (!t) return;
 
+  const van = S.locaties.find(l => l.id === t.van_locatie_id);
+  const naar = S.locaties.find(l => l.id === t.naar_locatie_id);
+  const regels = t.regels || [];
 
+  const el = document.getElementById('checklist-content');
+  const titel = document.getElementById('checklist-titel');
 
+  titel.textContent = (t.opmerking || t.type) + ' — ' + (van?.name||'?') + ' → ' + (naar?.name||'?');
 
+  if (!regels.length) {
+    el.innerHTML = '<div class="empty">Geen materiaallijst voor dit transport. Voeg materiaalregels toe via "Transport bewerken".</div>';
+  } else {
+    // Checklist per categorie
+    const perSoort = {};
+    regels.forEach(r => {
+      const s = r.soort || 'andere';
+      if (!perSoort[s]) perSoort[s] = [];
+      perSoort[s].push(r);
+    });
+    const soortLabel = {thema:'🎯 Thema-materiaal', basis:'📦 Basismateriaal', andere:'📋 Overige'};
+    el.innerHTML = Object.entries(perSoort).map(([soort, items]) => `
+      <div style="margin-bottom:1rem">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${soortLabel[soort]||soort}</div>
+        ${items.map((r,i) => `
+          <label style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background .1s" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''" onclick="toggleCheckItem(this)">
+            <span style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--border2);border-radius:4px;flex-shrink:0;font-size:13px" class="chk-box">　</span>
+            <span style="flex:1;font-size:13px">${r.naam}</span>
+            <span style="font-size:12px;font-weight:600;color:var(--text2);background:var(--bg3);padding:2px 7px;border-radius:999px">×${r.qty}</span>
+          </label>`
+        ).join('')}
+      </div>`
+    ).join('');
+  }
 
+  // Store transport info for print
+  document.getElementById('modal-checklist').dataset.taakId = taakId;
+  document.getElementById('modal-checklist').dataset.titel = titel.textContent;
+  document.getElementById('modal-checklist').classList.add('open');
+}
+
+function toggleCheckItem(label) {
+  const box = label.querySelector('.chk-box');
+  const checked = box.textContent.trim() === '✓';
+  box.textContent = checked ? '\u3000' : '✓';
+  box.style.background = checked ? '' : 'var(--green)';
+  box.style.color = checked ? '' : '#fff';
+  box.style.borderColor = checked ? 'var(--border2)' : 'var(--green)';
+  label.style.opacity = checked ? '1' : '.6';
+}
+
+function printChecklist() {
+  const el = document.getElementById('checklist-content');
+  const titel = document.getElementById('checklist-titel').textContent;
+  const items = [...el.querySelectorAll('label')].map(l => {
+    const naam = l.querySelectorAll('span')[1]?.textContent || '';
+    const qty = l.querySelectorAll('span')[2]?.textContent || '';
+    const checked = l.querySelector('.chk-box')?.textContent?.trim() === '✓';
+    return {naam, qty, checked};
+  });
+
+  const printHtml = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
+  <title>Checklist – ${titel}</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:2rem auto;padding:0 1rem;color:#1a1a18}
+    h1{font-size:16px;margin:0 0 4px}h2{font-size:12px;color:#666;margin:0 0 20px}
+    table{width:100%;border-collapse:collapse}
+    th{background:#f5f5f3;text-align:left;padding:6px 10px;font-size:11px;border:.5px solid #ddd}
+    td{padding:8px 10px;border:.5px solid #ddd;font-size:13px}
+    .qty{text-align:center;width:60px}
+    .chk{text-align:center;width:50px;font-size:16px}
+    @media print{button{display:none!important}}
+  </style></head><body>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+    <div><h1>Checklist – ${titel}</h1><h2>Sporty vzw &nbsp;|&nbsp; ${new Date().toLocaleDateString('nl-BE')}</h2></div>
+    <button onclick="window.print()" style="padding:6px 14px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 Afdrukken</button>
+  </div>
+  <table>
+    <tr><th>Materiaal</th><th class="qty">Aantal</th><th class="chk">✓</th></tr>
+    ${items.map(i=>`<tr><td>${i.naam}</td><td class="qty">${i.qty}</td><td class="chk">${i.checked?'☑':'☐'}</td></tr>`).join('')}
+  </table>
+  <div style="margin-top:20px;padding:10px;border:.5px solid #ddd;border-radius:6px;font-size:11px;color:#888">
+    Handtekening: _____________________________ &nbsp;&nbsp; Datum: _____________
+  </div>
+  </body></html>`;
+
+  const win = window.open('', '_blank', 'width=700,height=800');
+  if (win) { win.document.write(printHtml); win.document.close(); }
+  else showToast('Pop-up geblokkeerd. Sta pop-ups toe.', 'warn');
+}
 
 // ── INVENTARIS PER LOCATIE ──
 
@@ -1831,10 +1737,7 @@ document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.i
   document.getElementById('voorraad-list').style.display='block';
   renderVoorraad();
 }
-else if(tab==='inventaris'){
-    document.getElementById('inv-content').innerHTML='<div style="padding:1rem;color:var(--text2)">Laden...</div>';
-    renderInventarisTab();
-  }
+else if(tab==='inventaris'){renderInventaris();}
 }
 
 function setMatSubtabToMBeheer(){
@@ -2759,42 +2662,6 @@ async function api(m,p,b){
     return m==='GET'?[]:{};
   }
 }
-
-async function addSpoedInline(){
-  const item=document.getElementById('sp2-item')?.value.trim();
-  const qty=parseInt(document.getElementById('sp2-qty')?.value)||1;
-  const locatie_id=document.getElementById('sp2-loc')?.value;
-  const prio=document.getElementById('sp2-prio')?.value||'hoog';
-  const note=document.getElementById('sp2-note')?.value.trim()||'';
-  if(!item){showToast('Omschrijving is verplicht','warn');return;}
-  if(!locatie_id){showToast('Kies een locatie','warn');return;}
-  const r=await api('POST','/spoed',{item,qty,locatie_id:parseInt(locatie_id),prio,note});
-  if(r.error)return;
-  S.spoed=await api('GET','/spoed');
-  updateSpoedBadge();
-  ['sp2-item','sp2-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const qEl=document.getElementById('sp2-qty');if(qEl)qEl.value='1';
-  showToast('Spoedmelding gemeld!','success');
-  renderTransportenOV();
-}
-
-
-async function addSpoedDirect(){
-  const item=document.getElementById('sp2-item')?.value.trim();
-  const qty=parseInt(document.getElementById('sp2-qty')?.value)||1;
-  const locatie_id=document.getElementById('sp2-loc')?.value;
-  const prio=document.getElementById('sp2-prio')?.value||'hoog';
-  const note=document.getElementById('sp2-note')?.value.trim()||'';
-  if(!item){showToast('Omschrijving is verplicht','warn');return;}
-  const r=await api('POST','/spoed',{item,qty,locatie_id:parseInt(locatie_id)||null,prio,note});
-  if(r.error)return;
-  S.spoed=await api('GET','/spoed');
-  updateSpoedBadge();
-  ['sp2-item','sp2-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const qEl=document.getElementById('sp2-qty');if(qEl)qEl.value='1';
-  showToast('Spoedmelding gemeld!','success');
-  renderTransportenOV();
-}
 async function loadAll(){const[a,b,c,d,e,f,g,h]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/spoed'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,spoed:e,materiaal:f,overzicht:g,locMat:{}};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
 S_chauffeurs=await api('GET','/chauffeurs');fillChaufDatalist();
 S_thema_cats=await api('GET','/thema-categorieen');updateSpoedBadge();}
@@ -2931,44 +2798,6 @@ function toggleThemaBody(id){
   const b=document.getElementById('thema-body-'+id);
   if(b) b.style.display=b.style.display==='block'?'none':'block';
 }
-
-async function addThemaMat(themaId){
-  const name = document.getElementById('thm-n-'+themaId)?.value.trim();
-  const qty = parseInt(document.getElementById('thm-q-'+themaId)?.value)||1;
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  const r = await api('POST','/themas/'+themaId+'/materiaal',{name,qty});
-  if(r.error){showToast(r.error,'error');return;}
-  S.themas = S.themas.map(t=>t.id===themaId?{...t,materiaal:[...(t.materiaal||[]),r]}:t);
-  renderThemas();
-  // Heropenen van het thema body
-  setTimeout(()=>{
-    const b=document.getElementById('thema-body-'+themaId);
-    if(b) b.style.display='block';
-  },50);
-  showToast('Materiaal toegevoegd','success');
-}
-
-async function saveThemaMat(themaId, matId){
-  const name = document.getElementById('etm-n-'+matId)?.value.trim();
-  const qty = parseInt(document.getElementById('etm-q-'+matId)?.value)||1;
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  const r = await api('PUT','/themas/'+themaId+'/materiaal/'+matId,{name,qty});
-  if(r.error){showToast(r.error,'error');return;}
-  S.themas = S.themas.map(t=>t.id===themaId?{...t,materiaal:(t.materiaal||[]).map(m=>m.id===matId?r:m)}:t);
-  editingThemaMat=null;
-  renderThemas();
-  setTimeout(()=>{const b=document.getElementById('thema-body-'+themaId);if(b)b.style.display='block';},50);
-  showToast('Opgeslagen','success');
-}
-
-async function deleteThemaMat(themaId, matId){
-  if(!confirm('Materiaal verwijderen?'))return;
-  await api('DELETE','/themas/'+themaId+'/materiaal/'+matId);
-  S.themas = S.themas.map(t=>t.id===themaId?{...t,materiaal:(t.materiaal||[]).filter(m=>m.id!==matId)}:t);
-  renderThemas();
-  setTimeout(()=>{const b=document.getElementById('thema-body-'+themaId);if(b)b.style.display='block';},50);
-}
-
 function renderThemas(){
   // Ensure the themas subtab is visible
   const subDiv=document.getElementById('mat-sub-themas');
@@ -3082,34 +2911,16 @@ async function deleteStd(id){await api('DELETE','/standaard/'+id);S.standaard=S.
 function renderLocaties(){document.getElementById('loc-list').innerHTML=S.locaties.map(l=>{if(editingLoc===l.id)return `<div class="row editing" style="flex-direction:column;gap:6px;align-items:stretch"><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp gb" style="flex:2;min-width:120px" type="text" id="el-n-${l.id}" value="${l.name}" placeholder="Naam"><input class="inp gb" style="flex:2;min-width:140px" type="text" id="el-a-${l.id}" value="${l.addr||''}" placeholder="Adres"><select class="sel gb" id="el-t-${l.id}"><option value="kamp" ${l.type==='kamp'?'selected':''}>⛺ Kamp</option><option value="stockage" ${l.type==='stockage'?'selected':''}>📦 Stockage</option></select></div><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp gb" style="flex:2;min-width:130px" type="text" id="el-cn-${l.id}" value="${l.contact_naam||''}" placeholder="Contactpersoon"><input class="inp gb" style="flex:1;min-width:110px" type="tel" id="el-ct-${l.id}" value="${l.contact_tel||''}" placeholder="Telefoon"><input class="inp gb" style="flex:3;min-width:160px" type="text" id="el-nt-${l.id}" value="${l.notities||''}" placeholder="Notities"><button class="bi save" onclick="saveLoc(${l.id})">✓ Opslaan</button><button class="bi" onclick="editingLoc=null;renderLocaties()">✕</button></div></div>`;return `<div class="row"><span>${l.type==='stockage'?'📦':'⛺'}</span><div class="ri"><div class="rm">${l.name}</div><div class="rs">${l.addr||'Geen adres'} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span></div>${l.contact_naam||l.contact_tel?`<div class="loc-contact">${l.contact_naam?'<span>👤 '+l.contact_naam+'</span>':''}${l.contact_tel?'<a href="tel:'+l.contact_tel+'">📱 '+l.contact_tel+'</a>':''}</div>`:''}${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}</div><div class="ra"><button class="bi" onclick="editingLoc=${l.id};renderLocaties()">✏️</button><button class="bi" style="color:var(--red)" onclick="deleteLoc(${l.id})">🗑️</button></div></div>`;}).join('')||'<div class="empty">Nog geen locaties.</div>';
   renderLocMatSection();
 }
-
 async function addLocMat(locId){
-  const name=document.getElementById('alm-n-'+locId)?.value.trim();
-  const qty=parseInt(document.getElementById('alm-q-'+locId)?.value)||1;
-  if(!name){showToast('Naam is verplicht','warn');return;}
+  const name=document.getElementById('lm-n-'+locId).value.trim();if(!name)return;
+  const qty=Math.max(1,parseInt(document.getElementById('lm-q-'+locId).value)||1);
   const r=await api('POST','/locaties/'+locId+'/materiaal',{name,qty,cat:'andere'});
-  if(r.error){showToast(r.error,'error');return;}
-  if(!S.locMat[locId])S.locMat[locId]=[];
-  S.locMat[locId].push(r);
-  const ni=document.getElementById('alm-n-'+locId);if(ni)ni.value='';
+  S.locMat[locId]=S.locMat[locId]||[];S.locMat[locId].push(r);
+  document.getElementById('lm-n-'+locId).value='';
+  document.getElementById('lm-q-'+locId).value='1';
   renderLocaties();
-  setTimeout(()=>{const b=document.getElementById('lm-body-'+locId);if(b)b.style.display='block';},50);
-  showToast('Materiaal toegevoegd','success');
+  document.getElementById('lm-body-'+locId).style.display='block';
 }
-
-function editLocMat(id){
-  editingLocMat=id;
-  renderLocaties();
-}
-
-function renderLocMat(locId){
-  // Re-render just the materiaal section for a locatie
-  renderLocaties();
-  setTimeout(()=>{const b=document.getElementById('lm-body-'+locId);if(b)b.style.display='block';},50);
-}
-
-
-
 async function saveLocMat(locId,id){
   const name=document.getElementById('elm-n-'+id).value.trim();
   const qty=Math.max(1,parseInt(document.getElementById('elm-q-'+id).value)||1);
@@ -3366,16 +3177,13 @@ function updatePlannerMetrics(){
 
 function renderPlannerKalender(){
   // Week navigation
-  const wlabel=document.getElementById('pl-week-label');
-  if(wlabel)wlabel.textContent=plannerWeekLabel(plannerWk);
-  const wprev=document.getElementById('pl-week-prev');
-  if(wprev)wprev.disabled=(plannerWk<=1);
-  const wnext=document.getElementById('pl-week-next');
-  if(wnext)wnext.disabled=(plannerWk>=9);
+  document.getElementById('pl-week-label').textContent=plannerWeekLabel(plannerWk);
+  document.getElementById('pl-week-prev').disabled=(plannerWk<=1);
+  document.getElementById('pl-week-next').disabled=(plannerWk>=9);
 
   // Filter dropdowns
   const locSel=document.getElementById('pl-filter-loc');
-  if(locSel&&locSel.options.length<=1){
+  if(locSel.options.length<=1){
     S.locaties.forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=(l.type==='stockage'?'📦':'⛺')+' '+l.name;locSel.appendChild(o);});
   }
   locSel.value=filterLocatie;
@@ -3657,7 +3465,13 @@ async function deleteThemaCat(id, name){
   showToast('Categorie verwijderd','info');
 }
 
-
+function renderThemaCatBeheer(){
+  const el = document.getElementById('th-cat-list');
+  if(!el) return;
+  el.innerHTML = S_thema_cats.length
+    ? S_thema_cats.map(c=>`<span class="pill p-gray" style="padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:5px;margin:2px">${c.name} <button style="background:transparent;border:none;cursor:pointer;color:var(--text3);font-size:11px" onclick="deleteThemaCat(${c.id},'${c.name.replace(/'/g,"\\'")}')" title="Verwijderen">✕</button></span>`).join('')
+    : '<span style="font-size:12px;color:var(--text2)">Nog geen categorieën.</span>';
+}
 
 
 
@@ -4134,19 +3948,6 @@ loadAll()
     </div>
   </div>
 </div>
-
-
-<div style="position:fixed;bottom:16px;right:16px;display:flex;gap:8px;z-index:9999">
-  <button class="btn-o" onclick="importData()" title="Data importeren van backup"
-    style="font-size:11px;height:32px;padding:0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)">
-    &#8679; Importeer backup
-  </button>
-  <button class="btn-g" onclick="exportData()" title="Data exporteren als backup"
-    style="font-size:11px;height:32px;padding:0 12px;box-shadow:0 2px 8px rgba(0,0,0,.15)">
-    &#8681; Exporteer backup
-  </button>
-</div>
-
 
 </body>
 </html>
