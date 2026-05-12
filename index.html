@@ -974,9 +974,15 @@ async function loadInventaris() {
 }
 
 async function renderInventarisTab() {
-  await loadInventaris();
-  renderInvSectie();
-  checkGedeeldAlarms();
+  try {
+    await loadInventaris();
+    renderInvSectie();
+    checkGedeeldAlarms();
+  } catch(err) {
+    console.error('Inventaris load error:', err);
+    const el = document.getElementById('inv-sport-list');
+    if(el) el.innerHTML = '<div class="empty">Fout bij laden: ' + err.message + '</div>';
+  }
 }
 
 function setInvSectie(sectie, btn) {
