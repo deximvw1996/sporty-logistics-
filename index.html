@@ -269,7 +269,6 @@ button:disabled{opacity:.45;cursor:not-allowed;}
     <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
     <button class="nb" onclick="goTo('transport-plan')">&#128667; Plannen</button>
     <button class="nb" onclick="goTo('transporten')">&#128202; Transporten</button>
-    <button class="nb" onclick="goTo('inventaris')">&#128230; Inventaris</button>
   </div>
 
   <div class="content">
@@ -433,6 +432,8 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       <button class="kal-subtab active" onclick="setMatSubtab('themas',this)">&#127991; Thema&apos;s</button>
       <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128450; Standaard</button>
       <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Stockage &amp; voorraad</button>
+      <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#128230; Inventaris</button>
+      <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#127890; Inventaris</button>
     </div>
 
     <!-- Thema's -->
@@ -565,6 +566,14 @@ button:disabled{opacity:.45;cursor:not-allowed;}
     </div>
 
 
+    <!-- Inventaris subtab -->
+    <div id="mat-sub-inventaris" style="display:none">
+      <div id="inv-content" style="min-height:200px">
+        <div style="padding:2rem;color:var(--text2)">Laden...</div>
+      </div>
+    </div>
+
+
   <!-- ═══════════════════════════════════════════════════════
        TAB 4: TRANSPORT PLANNEN
   ═══════════════════════════════════════════════════════ -->
@@ -577,9 +586,9 @@ button:disabled{opacity:.45;cursor:not-allowed;}
     </div>
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;">
-      <button class="btn-o" id="pl-week-prev" onclick="setPlannerWk(-1)">&#8592;</button>
+      <button class="btn-o" onclick="setPlannerWk(-1)">&#8592;</button>
       <span id="pl-week-label" style="font-size:14px;font-weight:600;min-width:200px;text-align:center"></span>
-      <button class="btn-o" id="pl-week-next" onclick="setPlannerWk(1)">&#8594;</button>
+      <button class="btn-o" onclick="setPlannerWk(1)">&#8594;</button>
       <div style="flex:1"></div>
       <button class="btn-g" onclick="genereerVoorstellen()">&#9889; Voorstel genereren</button>
       <button class="btn-b" onclick="openNieuweTransport()">+ Toevoegen</button>
@@ -758,17 +767,17 @@ button:disabled{opacity:.45;cursor:not-allowed;}
   <div class="card" style="border-color:#F09595">
     <div class="card-hd" style="color:#A32D2D">&#128680; Nieuwe spoedlevering</div>
     <div class="fr">
-      <div class="fg grow"><label>Wat ontbreekt?</label><input class="inp" type="text" id="sp2-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoedDirect()"></div>
-      <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="sp2-qty" value="1" min="1"></div>
+      <div class="fg grow"><label>Wat ontbreekt?</label><input class="inp" type="text" id="sp-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoed()"></div>
+      <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="sp-qty" value="1" min="1"></div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Locatie</label><select class="sel" id="sp2-loc"></select></div>
-      <div class="fg md"><label>Prioriteit</label><select class="sel" id="sp2-prio">
+      <div class="fg md"><label>Locatie</label><select class="sel" id="sp-loc"></select></div>
+      <div class="fg md"><label>Prioriteit</label><select class="sel" id="sp-prio">
         <option value="hoog">&#128308; Hoog &mdash; zo snel mogelijk</option>
         <option value="midden">&#128993; Midden &mdash; vandaag nog</option>
         <option value="laag">&#128309; Laag &mdash; zo snel als mogelijk</option>
       </select></div>
-      <div class="fg grow"><label>Opmerking</label><input class="inp" type="text" id="sp2-note" placeholder="bv. Kinderen wachten&hellip;"></div>
+      <div class="fg grow"><label>Opmerking</label><input class="inp" type="text" id="sp-note" placeholder="bv. Kinderen wachten&hellip;"></div>
     </div>
     <button class="btn-r" onclick="addSpoed()">&#128680; Spoedlevering melden</button>
   </div>
@@ -873,97 +882,21 @@ button:disabled{opacity:.45;cursor:not-allowed;}
   </div>
 </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       TAB 6: INVENTARIS
-  ═══════════════════════════════════════════════════════ -->
-  
-  <!-- TAB 6: INVENTARIS -->
-  <div class="sec" id="sec-inventaris">
-    <div id="inv-content" style="min-height:100px">
-      <div style="padding:2rem;color:var(--text2)">Klik op Inventaris om te laden...</div>
-    </div>
-  </div>
-<div class="sec" id="sec-inventaris">
-    <!-- Sectie knoppen -->
-    <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
-      <button class="inv-sectie-btn ov-view-btn active" onclick="setInvSectie('sport',this)">⚽ Sportmateriaal</button>
-      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('thema',this)">🎨 Themamateriaal</button>
-      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('gedeeld',this)">🔧 Gedeeld materiaal</button>
-    </div>
-
-    <!-- SPORT -->
-    <div id="inv-sport">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Sportmateriaal — sets per locatie per week</div>
-          <div style="font-size:11px;color:var(--text2)">Klik op een weeknummer om een set in te plannen op een locatie.</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input class="inp" type="text" id="sport-naam" placeholder="Naam (bv. Voetbalzak)" style="width:180px">
-          <select class="sel" id="sport-cat">
-            <option value="sport">⚽ Sport</option>
-            <option value="zwembad">🏊 Zwembad</option>
-            <option value="outdoor">🌿 Outdoor</option>
-            <option value="indoor">🏠 Indoor</option>
-            <option value="andere">📦 Andere</option>
-          </select>
-          <button class="btn-g" onclick="invAddSport()">+ Nieuw artikel</button>
-        </div>
-      </div>
-      <div id="inv-sport-list"></div>
-    </div>
-
-    <!-- THEMA -->
-    <div id="inv-thema" style="display:none">
-      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Themamateriaal — per thema</div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:1rem">Materiaal dat vast bij een thema hoort. Beheer dit via Materiaal → Thema's.</div>
-      <div id="inv-thema-list"></div>
-    </div>
-
-    <!-- GEDEELD -->
-    <div id="inv-gedeeld" style="display:none">
-      <!-- Alarm bar -->
-      <div id="inv-gedeeld-alarm" style="display:none;background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px 14px;margin-bottom:.875rem;align-items:center;gap:10px">
-        <span style="font-size:18px">⚠️</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;color:#A32D2D">Conflict — te weinig gedeeld materiaal!</div>
-          <div id="inv-gedeeld-alarm-items" style="font-size:11px;color:#C05050"></div>
-        </div>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Gedeeld materiaal — blazers, ovens, frames...</div>
-          <div style="font-size:11px;color:var(--text2)">Materiaal dat bij meerdere thema's gebruikt wordt. Alarm als er te weinig zijn die week.</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input class="inp" type="text" id="gedeeld-naam" placeholder="Naam (bv. Blazer)" style="width:160px">
-          <select class="sel" id="gedeeld-cat">
-            <option value="opblaas">💨 Opblaas</option>
-            <option value="keuken">🍳 Keuken</option>
-            <option value="constructie">🏗️ Constructie</option>
-            <option value="electro">🔌 Electro</option>
-            <option value="gedeeld">🔧 Andere</option>
-          </select>
-          <input class="inp" type="number" id="gedeeld-totaal" value="1" min="1" style="width:60px" placeholder="Aantal">
-          <button class="btn-g" onclick="invAddGedeeld()">+ Nieuw artikel</button>
-        </div>
-      </div>
-      <div id="inv-gedeeld-list"></div>
-    </div>
-  </div>
-
-
-
-
-
 <script>
+
+
+
+
+
 // ── INVENTARIS ──
 let _invSport = [];
 let _invGedeeld = [];
 let _invTab = 'sport';
 
 async function renderInventarisTab(){
+  // Show the subtab div
+  const matInv = document.getElementById('mat-sub-inventaris');
+  if(matInv) matInv.style.display = 'block';
   const c = document.getElementById('inv-content');
   if(!c){console.error('inv-content not found!');return;}
   c.innerHTML = '<div style="padding:2rem;color:var(--text2)">Laden...</div>';
@@ -1835,7 +1768,7 @@ async function addSpoed(){
 
 
 // ── NIEUWE 5-TAB ROUTING ──
-const SECS=['overzicht','planning','materiaal','transport-plan','transporten','inventaris'];
+const SECS=['overzicht','planning','materiaal','transport-plan','transporten'];
 
 function goTo(id){
   SECS.forEach(s=>{
@@ -1843,7 +1776,7 @@ function goTo(id){
     if(el) el.classList.toggle('active',s===id);
   });
   document.querySelectorAll('.nb').forEach((b,i)=>{
-    b.classList.toggle('active',['overzicht','planning','materiaal','transport-plan','transporten','inventaris'][i]===id);
+    b.classList.toggle('active',['overzicht','planning','materiaal','transport-plan','transporten'][i]===id);
   });
   const renderMap={
     overzicht:renderOverzicht,
@@ -1851,7 +1784,6 @@ function goTo(id){
     materiaal:renderMateriaal,
     'transport-plan':renderTransportPlan,
     transporten:renderTransportenOV,
-    inventaris:renderInventarisTab,
   };
   try {
     const p = renderMap[id]?.();
@@ -1899,7 +1831,10 @@ document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.i
   document.getElementById('voorraad-list').style.display='block';
   renderVoorraad();
 }
-else if(tab==='inventaris'){goTo('inventaris');}
+else if(tab==='inventaris'){
+    document.getElementById('inv-content').innerHTML='<div style="padding:1rem;color:var(--text2)">Laden...</div>';
+    renderInventarisTab();
+  }
 }
 
 function setMatSubtabToMBeheer(){
