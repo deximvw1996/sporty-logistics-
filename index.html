@@ -433,7 +433,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128450; Standaard</button>
       <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Stockage &amp; voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#128230; Inventaris</button>
-      <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#127890; Inventaris</button>
+      
     </div>
 
     <!-- Thema's -->
@@ -565,11 +565,6 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       </div>
     </div>
 
-
-    <!-- Inventaris subtab -->
-    <div id="mat-sub-inventaris" style="display:none">
-      <div id="inv-content" style="min-height:200px">
-        <div style="padding:2rem;color:var(--text2)">Laden...</div>
       </div>
     </div>
 
@@ -888,6 +883,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 
 
 
+
 // ── INVENTARIS ──
 let _invSport = [];
 let _invGedeeld = [];
@@ -898,8 +894,8 @@ async function renderInventarisTab(){
   const matInv = document.getElementById('mat-sub-inventaris');
   if(matInv) matInv.style.display = 'block';
   const c = document.getElementById('inv-content');
-  if(!c){console.error('inv-content not found!');return;}
-  c.innerHTML = '<div style="padding:2rem;color:var(--text2)">Laden...</div>';
+  if(!c){return;}
+  c.innerHTML = '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
   try {
     const sportRes = await api('GET', '/sport');
     const gedeeldRes = await api('GET', '/gedeeld');
@@ -915,6 +911,7 @@ async function renderInventarisTab(){
 function _renderInv(){
   const c = document.getElementById('inv-content');
   if(!c) return;
+  c.style.display = 'block';
   
   // Tab knoppen
   const tabs = `
