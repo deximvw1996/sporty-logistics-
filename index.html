@@ -873,7 +873,86 @@ button:disabled{opacity:.45;cursor:not-allowed;}
   </div>
 </div>
 
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 6: INVENTARIS
+  ═══════════════════════════════════════════════════════ -->
+  <div class="sec" id="sec-inventaris">
+    <!-- Sectie knoppen -->
+    <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
+      <button class="inv-sectie-btn ov-view-btn active" onclick="setInvSectie('sport',this)">⚽ Sportmateriaal</button>
+      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('thema',this)">🎨 Themamateriaal</button>
+      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('gedeeld',this)">🔧 Gedeeld materiaal</button>
+    </div>
+
+    <!-- SPORT -->
+    <div id="inv-sport">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Sportmateriaal — sets per locatie per week</div>
+          <div style="font-size:11px;color:var(--text2)">Klik op een weeknummer om een set in te plannen op een locatie.</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="inp" type="text" id="sport-naam" placeholder="Naam (bv. Voetbalzak)" style="width:180px">
+          <select class="sel" id="sport-cat">
+            <option value="sport">⚽ Sport</option>
+            <option value="zwembad">🏊 Zwembad</option>
+            <option value="outdoor">🌿 Outdoor</option>
+            <option value="indoor">🏠 Indoor</option>
+            <option value="andere">📦 Andere</option>
+          </select>
+          <button class="btn-g" onclick="addSportItem()">+ Nieuw artikel</button>
+        </div>
+      </div>
+      <div id="inv-sport-list"></div>
+    </div>
+
+    <!-- THEMA -->
+    <div id="inv-thema" style="display:none">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Themamateriaal — per thema</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:1rem">Materiaal dat vast bij een thema hoort. Beheer dit via Materiaal → Thema's.</div>
+      <div id="inv-thema-list"></div>
+    </div>
+
+    <!-- GEDEELD -->
+    <div id="inv-gedeeld" style="display:none">
+      <!-- Alarm bar -->
+      <div id="inv-gedeeld-alarm" style="display:none;background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px 14px;margin-bottom:.875rem;align-items:center;gap:10px">
+        <span style="font-size:18px">⚠️</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:#A32D2D">Conflict — te weinig gedeeld materiaal!</div>
+          <div id="inv-gedeeld-alarm-items" style="font-size:11px;color:#C05050"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Gedeeld materiaal — blazers, ovens, frames...</div>
+          <div style="font-size:11px;color:var(--text2)">Materiaal dat bij meerdere thema's gebruikt wordt. Alarm als er te weinig zijn die week.</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="inp" type="text" id="gedeeld-naam" placeholder="Naam (bv. Blazer)" style="width:160px">
+          <select class="sel" id="gedeeld-cat">
+            <option value="opblaas">💨 Opblaas</option>
+            <option value="keuken">🍳 Keuken</option>
+            <option value="constructie">🏗️ Constructie</option>
+            <option value="electro">🔌 Electro</option>
+            <option value="gedeeld">🔧 Andere</option>
+          </select>
+          <input class="inp" type="number" id="gedeeld-totaal" value="1" min="1" style="width:60px" placeholder="Aantal">
+          <button class="btn-g" onclick="addGedeeldItem()">+ Nieuw artikel</button>
+        </div>
+      </div>
+      <div id="inv-gedeeld-list"></div>
+    </div>
+  </div>
+
+
+
+
+
 <script>
+
+
 // ═══════════════════════════════════════════════
 // TAB 6: INVENTARIS
 // Drie secties: Sport | Thema | Gedeeld
@@ -4215,79 +4294,6 @@ loadAll()
   </button>
 </div>
 
-
-  <!-- ═══════════════════════════════════════════════════════
-       TAB 6: INVENTARIS
-  ═══════════════════════════════════════════════════════ -->
-  <div class="sec" id="sec-inventaris">
-    <!-- Sectie knoppen -->
-    <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
-      <button class="inv-sectie-btn ov-view-btn active" onclick="setInvSectie('sport',this)">⚽ Sportmateriaal</button>
-      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('thema',this)">🎨 Themamateriaal</button>
-      <button class="inv-sectie-btn ov-view-btn" onclick="setInvSectie('gedeeld',this)">🔧 Gedeeld materiaal</button>
-    </div>
-
-    <!-- SPORT -->
-    <div id="inv-sport">
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Sportmateriaal — sets per locatie per week</div>
-          <div style="font-size:11px;color:var(--text2)">Klik op een weeknummer om een set in te plannen op een locatie.</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input class="inp" type="text" id="sport-naam" placeholder="Naam (bv. Voetbalzak)" style="width:180px">
-          <select class="sel" id="sport-cat">
-            <option value="sport">⚽ Sport</option>
-            <option value="zwembad">🏊 Zwembad</option>
-            <option value="outdoor">🌿 Outdoor</option>
-            <option value="indoor">🏠 Indoor</option>
-            <option value="andere">📦 Andere</option>
-          </select>
-          <button class="btn-g" onclick="addSportItem()">+ Nieuw artikel</button>
-        </div>
-      </div>
-      <div id="inv-sport-list"></div>
-    </div>
-
-    <!-- THEMA -->
-    <div id="inv-thema" style="display:none">
-      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Themamateriaal — per thema</div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:1rem">Materiaal dat vast bij een thema hoort. Beheer dit via Materiaal → Thema's.</div>
-      <div id="inv-thema-list"></div>
-    </div>
-
-    <!-- GEDEELD -->
-    <div id="inv-gedeeld" style="display:none">
-      <!-- Alarm bar -->
-      <div id="inv-gedeeld-alarm" style="display:none;background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px 14px;margin-bottom:.875rem;align-items:center;gap:10px">
-        <span style="font-size:18px">⚠️</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;color:#A32D2D">Conflict — te weinig gedeeld materiaal!</div>
-          <div id="inv-gedeeld-alarm-items" style="font-size:11px;color:#C05050"></div>
-        </div>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-size:13px;font-weight:600;margin-bottom:4px">Gedeeld materiaal — blazers, ovens, frames...</div>
-          <div style="font-size:11px;color:var(--text2)">Materiaal dat bij meerdere thema's gebruikt wordt. Alarm als er te weinig zijn die week.</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <input class="inp" type="text" id="gedeeld-naam" placeholder="Naam (bv. Blazer)" style="width:160px">
-          <select class="sel" id="gedeeld-cat">
-            <option value="opblaas">💨 Opblaas</option>
-            <option value="keuken">🍳 Keuken</option>
-            <option value="constructie">🏗️ Constructie</option>
-            <option value="electro">🔌 Electro</option>
-            <option value="gedeeld">🔧 Andere</option>
-          </select>
-          <input class="inp" type="number" id="gedeeld-totaal" value="1" min="1" style="width:60px" placeholder="Aantal">
-          <button class="btn-g" onclick="addGedeeldItem()">+ Nieuw artikel</button>
-        </div>
-      </div>
-      <div id="inv-gedeeld-list"></div>
-    </div>
-  </div>
 
 </body>
 </html>
