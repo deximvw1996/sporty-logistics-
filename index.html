@@ -850,9 +850,645 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 </div>
 
 <script>
+// ═══════════════ INVENTARIS ═══════════════
+var _invSport = [];
+var _invGedeeld = [];
+var _invTab = 'sport';
+
+async function renderInventarisTab(){
+  var matInv = document.getElementById('mat-sub-inventaris');
+  if(matInv) matInv.style.display = 'block';
+  var c = document.getElementById('inv-content');
+  if(!c) return;
+  c.innerHTML = _buildTabs() + '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
+  try {
+    var sportRes = await api('GET', '/sport');
+    var gedeeldRes = await api('GET', '/gedeeld');
+    _invSport = Array.isArray(sportRes) ? sportRes : [];
+    _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
+    _renderInv();
+  } catch(e) {
+    document.getElementById('inv-content').innerHTML = _buildTabs() + '<div style="color:red;padding:1rem">Fout: ' + e.message + '</div>';
+  }
+}
+
+function _buildTabs(){
+  var s = (_invTab==='sport'), t = (_invTab==='thema'), g = (_invTab==='gedeeld');
+  var h = '<div style="display:flex;gap:6px;margin-bottom:1rem">';
+  h += '<button class="ov-view-btn ' + (s?'active':'') + '" onclick="_setInvTab(\'sport\')">&#9917; Sportmateriaal</button>';
+  h += '<button class="ov-view-btn ' + (t?'active':'') + '" onclick="_setInvTab(\'thema\')">&#127912; Themamateriaal</button>';
+  h += '<button class="ov-view-btn ' + (g?'active':'') + '" onclick="_setInvTab(\'gedeeld\')">&#128295; Gedeeld materiaal</button>';
+  h += '</div>';
+  return h;
+}
+
+function _setInvTab(tab){
+  _invTab = tab;
+  _renderInv();
+}
+
+function _renderInv(){
+  var c = document.getElementById('inv-content');
+  if(!c) return;
+  var html = _buildTabs();
+  if(_invTab === 'sport') html += _buildSport();
+  else if(_invTab === 'thema') html += _buildThema();
+  else html += _buildGedeeld();
+  c.innerHTML = html;
+}
+
+function _buildSport(){
+  var h = '<div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">';
+  h += '<input class="inp" type="text" id="inv-s-naam" placeholder="Naam artikel" style="width:180px;margin-right:6px">';
+  h += '<select class="sel" id="inv-s-cat" style="margin-right:6px"><option value="sport">Sport</option><option value="zwembad">Zwembad</option><option value="outdoor">Outdoor</option><option value="andere">Andere</option></select>';
+  h += '<button class="btn-g" onclick="invAddSport()">+ Artikel</button></div>';
+  if(!_invSport.length) return h + '<div class="empty">Nog geen sportmateriaal. Voeg een artikel toe.</div>';
+  var groups = {};
+  _invSport.forEach(function(item){ var c = item.cat||'andere'; if(!groups[c])groups[c]=[]; groups[c].push(item); });
+  Object.keys(groups).sort().forEach(function(cat){
+    h += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:10px 0 4px;border-bottom:.5px solid var(--border);margin-bottom:8px">' + cat + '</div>';
+    groups[cat].forEach(function(item){
+      var sets = item.sets || [];
+      h += '<div class="card" style="margin-bottom:.75rem">';
+      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (sets.length?'12px':'0') + '">';
+      h += '<div style="flex:1"><div style="font-size:14px;font-weight:600">' + item.name + '</div>';
+      h += '<div style="font-size:11px;color:var(--text2)">' + sets.length + ' sets</div></div>';
+      h += '<button class="btn-xs" onclick="invAddSet(' + item.id + ')">+ Set</button>';
+      h += '<button class="bi" style="color:var(--red)" onclick="invDelSport(' + item.id + ')">&#128465;</button></div>';
+      if(sets.length){
+        h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">';
+        sets.forEach(function(set){
+          var planned = set.planning && set.planning.length > 0;
+          var weeks = '';
+          for(var w=1;w<=9;w++){
+            var p = set.planning ? set.planning.find(function(pl){return pl.week===w;}) : null;
+            weeks += '<span onclick="invTogWeek(' + set.id + ',' + w + ',' + (p?p.locatie_id:'null') + ')" title="' + (p?p.locatie_name:'') + '" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:' + (p?'var(--green-dk)':'var(--border)') + ';color:' + (p?'white':'var(--text3)') + '">' + w + '</span>';
+          }
+          h += '<div style="border:.5px solid ' + (planned?'#5DCAA5':'var(--border)') + ';border-radius:var(--rl);padding:10px;background:' + (planned?'#FAFFFE':'var(--bg2)') + '">';
+          h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
+          h += '<span style="font-size:12px;font-weight:600">' + set.label + '</span>';
+          h += '<button class="bi" style="font-size:10px;color:var(--red)" onclick="invDelSet(' + set.id + ')">&#x2715;</button></div>';
+          h += '<div style="font-size:11px;color:var(--text2);margin-bottom:7px">&#128205; ' + (set.locatie_name||'Stockage') + '</div>';
+          h += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">' + weeks + '</div>';
+          h += '<button class="btn-o" style="width:100%;font-size:10px;height:26px" onclick="invVerplaats(' + set.id + ')">&#128667; Verplaatsen</button>';
+          h += '</div>';
+        });
+        h += '</div>';
+      }
+      h += '</div>';
+    });
+  });
+  return h;
+}
+
+async function invAddSport(){
+  var name = document.getElementById('inv-s-naam').value.trim();
+  var cat = document.getElementById('inv-s-cat').value || 'sport';
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  await api('POST','/sport',{name:name,cat:cat});
+  document.getElementById('inv-s-naam').value = '';
+  _invSport = await api('GET','/sport');
+  _renderInv();
+  showToast(name+' aangemaakt','success');
+}
+
+async function invAddSet(itemId){
+  var label = prompt('Naam voor nieuwe set (bv. Voetbalzak 1):');
+  if(!label) return;
+  await api('POST','/sport/'+itemId+'/sets',{label:label,locatie_id:null});
+  _invSport = await api('GET','/sport');
+  _renderInv();
+  showToast(label+' toegevoegd','success');
+}
+
+async function invDelSport(id){
+  if(!confirm('Verwijderen?')) return;
+  await api('DELETE','/sport/'+id);
+  _invSport = await api('GET','/sport');
+  _renderInv();
+}
+
+async function invDelSet(id){
+  if(!confirm('Set verwijderen?')) return;
+  await api('DELETE','/sport/sets/'+id);
+  _invSport = await api('GET','/sport');
+  _renderInv();
+}
+
+async function invTogWeek(setId, week, currentLocId){
+  if(currentLocId && currentLocId !== 'null'){
+    await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:null});
+  } else {
+    var kamps = S.locaties.filter(function(l){return l.type==='kamp';});
+    if(!kamps.length){showToast('Geen kamplocaties','warn');return;}
+    var keuze = prompt('Week '+week+' inplannen op:\n'+kamps.map(function(l,i){return (i+1)+'. '+l.name;}).join('\n'));
+    if(!keuze) return;
+    var loc = kamps[parseInt(keuze)-1];
+    if(!loc){showToast('Ongeldige keuze','warn');return;}
+    await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:loc.id});
+  }
+  _invSport = await api('GET','/sport');
+  _renderInv();
+}
+
+async function invVerplaats(setId){
+  var locs = S.locaties;
+  var keuze = prompt('Verplaatsen naar:\n'+locs.map(function(l,i){return (i+1)+'. '+l.name+' ('+l.type+')';}).join('\n'));
+  if(!keuze) return;
+  var loc = locs[parseInt(keuze)-1];
+  if(!loc){showToast('Ongeldige keuze','warn');return;}
+  var set = null;
+  _invSport.forEach(function(item){item.sets.forEach(function(s){if(s.id===setId)set=s;});});
+  var label = set ? set.label : 'Set';
+  await api('PUT','/sport/sets/'+setId,{label:label,locatie_id:loc.id});
+  _invSport = await api('GET','/sport');
+  _renderInv();
+  showToast('Verplaatst naar '+loc.name,'success');
+}
+
+function _buildThema(){
+  if(!S.themas||!S.themas.length) return '<div class="empty">Geen themas gevonden.</div>';
+  var groups = {};
+  S.themas.forEach(function(t){ var c=t.categorie||'Geen categorie'; if(!groups[c])groups[c]=[]; groups[c].push(t); });
+  var h = '';
+  Object.keys(groups).sort().forEach(function(cat){
+    h += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:10px 0 4px;border-bottom:.5px solid var(--border);margin-bottom:8px">' + cat + '</div>';
+    groups[cat].forEach(function(thema){
+      var mat = thema.materiaal || [];
+      h += '<div class="card" style="margin-bottom:.5rem">';
+      h += '<div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="var b=document.getElementById(\'th-b-'+thema.id+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'">';
+      h += '<span style="width:12px;height:12px;border-radius:50%;background:'+thema.color+';display:inline-block;flex-shrink:0"></span>';
+      h += '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+thema.name+'</div><div style="font-size:11px;color:var(--text2)">'+mat.length+' items</div></div>';
+      h += '<span>&#9658;</span></div>';
+      h += '<div id="th-b-'+thema.id+'" style="display:none;margin-top:10px;border-top:.5px solid var(--border);padding-top:8px">';
+      if(mat.length){
+        mat.forEach(function(m){ h += '<div style="display:flex;gap:8px;padding:3px 0;font-size:12px"><span style="font-weight:600;min-width:28px;color:var(--green-dk)">&times;'+m.qty+'</span><span>'+m.name+'</span></div>'; });
+      } else { h += '<div style="font-size:11px;color:var(--text2)">Geen materiaal gekoppeld.</div>'; }
+      h += '</div></div>';
+    });
+  });
+  return h;
+}
+
+function _buildGedeeld(){
+  var h = '';
+  var alarms = _invGedeeld.filter(function(i){return i.weekConflicts&&Object.values(i.weekConflicts).some(function(w){return w.alarm;});});
+  if(alarms.length){
+    h += '<div style="background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px;margin-bottom:.875rem">';
+    h += '<strong style="color:#A32D2D">&#9888; Conflict</strong> ';
+    h += alarms.map(function(i){return i.name;}).join(', ');
+    h += '</div>';
+  }
+  h += '<div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">';
+  h += '<input class="inp" type="text" id="inv-g-naam" placeholder="Naam" style="width:140px;margin-right:6px">';
+  h += '<select class="sel" id="inv-g-cat" style="margin-right:6px"><option value="opblaas">Opblaas</option><option value="keuken">Keuken</option><option value="gedeeld">Andere</option></select>';
+  h += '<input class="inp" type="number" id="inv-g-tot" value="1" min="1" style="width:55px;margin-right:6px">';
+  h += '<button class="btn-g" onclick="invAddGedeeld()">+ Artikel</button></div>';
+  if(!_invGedeeld.length) return h + '<div class="empty">Nog geen gedeeld materiaal.</div>';
+  _invGedeeld.forEach(function(item){
+    var alarm = item.weekConflicts&&Object.values(item.weekConflicts).some(function(w){return w.alarm;});
+    h += '<div class="card" style="margin-bottom:.75rem;'+(alarm?'border-color:var(--red)':'')+'">';
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    h += '<div style="flex:1"><div style="font-size:14px;font-weight:600">'+item.name+'</div>';
+    h += '<div style="font-size:11px;color:var(--text2)">Totaal: <strong>'+item.totaal+'</strong> stuks</div></div>';
+    h += '<button class="btn-xs" onclick="invEditTot('+item.id+','+item.totaal+')">&#9999; Aantal</button>';
+    h += '<button class="bi" style="color:var(--red)" onclick="invDelGedeeld('+item.id+')">&#128465;</button></div>';
+    if(item.weekConflicts&&Object.keys(item.weekConflicts).length){
+      h += '<div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">';
+      for(var w=1;w<=9;w++){
+        var wc=item.weekConflicts[w];
+        h += '<span style="display:inline-flex;flex-direction:column;align-items:center;border-radius:6px;padding:4px 6px;font-size:10px;min-width:34px;background:'+(wc?(wc.alarm?'#FEF2F2':'#E8F9F3'):'var(--bg2)')+';border:.5px solid '+(wc?(wc.alarm?'#F09595':'#5DCAA5'):'var(--border)')+'"><span style="font-weight:700;color:'+(wc?(wc.alarm?'var(--red)':'var(--green-dk)'):'var(--text3)')+'">W'+w+'</span>'+(wc?'<span>'+wc.needed+'</span>':'')+'</span>';
+      }
+      h += '</div>';
+    }
+    h += '<details><summary style="font-size:11px;color:var(--text2);cursor:pointer">Gebruik per thema ('+(item.gebruik?item.gebruik.length:0)+')</summary><div style="margin-top:8px">';
+    (item.gebruik||[]).forEach(function(g){
+      h += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">';
+      h += '<span style="flex:1">'+(g.thema_name||'?')+'</span>';
+      h += '<input type="number" value="'+g.qty+'" min="1" style="width:50px" class="inp" onchange="invUpdGebr('+item.id+','+g.thema_id+',this.value)">';
+      h += '<button class="bi" style="color:var(--red);font-size:10px" onclick="invDelGebr('+item.id+','+g.thema_id+')">&#x2715;</button></div>';
+    });
+    h += '<div style="display:flex;gap:6px;margin-top:8px">';
+    h += '<select class="sel" id="gsel-'+item.id+'" style="flex:1"><option value="">&#8212; Kies thema &#8212;</option>';
+    h += (S.themas||[]).map(function(t){return '<option value="'+t.id+'">'+t.name+'</option>';}).join('');
+    h += '</select><input type="number" id="gqty-'+item.id+'" value="1" min="1" style="width:60px" class="inp">';
+    h += '<button class="btn-xs" onclick="invAddGebr('+item.id+')">+ Koppel</button></div>';
+    h += '</div></details></div>';
+  });
+  return h;
+}
+
+async function invAddGedeeld(){
+  var name = document.getElementById('inv-g-naam').value.trim();
+  var cat = document.getElementById('inv-g-cat').value || 'gedeeld';
+  var tot = parseInt(document.getElementById('inv-g-tot').value) || 1;
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  await api('POST','/gedeeld',{name:name,cat:cat,totaal:tot});
+  document.getElementById('inv-g-naam').value = '';
+  _invGedeeld = await api('GET','/gedeeld');
+  _renderInv();
+  showToast(name+' aangemaakt','success');
+}
+
+async function invEditTot(id,current){
+  var item = _invGedeeld.find(function(i){return i.id===id;});
+  var nieuw = prompt('Aantal stuks:',current);
+  if(!nieuw||isNaN(parseInt(nieuw))) return;
+  await api('PUT','/gedeeld/'+id,{name:item.name,cat:item.cat,totaal:parseInt(nieuw)});
+  _invGedeeld = await api('GET','/gedeeld');
+  _renderInv();
+}
+
+async function invDelGedeeld(id){
+  if(!confirm('Verwijderen?')) return;
+  await api('DELETE','/gedeeld/'+id);
+  _invGedeeld = await api('GET','/gedeeld');
+  _renderInv();
+  showToast('Verwijderd','info');
+}
+
+async function invAddGebr(itemId){
+  var thema_id = parseInt(document.getElementById('gsel-'+itemId).value);
+  var qty = parseInt(document.getElementById('gqty-'+itemId).value) || 1;
+  if(!thema_id){showToast('Kies een thema','warn');return;}
+  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id:thema_id,qty:qty});
+  _invGedeeld = await api('GET','/gedeeld');
+  _renderInv();
+}
+
+async function invUpdGebr(itemId,themaId,qty){
+  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id:themaId,qty:parseInt(qty)||1});
+  _invGedeeld = await api('GET','/gedeeld');
+}
+
+async function invDelGebr(itemId,themaId){
+  await api('DELETE','/gedeeld/'+itemId+'/gebruik/'+themaId);
+  _invGedeeld = await api('GET','/gedeeld');
+  _renderInv();
+}
+// ═══════════════ EINDE INVENTARIS ═══════════════
+
+
 // ── INVENTARIS TAB ──
-let invData = { sport: [], gedeeld: [] };
-let invSectie = 'sport';
+
+
+
+function renderInvActief(){
+  ['inv-sport','inv-thema','inv-gedeeld'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const active=document.getElementById('inv-'+invSectie);
+  if(active) active.style.display='block';
+
+  if(invSectie==='sport') renderInvSport();
+  else if(invSectie==='thema') renderInvThema();
+  else if(invSectie==='gedeeld') renderInvGedeeld();
+}
+
+function setInvSectie(sectie,btn){
+  invSectie=sectie;
+  document.querySelectorAll('.inv-sectie-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderInvActief();
+}
+
+// ── SPORT ──
+function renderInvSport(){
+  const el=document.getElementById('inv-sport-list');
+  if(!el) return;
+  if(!invData.sport.length){
+    el.innerHTML='<div class="empty">Nog geen sportmateriaal. Voeg een artikel toe via de knop hierboven.</div>';
+    return;
+  }
+  el.innerHTML='';
+  invData.sport.forEach(item=>{
+    const sets=item.sets||[];
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.marginBottom='.75rem';
+
+    // Header
+    card.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${sets.length?'12px':'0'}">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${item.name}</div>
+          <div style="font-size:11px;color:var(--text2)">${sets.length} sets · categorie: ${item.cat||'sport'}</div>
+        </div>
+        <button class="btn-xs" onclick="invAddSet(${item.id},'${item.name.replace(/'/g,"\\'")}')">+ Set</button>
+        <button class="bi" style="color:var(--red)" onclick="invDeleteSport(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>
+      </div>`;
+
+    if(sets.length){
+      const grid=document.createElement('div');
+      grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px';
+      sets.forEach(set=>{
+        const planned=set.planning&&set.planning.length>0;
+        const sc=document.createElement('div');
+        sc.style.cssText=`border:.5px solid ${planned?'#5DCAA5':'var(--border)'};border-radius:var(--rl);padding:10px;background:${planned?'#FAFFFE':'var(--bg2)'}`;
+        
+        // Week badges
+        const weeks=[1,2,3,4,5,6,7,8,9];
+        const weekBadges=weeks.map(w=>{
+          const p=set.planning?set.planning.find(pl=>pl.week===w):null;
+          return `<span onclick="invToggleWeek(${set.id},${w},${p?p.locatie_id:'null'})" title="${p?p.locatie_name:'Niet ingepland'}" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:${p?'var(--green-dk)':'var(--border)'};color:${p?'white':'var(--text3)'}">${w}</span>`;
+        }).join('');
+
+        sc.innerHTML=`
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:12px;font-weight:600">${set.label}</span>
+            <button class="bi" style="font-size:10px;color:var(--red)" onclick="invDeleteSet(${set.id})">✕</button>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:7px">📍 ${set.locatie_name||'Stockage'}</div>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">${weekBadges}</div>
+          <button class="btn-o" style="width:100%;font-size:10px;height:26px" onclick="invVerplaatsSet(${set.id},'${set.label.replace(/'/g,"\\'")}')">📦 Verplaatsen</button>`;
+        grid.appendChild(sc);
+      });
+      card.appendChild(grid);
+    }
+    el.appendChild(card);
+  });
+}
+
+async function invToggleWeek(setId,week,currentLocId){
+  if(currentLocId&&currentLocId!=='null'){
+    await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:null});
+  } else {
+    const kamps=S.locaties.filter(l=>l.type==='kamp');
+    if(!kamps.length){showToast('Geen kamplocaties','warn');return;}
+    const names=kamps.map((l,i)=>`${i+1}. ${l.name}`).join('\n');
+    const choice=prompt('Week '+week+' — Kies locatie:\n'+names);
+    if(!choice)return;
+    const loc=kamps[parseInt(choice)-1];
+    if(!loc){showToast('Ongeldige keuze','warn');return;}
+    await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:loc.id});
+  }
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+}
+
+async function invAddSet(itemId,itemNaam){
+  const label=prompt('Naam voor nieuwe set (bv. "Voetbalzak 1"):');
+  if(!label)return;
+  await api('POST','/sport/'+itemId+'/sets',{label,locatie_id:null});
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+  showToast(label+' toegevoegd','success');
+}
+
+async function invDeleteSport(id,naam){
+  if(!confirm('"'+naam+'" en alle sets verwijderen?'))return;
+  await api('DELETE','/sport/'+id);
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+  showToast('Verwijderd','info');
+}
+
+async function invDeleteSet(id){
+  if(!confirm('Set verwijderen?'))return;
+  await api('DELETE','/sport/sets/'+id);
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+}
+
+async function invVerplaatsSet(setId,label){
+  const locs=S.locaties;
+  const names=locs.map((l,i)=>`${i+1}. ${l.name} (${l.type})`).join('\n');
+  const choice=prompt('"'+label+'" verplaatsen naar:\n'+names);
+  if(!choice)return;
+  const loc=locs[parseInt(choice)-1];
+  if(!loc){showToast('Ongeldige keuze','warn');return;}
+  await api('PUT','/sport/sets/'+setId,{label,locatie_id:loc.id});
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+  showToast('Verplaatst naar '+loc.name,'success');
+}
+
+async function invAddSport(){
+  const name=document.getElementById('inv-sport-naam')?.value.trim();
+  const cat=document.getElementById('inv-sport-cat')?.value||'sport';
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  await api('POST','/sport',{name,cat});
+  document.getElementById('inv-sport-naam').value='';
+  const sport=await api('GET','/sport');
+  invData.sport=Array.isArray(sport)?sport:[];
+  renderInvSport();
+  showToast(name+' aangemaakt','success');
+}
+
+// ── THEMA ──
+function renderInvThema(){
+  const el=document.getElementById('inv-thema-list');
+  if(!el)return;
+  if(!S.themas||!S.themas.length){
+    el.innerHTML='<div class="empty">Geen themas gevonden. Voeg themas toe via Materiaal → Themas.</div>';
+    return;
+  }
+  const groups={};
+  S.themas.forEach(t=>{
+    const c=t.categorie||'Geen categorie';
+    if(!groups[c])groups[c]=[];
+    groups[c].push(t);
+  });
+  el.innerHTML='';
+  Object.entries(groups).sort().forEach(([cat,themas])=>{
+    const catDiv=document.createElement('div');
+    catDiv.style.cssText='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin:12px 0 8px';
+    catDiv.textContent=cat;
+    el.appendChild(catDiv);
+    themas.forEach(thema=>{
+      const mat=thema.materiaal||[];
+      const card=document.createElement('div');
+      card.className='card';
+      card.style.cssText='margin-bottom:.5rem;cursor:pointer';
+      const hdr=document.createElement('div');
+      hdr.style.cssText='display:flex;align-items:center;gap:10px';
+      hdr.innerHTML=`<span style="width:12px;height:12px;border-radius:50%;background:${thema.color};display:inline-block;flex-shrink:0"></span><div style="flex:1"><div style="font-size:13px;font-weight:600">${thema.name}</div><div style="font-size:11px;color:var(--text2)">${mat.length} items</div></div><span style="font-size:11px;color:var(--text2)">▸</span>`;
+      const body=document.createElement('div');
+      body.style.cssText='display:none;margin-top:10px;border-top:.5px solid var(--border);padding-top:8px';
+      if(mat.length){
+        mat.forEach(m=>{
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;gap:8px;padding:3px 0;font-size:12px';
+          row.innerHTML=`<span style="font-weight:600;min-width:28px;color:var(--green-dk)">×${m.qty}</span><span>${m.name}</span>`;
+          body.appendChild(row);
+        });
+      } else {
+        body.innerHTML='<div style="font-size:11px;color:var(--text2)">Geen materiaal gekoppeld.</div>';
+      }
+      hdr.onclick=()=>{
+        const open=body.style.display!=='none';
+        body.style.display=open?'none':'block';
+        hdr.querySelector('span:last-child').textContent=open?'▸':'▾';
+      };
+      card.appendChild(hdr);card.appendChild(body);
+      el.appendChild(card);
+    });
+  });
+}
+
+// ── GEDEELD ──
+function renderInvGedeeld(){
+  const el=document.getElementById('inv-gedeeld-list');
+  if(!el)return;
+  
+  // Check alarms
+  const alarms=invData.gedeeld.filter(item=>item.weekConflicts&&Object.values(item.weekConflicts).some(w=>w.alarm));
+  const bar=document.getElementById('inv-gedeeld-alarm');
+  if(bar){
+    bar.style.display=alarms.length?'flex':'none';
+    const detail=document.getElementById('inv-gedeeld-alarm-items');
+    if(detail&&alarms.length){
+      detail.textContent=alarms.map(item=>{
+        const weeks=Object.entries(item.weekConflicts).filter(([w,c])=>c.alarm).map(([w,c])=>'week '+w+': '+c.needed+'/'+item.totaal).join(', ');
+        return item.name+' ('+weeks+')';
+      }).join(' | ');
+    }
+  }
+
+  if(!invData.gedeeld.length){
+    el.innerHTML='<div class="empty">Nog geen gedeeld materiaal. Voeg een artikel toe.</div>';
+    return;
+  }
+  el.innerHTML='';
+  invData.gedeeld.forEach(item=>{
+    const alarm=item.weekConflicts&&Object.values(item.weekConflicts).some(w=>w.alarm);
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.cssText='margin-bottom:.75rem;'+(alarm?'border-color:var(--red)':'');
+    
+    // Header
+    const hdr=document.createElement('div');
+    hdr.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:10px';
+    hdr.innerHTML=`${alarm?'<span style="font-size:18px">⚠️</span>':'<span style="font-size:18px">🔧</span>'}<div style="flex:1"><div style="font-size:14px;font-weight:600">${item.name}${alarm?' <span style="color:var(--red);font-size:11px">— CONFLICT</span>':''}</div><div style="font-size:11px;color:var(--text2)">Totaal: <strong>${item.totaal}</strong> stuks</div></div><button class="btn-xs" onclick="invEditTotaal(${item.id},${item.totaal},'${item.name.replace(/'/g,"\\'")}','${item.cat||'gedeeld'}')">✏️</button><button class="bi" style="color:var(--red)" onclick="invDeleteGedeeld(${item.id},'${item.name.replace(/'/g,"\\'")}')">🗑️</button>`;
+    card.appendChild(hdr);
+
+    // Week overview
+    if(item.weekConflicts&&Object.keys(item.weekConflicts).length){
+      const weekRow=document.createElement('div');
+      weekRow.style.cssText='display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap';
+      for(let w=1;w<=9;w++){
+        const wc=item.weekConflicts[w];
+        const sp=document.createElement('span');
+        sp.style.cssText=`display:inline-flex;flex-direction:column;align-items:center;border-radius:6px;padding:4px 6px;font-size:10px;min-width:34px;background:${!wc?'var(--bg2)':wc.alarm?'#FEF2F2':'#E8F9F3'};border:.5px solid ${!wc?'var(--border)':wc.alarm?'#F09595':'#5DCAA5'}`;
+        sp.innerHTML=`<span style="font-weight:700;color:${!wc?'var(--text3)':wc.alarm?'var(--red)':'var(--green-dk)'}">W${w}</span>${wc?'<span>'+wc.needed+'</span>':''}`;
+        weekRow.appendChild(sp);
+      }
+      card.appendChild(weekRow);
+    }
+
+    // Gebruik per thema
+    const details=document.createElement('details');
+    details.innerHTML=`<summary style="font-size:11px;color:var(--text2);cursor:pointer">Gebruik per thema (${item.gebruik?item.gebruik.length:0})</summary>`;
+    const body=document.createElement('div');
+    body.style.marginTop='8px';
+    (item.gebruik||[]).forEach(g=>{
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px';
+      row.innerHTML=`<span style="flex:1">${g.thema_name||'?'}</span><input type="number" value="${g.qty}" min="1" style="width:50px" class="inp" onchange="invUpdateGebruik(${item.id},${g.thema_id},this.value)"><button class="bi" style="color:var(--red);font-size:10px" onclick="invRemoveGebruik(${item.id},${g.thema_id})">✕</button>`;
+      body.appendChild(row);
+    });
+    const addRow=document.createElement('div');
+    addRow.style.cssText='display:flex;gap:6px;margin-top:8px';
+    addRow.innerHTML=`<select class="sel" id="gd-th-${item.id}" style="flex:1"><option value="">— Kies thema —</option>${(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><input type="number" id="gd-qty-${item.id}" value="1" min="1" style="width:60px" class="inp"><button class="btn-xs" onclick="invAddGebruik(${item.id})">+ Koppel</button>`;
+    body.appendChild(addRow);
+    details.appendChild(body);
+    card.appendChild(details);
+    el.appendChild(card);
+  });
+}
+
+async function invAddGedeeld(){
+  const name=document.getElementById('inv-gedeeld-naam')?.value.trim();
+  const cat=document.getElementById('inv-gedeeld-cat')?.value||'gedeeld';
+  const totaal=parseInt(document.getElementById('inv-gedeeld-totaal')?.value)||1;
+  if(!name){showToast('Naam is verplicht','warn');return;}
+  await api('POST','/gedeeld',{name,cat,totaal});
+  document.getElementById('inv-gedeeld-naam').value='';
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+  showToast(name+' aangemaakt','success');
+}
+
+async function invEditTotaal(id,current,naam,cat){
+  const nieuw=prompt('Aantal stuks voor "'+naam+'":', current);
+  if(!nieuw||isNaN(parseInt(nieuw)))return;
+  await api('PUT','/gedeeld/'+id,{name:naam,cat,totaal:parseInt(nieuw)});
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+async function invDeleteGedeeld(id,naam){
+  if(!confirm('"'+naam+'" verwijderen?'))return;
+  await api('DELETE','/gedeeld/'+id);
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+  showToast('Verwijderd','info');
+}
+
+async function invAddGebruik(itemId){
+  const thema_id=parseInt(document.getElementById('gd-th-'+itemId)?.value);
+  const qty=parseInt(document.getElementById('gd-qty-'+itemId)?.value)||1;
+  if(!thema_id){showToast('Kies een thema','warn');return;}
+  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id,qty});
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+async function invUpdateGebruik(itemId,themaId,qty){
+  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id:themaId,qty:parseInt(qty)||1});
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+async function invRemoveGebruik(itemId,themaId){
+  await api('DELETE','/gedeeld/'+itemId+'/gebruik/'+themaId);
+  const gedeeld=await api('GET','/gedeeld');
+  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
+  renderInvGedeeld();
+}
+
+
+
+async function renderInventarisTab(){
+  var matInv = document.getElementById('mat-sub-inventaris');
+  if(matInv) matInv.style.display = 'block';
+  var c = document.getElementById('inv-content');
+  if(!c) return;
+  var tabs = _buildTabs();
+  c.innerHTML = tabs + '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
+  try {
+    var sportRes = await api('GET','/sport');
+    var gedeeldRes = await api('GET','/gedeeld');
+    _invSport = Array.isArray(sportRes) ? sportRes : [];
+    _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
+    _renderInv();
+  } catch(err) {
+    var c2 = document.getElementById('inv-content');
+    if(c2) c2.innerHTML = _buildTabs() + '<div style="color:red;padding:1rem">Fout: '+err.message+'</div>';
+  }
+}
+
+function _buildTabs(){
+  return '<div style="display:flex;gap:6px;margin-bottom:1rem">'
+    + '<button class="ov-view-btn '+(_invTab==="sport"?"active":"")+'" onclick="_setInvTab(String.fromCharCode(115,112,111,114,116))">&#9917; Sportmateriaal</button>'
+    + '<button class="ov-view-btn '+(_invTab==="thema"?"active":"")+'" onclick="_setInvTab(String.fromCharCode(116,104,101,109,97))">&#127912; Themamateriaal</button>'
+    + '<button class="ov-view-btn '+(_invTab==="gedeeld"?"active":"")+'" onclick="_setInvTab(String.fromCharCode(103,101,100,101,101,108,100))">&#128295; Gedeeld materiaal</button>'
+    + '</div>';
+}
+
+
+// ── INVENTARIS TAB ──
 
 async function renderInventarisTab(){
   // Show loading state
