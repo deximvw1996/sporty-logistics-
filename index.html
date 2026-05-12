@@ -1228,15 +1228,7 @@ async function invToggleWeek(setId,week,currentLocId){
   renderInvSport();
 }
 
-async function invAddSet(itemId,itemNaam){
-  const label=prompt('Naam voor nieuwe set (bv. "Voetbalzak 1"):');
-  if(!label)return;
-  await api('POST','/sport/'+itemId+'/sets',{label,locatie_id:null});
-  const sport=await api('GET','/sport');
-  invData.sport=Array.isArray(sport)?sport:[];
-  renderInvSport();
-  showToast(label+' toegevoegd','success');
-}
+
 
 async function invDeleteSport(id,naam){
   if(!confirm('"'+naam+'" en alle sets verwijderen?'))return;
@@ -1269,17 +1261,7 @@ async function invVerplaatsSet(setId,label){
   showToast('Verplaatst naar '+loc.name,'success');
 }
 
-async function invAddSport(){
-  const name=document.getElementById('inv-sport-naam')?.value.trim();
-  const cat=document.getElementById('inv-sport-cat')?.value||'sport';
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/sport',{name,cat});
-  document.getElementById('inv-sport-naam').value='';
-  const sport=await api('GET','/sport');
-  invData.sport=Array.isArray(sport)?sport:[];
-  renderInvSport();
-  showToast(name+' aangemaakt','success');
-}
+
 
 // ── THEMA ──
 function renderInvThema(){
@@ -1403,18 +1385,7 @@ function renderInvGedeeld(){
   });
 }
 
-async function invAddGedeeld(){
-  const name=document.getElementById('inv-gedeeld-naam')?.value.trim();
-  const cat=document.getElementById('inv-gedeeld-cat')?.value||'gedeeld';
-  const totaal=parseInt(document.getElementById('inv-gedeeld-totaal')?.value)||1;
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/gedeeld',{name,cat,totaal});
-  document.getElementById('inv-gedeeld-naam').value='';
-  const gedeeld=await api('GET','/gedeeld');
-  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
-  renderInvGedeeld();
-  showToast(name+' aangemaakt','success');
-}
+
 
 async function invEditTotaal(id,current,naam,cat){
   const nieuw=prompt('Aantal stuks voor "'+naam+'":', current);
@@ -1616,15 +1587,7 @@ async function invToggleWeek(setId,week,currentLocId){
   renderInvSport();
 }
 
-async function invAddSet(itemId,itemNaam){
-  const label=prompt('Naam voor nieuwe set (bv. "Voetbalzak 1"):');
-  if(!label)return;
-  await api('POST','/sport/'+itemId+'/sets',{label,locatie_id:null});
-  const sport=await api('GET','/sport');
-  invData.sport=Array.isArray(sport)?sport:[];
-  renderInvSport();
-  showToast(label+' toegevoegd','success');
-}
+
 
 async function invDeleteSport(id,naam){
   if(!confirm('"'+naam+'" en alle sets verwijderen?'))return;
@@ -1657,17 +1620,7 @@ async function invVerplaatsSet(setId,label){
   showToast('Verplaatst naar '+loc.name,'success');
 }
 
-async function invAddSport(){
-  const name=document.getElementById('inv-sport-naam')?.value.trim();
-  const cat=document.getElementById('inv-sport-cat')?.value||'sport';
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/sport',{name,cat});
-  document.getElementById('inv-sport-naam').value='';
-  const sport=await api('GET','/sport');
-  invData.sport=Array.isArray(sport)?sport:[];
-  renderInvSport();
-  showToast(name+' aangemaakt','success');
-}
+
 
 // ── THEMA ──
 function renderInvThema(){
@@ -1791,18 +1744,7 @@ function renderInvGedeeld(){
   });
 }
 
-async function invAddGedeeld(){
-  const name=document.getElementById('inv-gedeeld-naam')?.value.trim();
-  const cat=document.getElementById('inv-gedeeld-cat')?.value||'gedeeld';
-  const totaal=parseInt(document.getElementById('inv-gedeeld-totaal')?.value)||1;
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/gedeeld',{name,cat,totaal});
-  document.getElementById('inv-gedeeld-naam').value='';
-  const gedeeld=await api('GET','/gedeeld');
-  invData.gedeeld=Array.isArray(gedeeld)?gedeeld:[];
-  renderInvGedeeld();
-  showToast(name+' aangemaakt','success');
-}
+
 
 async function invEditTotaal(id,current,naam,cat){
   const nieuw=prompt('Aantal stuks voor "'+naam+'":', current);
