@@ -577,9 +577,9 @@ button:disabled{opacity:.45;cursor:not-allowed;}
     </div>
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;">
-      <button class="btn-o" onclick="setPlannerWk(-1)">&#8592;</button>
+      <button class="btn-o" id="pl-week-prev" onclick="setPlannerWk(-1)">&#8592;</button>
       <span id="pl-week-label" style="font-size:14px;font-weight:600;min-width:200px;text-align:center"></span>
-      <button class="btn-o" onclick="setPlannerWk(1)">&#8594;</button>
+      <button class="btn-o" id="pl-week-next" onclick="setPlannerWk(1)">&#8594;</button>
       <div style="flex:1"></div>
       <button class="btn-g" onclick="genereerVoorstellen()">&#9889; Voorstel genereren</button>
       <button class="btn-b" onclick="openNieuweTransport()">+ Toevoegen</button>
@@ -951,6 +951,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 
 
 <script>
+
 
 
 // ═══════════════════════════════════════════════
@@ -1964,7 +1965,7 @@ function goTo(id){
     if(el) el.classList.toggle('active',s===id);
   });
   document.querySelectorAll('.nb').forEach((b,i)=>{
-    b.classList.toggle('active',['overzicht','planning','materiaal','transport-plan','transporten'][i]===id);
+    b.classList.toggle('active',['overzicht','planning','materiaal','transport-plan','transporten','inventaris'][i]===id);
   });
   const renderMap={
     overzicht:renderOverzicht,
@@ -3516,13 +3517,16 @@ function updatePlannerMetrics(){
 
 function renderPlannerKalender(){
   // Week navigation
-  document.getElementById('pl-week-label').textContent=plannerWeekLabel(plannerWk);
-  document.getElementById('pl-week-prev').disabled=(plannerWk<=1);
-  document.getElementById('pl-week-next').disabled=(plannerWk>=9);
+  const wlabel=document.getElementById('pl-week-label');
+  if(wlabel)wlabel.textContent=plannerWeekLabel(plannerWk);
+  const wprev=document.getElementById('pl-week-prev');
+  if(wprev)wprev.disabled=(plannerWk<=1);
+  const wnext=document.getElementById('pl-week-next');
+  if(wnext)wnext.disabled=(plannerWk>=9);
 
   // Filter dropdowns
   const locSel=document.getElementById('pl-filter-loc');
-  if(locSel.options.length<=1){
+  if(locSel&&locSel.options.length<=1){
     S.locaties.forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=(l.type==='stockage'?'📦':'⛺')+' '+l.name;locSel.appendChild(o);});
   }
   locSel.value=filterLocatie;
