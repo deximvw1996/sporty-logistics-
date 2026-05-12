@@ -955,7 +955,7 @@ let invVerbruikData = [];
 let invTab = 'sets';
 
 function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+
 
 function setInvTab(tab, btn){
   invTab = tab;
@@ -1349,15 +1349,7 @@ async function saveNieuwMateriaalItem(){
   showToast(name+' aangemaakt','success');
 }
 
-async function deleteMatItem(id){
-  const item = S.materiaal.find(m=>m.id===id)||invSetsData.find(m=>m.id===id)||invVerbruikData.find(m=>m.id===id);
-  if(!confirm(`"${item?.name||id}" verwijderen inclusief alle sets en stock?`))return;
-  await api('DELETE','/materiaal/'+id);
-  S.materiaal = await api('GET','/materiaal');
-  await Promise.all([loadInvSets(),loadInvVerbruik()]);
-  renderInventaris();
-  showToast('Verwijderd','info');
-}
+
 
 
 // ── THEMA CATEGORIEËN ──
@@ -1367,53 +1359,14 @@ async function loadThemaCats(){
   S_thema_cats = await api('GET','/thema-categorieen');
 }
 
-function renderThemaCatSelect(selectedCat){
-  return '<option value="">— Geen categorie —</option>'
-    + S_thema_cats.map(c=>`<option value="${c.name}" ${c.name===selectedCat?'selected':''}>${c.name}</option>`).join('');
-}
-
-async function addThemaCat(){
-  const name = document.getElementById('th-cat-new').value.trim();
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  const r = await api('POST','/thema-categorieen',{name});
-  if(r.error){showToast(r.error,'error');return;}
-  S_thema_cats.push(r);
-  S_thema_cats.sort((a,b)=>a.name.localeCompare(b.name));
-  document.getElementById('th-cat-new').value='';
-  renderThemaCatBeheer();
-  // Update all cat selects on page
-  document.querySelectorAll('.th-cat-sel').forEach(sel=>{
-    const cur = sel.value;
-    sel.innerHTML = renderThemaCatSelect(cur);
-  });
-  showToast(name+' toegevoegd','success');
-}
-
-async function deleteThemaCat(id, name){
-  if(!confirm(`Categorie "${name}" verwijderen? Thema's in deze categorie krijgen geen categorie meer.`))return;
-  await api('DELETE','/thema-categorieen/'+id);
-  S_thema_cats = S_thema_cats.filter(c=>c.id!==id);
-  renderThemaCatBeheer();
-  showToast('Categorie verwijderd','info');
-}
 
 
-async function addThemaCat(){
-  const name = document.getElementById('th-cat-new')?.value.trim();
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  const r = await api('POST','/thema-categorieen',{name});
-  if(r.error){showToast(r.error,'error');return;}
-  // Reload fresh from server to avoid duplicates
-  S_thema_cats = await api('GET','/thema-categorieen');
-  document.getElementById('th-cat-new').value='';
-  renderThemaCatBeheer();
-  // Update all category dropdowns
-  document.querySelectorAll('.th-cat-sel').forEach(sel=>{
-    const cur=sel.value;
-    sel.innerHTML=renderThemaCatSelect(cur);
-  });
-  showToast(name+' toegevoegd','success');
-}
+
+
+
+
+
+
 
 
 
@@ -1442,298 +1395,27 @@ async function addSpoed(){
 }
 
 // ── DAGRAPPORT PER CHAUFFEUR ──
-async function openDagrapport(datum, chaufNaam) {
-  // Load fresh data
-  const [taken, shifts] = await Promise.all([
-    api('GET', '/transport-taken'),
-    api('GET', '/ploeg'),
-  ]);
 
-  // Filter for this chauffeur on this date
-  const mijnTaken = taken
-    .filter(t => t.datum === datum && (t.wie||'').toLowerCase() === (chaufNaam||'').toLowerCase())
-    .sort((a,b) => a.tijd.localeCompare(b.tijd));
-
-  const mijnShift = shifts.find(sh =>
-    sh.datum === datum && sh.chauffeur_name?.toLowerCase() === chaufNaam?.toLowerCase()
-  );
-
-  const DOW = ['zo','ma','di','wo','do','vr','za'];
-  const d = new Date(datum + 'T12:00:00');
-  const datumStr = DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MND[d.getMonth()+1] + ' ' + d.getFullYear();
-
-  const shiftInfo = mijnShift
-    ? `${mijnShift.start_tijd}–${mijnShift.eind_tijd} (${{vol:'volledige dag',vm:'voormiddag',nm:'namiddag',standby:'standby',vrij:'vrij'}[mijnShift.type]||mijnShift.type})`
-    : '—';
-
-  const taakHtml = mijnTaken.length ? mijnTaken.map(t => {
-    const van = S.locaties.find(l => l.id === t.van_locatie_id);
-    const naar = S.locaties.find(l => l.id === t.naar_locatie_id);
-    const icn = {levering:'🟢',ophaling:'🔵',extra:'🟡',opdracht:'📋',spoed:'🔴'}[t.type]||'📦';
-    const regels = (t.regels||[]);
-    const matHtml = regels.length
-      ? `<table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:12px">
-          <tr style="background:#f5f5f3"><th style="text-align:left;padding:4px 8px;border:.5px solid #ddd">Materiaal</th><th style="padding:4px 8px;border:.5px solid #ddd;text-align:center">Aantal</th><th style="padding:4px 8px;border:.5px solid #ddd;text-align:center">✓</th></tr>
-          ${regels.map(r=>`<tr><td style="padding:5px 8px;border:.5px solid #ddd">${r.naam}</td><td style="text-align:center;padding:5px 8px;border:.5px solid #ddd">×${r.qty}</td><td style="text-align:center;padding:5px 8px;border:.5px solid #ddd;width:40px">☐</td></tr>`).join('')}
-        </table>`
-      : '<div style="font-size:11px;color:#888;margin-top:4px">Geen materiaallijst.</div>';
-    return `<div style="border:.5px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px;break-inside:avoid">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-size:18px">${icn}</span>
-        <div>
-          <div style="font-weight:600;font-size:13px">${t.opmerking||t.type}</div>
-          <div style="font-size:11px;color:#666">${t.tijd||'—'} &nbsp;|&nbsp; ${van?.name||'?'} → ${naar?.name||'?'}</div>
-          ${t.opmerking&&t.type!=='opdracht'?`<div style="font-size:11px;color:#666">Status: <strong>${t.status}</strong></div>`:''}
-        </div>
-      </div>
-      ${matHtml}
-    </div>`;
-  }).join('') : '<div style="color:#888;font-size:12px">Geen transporten gepland voor deze chauffeur.</div>';
-
-  const printHtml = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
-  <title>Dagrapport ${chaufNaam} – ${datumStr}</title>
-  <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;color:#1a1a18}
-    h1{font-size:18px;margin:0 0 4px}h2{font-size:14px;font-weight:500;color:#555;margin:0 0 16px}
-    .meta{display:flex;gap:24px;background:#f5f5f3;border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px}
-    .meta div{display:flex;flex-direction:column;gap:2px}
-    .meta strong{font-size:13px;color:#1a1a18}
-    .meta span{color:#666}
-    .footer{margin-top:32px;padding-top:12px;border-top:.5px solid #ddd;font-size:10px;color:#aaa;text-align:center}
-    @media print{body{margin:0.5cm 1cm}button{display:none!important}}
-  </style></head><body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-    <div><h1>Dagrapport – ${chaufNaam}</h1><h2>Sporty vzw &nbsp;|&nbsp; ${datumStr}</h2></div>
-    <button onclick="window.print()" style="padding:8px 16px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 Afdrukken</button>
-  </div>
-  <div class="meta">
-    <div><span>Dienst</span><strong>${shiftInfo}</strong></div>
-    <div><span>Transporten</span><strong>${mijnTaken.length}</strong></div>
-    <div><span>Materiaalitems</span><strong>${mijnTaken.reduce((sum,t)=>(t.regels||[]).reduce((s,r)=>s+r.qty,0)+sum,0)}</strong></div>
-  </div>
-  ${taakHtml}
-  <div class="footer">Gegenereerd op ${new Date().toLocaleString('nl-BE')} &nbsp;|&nbsp; Sporty vzw Logistiek</div>
-  </body></html>`;
-
-  const win = window.open('', '_blank', 'width=800,height=900');
-  if (win) {
-    win.document.write(printHtml);
-    win.document.close();
-  } else {
-    showToast('Pop-up geblokkeerd. Sta pop-ups toe voor dit venster.', 'warn');
-  }
-}
 
 // Quick rapportgenerator - kies datum en chauffeur
-function openDagrapportKiezer() {
-  document.getElementById('modal-dagrapport').classList.add('open');
-  // Populate chauffeur select
-  const sel = document.getElementById('dr-chauf');
-  sel.innerHTML = '<option value="">— Kies chauffeur —</option>' +
-    S_chauffeurs.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
-  // Default datum = today (or first kamp day)
-  document.getElementById('dr-datum').value = new Date().toISOString().split('T')[0];
-}
 
-function generateDagrapport() {
-  const datum = document.getElementById('dr-datum').value;
-  const chauf = document.getElementById('dr-chauf').value;
-  if (!datum || !chauf) { showToast('Kies een datum en chauffeur', 'warn'); return; }
-  document.getElementById('modal-dagrapport').classList.remove('open');
-  openDagrapport(datum, chauf);
-}
+
+
 
 
 // ── MATERIAALCHECKLIST & INVENTARIS ──
 
 // Open checklist voor een transport
-async function openTransportChecklist(taakId) {
-  const taken = await api('GET', '/transport-taken');
-  const t = taken.find(x => x.id === taakId);
-  if (!t) return;
 
-  const van = S.locaties.find(l => l.id === t.van_locatie_id);
-  const naar = S.locaties.find(l => l.id === t.naar_locatie_id);
-  const regels = t.regels || [];
 
-  const el = document.getElementById('checklist-content');
-  const titel = document.getElementById('checklist-titel');
 
-  titel.textContent = (t.opmerking || t.type) + ' — ' + (van?.name||'?') + ' → ' + (naar?.name||'?');
 
-  if (!regels.length) {
-    el.innerHTML = '<div class="empty">Geen materiaallijst voor dit transport. Voeg materiaalregels toe via "Transport bewerken".</div>';
-  } else {
-    // Checklist per categorie
-    const perSoort = {};
-    regels.forEach(r => {
-      const s = r.soort || 'andere';
-      if (!perSoort[s]) perSoort[s] = [];
-      perSoort[s].push(r);
-    });
-    const soortLabel = {thema:'🎯 Thema-materiaal', basis:'📦 Basismateriaal', andere:'📋 Overige'};
-    el.innerHTML = Object.entries(perSoort).map(([soort, items]) => `
-      <div style="margin-bottom:1rem">
-        <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${soortLabel[soort]||soort}</div>
-        ${items.map((r,i) => `
-          <label style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer;transition:background .1s" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''" onclick="toggleCheckItem(this)">
-            <span style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--border2);border-radius:4px;flex-shrink:0;font-size:13px" class="chk-box">　</span>
-            <span style="flex:1;font-size:13px">${r.naam}</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text2);background:var(--bg3);padding:2px 7px;border-radius:999px">×${r.qty}</span>
-          </label>`
-        ).join('')}
-      </div>`
-    ).join('');
-  }
 
-  // Store transport info for print
-  document.getElementById('modal-checklist').dataset.taakId = taakId;
-  document.getElementById('modal-checklist').dataset.titel = titel.textContent;
-  document.getElementById('modal-checklist').classList.add('open');
-}
-
-function toggleCheckItem(label) {
-  const box = label.querySelector('.chk-box');
-  const checked = box.textContent.trim() === '✓';
-  box.textContent = checked ? '\u3000' : '✓';
-  box.style.background = checked ? '' : 'var(--green)';
-  box.style.color = checked ? '' : '#fff';
-  box.style.borderColor = checked ? 'var(--border2)' : 'var(--green)';
-  label.style.opacity = checked ? '1' : '.6';
-}
-
-function printChecklist() {
-  const el = document.getElementById('checklist-content');
-  const titel = document.getElementById('checklist-titel').textContent;
-  const items = [...el.querySelectorAll('label')].map(l => {
-    const naam = l.querySelectorAll('span')[1]?.textContent || '';
-    const qty = l.querySelectorAll('span')[2]?.textContent || '';
-    const checked = l.querySelector('.chk-box')?.textContent?.trim() === '✓';
-    return {naam, qty, checked};
-  });
-
-  const printHtml = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
-  <title>Checklist – ${titel}</title>
-  <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:600px;margin:2rem auto;padding:0 1rem;color:#1a1a18}
-    h1{font-size:16px;margin:0 0 4px}h2{font-size:12px;color:#666;margin:0 0 20px}
-    table{width:100%;border-collapse:collapse}
-    th{background:#f5f5f3;text-align:left;padding:6px 10px;font-size:11px;border:.5px solid #ddd}
-    td{padding:8px 10px;border:.5px solid #ddd;font-size:13px}
-    .qty{text-align:center;width:60px}
-    .chk{text-align:center;width:50px;font-size:16px}
-    @media print{button{display:none!important}}
-  </style></head><body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-    <div><h1>Checklist – ${titel}</h1><h2>Sporty vzw &nbsp;|&nbsp; ${new Date().toLocaleDateString('nl-BE')}</h2></div>
-    <button onclick="window.print()" style="padding:6px 14px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 Afdrukken</button>
-  </div>
-  <table>
-    <tr><th>Materiaal</th><th class="qty">Aantal</th><th class="chk">✓</th></tr>
-    ${items.map(i=>`<tr><td>${i.naam}</td><td class="qty">${i.qty}</td><td class="chk">${i.checked?'☑':'☐'}</td></tr>`).join('')}
-  </table>
-  <div style="margin-top:20px;padding:10px;border:.5px solid #ddd;border-radius:6px;font-size:11px;color:#888">
-    Handtekening: _____________________________ &nbsp;&nbsp; Datum: _____________
-  </div>
-  </body></html>`;
-
-  const win = window.open('', '_blank', 'width=700,height=800');
-  if (win) { win.document.write(printHtml); win.document.close(); }
-  else showToast('Pop-up geblokkeerd. Sta pop-ups toe.', 'warn');
-}
 
 // ── INVENTARIS PER LOCATIE ──
-async function openInventaris(locId, locNaam) {
-  const overzicht = await api('GET', '/overzicht');
-  const loc = overzicht.find(l => l.id === locId);
-  const locMat = S.locMat[locId] || [];
 
-  const el = document.getElementById('inventaris-content');
-  document.getElementById('inventaris-titel').textContent = 'Inventaris — ' + locNaam;
-  document.getElementById('modal-inventaris').dataset.locId = locId;
-  document.getElementById('modal-inventaris').dataset.locNaam = locNaam;
 
-  // Combine: basismateriaal + eenheden (stock items)
-  const eenheden = loc?.eenheden || [];
 
-  let html = '';
-
-  // Basismateriaal checklist
-  if (locMat.length) {
-    html += `<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📦 Basismateriaal</div>`;
-    html += locMat.map(m => `
-      <label style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer" onclick="toggleCheckItem(this)">
-        <span style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--border2);border-radius:4px;flex-shrink:0;font-size:13px" class="chk-box">　</span>
-        <span style="flex:1;font-size:13px">${m.name}</span>
-        <span style="font-size:12px;color:var(--text2)">verwacht: ×${m.qty}</span>
-        <input type="number" min="0" value="${m.qty}" style="width:52px;border:.5px solid var(--border2);border-radius:4px;padding:2px 6px;font-size:12px;text-align:center" onclick="event.stopPropagation()" placeholder="aanwezig">
-      </label>`
-    ).join('');
-    html += '<div style="height:1px;background:var(--border);margin:12px 0"></div>';
-  }
-
-  // Stock items (eenheden)
-  if (eenheden.length) {
-    html += `<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">📊 Voorraadartikelen</div>`;
-    html += eenheden.map(e => `
-      <label style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:6px;cursor:pointer" onclick="toggleCheckItem(this)">
-        <span style="display:flex;align-items:center;justify-content:center;width:20px;height:20px;border:1.5px solid var(--border2);border-radius:4px;flex-shrink:0;font-size:13px" class="chk-box">　</span>
-        <span style="flex:1;font-size:13px">${e.label||e.item?.name||'?'}</span>
-        <span style="font-size:12px;color:var(--text2)">verwacht: ×${e.qty}</span>
-        <input type="number" min="0" value="${e.qty}" style="width:52px;border:.5px solid var(--border2);border-radius:4px;padding:2px 6px;font-size:12px;text-align:center" onclick="event.stopPropagation()" placeholder="aanwezig">
-      </label>`
-    ).join('');
-  }
-
-  if (!locMat.length && !eenheden.length) {
-    html = '<div class="empty">Geen materiaal gekoppeld aan deze locatie. Voeg basismateriaal toe via Planning → Locaties.</div>';
-  }
-
-  el.innerHTML = html;
-  document.getElementById('modal-inventaris').classList.add('open');
-}
-
-function printInventaris() {
-  const locNaam = document.getElementById('inventaris-titel').textContent.replace('Inventaris — ','');
-  const el = document.getElementById('inventaris-content');
-  const items = [...el.querySelectorAll('label')].map(l => {
-    const spans = l.querySelectorAll('span');
-    const naam = spans[1]?.textContent || '';
-    const verwacht = spans[2]?.textContent || '';
-    const aanwezig = l.querySelector('input')?.value || '';
-    const checked = l.querySelector('.chk-box')?.textContent?.trim() === '✓';
-    return {naam, verwacht, aanwezig, checked};
-  });
-
-  const printHtml = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">
-  <title>Inventaris – ${locNaam}</title>
-  <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:650px;margin:2rem auto;padding:0 1rem;color:#1a1a18}
-    h1{font-size:16px;margin:0 0 4px}h2{font-size:12px;color:#666;margin:0 0 20px}
-    table{width:100%;border-collapse:collapse}
-    th{background:#f5f5f3;text-align:left;padding:6px 10px;font-size:11px;border:.5px solid #ddd}
-    td{padding:8px 10px;border:.5px solid #ddd;font-size:13px}
-    .num{text-align:center;width:80px}.chk{text-align:center;width:40px}
-    @media print{button{display:none!important}}
-  </style></head><body>
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-    <div><h1>Inventaris – ${locNaam}</h1><h2>Sporty vzw &nbsp;|&nbsp; ${new Date().toLocaleDateString('nl-BE')}</h2></div>
-    <button onclick="window.print()" style="padding:6px 14px;background:#1D9E75;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨 Afdrukken</button>
-  </div>
-  <table>
-    <tr><th>Materiaal</th><th class="num">Verwacht</th><th class="num">Aanwezig</th><th class="chk">✓</th></tr>
-    ${items.map(i=>`<tr><td>${i.naam}</td><td class="num">${i.verwacht}</td><td class="num">${i.aanwezig||'—'}</td><td class="chk">${i.checked?'☑':'☐'}</td></tr>`).join('')}
-  </table>
-  <div style="margin-top:20px;display:flex;gap:20px;font-size:11px;color:#888">
-    <div>Nagekeken door: _____________________________</div>
-    <div>Datum: _____________</div>
-  </div>
-  </body></html>`;
-
-  const win = window.open('', '_blank', 'width=750,height=850');
-  if (win) { win.document.write(printHtml); win.document.close(); }
-  else showToast('Pop-up geblokkeerd. Sta pop-ups toe.', 'warn');
-}
 
 
 
@@ -3013,17 +2695,7 @@ async function deleteStd(id){await api('DELETE','/standaard/'+id);S.standaard=S.
 function renderLocaties(){document.getElementById('loc-list').innerHTML=S.locaties.map(l=>{if(editingLoc===l.id)return `<div class="row editing" style="flex-direction:column;gap:6px;align-items:stretch"><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp gb" style="flex:2;min-width:120px" type="text" id="el-n-${l.id}" value="${l.name}" placeholder="Naam"><input class="inp gb" style="flex:2;min-width:140px" type="text" id="el-a-${l.id}" value="${l.addr||''}" placeholder="Adres"><select class="sel gb" id="el-t-${l.id}"><option value="kamp" ${l.type==='kamp'?'selected':''}>⛺ Kamp</option><option value="stockage" ${l.type==='stockage'?'selected':''}>📦 Stockage</option></select></div><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp gb" style="flex:2;min-width:130px" type="text" id="el-cn-${l.id}" value="${l.contact_naam||''}" placeholder="Contactpersoon"><input class="inp gb" style="flex:1;min-width:110px" type="tel" id="el-ct-${l.id}" value="${l.contact_tel||''}" placeholder="Telefoon"><input class="inp gb" style="flex:3;min-width:160px" type="text" id="el-nt-${l.id}" value="${l.notities||''}" placeholder="Notities"><button class="bi save" onclick="saveLoc(${l.id})">✓ Opslaan</button><button class="bi" onclick="editingLoc=null;renderLocaties()">✕</button></div></div>`;return `<div class="row"><span>${l.type==='stockage'?'📦':'⛺'}</span><div class="ri"><div class="rm">${l.name}</div><div class="rs">${l.addr||'Geen adres'} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span></div>${l.contact_naam||l.contact_tel?`<div class="loc-contact">${l.contact_naam?'<span>👤 '+l.contact_naam+'</span>':''}${l.contact_tel?'<a href="tel:'+l.contact_tel+'">📱 '+l.contact_tel+'</a>':''}</div>`:''}${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}</div><div class="ra"><button class="bi" onclick="editingLoc=${l.id};renderLocaties()">✏️</button><button class="bi" style="color:var(--red)" onclick="deleteLoc(${l.id})">🗑️</button></div></div>`;}).join('')||'<div class="empty">Nog geen locaties.</div>';
   renderLocMatSection();
 }
-async function addLocMat(locId){
-  const name=document.getElementById('lm-n-'+locId).value.trim();if(!name)return;
-  const qty=Math.max(1,parseInt(document.getElementById('lm-q-'+locId).value)||1);
-  const r=await api('POST','/locaties/'+locId+'/materiaal',{name,qty,cat:'andere'});
-  S.locMat[locId]=S.locMat[locId]||[];S.locMat[locId].push(r);
-  document.getElementById('lm-n-'+locId).value='';
-  document.getElementById('lm-q-'+locId).value='1';
-  renderLocaties();
-  document.getElementById('lm-body-'+locId).style.display='block';
-}
-async 
+
 async function addLocMat(locId){
   const name=document.getElementById('alm-n-'+locId)?.value.trim();
   const qty=parseInt(document.getElementById('alm-q-'+locId)?.value)||1;
@@ -3049,9 +2721,7 @@ function renderLocMat(locId){
   setTimeout(()=>{const b=document.getElementById('lm-body-'+locId);if(b)b.style.display='block';},50);
 }
 
-function renderLocMatSection(){
-  renderLocaties();
-}
+
 
 async function saveLocMat(locId,id){
   const name=document.getElementById('elm-n-'+id).value.trim();
