@@ -3063,16 +3063,18 @@ async function api(m,p,b){
     if(!res.ok){
       const err=await res.json().catch(()=>({error:'HTTP '+res.status}));
       showToast(err.error||'Serverfout '+res.status,'error');
-      return m==='GET'?[]:{};
+      // Bij een mislukte actie geven we {error:...} terug zodat code die
+      // "if(r.error)return;" controleert niet per ongeluk "gelukt" toont.
+      return m==='GET'?[]:{error:err.error||('Serverfout '+res.status)};
     }
     _lastNetErr=0;
     return res.json();
   } catch(e) {
     if(e.name!=='AbortError'&&Date.now()-_lastNetErr>4000){
       _lastNetErr=Date.now();
-      showToast('Server niet bereikbaar. Start de server op poort 3001.','error');
+      showToast('Server niet bereikbaar. Controleer je internetverbinding en probeer opnieuw.','error');
     }
-    return m==='GET'?[]:{};
+    return m==='GET'?[]:{error:'Server niet bereikbaar'};
   }
 }
 async function loadAll(){const[a,b,c,d,e,f,g,h]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/spoed'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,spoed:e,materiaal:f,overzicht:g,locMat:{}};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
