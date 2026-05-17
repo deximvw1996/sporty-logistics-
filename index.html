@@ -2889,6 +2889,7 @@ function updateSpoedBadge(){
   const ob=document.getElementById('spoed-badge');if(ob){ob.style.display=n?'flex':'none';ob.textContent=n;}
   const ovSp=document.getElementById('ov-sp');if(ovSp)ovSp.textContent=n;
 }
+function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 function getLocMat(locId){const m=S.locMat[locId];return(m&&m.length)?m:S.standaard;}
