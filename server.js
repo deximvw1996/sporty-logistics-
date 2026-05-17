@@ -11,8 +11,38 @@ const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR |
 const DB_PATH = path.join(DATA_DIR, 'sporty.db');
 console.log('Database pad:', DB_PATH);
 
+// ── PROCES-FOUTAFHANDELING ──
+// Vangt onverwachte fouten op zodat de server niet stil crasht.
+process.on('uncaughtException', (err) => {
+  console.error('Onverwachte fout (uncaughtException):', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Onafgehandelde promise-fout (unhandledRejection):', reason);
+});
+
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '5mb' }));
+
+// ── BEVEILIGING: wachtwoord via HTTP Basic Auth ──
+// Stel APP_PASSWORD in als omgevingsvariabele in Railway om de app te beveiligen.
+// Niet ingesteld = app blijft open (handig voor lokaal testen).
+const APP_PASSWORD = process.env.APP_PASSWORD || '';
+if (!APP_PASSWORD) {
+  console.warn('WAARSCHUWING: APP_PASSWORD is niet ingesteld - de app is NIET beveiligd. Stel APP_PASSWORD in bij Railway > Variables.');
+}
+app.use((req, res, next) => {
+  if (!APP_PASSWORD) return next();              // geen wachtwoord ingesteld = open
+  const header = req.headers.authorization || '';
+  const [scheme, encoded] = header.split(' ');
+  if (scheme === 'Basic' && encoded) {
+    let decoded = '';
+    try { decoded = Buffer.from(encoded, 'base64').toString('utf8'); } catch (e) {}
+    const pwd = decoded.includes(':') ? decoded.slice(decoded.indexOf(':') + 1) : decoded;
+    if (pwd === APP_PASSWORD) return next();
+  }
+  res.set('WWW-Authenticate', 'Basic realm="Sporty Logistiek"');
+  return res.status(401).send('Wachtwoord vereist');
+});
 // Zoek frontend: eerst ../frontend (lokaal), dan zelfde map (Railway flat deploy)
 let FRONTEND_PATH = path.join(__dirname, '../frontend');
 if (!fs.existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
@@ -26,11 +56,26 @@ let db;
 function saveDb() {
   const data = Buffer.from(db.export());
   fs.writeFileSync(DB_PATH, data);
-  // Auto-backup: keep last 3 hourly backups
-  const now = new Date();
-  const hour = now.getHours();
-  const backupPath = DB_PATH.replace('.db', `-backup-h${hour}.db`);
-  try { fs.writeFileSync(backupPath, data); } catch(e) {}
+  try { backupDb(data); } catch (e) { console.error('Backup mislukt:', e.message); }
+}
+
+// Maakt 1 backup per dag in de map "backups/" en bewaart de laatste 14 dagen.
+let lastBackupDay = '';
+function backupDb(data) {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  if (today === lastBackupDay) return;                  // al een backup vandaag
+  const backupDir = path.join(DATA_DIR, 'backups');
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+  fs.writeFileSync(path.join(backupDir, `sporty-${today}.db`), data);
+  lastBackupDay = today;
+  // Oude backups opruimen: hou alleen de laatste 14 dagen
+  const files = fs.readdirSync(backupDir)
+    .filter(f => f.startsWith('sporty-') && f.endsWith('.db'))
+    .sort();
+  while (files.length > 14) {
+    const oud = files.shift();
+    try { fs.unlinkSync(path.join(backupDir, oud)); } catch (e) {}
+  }
 }
 function run(sql, p=[]) { db.run(sql, p); saveDb(); }
 function get(sql, p=[]) { const s=db.prepare(sql); s.bind(p); const r=s.step()?s.getAsObject():null; s.free(); return r; }
@@ -57,11 +102,11 @@ async function startServer() {
         db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
         console.log(`  + ${table}.${column} toegevoegd`);
       }
-    } catch(e) { /* ignore */ }
+    } catch(e) { console.error(`Migratie-fout bij ${table}.${column}:`, e.message); }
   }
 
   function createTableIfMissing(createSql) {
-    try { db.run(createSql); } catch(e) { /* ignore */ }
+    try { db.run(createSql); } catch(e) { console.error('Migratie-fout (createTable):', e.message); }
   }
 
   // Migration 1: base schema (always runs via CREATE TABLE IF NOT EXISTS)
@@ -819,6 +864,16 @@ async function startServer() {
   });
 
   app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
+
+  // ── GLOBALE FOUTAFHANDELING ──
+  // Vangt fouten op die in een API-route gegooid worden, zodat 1 fout
+  // niet de hele server of het verzoek laat vastlopen.
+  app.use((err, req, res, next) => {
+    console.error('API-fout:', req.method, req.path, '-', err && err.message ? err.message : err);
+    if (res.headersSent) return next(err);
+    res.status(500).json({ error: 'Er ging iets mis op de server. Probeer het opnieuw.' });
+  });
+
   app.listen(PORT,()=>console.log(`Sporty vzw logistiek draait op http://localhost:${PORT}`));
 }
 startServer().catch(err=>{console.error('Fatal startup error:',err);process.exit(1);});
