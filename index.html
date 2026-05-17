@@ -217,7 +217,18 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 .row{transition:background .1s;}
 .km-card{transition:box-shadow .15s;}
 .km-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);}
-@media(max-width:700px){.metrics{grid-template-columns:repeat(2,1fr);}.ov-dag-detail{grid-template-columns:1fr;}}
+@media(max-width:700px){
+  .metrics{grid-template-columns:repeat(2,1fr);}
+  .ov-dag-detail{grid-template-columns:1fr;}
+  .content{padding:.75rem;}
+  .topbar{padding:.5rem .875rem;}
+  /* Larger tap targets for inline icon buttons */
+  .bi{padding:7px 9px;}
+  /* Prevent iOS Safari auto-zoom on input focus */
+  .inp,.sel,.ai,input,select,textarea{font-size:16px!important;}
+  /* Full-width filter inputs when wrapping */
+  .fg.grow{flex:1 1 100%;}
+}
 
 
 /* Color picker dots */
@@ -277,53 +288,49 @@ button:disabled{opacity:.45;cursor:not-allowed;}
        TAB 1: OVERZICHT
   ═══════════════════════════════════════════════════════ -->
   <div class="sec active" id="sec-overzicht">
-    <div class="metrics">
-      <div class="metric"><div class="metric-label">Kamplocaties</div>
-
     <!-- Overzicht navigatie -->
     <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
       <button class="ov-view-btn active" onclick="showOvMain()">&#128202; Overzicht</button>
       <button class="ov-view-btn" onclick="showWeekMatOverzicht()">&#128203; Week materiaal</button>
       <button class="ov-view-btn" onclick="showConflicten()">&#9888;&#65039; Conflicten</button>
     </div>
-    <div id="ov-main"><div class="metric-val g" id="ov-loc">—</div></div>
-      <div class="metric"><div class="metric-label">Kampmomenten</div><div class="metric-val b" id="ov-km">—</div></div>
-      <div class="metric"><div class="metric-label">Transporten gepland</div><div class="metric-val" id="ov-tp">—</div></div>
-      <div class="metric"><div class="metric-label">Open spoedmeldingen</div><div class="metric-val r" id="ov-sp">—</div></div>
-    </div>
 
-    <!-- Spoedmeldingen -->
-    <div class="card" id="ov-spoed-card" style="display:none;border-color:#F09595">
-      <div class="card-hd" style="color:#A32D2D;display:flex;justify-content:space-between;align-items:center">
-        <span>&#128680; Open spoedleveringen</span>
-        <button class="btn-r" style="font-size:11px;height:26px" onclick="goTo('transporten')">Alle transporten &rarr;</button>
+    <div id="ov-main">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Kamplocaties</div><div class="metric-val g" id="ov-loc">—</div></div>
+        <div class="metric"><div class="metric-label">Kampmomenten</div><div class="metric-val b" id="ov-km">—</div></div>
+        <div class="metric"><div class="metric-label">Transporten gepland</div><div class="metric-val" id="ov-tp">—</div></div>
+        <div class="metric"><div class="metric-label">Open spoedmeldingen</div><div class="metric-val r" id="ov-sp">—</div></div>
       </div>
-      <div id="ov-spoed-list"></div>
-    </div>
 
-    <!-- Aankomende transporten -->
-    <div class="card">
-      <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
-        <span>&#128667; Aankomende transporten</span>
-        <button class="btn-o" onclick="goTo('transporten')">Alle transporten &rarr;</button>
+      <!-- Spoedmeldingen -->
+      <div class="card" id="ov-spoed-card" style="display:none;border-color:#F09595">
+        <div class="card-hd" style="color:#A32D2D;display:flex;justify-content:space-between;align-items:center">
+          <span>&#128680; Open spoedleveringen</span>
+          <button class="btn-r" style="font-size:11px;height:26px" onclick="goTo('transporten')">Alle transporten &rarr;</button>
+        </div>
+        <div id="ov-spoed-list"></div>
       </div>
-      <div id="ov-transporten"></div>
-    </div>
 
-    <!-- Kampmomenten samenvatting -->
-    <div class="card">
-      <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
-        <span>&#128197; Geplande kampmomenten</span>
-        <button class="btn-o" onclick="goTo('planning')">Bekijken &rarr;</button>
+      <!-- Aankomende transporten -->
+      <div class="card">
+        <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
+          <span>&#128667; Aankomende transporten</span>
+          <button class="btn-o" onclick="goTo('transporten')">Alle transporten &rarr;</button>
+        </div>
+        <div id="ov-transporten"></div>
       </div>
-      <div id="ov-kampen"></div>
-    </div>
-  </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       TAB 2: PLANNING
-  ═══════════════════════════════════════════════════════ -->
-  </div><!-- /ov-main -->
+      <!-- Kampmomenten samenvatting -->
+      <div class="card">
+        <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
+          <span>&#128197; Geplande kampmomenten</span>
+          <button class="btn-o" onclick="goTo('planning')">Bekijken &rarr;</button>
+        </div>
+        <div id="ov-kampen"></div>
+      </div>
+    </div><!-- /ov-main -->
+
     <div id="week-mat-ov" style="display:none">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
         <button class="btn-o" onclick="showOvMain()" style="font-size:12px">&#8592; Overzicht</button>
@@ -343,6 +350,11 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       </div>
       <div id="conflict-list"></div>
     </div>
+  </div><!-- /sec-overzicht -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB 2: PLANNING
+  ═══════════════════════════════════════════════════════ -->
 
   <div class="sec" id="sec-planning">
     <!-- Subtabs -->
@@ -389,8 +401,8 @@ button:disabled{opacity:.45;cursor:not-allowed;}
           <div id="gesloten-list"></div>
           <div class="divider"></div>
           <div class="fr">
-            <div class="fg md"><label>Datum</label><input class="inp" type="date" id="gs-datum" min="2026-07-01" max="2026-08-31"></div>
-            <div class="fg grow"><label>Reden</label><input class="inp" type="text" id="gs-reden" placeholder="bv. Nationale feestdag"></div>
+            <div class="fg md"><label for="gs-datum">Datum</label><input class="inp" type="date" id="gs-datum" min="2026-07-01" max="2026-08-31"></div>
+            <div class="fg grow"><label for="gs-reden">Reden</label><input class="inp" type="text" id="gs-reden" placeholder="bv. Nationale feestdag"></div>
             <button class="btn-g" onclick="addGesloten()">+ Toevoegen</button>
             <button class="btn-o" onclick="toggleGelotenBeheer()">Sluiten</button>
           </div>
@@ -398,8 +410,8 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       </div>
       <div id="kal-bulk-wrap" style="display:none;padding:.625rem;background:var(--bg2);border-radius:var(--rl);margin-bottom:.875rem">
         <div class="fr" style="align-items:flex-end">
-          <div class="fg md"><label style="font-size:11px">Locatie</label><select class="sel" id="kal-bulk-loc" style="width:160px"></select></div>
-          <div class="fg md"><label style="font-size:11px">Actie</label><select class="sel" id="kal-bulk-actie">
+          <div class="fg md"><label style="font-size:11px" for="kal-bulk-loc">Locatie</label><select class="sel" id="kal-bulk-loc" style="width:160px"></select></div>
+          <div class="fg md"><label style="font-size:11px" for="kal-bulk-actie">Actie</label><select class="sel" id="kal-bulk-actie">
             <option value="jul_open">Heel juli open</option><option value="jul_dicht">Heel juli dicht</option>
             <option value="aug_open">Heel augustus open</option><option value="aug_dicht">Heel augustus dicht</option>
             <option value="alles_open">Alles open</option><option value="alles_dicht">Alles dicht</option>
@@ -439,17 +451,17 @@ button:disabled{opacity:.45;cursor:not-allowed;}
         <div class="divider"></div>
         <div class="sl">Nieuwe locatie</div>
         <div class="fr">
-          <div class="fg grow"><label>Naam <span style="color:var(--red)">*</span></label><input class="inp" type="text" id="loc-name" placeholder="bv. Sporthal Kessel-Lo" onkeydown="if(event.key==='Enter')addLoc()"></div>
-          <div class="fg grow"><label>Adres</label><input class="inp" type="text" id="loc-addr" placeholder="Straat, gemeente"></div>
-          <div class="fg md"><label>Type</label><select class="sel" id="loc-type">
+          <div class="fg grow"><label for="loc-name">Naam <span style="color:var(--red)">*</span></label><input class="inp" type="text" id="loc-name" placeholder="bv. Sporthal Kessel-Lo" onkeydown="if(event.key==='Enter')addLoc()"></div>
+          <div class="fg grow"><label for="loc-addr">Adres</label><input class="inp" type="text" id="loc-addr" placeholder="Straat, gemeente"></div>
+          <div class="fg md"><label for="loc-type">Type</label><select class="sel" id="loc-type">
             <option value="kamp">&#9978; Kamplocatie</option>
             <option value="stockage">&#128230; Stockage</option>
           </select></div>
           <button class="btn-g" onclick="addLoc()">+ Toevoegen</button>
           </div><div class="fr">
-          <div class="fg md"><label>Contactpersoon</label><input class="inp" type="text" id="loc-contact-naam" placeholder="Naam verantwoordelijke"></div>
-          <div class="fg md"><label>Telefoon</label><input class="inp" type="tel" id="loc-contact-tel" placeholder="+32 4..."></div>
-          <div class="fg grow"><label>Notities</label><input class="inp" type="text" id="loc-notities" placeholder="Toegangscode, bijzonderheden..."></div>
+          <div class="fg md"><label for="loc-contact-naam">Contactpersoon</label><input class="inp" type="text" id="loc-contact-naam" placeholder="Naam verantwoordelijke"></div>
+          <div class="fg md"><label for="loc-contact-tel">Telefoon</label><input class="inp" type="tel" id="loc-contact-tel" placeholder="+32 4..."></div>
+          <div class="fg grow"><label for="loc-notities">Notities</label><input class="inp" type="text" id="loc-notities" placeholder="Toegangscode, bijzonderheden..."></div>
         </div>
       </div>
       <!-- Basismateriaal per locatie -->
@@ -478,8 +490,8 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       <div class="card">
         <div class="card-hd">+ Nieuw thema aanmaken</div>
         <div class="fr">
-          <div class="fg grow"><label>Naam</label><input class="inp" type="text" id="th-name" placeholder="bv. Voetbalkamp, Klim- en avontuurstage&hellip;"></div>
-          <div class="fg md"><label>Kleur</label>
+          <div class="fg grow"><label for="th-name">Naam</label><input class="inp" type="text" id="th-name" placeholder="bv. Voetbalkamp, Klim- en avontuurstage&hellip;"></div>
+          <div class="fg md"><label for="th-color">Kleur</label>
           <div style="display:flex;gap:6px;align-items:center">
             <input type="color" id="th-color" value="#1D9E75" style="width:36px;height:32px;padding:2px;border:.5px solid var(--border2);border-radius:var(--r);cursor:pointer;background:var(--bg)">
             <div style="display:flex;gap:3px;flex-wrap:wrap">
@@ -494,7 +506,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
             </div>
           </div>
           </div>
-          <div class="fg md"><label>Categorie</label>
+          <div class="fg md"><label for="th-cat-sel-new">Categorie</label>
             <select class="sel th-cat-sel" id="th-cat-sel-new" style="min-width:140px">
               <option value="">Geen categorie</option>
             </select>
@@ -506,7 +518,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
         <div class="card-hd">&#127991; Categorie&#xEB;n beheren</div>
         <div id="th-cat-list" style="margin-bottom:10px"></div>
         <div class="fr">
-          <div class="fg grow"><label>Nieuwe categorie</label>
+          <div class="fg grow"><label for="th-cat-new">Nieuwe categorie</label>
             <input class="inp" type="text" id="th-cat-new" placeholder="bv. Sport, Natuur, Kunst..."></div>
           <button class="btn-g" onclick="addThemaCat()">+ Toevoegen</button>
         </div>
@@ -521,9 +533,9 @@ button:disabled{opacity:.45;cursor:not-allowed;}
         <div id="std-list"></div>
         <div class="divider"></div>
         <div class="fr">
-          <div class="fg grow"><label>Naam</label><input class="inp" type="text" id="std-name" placeholder="bv. Ehbo kist&hellip;" onkeydown="if(event.key==='Enter')addStd()"></div>
-          <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="std-qty" value="1" min="1"></div>
-          <div class="fg md"><label>Categorie</label><select class="sel" id="std-cat">
+          <div class="fg grow"><label for="std-name">Naam</label><input class="inp" type="text" id="std-name" placeholder="bv. Ehbo kist&hellip;" onkeydown="if(event.key==='Enter')addStd()"></div>
+          <div class="fg sm"><label for="std-qty">Aantal</label><input class="inp" type="number" id="std-qty" value="1" min="1"></div>
+          <div class="fg md"><label for="std-cat">Categorie</label><select class="sel" id="std-cat">
             <option value="admin">Administratie</option><option value="ehbo">EHBO &amp; veiligheid</option>
             <option value="audio">Audio &amp; media</option><option value="keuken">Keuken</option>
             <option value="slaap">Slaap &amp; verblijf</option><option value="andere">Andere</option>
@@ -557,14 +569,14 @@ button:disabled{opacity:.45;cursor:not-allowed;}
           <div id="mat-beheer-list"></div>
           <div class="divider"></div>
           <div class="fr">
-            <div class="fg grow"><label>Naam</label><input class="inp" type="text" id="mat-name" placeholder="bv. Oven, Tenten&hellip;" onkeydown="if(event.key==='Enter')addMatItem()"></div>
-            <div class="fg md"><label>Categorie</label><select class="sel" id="mat-cat">
+            <div class="fg grow"><label for="mat-name">Naam</label><input class="inp" type="text" id="mat-name" placeholder="bv. Oven, Tenten&hellip;" onkeydown="if(event.key==='Enter')addMatItem()"></div>
+            <div class="fg md"><label for="mat-cat">Categorie</label><select class="sel" id="mat-cat">
               <option value="keuken">&#127859; Keuken</option><option value="slaap">&#128719; Slaap</option>
               <option value="sport">&#9917; Sport</option><option value="audio">&#128266; Audio</option>
               <option value="ehbo">&#127973; EHBO</option><option value="admin">&#128203; Admin</option>
               <option value="andere">&#128230; Andere</option>
             </select></div>
-            <div class="fg md"><label>Bijhouden</label><select class="sel" id="mat-tracking">
+            <div class="fg md"><label for="mat-tracking">Bijhouden</label><select class="sel" id="mat-tracking">
               <option value="per_stuk">Per stuk (met label)</option>
               <option value="per_type">Per type + aantal</option>
             </select></div>
@@ -599,17 +611,17 @@ button:disabled{opacity:.45;cursor:not-allowed;}
     </div>
 
     <div style="display:flex;gap:6px;margin-bottom:.875rem;flex-wrap:wrap;align-items:flex-end;padding:.625rem .875rem;background:var(--bg2);border-radius:var(--rl);">
-      <div class="fg md"><label style="font-size:10px;font-weight:600;color:var(--text2)">LOCATIE</label>
+      <div class="fg md"><label style="font-size:10px;font-weight:600;color:var(--text2)" for="pl-filter-loc">LOCATIE</label>
         <select class="sel" id="pl-filter-loc" style="width:160px" onchange="applyPlannerFilters()">
           <option value="">Alle locaties</option>
         </select>
       </div>
-      <div class="fg md"><label style="font-size:10px;font-weight:600;color:var(--text2)">CHAUFFEUR</label>
+      <div class="fg md"><label style="font-size:10px;font-weight:600;color:var(--text2)" for="pl-filter-chauf">CHAUFFEUR</label>
         <select class="sel" id="pl-filter-chauf" style="width:140px" onchange="applyPlannerFilters()">
           <option value="">Alle chauffeurs</option>
         </select>
       </div>
-      <div class="fg md"><label style="font-size:10px;font-weight:600;color:var(--text2)">STATUS</label>
+      <div class="fg md"><label style="font-size:10px;font-weight:600;color:var(--text2)" for="pl-filter-status">STATUS</label>
         <select class="sel" id="pl-filter-status" style="width:130px" onchange="applyPlannerFilters()">
           <option value="">Alle statussen</option>
           <option value="gepland">&#x1F538; Gepland</option>
@@ -693,17 +705,17 @@ button:disabled{opacity:.45;cursor:not-allowed;}
     <div id="spoed-form-inline" style="display:none" class="card" style="border-color:#F09595">
       <div class="card-hd" style="color:#A32D2D">&#128680; Nieuwe spoedlevering</div>
       <div class="fr">
-        <div class="fg grow"><label>Wat ontbreekt?</label><input class="inp" type="text" id="sp-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoed()"></div>
-        <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="sp-qty" value="1" min="1"></div>
+        <div class="fg grow"><label for="sp-item">Wat ontbreekt?</label><input class="inp" type="text" id="sp-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoed()"></div>
+        <div class="fg sm"><label for="sp-qty">Aantal</label><input class="inp" type="number" id="sp-qty" value="1" min="1"></div>
       </div>
       <div class="fr">
-        <div class="fg md"><label>Locatie</label><select class="sel" id="sp-loc"></select></div>
-        <div class="fg md"><label>Prioriteit</label><select class="sel" id="sp-prio">
+        <div class="fg md"><label for="sp-loc">Locatie</label><select class="sel" id="sp-loc"></select></div>
+        <div class="fg md"><label for="sp-prio">Prioriteit</label><select class="sel" id="sp-prio">
           <option value="hoog">&#128308; Hoog &mdash; zo snel mogelijk</option>
           <option value="midden">&#128993; Midden &mdash; vandaag nog</option>
           <option value="laag">&#128309; Laag</option>
         </select></div>
-        <div class="fg grow"><label>Opmerking</label><input class="inp" type="text" id="sp-note" placeholder="bv. Kinderen wachten&hellip;"></div>
+        <div class="fg grow"><label for="sp-note">Opmerking</label><input class="inp" type="text" id="sp-note" placeholder="bv. Kinderen wachten&hellip;"></div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn-r" onclick="addSpoed()">&#128680; Melden</button>
@@ -721,26 +733,26 @@ button:disabled{opacity:.45;cursor:not-allowed;}
   <div class="modal" style="width:460px;">
     <div class="modal-title">
       <span id="modal-shift-title">Shift toevoegen</span>
-      <button class="modal-close" onclick="closeModal('modal-shift')">&#x2715;</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-shift')">&#x2715;</button>
     </div>
     <div class="fr">
-      <div class="fg grow"><label>Chauffeur</label>
+      <div class="fg grow"><label for="sh-chauf">Chauffeur</label>
         <select class="sel" id="sh-chauf" style="width:100%"></select>
       </div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Datum</label>
+      <div class="fg md"><label for="sh-datum">Datum</label>
         <input class="inp" type="date" id="sh-datum" min="2026-06-28" max="2026-09-06">
       </div>
-      <div class="fg sm"><label>Van</label>
+      <div class="fg sm"><label for="sh-start">Van</label>
         <input class="inp" type="time" id="sh-start" value="08:00">
       </div>
-      <div class="fg sm"><label>Tot</label>
+      <div class="fg sm"><label for="sh-eind">Tot</label>
         <input class="inp" type="time" id="sh-eind" value="17:00">
       </div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Type</label>
+      <div class="fg md"><label for="sh-type">Type</label>
         <select class="sel" id="sh-type">
           <option value="vol">&#x1F7E2; Volledige dag</option>
           <option value="vm">&#x1F7E1; Voormiddag</option>
@@ -749,7 +761,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
           <option value="vrij">&#x26AA; Vrij / afwezig</option>
         </select>
       </div>
-      <div class="fg grow"><label>Opmerking</label>
+      <div class="fg grow"><label for="sh-opmerking">Opmerking</label>
         <input class="inp" type="text" id="sh-opmerking" placeholder="bv. Keuring auto om 14u&#x2026;">
       </div>
     </div>
@@ -771,17 +783,17 @@ button:disabled{opacity:.45;cursor:not-allowed;}
   <div class="card" style="border-color:#F09595">
     <div class="card-hd" style="color:#A32D2D">&#128680; Nieuwe spoedlevering</div>
     <div class="fr">
-      <div class="fg grow"><label>Wat ontbreekt?</label><input class="inp" type="text" id="sp2-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoed()"></div>
-      <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="sp2-qty" value="1" min="1"></div>
+      <div class="fg grow"><label for="sp2-item">Wat ontbreekt?</label><input class="inp" type="text" id="sp2-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoed()"></div>
+      <div class="fg sm"><label for="sp2-qty">Aantal</label><input class="inp" type="number" id="sp2-qty" value="1" min="1"></div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Locatie</label><select class="sel" id="sp2-loc"></select></div>
-      <div class="fg md"><label>Prioriteit</label><select class="sel" id="sp2-prio">
+      <div class="fg md"><label for="sp2-loc">Locatie</label><select class="sel" id="sp2-loc"></select></div>
+      <div class="fg md"><label for="sp2-prio">Prioriteit</label><select class="sel" id="sp2-prio">
         <option value="hoog">&#128308; Hoog &mdash; zo snel mogelijk</option>
         <option value="midden">&#128993; Midden &mdash; vandaag nog</option>
         <option value="laag">&#128309; Laag &mdash; zo snel als mogelijk</option>
       </select></div>
-      <div class="fg grow"><label>Opmerking</label><input class="inp" type="text" id="sp2-note" placeholder="bv. Kinderen wachten&hellip;"></div>
+      <div class="fg grow"><label for="sp2-note">Opmerking</label><input class="inp" type="text" id="sp2-note" placeholder="bv. Kinderen wachten&hellip;"></div>
     </div>
     <button class="btn-r" onclick="addSpoed()">&#128680; Spoedlevering melden</button>
   </div>
@@ -801,10 +813,10 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 <!-- MODALS -->
 <div class="modal-bg" id="modal-km">
   <div class="modal">
-    <div class="modal-title"><span id="modal-km-title">Kampmoment toevoegen</span><button class="modal-close" onclick="closeModal('modal-km')">&#x2715;</button></div>
+    <div class="modal-title"><span id="modal-km-title">Kampmoment toevoegen</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-km')">&#x2715;</button></div>
     <div class="fr">
-      <div class="fg sm"><label>Week (1&ndash;9)</label><input class="inp" type="number" id="km-week" min="1" max="9" placeholder="1&ndash;9" oninput="updateKmPreview()"></div>
-      <div class="fg grow"><label>Locatie</label><select class="sel" id="km-loc" style="width:100%"></select></div>
+      <div class="fg sm"><label for="km-week">Week (1&ndash;9)</label><input class="inp" type="number" id="km-week" min="1" max="9" placeholder="1&ndash;9" oninput="updateKmPreview()"></div>
+      <div class="fg grow"><label for="km-loc">Locatie</label><select class="sel" id="km-loc" style="width:100%"></select></div>
     </div>
     <div id="km-preview" style="font-size:12px;color:var(--green-dk);background:var(--green-bg);padding:6px 10px;border-radius:var(--r);margin-bottom:12px;display:none"></div>
     <div class="sl">Thema&apos;s die draaien op deze locatie deze week</div>
@@ -819,12 +831,12 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 
 <div class="modal-bg" id="modal-mv">
   <div class="modal">
-    <div class="modal-title"><span>&#128230; Materiaal verplaatsen</span><button class="modal-close" onclick="closeModal('modal-mv')">&#x2715;</button></div>
+    <div class="modal-title"><span>&#128230; Materiaal verplaatsen</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-mv')">&#x2715;</button></div>
     <div id="mv-info" style="font-size:13px;font-weight:500;margin-bottom:12px;padding:8px 10px;background:var(--bg2);border-radius:var(--r)"></div>
-    <div class="fr"><div class="fg grow"><label>Verplaatsen naar</label><select class="sel" id="mv-naar" style="width:100%"></select></div></div>
+    <div class="fr"><div class="fg grow"><label for="mv-naar">Verplaatsen naar</label><select class="sel" id="mv-naar" style="width:100%"></select></div></div>
     <div class="fr">
-      <div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="mv-qty" value="1" min="1"></div>
-      <div class="fg grow"><label>Reden</label><input class="inp" type="text" id="mv-reden" placeholder="bv. Kamp week 4&hellip;"></div>
+      <div class="fg sm"><label for="mv-qty">Aantal</label><input class="inp" type="number" id="mv-qty" value="1" min="1"></div>
+      <div class="fg grow"><label for="mv-reden">Reden</label><input class="inp" type="text" id="mv-reden" placeholder="bv. Kamp week 4&hellip;"></div>
     </div>
     <button class="btn-b" style="width:100%;margin-top:4px" onclick="doVerplaats()">Verplaatsen bevestigen</button>
   </div>
@@ -832,7 +844,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 
 <div class="modal-bg" id="modal-hist">
   <div class="modal">
-    <div class="modal-title"><span>&#128336; Geschiedenis</span><button class="modal-close" onclick="closeModal('modal-hist')">&#x2715;</button></div>
+    <div class="modal-title"><span>&#128336; Geschiedenis</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-hist')">&#x2715;</button></div>
     <div id="hist-item-title" style="font-size:13px;font-weight:500;margin-bottom:12px;color:var(--text2)"></div>
     <div id="hist-list"></div>
   </div>
@@ -840,33 +852,33 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 
 <div class="modal-bg" id="modal-eenheid">
   <div class="modal">
-    <div class="modal-title"><span id="modal-eenheid-title">Toevoegen</span><button class="modal-close" onclick="closeModal('modal-eenheid')">&#x2715;</button></div>
-    <div class="fr"><div class="fg grow"><label id="eenheid-lbl">Label</label><input class="inp" type="text" id="eenheid-label"></div></div>
-    <div class="fr" id="eenheid-qty-row"><div class="fg sm"><label>Aantal</label><input class="inp" type="number" id="eenheid-qty" value="1" min="1"></div></div>
-    <div class="fr"><div class="fg grow"><label>Locatie</label><select class="sel" id="eenheid-loc" style="width:100%"></select></div></div>
+    <div class="modal-title"><span id="modal-eenheid-title">Toevoegen</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-eenheid')">&#x2715;</button></div>
+    <div class="fr"><div class="fg grow"><label id="eenheid-lbl" for="eenheid-label">Label</label><input class="inp" type="text" id="eenheid-label"></div></div>
+    <div class="fr" id="eenheid-qty-row"><div class="fg sm"><label for="eenheid-qty">Aantal</label><input class="inp" type="number" id="eenheid-qty" value="1" min="1"></div></div>
+    <div class="fr"><div class="fg grow"><label for="eenheid-loc">Locatie</label><select class="sel" id="eenheid-loc" style="width:100%"></select></div></div>
     <button class="btn-g" style="width:100%;margin-top:4px" onclick="doAddEenheid()">+ Toevoegen</button>
   </div>
 </div>
 
 <div class="modal-bg" id="modal-transport">
   <div class="modal" style="width:540px">
-    <div class="modal-title"><span id="modal-transport-title">Transport</span><button class="modal-close" onclick="closeModal('modal-transport')">&#x2715;</button></div>
+    <div class="modal-title"><span id="modal-transport-title">Transport</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-transport')">&#x2715;</button></div>
     <div class="fr">
-      <div class="fg md"><label>Type</label><select class="sel" id="tp-type">
+      <div class="fg md"><label for="tp-type">Type</label><select class="sel" id="tp-type">
         <option value="levering">&#128994; Levering</option><option value="ophaling">&#128309; Ophaling</option><option value="extra">&#128993; Extra</option>
       </select></div>
-      <div class="fg md"><label>Datum</label><input class="inp" type="date" id="tp-datum"></div>
-      <div class="fg sm"><label>Tijdstip</label><input class="inp" type="time" id="tp-tijd" value="09:00"></div>
+      <div class="fg md"><label for="tp-datum">Datum</label><input class="inp" type="date" id="tp-datum"></div>
+      <div class="fg sm"><label for="tp-tijd">Tijdstip</label><input class="inp" type="time" id="tp-tijd" value="09:00"></div>
     </div>
     <div class="fr">
-      <div class="fg grow"><label>Van</label><select class="sel" id="tp-van" style="width:100%"></select></div>
+      <div class="fg grow"><label for="tp-van">Van</label><select class="sel" id="tp-van" style="width:100%"></select></div>
       <div style="display:flex;align-items:flex-end;padding-bottom:1px;font-size:16px">&rarr;</div>
-      <div class="fg grow"><label>Naar</label><select class="sel" id="tp-naar" style="width:100%"></select></div>
+      <div class="fg grow"><label for="tp-naar">Naar</label><select class="sel" id="tp-naar" style="width:100%"></select></div>
     </div>
-    <div class="fr"><div class="fg grow"><label>Omschrijving</label><input class="inp" type="text" id="tp-opmerking" style="width:100%" placeholder="bv. Levering week 4 Kessel-Lo &mdash; 6 thema&apos;s"></div></div>
+    <div class="fr"><div class="fg grow"><label for="tp-opmerking">Omschrijving</label><input class="inp" type="text" id="tp-opmerking" style="width:100%" placeholder="bv. Levering week 4 Kessel-Lo &mdash; 6 thema&apos;s"></div></div>
     <div class="fr">
-      <div class="fg grow"><label>Wie rijdt?</label><input class="inp" type="text" id="tp-wie" list="chauf-datalist" placeholder="Naam of kies…" autocomplete="off"><datalist id="chauf-datalist"></datalist></div>
-      <div class="fg md"><label>Status</label><select class="sel" id="tp-status">
+      <div class="fg grow"><label for="tp-wie">Wie rijdt?</label><input class="inp" type="text" id="tp-wie" list="chauf-datalist" placeholder="Naam of kies…" autocomplete="off"><datalist id="chauf-datalist"></datalist></div>
+      <div class="fg md"><label for="tp-status">Status</label><select class="sel" id="tp-status">
         <option value="gepland">Gepland</option><option value="bevestigd">Bevestigd</option><option value="gedaan">Gedaan</option>
       </select></div>
     </div>
@@ -4223,13 +4235,13 @@ loadAll()
   <div class="modal" style="width:380px">
     <div class="modal-title">
       <span>🖨 Dagrapport genereren</span>
-      <button class="modal-close" onclick="closeModal('modal-dagrapport')">✕</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-dagrapport')">✕</button>
     </div>
     <div class="fr">
-      <div class="fg grow"><label>Datum</label><input class="inp" type="date" id="dr-datum" min="2026-06-28" max="2026-09-06"></div>
+      <div class="fg grow"><label for="dr-datum">Datum</label><input class="inp" type="date" id="dr-datum" min="2026-06-28" max="2026-09-06"></div>
     </div>
     <div class="fr">
-      <div class="fg grow"><label>Chauffeur</label>
+      <div class="fg grow"><label for="dr-chauf">Chauffeur</label>
         <select class="sel" id="dr-chauf" style="width:100%">
           <option value="">— Kies chauffeur —</option>
         </select>
@@ -4247,7 +4259,7 @@ loadAll()
   <div class="modal" style="width:560px;max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-title">
       <span id="checklist-titel">Checklist</span>
-      <button class="modal-close" onclick="closeModal('modal-checklist')">✕</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-checklist')">✕</button>
     </div>
     <div id="checklist-content" style="flex:1;overflow-y:auto;padding-right:4px"></div>
     <div style="display:flex;gap:8px;margin-top:.875rem;padding-top:.75rem;border-top:.5px solid var(--border)">
@@ -4262,7 +4274,7 @@ loadAll()
   <div class="modal" style="width:580px;max-height:85vh;display:flex;flex-direction:column">
     <div class="modal-title">
       <span id="inventaris-titel">Inventaris</span>
-      <button class="modal-close" onclick="closeModal('modal-inventaris')">✕</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-inventaris')">✕</button>
     </div>
     <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Vink aan wat aanwezig is. Pas het aantal aan als dat afwijkt.</div>
     <div id="inventaris-content" style="flex:1;overflow-y:auto;padding-right:4px"></div>
@@ -4278,7 +4290,7 @@ loadAll()
   <div class="modal" style="width:640px;max-height:88vh;display:flex;flex-direction:column">
     <div class="modal-title">
       <span id="set-detail-titel">Set detail</span>
-      <button class="modal-close" onclick="closeModal('modal-set-detail')">&#x2715;</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-set-detail')">&#x2715;</button>
     </div>
     <div style="flex:1;overflow-y:auto" id="set-detail-body"></div>
   </div>
@@ -4289,15 +4301,15 @@ loadAll()
   <div class="modal" style="width:440px">
     <div class="modal-title">
       <span id="modal-nieuw-mat-titel">Nieuw artikel</span>
-      <button class="modal-close" onclick="closeModal('modal-nieuw-mat')">&#x2715;</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-nieuw-mat')">&#x2715;</button>
     </div>
     <div class="fr">
-      <div class="fg grow"><label>Naam <span class="req">*</span></label>
+      <div class="fg grow"><label for="nm-name">Naam <span class="req">*</span></label>
         <input class="inp" type="text" id="nm-name" placeholder="bv. Zak basketballen, Verplaatsbare oven...">
       </div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Categorie</label>
+      <div class="fg md"><label for="nm-cat">Categorie</label>
         <select class="sel" id="nm-cat">
           <option value="sport">&#9917; Sport</option>
           <option value="keuken">&#127859; Keuken</option>
@@ -4308,11 +4320,11 @@ loadAll()
         </select>
       </div>
       <div class="fg sm" id="nm-eenheid-wrap" style="display:none">
-        <label>Eenheid</label>
+        <label for="nm-eenheid">Eenheid</label>
         <input class="inp" type="text" id="nm-eenheid" placeholder="pakken, liter..." value="stuks">
       </div>
       <div class="fg sm" id="nm-min-wrap" style="display:none">
-        <label>Alarm onder</label>
+        <label for="nm-minimum">Alarm onder</label>
         <input class="inp" type="number" id="nm-minimum" value="0" min="0" step="0.5">
       </div>
     </div>
@@ -4329,25 +4341,25 @@ loadAll()
   <div class="modal" style="width:420px">
     <div class="modal-title">
       <span id="mutatie-titel">Voorraad aanpassen</span>
-      <button class="modal-close" onclick="closeModal('modal-mutatie')">&#x2715;</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-mutatie')">&#x2715;</button>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Actie</label>
+      <div class="fg md"><label for="mut-actie">Actie</label>
         <select class="sel" id="mut-actie" onchange="updateMutatieSign()">
           <option value="-1">&#8600; Verbruik / meegeven</option>
           <option value="1">&#8599; Aanvulling / ontvangen</option>
           <option value="0">&#9636; Correctie (stel exact in)</option>
         </select>
       </div>
-      <div class="fg sm"><label>Aantal</label>
+      <div class="fg sm"><label for="mut-qty">Aantal</label>
         <input class="inp" type="number" id="mut-qty" value="1" min="0" step="0.5">
       </div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Locatie</label>
+      <div class="fg md"><label for="mut-loc">Locatie</label>
         <select class="sel" id="mut-loc"></select>
       </div>
-      <div class="fg grow"><label>Reden / wie</label>
+      <div class="fg grow"><label for="mut-reden">Reden / wie</label>
         <input class="inp" type="text" id="mut-reden" placeholder="bv. Jan, weeklevering...">
       </div>
     </div>
@@ -4365,18 +4377,18 @@ loadAll()
   <div class="modal" style="width:400px">
     <div class="modal-title">
       <span id="set-verplaats-titel">Set verplaatsen</span>
-      <button class="modal-close" onclick="closeModal('modal-set-verplaats')">&#x2715;</button>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-set-verplaats')">&#x2715;</button>
     </div>
     <div class="fr">
-      <div class="fg grow"><label>Naar locatie</label>
+      <div class="fg grow"><label for="sv-naar">Naar locatie</label>
         <select class="sel" id="sv-naar" style="width:100%"></select>
       </div>
     </div>
     <div class="fr">
-      <div class="fg md"><label>Datum</label>
+      <div class="fg md"><label for="sv-datum">Datum</label>
         <input class="inp" type="date" id="sv-datum">
       </div>
-      <div class="fg grow"><label>Reden</label>
+      <div class="fg grow"><label for="sv-reden">Reden</label>
         <input class="inp" type="text" id="sv-reden" placeholder="bv. Weeklevering 4">
       </div>
     </div>
