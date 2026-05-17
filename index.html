@@ -1104,21 +1104,8 @@ function toggleBulkSelect(id){
 
 async function bulkVerplaatsWeek(){
   if(!bulkSelected.size){showToast('Selecteer eerst kampmomenten','warn');return;}
-  const week = prompt('Naar welke week verplaatsen? (1-9)');
-  if(!week || isNaN(parseInt(week))) return;
-  const w = parseInt(week);
-  if(w<1||w>9){showToast('Ongeldige week','warn');return;}
-  
-  for(const id of bulkSelected){
-    await api('PUT','/kampmomenten/'+id,{week:w});
-  }
-  S.kampmomenten = await api('GET','/kampmomenten');
-  bulkSelected.clear();
-  bulkMode = false;
-  renderKampen();
-  const bar = document.getElementById('bulk-action-bar');
-  if(bar) bar.style.display = 'none';
-  showToast('Verplaatst naar week '+w,'success');
+  document.getElementById('week-kies-nr').value = 1;
+  openModal('modal-week-kies');
 }
 
 async function bulkVerwijder(){
@@ -1195,17 +1182,10 @@ async function printDagplanningChauffeur(chauffeurId, datum){
 async function openDagplanningKiezer(){
   const chaufs = S_chauffeurs;
   if(!chaufs.length){showToast('Geen chauffeurs gevonden','warn');return;}
-  
-  const cNames = chaufs.map((c,i)=>(i+1)+'. '+c.name).join('\n');
-  const cKeuze = prompt('Kies chauffeur:\n'+cNames);
-  if(!cKeuze) return;
-  const chauf = chaufs[parseInt(cKeuze)-1];
-  if(!chauf){showToast('Ongeldige keuze','warn');return;}
-  
-  const datum = prompt('Datum (YYYY-MM-DD):',new Date().toISOString().substring(0,10));
-  if(!datum) return;
-  
-  await printDagplanningChauffeur(chauf.id, datum);
+  const sel = document.getElementById('dp-kies-chauf');
+  sel.innerHTML = chaufs.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('dp-kies-datum').value = new Date().toISOString().substring(0,10);
+  openModal('modal-dagplanning-kies');
 }
 
 
@@ -1242,6 +1222,81 @@ async function addThemaMat(themaId){
 var _invSport = [];
 var _invGedeeld = [];
 var _invTab = 'sport';
+
+// ── HERBRUIKBARE MINI-MODAL HELPERS ──
+var _locKiesCb = null;
+var _labelKiesCb = null;
+var _editTotId = null;
+
+function _openLocKies(titel, locs, callback){
+  document.getElementById('loc-kies-titel').textContent = titel;
+  var sel = document.getElementById('loc-kies-sel');
+  sel.innerHTML = locs.map(function(l){
+    var icon = l.type==='stockage'?'📦':l.type==='kamp'?'⛺':'📍';
+    return '<option value="'+l.id+'">'+icon+' '+l.name+'</option>';
+  }).join('');
+  _locKiesCb = callback;
+  openModal('modal-loc-kies');
+}
+function _locKiesConfirm(){
+  var locId = parseInt(document.getElementById('loc-kies-sel').value);
+  var loc = S.locaties.find(function(l){return l.id===locId;});
+  if(!loc){showToast('Geen locatie geselecteerd','warn');return;}
+  closeModal('modal-loc-kies');
+  if(_locKiesCb){var cb=_locKiesCb;_locKiesCb=null;cb(loc);}
+}
+function _labelKiesConfirm(){
+  var val = document.getElementById('label-kies-inp').value.trim();
+  if(!val){showToast('Voer een naam in','warn');return;}
+  closeModal('modal-label-kies');
+  if(_labelKiesCb){var cb=_labelKiesCb;_labelKiesCb=null;cb(val);}
+}
+async function _editTotConfirm(){
+  var qty = parseInt(document.getElementById('edit-tot-qty').value);
+  if(!qty||isNaN(qty)||qty<1){showToast('Ongeldige hoeveelheid','warn');return;}
+  closeModal('modal-edit-tot');
+  var item = _invGedeeld.find(function(i){return i.id===_editTotId;});
+  const r = await api('PUT','/gedeeld/'+_editTotId,{name:item.name,cat:item.cat,totaal:qty});
+  if(r && !r.error){
+    var idx = _invGedeeld.findIndex(function(i){return i.id===_editTotId;});
+    if(idx>=0){
+      _invGedeeld[idx].totaal = qty;
+      // Recalculate alarm flags locally (needed stays the same, only totaal changed)
+      if(_invGedeeld[idx].weekConflicts){
+        Object.values(_invGedeeld[idx].weekConflicts).forEach(function(wc){
+          wc.alarm = wc.needed > qty;
+        });
+      }
+    }
+  }
+  _renderInv();
+}
+async function _weekKiesConfirm(){
+  var w = parseInt(document.getElementById('week-kies-nr').value);
+  if(!w||w<1||w>9){showToast('Ongeldige week (1-9)','warn');return;}
+  closeModal('modal-week-kies');
+  for(const id of bulkSelected){
+    const updated = await api('PUT','/kampmomenten/'+id,{week:w});
+    if(updated && !updated.error){
+      var idx = S.kampmomenten.findIndex(k=>k.id===id);
+      if(idx>=0) S.kampmomenten[idx] = updated;
+      else S.kampmomenten.push(updated);
+    }
+  }
+  bulkSelected.clear(); bulkMode = false;
+  renderKampen();
+  var bar = document.getElementById('bulk-action-bar');
+  if(bar) bar.style.display = 'none';
+  showToast('Verplaatst naar week '+w,'success');
+}
+async function _dagplanningKiesConfirm(){
+  var sel = document.getElementById('dp-kies-chauf');
+  var chaufId = parseInt(sel.value);
+  var datum = document.getElementById('dp-kies-datum').value;
+  if(!chaufId||!datum){showToast('Vul chauffeur en datum in','warn');return;}
+  closeModal('modal-dagplanning-kies');
+  await printDagplanningChauffeur(chaufId, datum);
+}
 
 
 
@@ -1318,12 +1373,19 @@ async function invAddSport(){
 }
 
 async function invAddSet(itemId){
-  var label = prompt('Naam voor nieuwe set (bv. Voetbalzak 1):');
-  if(!label) return;
-  await api('POST','/sport/'+itemId+'/sets',{label:label,locatie_id:null});
-  _invSport = await api('GET','/sport');
-  _renderInv();
-  showToast(label+' toegevoegd','success');
+  document.getElementById('label-kies-inp').value = '';
+  document.getElementById('label-kies-titel').textContent = 'Nieuwe set toevoegen';
+  document.getElementById('label-kies-lbl').textContent = 'Naam (bv. Voetbalzak 1)';
+  _labelKiesCb = async function(label){
+    const newSet = await api('POST','/sport/'+itemId+'/sets',{label:label,locatie_id:null});
+    if(newSet && !newSet.error){
+      var sport = _invSport.find(function(s){return s.id===itemId;});
+      if(sport) sport.sets.push(newSet);
+    }
+    _renderInv();
+    showToast(label+' toegevoegd','success');
+  };
+  openModal('modal-label-kies');
 }
 
 async function invDelSport(id){
@@ -1340,35 +1402,45 @@ async function invDelSet(id){
   _renderInv();
 }
 
+function _patchSportPlan(setId, week, locId, locName){
+  _invSport.forEach(function(item){
+    item.sets.forEach(function(s){
+      if(s.id===setId){
+        s.planning = s.planning.filter(function(p){return p.week!==week;});
+        if(locId) s.planning.push({set_id:setId,week:week,locatie_id:locId,locatie_name:locName||''});
+      }
+    });
+  });
+}
 async function invTogWeek(setId, week, currentLocId){
   if(currentLocId && currentLocId !== 'null'){
-    await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:null});
+    const r = await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:null});
+    if(!r.error){ _patchSportPlan(setId,week,null,null); _renderInv(); }
   } else {
     var kamps = S.locaties.filter(function(l){return l.type==='kamp';});
     if(!kamps.length){showToast('Geen kamplocaties','warn');return;}
-    var keuze = prompt('Week '+week+' inplannen op:\n'+kamps.map(function(l,i){return (i+1)+'. '+l.name;}).join('\\n'));
-    if(!keuze) return;
-    var loc = kamps[parseInt(keuze)-1];
-    if(!loc){showToast('Ongeldige keuze','warn');return;}
-    await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:loc.id});
+    _openLocKies('Week '+week+' inplannen op', kamps, async function(loc){
+      const r = await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:loc.id});
+      if(!r.error){ _patchSportPlan(setId,week,loc.id,loc.name); _renderInv(); }
+    });
   }
-  _invSport = await api('GET','/sport');
-  _renderInv();
 }
 
 async function invVerplaats(setId){
-  var locs = S.locaties;
-  var keuze = prompt('Verplaatsen naar:\n'+locs.map(function(l,i){return (i+1)+'. '+l.name+' ('+l.type+')';}).join('\\n'));
-  if(!keuze) return;
-  var loc = locs[parseInt(keuze)-1];
-  if(!loc){showToast('Ongeldige keuze','warn');return;}
   var set = null;
   _invSport.forEach(function(item){item.sets.forEach(function(s){if(s.id===setId)set=s;});});
   var label = set ? set.label : 'Set';
-  await api('PUT','/sport/sets/'+setId,{label:label,locatie_id:loc.id});
-  _invSport = await api('GET','/sport');
-  _renderInv();
-  showToast('Verplaatst naar '+loc.name,'success');
+  _openLocKies('Verplaatsen naar', S.locaties, async function(loc){
+    const updated = await api('PUT','/sport/sets/'+setId,{label:label,locatie_id:loc.id});
+    if(updated && !updated.error){
+      _invSport.forEach(function(item){
+        var idx = item.sets.findIndex(function(s){return s.id===setId;});
+        if(idx>=0) item.sets[idx] = Object.assign({},item.sets[idx],updated);
+      });
+    }
+    _renderInv();
+    showToast('Verplaatst naar '+loc.name,'success');
+  });
 }
 
 function _buildThema(){
@@ -1456,12 +1528,9 @@ async function invAddGedeeld(){
 }
 
 async function invEditTot(id,current){
-  var item = _invGedeeld.find(function(i){return i.id===id;});
-  var nieuw = prompt('Aantal stuks:',current);
-  if(!nieuw||isNaN(parseInt(nieuw))) return;
-  await api('PUT','/gedeeld/'+id,{name:item.name,cat:item.cat,totaal:parseInt(nieuw)});
-  _invGedeeld = await api('GET','/gedeeld');
-  _renderInv();
+  _editTotId = id;
+  document.getElementById('edit-tot-qty').value = current;
+  openModal('modal-edit-tot');
 }
 
 async function invDelGedeeld(id){
@@ -1671,21 +1740,18 @@ function openSetDetail(item, set){
 
 async function toggleSetPlanning(eenheidId, week, currentLocId){
   if(currentLocId){
-    // Remove planning
     await api('POST','/inventaris/sets/'+eenheidId+'/plan',{week,locatie_id:null});
+    await loadInvSets();
+    renderInvSets();
   } else {
-    // Pick location
     const locs = S.locaties.filter(l=>l.type==='kamp');
     if(!locs.length){showToast('Geen kamplocaties beschikbaar','warn');return;}
-    const locNames = locs.map((l,i)=>`${i+1}. ${l.name}`).join('\n');
-    const choice = prompt('Week '+week+' — Kies locatie (nummer):\n'+locNames);
-    if(!choice)return;
-    const loc = locs[parseInt(choice)-1];
-    if(!loc){showToast('Ongeldige keuze','warn');return;}
-    await api('POST','/inventaris/sets/'+eenheidId+'/plan',{week,locatie_id:loc.id});
+    _openLocKies('Week '+week+' — Kies locatie', locs, async function(loc){
+      await api('POST','/inventaris/sets/'+eenheidId+'/plan',{week,locatie_id:loc.id});
+      await loadInvSets();
+      renderInvSets();
+    });
   }
-  await loadInvSets();
-  renderInvSets();
 }
 
 // ── SET VERPLAATSEN ──
@@ -1715,16 +1781,18 @@ async function saveSetVerplaats(){
 
 // ── NIEUWE SET toevoegen aan item ──
 async function openNieuwSet(itemId, itemNaam){
-  const label = prompt('Naam/label voor de nieuwe set (bv. "Zak #1", "Oven A"):');
-  if(!label) return;
-  const locs = S.locaties;
-  const locNames = locs.map((l,i)=>`${i+1}. ${l.name}`).join('\n');
-  const choice = prompt('Huidige locatie (nummer):\n'+locNames+'\n0. Stockage');
-  const loc = choice==='0'||!choice ? null : locs[parseInt(choice)-1];
-  await api('POST','/materiaal/'+itemId+'/eenheden',{label,locatie_id:loc?.id||null});
-  await loadInvSets();
-  renderInvSets();
-  showToast(label+' toegevoegd','success');
+  document.getElementById('label-kies-inp').value = '';
+  document.getElementById('label-kies-titel').textContent = 'Nieuwe set: '+itemNaam;
+  document.getElementById('label-kies-lbl').textContent = 'Label (bv. "Zak #1", "Oven A")';
+  _labelKiesCb = function(label){
+    _openLocKies('Locatie voor '+label, S.locaties, async function(loc){
+      await api('POST','/materiaal/'+itemId+'/eenheden',{label,locatie_id:loc?.id||null});
+      await loadInvSets();
+      renderInvSets();
+      showToast(label+' toegevoegd','success');
+    });
+  };
+  openModal('modal-label-kies');
 }
 
 // ── VERBRUIKSSTOCK ──
@@ -4087,6 +4155,100 @@ loadAll()
     <div style="display:flex;gap:8px;margin-top:.75rem">
       <button class="btn-g" style="flex:1" onclick="saveMutatie()">&#x2713; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-mutatie')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Locatie kiezen (herbruikbaar) -->
+<div class="modal-bg" id="modal-loc-kies">
+  <div class="modal" style="width:340px">
+    <div class="modal-title">
+      <span id="loc-kies-titel">Locatie kiezen</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-loc-kies')">&#x2715;</button>
+    </div>
+    <div class="fr"><div class="fg grow">
+      <label for="loc-kies-sel">Locatie</label>
+      <select class="sel" id="loc-kies-sel" style="width:100%"></select>
+    </div></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem">
+      <button class="btn-b" style="flex:1" onclick="_locKiesConfirm()">&#10003; Bevestigen</button>
+      <button class="btn-o" onclick="closeModal('modal-loc-kies')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Week kiezen -->
+<div class="modal-bg" id="modal-week-kies">
+  <div class="modal" style="width:280px">
+    <div class="modal-title">
+      <span>Week kiezen</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-week-kies')">&#x2715;</button>
+    </div>
+    <div class="fr"><div class="fg sm">
+      <label for="week-kies-nr">Week (1–9)</label>
+      <input class="inp" type="number" id="week-kies-nr" min="1" max="9" value="1">
+    </div></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem">
+      <button class="btn-b" style="flex:1" onclick="_weekKiesConfirm()">&#10003; Verplaatsen</button>
+      <button class="btn-o" onclick="closeModal('modal-week-kies')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Label / naam invoeren (herbruikbaar) -->
+<div class="modal-bg" id="modal-label-kies">
+  <div class="modal" style="width:340px">
+    <div class="modal-title">
+      <span id="label-kies-titel">Naam invoeren</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-label-kies')">&#x2715;</button>
+    </div>
+    <div class="fr"><div class="fg grow">
+      <label for="label-kies-inp" id="label-kies-lbl">Naam</label>
+      <input class="inp" type="text" id="label-kies-inp" placeholder="">
+    </div></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem">
+      <button class="btn-b" style="flex:1" onclick="_labelKiesConfirm()">&#10003; Bevestigen</button>
+      <button class="btn-o" onclick="closeModal('modal-label-kies')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Totaal aanpassen -->
+<div class="modal-bg" id="modal-edit-tot">
+  <div class="modal" style="width:280px">
+    <div class="modal-title">
+      <span>Aantal aanpassen</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-edit-tot')">&#x2715;</button>
+    </div>
+    <div class="fr"><div class="fg sm">
+      <label for="edit-tot-qty">Stuks</label>
+      <input class="inp" type="number" id="edit-tot-qty" min="1" value="1">
+    </div></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem">
+      <button class="btn-b" style="flex:1" onclick="_editTotConfirm()">&#10003; Opslaan</button>
+      <button class="btn-o" onclick="closeModal('modal-edit-tot')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Dagplanning afdrukken -->
+<div class="modal-bg" id="modal-dagplanning-kies">
+  <div class="modal" style="width:360px">
+    <div class="modal-title">
+      <span>Dagplanning afdrukken</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-dagplanning-kies')">&#x2715;</button>
+    </div>
+    <div class="fr"><div class="fg grow">
+      <label for="dp-kies-chauf">Chauffeur</label>
+      <select class="sel" id="dp-kies-chauf" style="width:100%"></select>
+    </div></div>
+    <div class="fr"><div class="fg grow">
+      <label for="dp-kies-datum">Datum</label>
+      <input class="inp" type="date" id="dp-kies-datum">
+    </div></div>
+    <div style="display:flex;gap:8px;margin-top:.75rem">
+      <button class="btn-b" style="flex:1" onclick="_dagplanningKiesConfirm()">&#128438; Afdrukken</button>
+      <button class="btn-o" onclick="closeModal('modal-dagplanning-kies')">Annuleren</button>
     </div>
   </div>
 </div>

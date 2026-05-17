@@ -325,6 +325,13 @@ async function startServer() {
     } catch(e){res.status(400).json({error:'Dit kampmoment bestaat al voor deze locatie en week.'});}
   });
 
+  app.put('/api/kampmomenten/:id',(req,res)=>{
+    const{week}=req.body;
+    run('UPDATE kampmomenten SET week=? WHERE id=?',[week,req.params.id]);
+    saveDb();
+    res.json(getKampmoment(req.params.id));
+  });
+
   app.delete('/api/kampmomenten/:id',(req,res)=>{
     run('DELETE FROM kampmoment_themas WHERE kampmoment_id=?',[req.params.id]);
     run('DELETE FROM transport_taken WHERE kampmoment_id=?',[req.params.id]);
