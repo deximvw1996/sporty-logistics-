@@ -2,3 +2,4 @@ node_modules/
 *.db
 backups/
 deploy.bat
+BACKLOG.md
