@@ -176,10 +176,11 @@ async function startServer() {
   // Migration 8: stockage_rol voor locaties (sport / thema / beide)
   addColumnIfMissing('locaties', 'stockage_rol', "TEXT DEFAULT 'beide'");
 
-  // Migration 9: per-item thuis-stockage (sport_items, thema_materiaal, standaard_materiaal)
+  // Migration 9: per-item thuis-stockage (sport_items, thema_materiaal, standaard_materiaal, gedeeld_items)
   addColumnIfMissing('sport_items', 'stockage_locatie_id', 'INTEGER');
   addColumnIfMissing('thema_materiaal', 'stockage_locatie_id', 'INTEGER');
   addColumnIfMissing('standaard_materiaal', 'stockage_locatie_id', 'INTEGER');
+  addColumnIfMissing('gedeeld_items', 'stockage_locatie_id', 'INTEGER');
 
   db.run(`
     CREATE TABLE IF NOT EXISTS locaties (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, addr TEXT DEFAULT '', type TEXT DEFAULT 'kamp', contact_naam TEXT DEFAULT '', contact_tel TEXT DEFAULT '', notities TEXT DEFAULT '');
@@ -1035,14 +1036,14 @@ async function startServer() {
   });
 
   app.post('/api/gedeeld', (req,res) => {
-    const {name, cat, totaal, notities} = req.body;
+    const {name, cat, totaal, notities, stockage_locatie_id} = req.body;
     if (!name) return res.status(400).json({error: 'Naam vereist'});
-    const id = ins('INSERT INTO gedeeld_items (name,cat,totaal,notities) VALUES (?,?,?,?)', [name, cat||'gedeeld', totaal||1, notities||'']);
+    const id = ins('INSERT INTO gedeeld_items (name,cat,totaal,notities,stockage_locatie_id) VALUES (?,?,?,?,?)', [name, cat||'gedeeld', totaal||1, notities||'', stockage_locatie_id||null]);
     res.json({...get('SELECT * FROM gedeeld_items WHERE id=?', [id]), gebruik: [], weekConflicts: {}});
   });
   app.put('/api/gedeeld/:id', (req,res) => {
-    const {name,cat,totaal,notities} = req.body;
-    run('UPDATE gedeeld_items SET name=?,cat=?,totaal=?,notities=? WHERE id=?', [name,cat||'gedeeld',totaal||1,notities||'',req.params.id]);
+    const {name,cat,totaal,notities,stockage_locatie_id} = req.body;
+    run('UPDATE gedeeld_items SET name=?,cat=?,totaal=?,notities=?,stockage_locatie_id=? WHERE id=?', [name,cat||'gedeeld',totaal||1,notities||'',stockage_locatie_id||null,req.params.id]);
     saveDb(); res.json(get('SELECT * FROM gedeeld_items WHERE id=?', [req.params.id]));
   });
   app.delete('/api/gedeeld/:id', (req,res) => {

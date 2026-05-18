@@ -667,6 +667,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
               <option value="sport">&#9917; Sport</option>
               <option value="thema">&#127912; Thema-artikel</option>
               <option value="standaard">&#128450; Standaard</option>
+              <option value="gedeeld">&#128295; Gedeeld</option>
             </select>
           </div>
           <div class="fg grow">
@@ -708,6 +709,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           <button class="fb" id="cat-f-sport" onclick="setCatFilter('sport',this)">&#9917; Sport</button>
           <button class="fb" id="cat-f-thema" onclick="setCatFilter('thema',this)">&#127912; Thema</button>
           <button class="fb" id="cat-f-standaard" onclick="setCatFilter('standaard',this)">&#128450; Standaard</button>
+          <button class="fb" id="cat-f-gedeeld" onclick="setCatFilter('gedeeld',this)">&#128295; Gedeeld</button>
         </div>
         <select class="sel" id="cat-sort" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px;flex-shrink:0">
           <option value="naam-asc">&#8593; Naam A&#8594;Z</option>
@@ -3467,6 +3469,10 @@ async function renderCatalogus(){
     const r=await api('GET','/sport');
     _invSport=Array.isArray(r)?r:[];
   }
+  if(!_invGedeeld||!_invGedeeld.length){
+    const r=await api('GET','/gedeeld');
+    _invGedeeld=Array.isArray(r)?r:[];
+  }
   const thSel=document.getElementById('cat-add-thema');
   if(thSel) thSel.innerHTML=(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')||'<option value="">— Geen thema\'s —</option>';
   // Vul stockage-dropdowns in add-form
@@ -3482,16 +3488,23 @@ function renderCatalogusAddForm(){
   const qw=document.getElementById('cat-add-qty-wrap');
   const tw=document.getElementById('cat-add-thema-wrap');
   const cw=document.getElementById('cat-add-cat-wrap');
+  const ql=qw?.querySelector('label');
   if(!qw)return;
   if(type==='sport'){
     qw.style.display='none';tw.style.display='none';cw.style.display='';
     document.getElementById('cat-add-cat').innerHTML='<option value="sport">⚽ Sport</option><option value="zwembad">🏊 Zwembad</option><option value="outdoor">🏕️ Outdoor</option><option value="andere">📦 Andere</option>';
   } else if(type==='thema'){
     qw.style.display='';tw.style.display='';cw.style.display='none';
+    if(ql)ql.textContent='Aantal';
     const thSel=document.getElementById('cat-add-thema');
     if(thSel&&!thSel.options.length) thSel.innerHTML=(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')||'<option value="">— Geen thema\'s —</option>';
+  } else if(type==='gedeeld'){
+    qw.style.display='';tw.style.display='none';cw.style.display='';
+    if(ql)ql.textContent='Totaal stuks';
+    document.getElementById('cat-add-cat').innerHTML='<option value="opblaas">🎈 Opblaas</option><option value="keuken">🍳 Keuken</option><option value="gedeeld">📦 Andere</option>';
   } else {
     qw.style.display='';tw.style.display='none';cw.style.display='';
+    if(ql)ql.textContent='Aantal';
     document.getElementById('cat-add-cat').innerHTML='<option value="basis">📋 Basis</option><option value="keuken">🍳 Keuken</option><option value="slaap">🛏️ Slaap</option><option value="sport">⚽ Sport</option><option value="audio">🔊 Audio</option><option value="andere">📦 Andere</option>';
   }
 }
@@ -3514,6 +3527,10 @@ async function addCatalogusItem(){
     if(r.error)return;
     const th=S.themas.find(t=>t.id===thId);
     if(th){th.materiaal=th.materiaal||[];th.materiaal.push(r);th.mat=th.materiaal;}
+  } else if(type==='gedeeld'){
+    const r=await api('POST','/gedeeld',{name:naam,totaal:qty,cat,stockage_locatie_id});
+    if(r.error)return;
+    _invGedeeld=[...(_invGedeeld||[]),{...r,gebruik:[],weekConflicts:{}}];
   } else {
     const r=await api('POST','/standaard',{name:naam,qty,cat,stockage_locatie_id});
     if(r.error)return;
@@ -3546,6 +3563,9 @@ function _buildCatItems(){
   (S.standaard||[]).forEach(m=>{
     items.push({type:'standaard',raw_id:m.id,naam:m.name,sub:m.cat||'andere',thema:null,thema_id:null,thema_color:null,qty:m.qty,sets:null,stockage_locatie_id:m.stockage_locatie_id||null});
   });
+  (_invGedeeld||[]).forEach(m=>{
+    items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,stockage_locatie_id:m.stockage_locatie_id||null});
+  });
   return items;
 }
 
@@ -3575,14 +3595,15 @@ function renderCatalogusLijst(){
     const sp=items.filter(i=>i.type==='sport').length;
     const th=items.filter(i=>i.type==='thema').length;
     const st=items.filter(i=>i.type==='standaard').length;
-    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${sp} sport · 🎨 ${th} thema · 📋 ${st} standaard`;
+    const gd=items.filter(i=>i.type==='gedeeld').length;
+    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${sp} sport · 🎨 ${th} thema · 📋 ${st} standaard · 🔧 ${gd} gedeeld`;
   }
 
   if(!filtered.length){el.innerHTML='<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';return;}
 
-  const typeIco={sport:'⚽',thema:'🎨',standaard:'📋'};
-  const typeLbl={sport:'Sport',thema:'Thema',standaard:'Standaard'};
-  const typeClr={sport:'p-green',thema:'p-amber',standaard:'p-blue'};
+  const typeIco={sport:'⚽',thema:'🎨',standaard:'📋',gedeeld:'🔧'};
+  const typeLbl={sport:'Sport',thema:'Thema',standaard:'Standaard',gedeeld:'Gedeeld'};
+  const typeClr={sport:'p-green',thema:'p-amber',standaard:'p-blue',gedeeld:'p-red'};
 
   let html='';
   if(sort==='type'||sort==='thema'){
@@ -3611,6 +3632,8 @@ function _renderCatRow(item,typeIco,typeLbl,typeClr){
     const hasQty=item.qty!==null;
     const catOpts=item.type==='sport'
       ?`<option value="sport"${item.sub==='sport'?' selected':''}>⚽ Sport</option><option value="zwembad"${item.sub==='zwembad'?' selected':''}>🏊 Zwembad</option><option value="outdoor"${item.sub==='outdoor'?' selected':''}>🏕️ Outdoor</option><option value="andere"${item.sub==='andere'?' selected':''}>📦 Andere</option>`
+      :item.type==='gedeeld'
+      ?`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`
       :`<option value="basis"${item.sub==='basis'?' selected':''}>📋 Basis</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="slaap"${item.sub==='slaap'?' selected':''}>🛏️ Slaap</option><option value="sport"${item.sub==='sport'?' selected':''}>⚽ Sport</option><option value="audio"${item.sub==='audio'?' selected':''}>🔊 Audio</option><option value="andere"${item.sub==='andere'?' selected':''}>📦 Andere</option>`;
     const hasCat=item.type!=='thema';
     return `<div class="row editing" style="gap:6px;flex-wrap:wrap;align-items:center">
@@ -3630,6 +3653,8 @@ function _renderCatRow(item,typeIco,typeLbl,typeClr){
   const stockBadge=stockNaam?`<span style="font-size:10px;color:var(--text2)">📦 ${stockNaam}</span>`:'';
   const extra=item.type==='sport'
     ?`${item.sets} set${item.sets!==1?'s':''}`
+    :item.type==='gedeeld'
+    ?`${item.qty} stuks · ${item.gebrCount||0} thema${(item.gebrCount||0)!==1?'\'s':''} gekoppeld`
     :`×${item.qty}`;
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
   return `<div class="row">
@@ -3661,6 +3686,11 @@ async function saveCatItem(type,id,themaId){
     if(r.error)return;
     const th=S.themas.find(t=>t.id===themaId);
     if(th){const m=(th.materiaal||[]).find(m=>m.id===id);if(m){m.name=naam;m.qty=qty;m.stockage_locatie_id=stockage_locatie_id;}}
+  } else if(type==='gedeeld'){
+    const r=await api('PUT','/gedeeld/'+id,{name:naam,totaal:qty,cat,stockage_locatie_id});
+    if(r.error)return;
+    const m=(_invGedeeld||[]).find(m=>m.id===id);
+    if(m){m.name=naam;m.totaal=qty;m.cat=cat;m.stockage_locatie_id=stockage_locatie_id;}
   } else {
     const r=await api('PUT','/standaard/'+id,{name:naam,qty,cat,stockage_locatie_id});
     if(r.error)return;
@@ -3680,6 +3710,9 @@ async function deleteCatItem(type,id,themaId){
     await api('DELETE','/themas/'+themaId+'/materiaal/'+id);
     const th=S.themas.find(t=>t.id===themaId);
     if(th){th.materiaal=(th.materiaal||[]).filter(m=>m.id!==id);th.mat=th.materiaal;}
+  } else if(type==='gedeeld'){
+    await api('DELETE','/gedeeld/'+id);
+    _invGedeeld=(_invGedeeld||[]).filter(m=>m.id!==id);
   } else {
     await api('DELETE','/standaard/'+id);
     S.standaard=S.standaard.filter(m=>m.id!==id);
