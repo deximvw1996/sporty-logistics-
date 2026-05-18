@@ -545,6 +545,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128450; Standaard</button>
       <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Stockage &amp; voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#127890; Inventaris</button>
+      <button class="kal-subtab" onclick="setMatSubtab('catalogus',this)">&#128203; Catalogus</button>
     </div>
 
     <!-- Thema's -->
@@ -652,6 +653,66 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
     <!-- Inventaris -->
     <div id="mat-sub-inventaris" style="display:none"><div id="inv-content" style="min-height:100px"></div></div>
+
+    <!-- Catalogus: alle materialen in één overzicht -->
+    <div id="mat-sub-catalogus" style="display:none">
+
+      <!-- Toevoegen -->
+      <div class="card" style="margin-bottom:.875rem">
+        <div class="card-hd">&#43; Nieuw artikel toevoegen</div>
+        <div class="fr">
+          <div class="fg md">
+            <label for="cat-add-type">Type</label>
+            <select class="sel" id="cat-add-type" onchange="renderCatalogusAddForm()">
+              <option value="sport">&#9917; Sport</option>
+              <option value="thema">&#127912; Thema-artikel</option>
+              <option value="standaard">&#128450; Standaard</option>
+            </select>
+          </div>
+          <div class="fg grow">
+            <label for="cat-add-naam">Naam</label>
+            <input class="inp" type="text" id="cat-add-naam" placeholder="Naam artikel&#8230;" onkeydown="if(event.key==='Enter')addCatalogusItem()">
+          </div>
+          <div class="fg sm" id="cat-add-qty-wrap" style="display:none">
+            <label for="cat-add-qty">Aantal</label>
+            <input class="inp" type="number" id="cat-add-qty" value="1" min="1" style="width:60px">
+          </div>
+          <div class="fg md" id="cat-add-thema-wrap" style="display:none">
+            <label for="cat-add-thema">Thema</label>
+            <select class="sel" id="cat-add-thema"></select>
+          </div>
+          <div class="fg md" id="cat-add-cat-wrap">
+            <label for="cat-add-cat">Categorie</label>
+            <select class="sel" id="cat-add-cat">
+              <option value="sport">&#9917; Sport</option>
+              <option value="zwembad">&#127946; Zwembad</option>
+              <option value="outdoor">&#9978; Outdoor</option>
+              <option value="andere">&#128230; Andere</option>
+            </select>
+          </div>
+          <button class="btn-g" onclick="addCatalogusItem()" style="align-self:flex-end">&#43; Toevoegen</button>
+        </div>
+      </div>
+
+      <!-- Zoek + filter + sortering -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:.625rem">
+        <input class="inp" type="search" id="cat-search" placeholder="&#128269; Zoeken op naam, thema&#8230;" oninput="renderCatalogusLijst()" style="flex:1;min-width:160px">
+        <div style="display:flex;gap:3px;flex-shrink:0">
+          <button class="fb active" id="cat-f-alle" onclick="setCatFilter('alle',this)">Alle</button>
+          <button class="fb" id="cat-f-sport" onclick="setCatFilter('sport',this)">&#9917; Sport</button>
+          <button class="fb" id="cat-f-thema" onclick="setCatFilter('thema',this)">&#127912; Thema</button>
+          <button class="fb" id="cat-f-standaard" onclick="setCatFilter('standaard',this)">&#128450; Standaard</button>
+        </div>
+        <select class="sel" id="cat-sort" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px;flex-shrink:0">
+          <option value="naam-asc">&#8593; Naam A&#8594;Z</option>
+          <option value="naam-desc">&#8595; Naam Z&#8594;A</option>
+          <option value="type">Groepeer op type</option>
+          <option value="thema">Groepeer op thema</option>
+        </select>
+      </div>
+      <div id="cat-stats" style="font-size:11px;color:var(--text2);margin-bottom:.5rem;padding:0 2px"></div>
+      <div id="cat-list"></div>
+    </div>
 
   <!-- ═══════════════════════════════════════════════════════
        TAB 4: TRANSPORT PLANNEN
@@ -2000,7 +2061,7 @@ function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['themas','standaard','stockage','inventaris'].forEach(t=>{
+  ['themas','standaard','stockage','inventaris','catalogus'].forEach(t=>{
     const el=document.getElementById('mat-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
@@ -2013,6 +2074,7 @@ document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.i
   renderVoorraad();
 }
 else if(tab==='inventaris'){renderInventarisTab();}
+else if(tab==='catalogus'){renderCatalogus();}
 }
 
 function setMatSubtabToMBeheer(){
@@ -3389,6 +3451,224 @@ async function saveLoc(id){
   renderLocaties();
 }
 async function deleteLoc(id){await api('DELETE','/locaties/'+id);S.locaties=S.locaties.filter(l=>l.id!==id);renderLocaties();}
+
+// ── MATERIAALCATALOGUS ──
+let _catFilter='alle';
+let _catEditId=null;
+
+async function renderCatalogus(){
+  if(!_invSport||!_invSport.length){
+    const r=await api('GET','/sport');
+    _invSport=Array.isArray(r)?r:[];
+  }
+  const thSel=document.getElementById('cat-add-thema');
+  if(thSel) thSel.innerHTML=(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')||'<option value="">— Geen thema\'s —</option>';
+  renderCatalogusAddForm();
+  renderCatalogusLijst();
+}
+
+function renderCatalogusAddForm(){
+  const type=document.getElementById('cat-add-type')?.value||'sport';
+  const qw=document.getElementById('cat-add-qty-wrap');
+  const tw=document.getElementById('cat-add-thema-wrap');
+  const cw=document.getElementById('cat-add-cat-wrap');
+  if(!qw)return;
+  if(type==='sport'){
+    qw.style.display='none';tw.style.display='none';cw.style.display='';
+    document.getElementById('cat-add-cat').innerHTML='<option value="sport">⚽ Sport</option><option value="zwembad">🏊 Zwembad</option><option value="outdoor">🏕️ Outdoor</option><option value="andere">📦 Andere</option>';
+  } else if(type==='thema'){
+    qw.style.display='';tw.style.display='';cw.style.display='none';
+    const thSel=document.getElementById('cat-add-thema');
+    if(thSel&&!thSel.options.length) thSel.innerHTML=(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')||'<option value="">— Geen thema\'s —</option>';
+  } else {
+    qw.style.display='';tw.style.display='none';cw.style.display='';
+    document.getElementById('cat-add-cat').innerHTML='<option value="basis">📋 Basis</option><option value="keuken">🍳 Keuken</option><option value="slaap">🛏️ Slaap</option><option value="sport">⚽ Sport</option><option value="audio">🔊 Audio</option><option value="andere">📦 Andere</option>';
+  }
+}
+
+async function addCatalogusItem(){
+  const type=document.getElementById('cat-add-type').value;
+  const naam=document.getElementById('cat-add-naam').value.trim();
+  if(!naam){showToast('Voer een naam in','warn');return;}
+  const qty=parseInt(document.getElementById('cat-add-qty')?.value)||1;
+  const cat=document.getElementById('cat-add-cat')?.value||'andere';
+  if(type==='sport'){
+    const r=await api('POST','/sport',{name:naam,cat});
+    if(r.error)return;
+    _invSport=[...(_invSport||[]),{...r,sets:[]}];
+  } else if(type==='thema'){
+    const thId=parseInt(document.getElementById('cat-add-thema')?.value);
+    if(!thId){showToast('Kies een thema','warn');return;}
+    const r=await api('POST','/themas/'+thId+'/materiaal',{name:naam,qty});
+    if(r.error)return;
+    const th=S.themas.find(t=>t.id===thId);
+    if(th){th.materiaal=th.materiaal||[];th.materiaal.push(r);th.mat=th.materiaal;}
+  } else {
+    const r=await api('POST','/standaard',{name:naam,qty,cat});
+    if(r.error)return;
+    S.standaard.push(r);
+  }
+  document.getElementById('cat-add-naam').value='';
+  document.getElementById('cat-add-qty').value='1';
+  showToast('Artikel toegevoegd','success');
+  renderCatalogusLijst();
+}
+
+function setCatFilter(filter,btn){
+  _catFilter=filter;
+  document.querySelectorAll('#mat-sub-catalogus .fb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCatalogusLijst();
+}
+
+function _buildCatItems(){
+  const items=[];
+  (_invSport||[]).forEach(item=>{
+    items.push({type:'sport',raw_id:item.id,naam:item.name,sub:item.cat||'sport',thema:null,thema_id:null,thema_color:null,qty:null,sets:item.sets?.length||0});
+  });
+  (S.themas||[]).forEach(th=>{
+    (th.materiaal||th.mat||[]).forEach(m=>{
+      items.push({type:'thema',raw_id:m.id,thema_id:th.id,naam:m.name,sub:null,thema:th.name,thema_color:th.color||'#1D9E75',qty:m.qty,sets:null});
+    });
+  });
+  (S.standaard||[]).forEach(m=>{
+    items.push({type:'standaard',raw_id:m.id,naam:m.name,sub:m.cat||'andere',thema:null,thema_id:null,thema_color:null,qty:m.qty,sets:null});
+  });
+  return items;
+}
+
+function renderCatalogusLijst(){
+  const search=(document.getElementById('cat-search')?.value||'').toLowerCase().trim();
+  const sort=document.getElementById('cat-sort')?.value||'naam-asc';
+  const el=document.getElementById('cat-list');
+  if(!el)return;
+
+  const items=_buildCatItems();
+  let filtered=items.filter(i=>{
+    if(_catFilter!=='alle'&&i.type!==_catFilter)return false;
+    if(search&&!i.naam.toLowerCase().includes(search)&&!(i.thema||'').toLowerCase().includes(search)&&!(i.sub||'').toLowerCase().includes(search))return false;
+    return true;
+  });
+  filtered.sort((a,b)=>{
+    if(sort==='naam-asc')return a.naam.localeCompare(b.naam,'nl');
+    if(sort==='naam-desc')return b.naam.localeCompare(a.naam,'nl');
+    if(sort==='type')return a.type.localeCompare(b.type)||a.naam.localeCompare(b.naam,'nl');
+    if(sort==='thema')return (a.thema||'zzz').localeCompare(b.thema||'zzz')||a.naam.localeCompare(b.naam,'nl');
+    return 0;
+  });
+
+  const statsEl=document.getElementById('cat-stats');
+  if(statsEl){
+    const tot=items.length;const sh=filtered.length;
+    const sp=items.filter(i=>i.type==='sport').length;
+    const th=items.filter(i=>i.type==='thema').length;
+    const st=items.filter(i=>i.type==='standaard').length;
+    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${sp} sport · 🎨 ${th} thema · 📋 ${st} standaard`;
+  }
+
+  if(!filtered.length){el.innerHTML='<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';return;}
+
+  const typeIco={sport:'⚽',thema:'🎨',standaard:'📋'};
+  const typeLbl={sport:'Sport',thema:'Thema',standaard:'Standaard'};
+  const typeClr={sport:'p-green',thema:'p-amber',standaard:'p-blue'};
+
+  let html='';
+  if(sort==='type'||sort==='thema'){
+    const gKey=sort==='type'?'type':'thema';
+    let lastG=null;
+    filtered.forEach(item=>{
+      const g=item[gKey]||(sort==='thema'?'— Geen thema —':'?');
+      if(g!==lastG){
+        const glabel=sort==='type'?typeIco[g]+' '+typeLbl[g]:g;
+        html+=`<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 0 4px;letter-spacing:.5px${lastG?';margin-top:10px':''}">${glabel}</div>`;
+        lastG=g;
+      }
+      html+=_renderCatRow(item,typeIco,typeLbl,typeClr);
+    });
+  } else {
+    filtered.forEach(item=>{html+=_renderCatRow(item,typeIco,typeLbl,typeClr);});
+  }
+  el.innerHTML=html;
+}
+
+function _renderCatRow(item,typeIco,typeLbl,typeClr){
+  const uid=item.type+'-'+item.raw_id;
+  if(_catEditId===uid){
+    const hasQty=item.qty!==null;
+    const catOpts=item.type==='sport'
+      ?`<option value="sport"${item.sub==='sport'?' selected':''}>⚽ Sport</option><option value="zwembad"${item.sub==='zwembad'?' selected':''}>🏊 Zwembad</option><option value="outdoor"${item.sub==='outdoor'?' selected':''}>🏕️ Outdoor</option><option value="andere"${item.sub==='andere'?' selected':''}>📦 Andere</option>`
+      :`<option value="basis"${item.sub==='basis'?' selected':''}>📋 Basis</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="slaap"${item.sub==='slaap'?' selected':''}>🛏️ Slaap</option><option value="sport"${item.sub==='sport'?' selected':''}>⚽ Sport</option><option value="audio"${item.sub==='audio'?' selected':''}>🔊 Audio</option><option value="andere"${item.sub==='andere'?' selected':''}>📦 Andere</option>`;
+    const hasCat=item.type!=='thema';
+    return `<div class="row editing" style="gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:14px">${typeIco[item.type]}</span>
+      <input class="inp gb" type="text" id="ce-naam-${uid}" value="${item.naam.replace(/"/g,'&quot;')}" style="flex:1;min-width:140px">
+      ${hasQty?`<input class="inp gb" type="number" id="ce-qty-${uid}" value="${item.qty}" min="1" style="width:65px">`:'' }
+      ${hasCat?`<select class="sel gb" id="ce-cat-${uid}" style="width:120px">${catOpts}</select>`:''}
+      <button class="bi save" onclick="saveCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})">&#x2713; Opslaan</button>
+      <button class="bi" onclick="_catEditId=null;renderCatalogusLijst()">&#x2715;</button>
+    </div>`;
+  }
+  const badge=`<span class="pill ${typeClr[item.type]}">${typeIco[item.type]} ${typeLbl[item.type]}</span>`;
+  const themaBadge=item.thema?`<span class="pill" style="background:${item.thema_color}22;color:${item.thema_color};border:.5px solid ${item.thema_color}55">${item.thema}</span>`:'';
+  const subBadge=item.sub&&item.sub!=='andere'&&item.sub!=='sport'?`<span style="font-size:10px;color:var(--text3)">${item.sub}</span>`:'';
+  const extra=item.type==='sport'
+    ?`${item.sets} set${item.sets!==1?'s':''}`
+    :`×${item.qty}`;
+  const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
+  return `<div class="row">
+    <div class="ri">
+      <div class="rm" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${badge}${themaBadge}<span>${item.naam}</span>${subBadge}</div>
+      <div class="rs" style="margin-top:2px">${extra}</div>
+    </div>
+    <div class="ra">
+      <button class="bi" onclick="_catEditId=${_q(uid)};renderCatalogusLijst()" title="Bewerken">&#x270F;&#xFE0F;</button>
+      <button class="bi del" onclick="${delFn}" title="Verwijderen">&#128465;</button>
+    </div>
+  </div>`;
+}
+
+async function saveCatItem(type,id,themaId){
+  const uid=type+'-'+id;
+  const naam=(document.getElementById('ce-naam-'+uid)?.value||'').trim();
+  if(!naam){showToast('Naam is verplicht','warn');return;}
+  const qty=parseInt(document.getElementById('ce-qty-'+uid)?.value)||1;
+  const cat=document.getElementById('ce-cat-'+uid)?.value||'andere';
+  if(type==='sport'){
+    const r=await api('PUT','/sport/'+id,{name:naam,cat,notities:''});
+    if(r.error)return;
+    const item=(_invSport||[]).find(i=>i.id===id);
+    if(item){item.name=naam;item.cat=cat;}
+  } else if(type==='thema'){
+    const r=await api('PUT','/themas/'+themaId+'/materiaal/'+id,{name:naam,qty});
+    if(r.error)return;
+    const th=S.themas.find(t=>t.id===themaId);
+    if(th){const m=(th.materiaal||[]).find(m=>m.id===id);if(m){m.name=naam;m.qty=qty;}}
+  } else {
+    const r=await api('PUT','/standaard/'+id,{name:naam,qty,cat});
+    if(r.error)return;
+    const m=S.standaard.find(m=>m.id===id);
+    if(m){m.name=naam;m.qty=qty;m.cat=cat;}
+  }
+  _catEditId=null;
+  showToast('Opgeslagen','success');
+  renderCatalogusLijst();
+}
+
+async function deleteCatItem(type,id,themaId){
+  if(type==='sport'){
+    await api('DELETE','/sport/'+id);
+    _invSport=(_invSport||[]).filter(i=>i.id!==id);
+  } else if(type==='thema'){
+    await api('DELETE','/themas/'+themaId+'/materiaal/'+id);
+    const th=S.themas.find(t=>t.id===themaId);
+    if(th){th.materiaal=(th.materiaal||[]).filter(m=>m.id!==id);th.mat=th.materiaal;}
+  } else {
+    await api('DELETE','/standaard/'+id);
+    S.standaard=S.standaard.filter(m=>m.id!==id);
+  }
+  showToast('Artikel verwijderd','success');
+  renderCatalogusLijst();
+}
 
 // ── ACTIVITEITENLOG ──
 const _logIcons={locatie:'📍',kampmoment:'🏕️',sport:'⚽',spoed:'🚨'};
