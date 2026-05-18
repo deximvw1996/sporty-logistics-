@@ -3768,6 +3768,14 @@ let _catFilter='alle';
 let _catEditId=null;
 let _catExpandId=null;
 let _invVerbruik=[];
+let _catSel=new Set();
+let _catLastFiltered=[];
+const _catCatsByType={
+  sport:[['sport','⚽ Sport'],['zwembad','🏊 Zwembad'],['outdoor','🏕️ Outdoor'],['andere','📦 Andere']],
+  gedeeld:[['opblaas','🎈 Opblaas'],['keuken','🍳 Keuken'],['gedeeld','📦 Andere']],
+  verbruik:[['keuken','🍳 Keuken'],['slaap','🛏️ Slaap'],['sport','⚽ Sport'],['audio','🔊 Audio'],['ehbo','🏥 EHBO'],['admin','📋 Admin'],['andere','📦 Andere']],
+  standaard:[['basis','📋 Basis'],['keuken','🍳 Keuken'],['slaap','🛏️ Slaap'],['sport','⚽ Sport'],['audio','🔊 Audio'],['andere','📦 Andere']]
+};
 
 async function renderCatalogus(){
   if(!_invSport||!_invSport.length){
@@ -3934,9 +3942,33 @@ function renderCatalogusLijst(){
     statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${c('sport')} sport · 🎨 ${c('thema')} thema · 📋 ${c('standaard')} locatie · 🔧 ${c('gedeeld')} gedeeld · 🧻 ${c('verbruik')} verbruik`;
   }
 
-  if(!filtered.length){el.innerHTML='<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';return;}
-
   const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
+  // Bulk-selectie: stale uids opruimen + bulk-balk opbouwen
+  const validUids=new Set(items.map(i=>i.type+'-'+i.raw_id));
+  [..._catSel].forEach(u=>{if(!validUids.has(u))_catSel.delete(u);});
+  const selItems=items.filter(i=>_catSel.has(i.type+'-'+i.raw_id));
+  let bulkBar='';
+  if(_catSel.size>0){
+    const selTypes=[...new Set(selItems.map(i=>i.type))];
+    const catEditable=selTypes.length===1&&selTypes[0]!=='thema';
+    const stkOpts='<option value="">📦 Opslag wijzigen…</option><option value="0">— Geen opslag —</option>'+stockLocs.map(l=>`<option value="${l.id}">📦 ${_escH(l.name)}</option>`).join('');
+    const catOpts=catEditable
+      ?'<option value="">🏷️ Categorie wijzigen…</option>'+(_catCatsByType[selTypes[0]]||[]).map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')
+      :'<option value="">🏷️ Categorie — kies 1 soort</option>';
+    bulkBar=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bg2);padding:8px 12px;border-radius:var(--r);margin-bottom:.6rem">
+      <span style="font-size:12px;color:var(--text2)"><b>${_catSel.size}</b> geselecteerd</span>
+      <div style="flex:1;min-width:8px"></div>
+      <select class="sel" id="cat-bulk-opslag" style="height:30px;font-size:12px">${stkOpts}</select>
+      <button class="btn-o" onclick="catBulkOpslag()">Toepassen</button>
+      <select class="sel" id="cat-bulk-cat" style="height:30px;font-size:12px"${catEditable?'':' disabled'}>${catOpts}</select>
+      <button class="btn-o" onclick="catBulkCat()"${catEditable?'':' disabled'}>Toepassen</button>
+      <button class="btn-del-sm" onclick="catBulkDelete()">&#128465; Verwijder (${_catSel.size})</button>
+      <button class="btn-o" onclick="catSelClear()">Wissen</button>
+    </div>`;
+  }
+
+  if(!filtered.length){el.innerHTML=bulkBar+'<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';_catLastFiltered=[];return;}
+
   const stockName=id=>id?(stockLocs.find(l=>l.id==id)?.name||null):null;
   const groupKey=item=>{
     if(group==='type')return (_catTypeIco[item.type]||'')+' '+(_catTypeLbl[item.type]||'?');
@@ -3954,20 +3986,24 @@ function renderCatalogusLijst(){
     });
   }
 
+  _catLastFiltered=filtered.map(i=>i.type+'-'+i.raw_id);
+  const allChecked=_catLastFiltered.length>0&&_catLastFiltered.every(u=>_catSel.has(u));
+
   let rows='',lastG=null;
   filtered.forEach(item=>{
     if(group!=='geen'){
       const g=groupKey(item);
       if(g!==lastG){
         const cnt=filtered.filter(x=>groupKey(x)===g).length;
-        rows+=`<tr class="mat-grp"><td colspan="6">${_escH(g)} <span style="opacity:.6">· ${cnt}</span></td></tr>`;
+        rows+=`<tr class="mat-grp"><td colspan="7">${_escH(g)} <span style="opacity:.6">· ${cnt}</span></td></tr>`;
         lastG=g;
       }
     }
     rows+=_renderCatRow(item,stockLocs);
   });
-  el.innerHTML=`<table class="mat-table">
+  el.innerHTML=bulkBar+`<table class="mat-table">
     <thead><tr>
+      <th style="width:30px;text-align:center"><input type="checkbox" id="cat-sel-all"${allChecked?' checked':''} onclick="catSelAllToggle()" title="Alles selecteren"></th>
       <th style="width:42px;text-align:center">Type</th><th>Naam</th><th>Context</th>
       <th style="width:74px;text-align:right">Aantal</th><th style="width:118px">Opslag</th><th style="width:64px"></th>
     </tr></thead>
@@ -3990,7 +4026,7 @@ function _renderCatRow(item,stockLocs){
       ?Object.keys(_verbruikCatLbl).map(c=>`<option value="${c}"${(item.sub||'andere')===c?' selected':''}>${_verbruikCatLbl[c]}</option>`).join('')
       :`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`;
     const stockageOpts='<option value="">— Automatisch —</option>'+stockLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${_escH(l.name)}</option>`).join('');
-    return `<tr class="mat-edit"><td colspan="6">
+    return `<tr class="mat-edit"><td colspan="7">
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <span style="font-size:14px">${ico}</span>
         <input class="inp gb" type="text" id="ce-naam-${uid}" value="${_attrH(item.naam)}" style="flex:1;min-width:140px">
@@ -4031,7 +4067,8 @@ function _renderCatRow(item,stockLocs){
   }
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
   const expanded=item.type==='verbruik'&&_catExpandId===uid;
-  const row=`<tr>
+  const row=`<tr${_catSel.has(uid)?' style="background:var(--bg2)"':''}>
+    <td style="text-align:center"><input type="checkbox"${_catSel.has(uid)?' checked':''} onclick="catSelToggle(${_q(uid)})"></td>
     <td title="${_catTypeLbl[item.type]}" style="text-align:center;font-size:15px">${item.type==='verbruik'&&item.alarm?'🔴':ico}</td>
     <td style="font-weight:600">${_escH(item.naam)}</td>
     <td>${ctx}</td>
@@ -4053,7 +4090,7 @@ function _renderVerbruikDetail(item){
     if(a.type!==b.type)return a.type==='stockage'?-1:1;
     return a.name.localeCompare(b.name,'nl');
   });
-  if(!locs.length)return `<tr><td colspan="6" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
+  if(!locs.length)return `<tr><td colspan="7" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
   const byLoc={};(item.stock||[]).forEach(s=>byLoc[s.locatie_id]=s);
   const rows=locs.map(l=>{
     const s=byLoc[l.id]||{qty:0,minimum:0};
@@ -4065,7 +4102,7 @@ function _renderVerbruikDetail(item){
       <td style="padding:3px 8px"><button class="bi save" onclick="saveVerbruikStock(${item.raw_id},${l.id})" title="Opslaan">&#x2713;</button></td>
     </tr>`;
   }).join('');
-  return `<tr class="mat-detail"><td colspan="6" style="padding:0;background:var(--bg2)">
+  return `<tr class="mat-detail"><td colspan="7" style="padding:0;background:var(--bg2)">
     <div style="padding:8px 12px">
       <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">📦 Voorraad &amp; minimum per locatie</div>
       <table style="border-collapse:collapse">
@@ -4130,7 +4167,7 @@ async function saveCatItem(type,id,themaId){
   renderCatalogusLijst();
 }
 
-async function deleteCatItem(type,id,themaId){
+async function _catItemDelete(type,id,themaId){
   if(type==='sport'){
     await api('DELETE','/sport/'+id);
     _invSport=(_invSport||[]).filter(i=>i.id!==id);
@@ -4148,7 +4185,101 @@ async function deleteCatItem(type,id,themaId){
     await api('DELETE','/locatie-materiaal/'+id);
     Object.keys(S.locMat).forEach(lid=>{S.locMat[lid]=(S.locMat[lid]||[]).filter(m=>m.id!==id);});
   }
+}
+
+async function deleteCatItem(type,id,themaId){
+  await _catItemDelete(type,id,themaId);
   showToast('Artikel verwijderd','success');
+  renderCatalogusLijst();
+}
+
+// ── BULK-SELECTIE MATERIAALLIJST ──
+function catSelToggle(uid){
+  if(_catSel.has(uid))_catSel.delete(uid); else _catSel.add(uid);
+  renderCatalogusLijst();
+}
+function catSelClear(){_catSel.clear();renderCatalogusLijst();}
+function catSelAllToggle(){
+  const allSel=_catLastFiltered.length>0&&_catLastFiltered.every(u=>_catSel.has(u));
+  if(allSel)_catLastFiltered.forEach(u=>_catSel.delete(u));
+  else _catLastFiltered.forEach(u=>_catSel.add(u));
+  renderCatalogusLijst();
+}
+function _catSelItems(){
+  return _buildCatItems().filter(i=>_catSel.has(i.type+'-'+i.raw_id));
+}
+
+async function catBulkDelete(){
+  const items=_catSelItems();
+  if(!items.length)return;
+  if(!confirm(items.length+' geselecteerd(e) item(s) definitief verwijderen?'))return;
+  let ok=0;
+  for(const it of items){try{await _catItemDelete(it.type,it.raw_id,it.thema_id);ok++;}catch(e){}}
+  _catSel.clear();
+  showToast(ok+' item(s) verwijderd','success');
+  renderCatalogusLijst();
+}
+
+async function _catItemSetOpslag(item,stkId){
+  const {type,raw_id:id}=item;
+  if(type==='sport'){
+    await api('PUT','/sport/'+id,{name:item.naam,cat:item.sub,notities:'',stockage_locatie_id:stkId});
+    const it=(_invSport||[]).find(i=>i.id===id);if(it)it.stockage_locatie_id=stkId;
+  } else if(type==='thema'){
+    await api('PUT','/themas/'+item.thema_id+'/materiaal/'+id,{name:item.naam,qty:item.qty,stockage_locatie_id:stkId});
+    const th=S.themas.find(t=>t.id===item.thema_id);
+    if(th){const m=(th.materiaal||[]).find(m=>m.id===id);if(m)m.stockage_locatie_id=stkId;}
+  } else if(type==='gedeeld'){
+    await api('PUT','/gedeeld/'+id,{name:item.naam,cat:item.sub,totaal:item.qty,stockage_locatie_id:stkId});
+    const m=(_invGedeeld||[]).find(m=>m.id===id);if(m)m.stockage_locatie_id=stkId;
+  }
+}
+
+async function catBulkOpslag(){
+  const sel=document.getElementById('cat-bulk-opslag');
+  const val=sel?sel.value:'';
+  if(val===''){showToast('Kies een opslaglocatie','warn');return;}
+  const stkId=val==='0'?null:parseInt(val);
+  const items=_catSelItems();
+  const apply=items.filter(i=>i.type==='sport'||i.type==='thema'||i.type==='gedeeld');
+  const skipped=items.length-apply.length;
+  if(!apply.length){showToast('Geen van de geselecteerde items heeft een opslaglocatie (verbruik/locatie-materiaal niet van toepassing)','warn');return;}
+  let ok=0;
+  for(const it of apply){try{await _catItemSetOpslag(it,stkId);ok++;}catch(e){}}
+  showToast(ok+' item(s) bijgewerkt'+(skipped?' · '+skipped+' overgeslagen':''),'success');
+  renderCatalogusLijst();
+}
+
+async function _catItemSetCat(item,cat){
+  const {type,raw_id:id}=item;
+  if(type==='sport'){
+    await api('PUT','/sport/'+id,{name:item.naam,cat,notities:'',stockage_locatie_id:item.stockage_locatie_id||null});
+    const it=(_invSport||[]).find(i=>i.id===id);if(it)it.cat=cat;
+  } else if(type==='gedeeld'){
+    await api('PUT','/gedeeld/'+id,{name:item.naam,cat,totaal:item.qty,stockage_locatie_id:item.stockage_locatie_id||null});
+    const m=(_invGedeeld||[]).find(m=>m.id===id);if(m)m.cat=cat;
+  } else if(type==='verbruik'){
+    await api('PUT','/materiaal/'+id,{name:item.naam,tracking:'verbruik',cat});
+    const m=(_invVerbruik||[]).find(m=>m.id===id);if(m)m.cat=cat;
+  } else if(type==='standaard'){
+    await api('PUT','/locatie-materiaal/'+id,{name:item.naam,qty:item.qty,cat});
+    Object.keys(S.locMat).forEach(lid=>{S.locMat[lid]=(S.locMat[lid]||[]).map(m=>m.id===id?{...m,cat}:m);});
+  }
+}
+
+async function catBulkCat(){
+  const sel=document.getElementById('cat-bulk-cat');
+  const cat=sel?sel.value:'';
+  if(!cat){showToast('Kies een categorie','warn');return;}
+  const items=_catSelItems();
+  const types=[...new Set(items.map(i=>i.type))];
+  if(types.length!==1||types[0]==='thema'){
+    showToast('Selecteer items van hetzelfde soort (geen thema-materiaal) om de categorie samen te wijzigen','warn');
+    return;
+  }
+  let ok=0;
+  for(const it of items){try{await _catItemSetCat(it,cat);ok++;}catch(e){}}
+  showToast(ok+' item(s) bijgewerkt','success');
   renderCatalogusLijst();
 }
 
