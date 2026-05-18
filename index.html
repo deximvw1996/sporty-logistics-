@@ -273,6 +273,15 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 .loc-contact a{color:var(--blue);text-decoration:none;}
 .loc-contact a:hover{text-decoration:underline;}
 
+.mat-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.mat-table thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border2)}
+.mat-table tbody td{padding:5px 8px;border-bottom:.5px solid var(--border);vertical-align:middle}
+.mat-table tbody tr:hover td{background:var(--bg2)}
+.mat-table tr.mat-grp td{background:var(--bg2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);padding:7px 8px}
+.mat-table tr.mat-grp:hover td{background:var(--bg2)}
+.mat-table tr.mat-edit td,.mat-table tr.mat-edit:hover td{background:var(--bg2)}
+.mat-table .bi{padding:2px 4px}
+
 </style>
 </head>
 <body>
@@ -388,11 +397,10 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-materiaal">
     <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;">
-      <button class="kal-subtab active" onclick="setMatSubtab('themas',this)">&#127991; Thema&apos;s</button>
-      <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128450; Standaard</button>
-      <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Stockage &amp; voorraad</button>
+      <button class="kal-subtab active" onclick="setMatSubtab('catalogus',this)">&#128203; Overzicht</button>
+      <button class="kal-subtab" onclick="setMatSubtab('themas',this)">&#127991; Thema&apos;s</button>
+      <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#127890; Inventaris</button>
-      <button class="kal-subtab" onclick="setMatSubtab('catalogus',this)">&#128203; Catalogus</button>
     </div>
 
     <!-- Thema's -->
@@ -436,15 +444,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       </div>
     </div>
 
-    <!-- Standaard materiaal -->
-    <div id="mat-sub-standaard" style="display:none">
-      <div style="font-size:11px;color:var(--text2);padding:6px 10px;background:var(--bg2);border-radius:var(--r);margin-bottom:.875rem">&#8505; Definieer per kamplocatie welk materiaal er standaard aanwezig is (EHBO, muziekbox, &hellip;). Dit wordt meegenomen bij transportgeneratie.</div>
-      <!-- Locatie-tabs -->
-      <div id="std-loc-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:.875rem"></div>
-      <!-- Materiaallijst voor geselecteerde locatie -->
-      <div id="std-loc-content"></div>
-    </div>
-
     <!-- Stockage & Voorraad -->
     <div id="mat-sub-stockage" style="display:none">
       <div style="display:flex;justify-content:space-between;margin-bottom:.875rem">
@@ -485,7 +484,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         </div>
       </div>
     </div>
-  </div>
 
     <!-- Inventaris -->
     <div id="mat-sub-inventaris" style="display:none"><div id="inv-content" style="min-height:100px"></div></div>
@@ -536,7 +534,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         </div>
       </div>
 
-      <!-- Zoek + filter + sortering -->
+      <!-- Zoek + filter + groeperen -->
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:.625rem">
         <input class="inp" type="search" id="cat-search" placeholder="&#128269; Zoeken op naam, thema&#8230;" oninput="renderCatalogusLijst()" style="flex:1;min-width:160px">
         <div style="display:flex;gap:3px;flex-shrink:0">
@@ -546,16 +544,24 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           <button class="fb" id="cat-f-standaard" onclick="setCatFilter('standaard',this)">&#128450; Locatie</button>
           <button class="fb" id="cat-f-gedeeld" onclick="setCatFilter('gedeeld',this)">&#128295; Gedeeld</button>
         </div>
+        <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;flex-shrink:0">Groeperen
+          <select class="sel" id="cat-group" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px">
+            <option value="geen">Geen</option>
+            <option value="type">Type</option>
+            <option value="thema">Thema</option>
+            <option value="opslag">Opslaglocatie</option>
+          </select>
+        </label>
         <select class="sel" id="cat-sort" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px;flex-shrink:0">
           <option value="naam-asc">&#8593; Naam A&#8594;Z</option>
           <option value="naam-desc">&#8595; Naam Z&#8594;A</option>
-          <option value="type">Groepeer op type</option>
-          <option value="thema">Groepeer op thema</option>
+          <option value="aantal-desc">&#8595; Meeste stuks</option>
         </select>
       </div>
       <div id="cat-stats" style="font-size:11px;color:var(--text2);margin-bottom:.5rem;padding:0 2px"></div>
       <div id="cat-list"></div>
     </div>
+  </div><!-- /sec-materiaal -->
 
   <!-- ═══════════════════════════════════════════════════════
        TAB 4: TRANSPORT PLANNEN
@@ -573,9 +579,9 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;">
-      <button class="btn-o" onclick="setPlannerWk(-1)">&#8592;</button>
+      <button class="btn-o" id="pl-week-prev" onclick="setPlannerWk(-1)">&#8592;</button>
       <span id="pl-week-label" style="font-size:14px;font-weight:600;min-width:200px;text-align:center"></span>
-      <button class="btn-o" onclick="setPlannerWk(1)">&#8594;</button>
+      <button class="btn-o" id="pl-week-next" onclick="setPlannerWk(1)">&#8594;</button>
       <div style="flex:1"></div>
       <button class="btn-g" onclick="genereerVoorstellen()">&#9889; Voorstel genereren</button>
       <button class="btn-b" onclick="openNieuweTransport()">+ Toevoegen</button>
@@ -1914,18 +1920,17 @@ function setPlanningSubtab(tab,btn){
 }
 
 // Materiaal subtabs
-let matSubtab='themas';
+let matSubtab='catalogus';
 function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  ['themas','standaard','stockage','inventaris','catalogus'].forEach(t=>{
+  if(btn)btn.classList.add('active');
+  ['themas','stockage','inventaris','catalogus'].forEach(t=>{
     const el=document.getElementById('mat-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
   if(tab==='themas'){renderThemas();renderThemaCatBeheer();// refresh cat selects
 document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.innerHTML=renderThemaCatSelect(cur);});}
-  else if(tab==='standaard') renderStandaard();
   else if(tab==='stockage'){
   document.getElementById('mat-beheer-inline').style.display='none';
   document.getElementById('voorraad-list').style.display='block';
@@ -3633,6 +3638,13 @@ async function renderCatalogus(){
     const r=await api('GET','/gedeeld');
     _invGedeeld=Array.isArray(r)?r:[];
   }
+  // Locatiemateriaal van alle kamplocaties inladen zodat het overzicht volledig is
+  if(!S.locMat)S.locMat={};
+  for(const loc of (S.locaties||[]).filter(l=>l.type==='kamp')){
+    if(S.locMat[loc.id]===undefined){
+      try{S.locMat[loc.id]=await api('GET','/locaties/'+loc.id+'/materiaal');}catch(e){S.locMat[loc.id]=[];}
+    }
+  }
   const thSel=document.getElementById('cat-add-thema');
   if(thSel) thSel.innerHTML=(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')||'<option value="">— Geen thema\'s —</option>';
   // Vul stockage-dropdowns in add-form
@@ -3732,9 +3744,13 @@ function _buildCatItems(){
   return items;
 }
 
+const _catTypeIco={sport:'⚽',thema:'🎨',standaard:'📋',gedeeld:'🔧'};
+const _catTypeLbl={sport:'Sport',thema:'Thema',standaard:'Locatie',gedeeld:'Gedeeld'};
+
 function renderCatalogusLijst(){
   const search=(document.getElementById('cat-search')?.value||'').toLowerCase().trim();
   const sort=document.getElementById('cat-sort')?.value||'naam-asc';
+  const group=document.getElementById('cat-group')?.value||'geen';
   const el=document.getElementById('cat-list');
   if(!el)return;
 
@@ -3744,92 +3760,108 @@ function renderCatalogusLijst(){
     if(search&&!i.naam.toLowerCase().includes(search)&&!(i.thema||'').toLowerCase().includes(search)&&!(i.sub||'').toLowerCase().includes(search))return false;
     return true;
   });
+  const _aant=i=>i.type==='sport'?(i.sets||0):(i.qty||0);
   filtered.sort((a,b)=>{
-    if(sort==='naam-asc')return a.naam.localeCompare(b.naam,'nl');
     if(sort==='naam-desc')return b.naam.localeCompare(a.naam,'nl');
-    if(sort==='type')return a.type.localeCompare(b.type)||a.naam.localeCompare(b.naam,'nl');
-    if(sort==='thema')return (a.thema||'zzz').localeCompare(b.thema||'zzz')||a.naam.localeCompare(b.naam,'nl');
-    return 0;
+    if(sort==='aantal-desc')return _aant(b)-_aant(a)||a.naam.localeCompare(b.naam,'nl');
+    return a.naam.localeCompare(b.naam,'nl');
   });
 
   const statsEl=document.getElementById('cat-stats');
   if(statsEl){
-    const tot=items.length;const sh=filtered.length;
-    const sp=items.filter(i=>i.type==='sport').length;
-    const th=items.filter(i=>i.type==='thema').length;
-    const st=items.filter(i=>i.type==='standaard').length;
-    const gd=items.filter(i=>i.type==='gedeeld').length;
-    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${sp} sport · 🎨 ${th} thema · 📋 ${st} locatie · 🔧 ${gd} gedeeld`;
+    const tot=items.length,sh=filtered.length;
+    const c=t=>items.filter(i=>i.type===t).length;
+    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${c('sport')} sport · 🎨 ${c('thema')} thema · 📋 ${c('standaard')} locatie · 🔧 ${c('gedeeld')} gedeeld`;
   }
 
   if(!filtered.length){el.innerHTML='<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';return;}
 
-  const typeIco={sport:'⚽',thema:'🎨',standaard:'📋',gedeeld:'🔧'};
-  const typeLbl={sport:'Sport',thema:'Thema',standaard:'Locatie',gedeeld:'Gedeeld'};
-  const typeClr={sport:'p-green',thema:'p-amber',standaard:'p-blue',gedeeld:'p-red'};
+  const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
+  const stockName=id=>id?(stockLocs.find(l=>l.id==id)?.name||null):null;
+  const groupKey=item=>{
+    if(group==='type')return (_catTypeIco[item.type]||'')+' '+(_catTypeLbl[item.type]||'?');
+    if(group==='thema')return item.thema||'— Geen thema —';
+    if(group==='opslag')return stockName(item.stockage_locatie_id)||'— Geen opslaglocatie —';
+    return null;
+  };
+  if(group!=='geen'){
+    filtered.sort((a,b)=>{
+      const ga=groupKey(a),gb=groupKey(b);
+      if(ga!==gb)return ga.localeCompare(gb,'nl');
+      return sort==='naam-desc'?b.naam.localeCompare(a.naam,'nl')
+            :sort==='aantal-desc'?(_aant(b)-_aant(a)||a.naam.localeCompare(b.naam,'nl'))
+            :a.naam.localeCompare(b.naam,'nl');
+    });
+  }
 
-  let html='';
-  if(sort==='type'||sort==='thema'){
-    const gKey=sort==='type'?'type':'thema';
-    let lastG=null;
-    filtered.forEach(item=>{
-      const g=item[gKey]||(sort==='thema'?'— Geen thema —':'?');
+  let rows='',lastG=null;
+  filtered.forEach(item=>{
+    if(group!=='geen'){
+      const g=groupKey(item);
       if(g!==lastG){
-        const glabel=sort==='type'?typeIco[g]+' '+typeLbl[g]:g;
-        html+=`<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 0 4px;letter-spacing:.5px${lastG?';margin-top:10px':''}">${glabel}</div>`;
+        const cnt=filtered.filter(x=>groupKey(x)===g).length;
+        rows+=`<tr class="mat-grp"><td colspan="6">${_escH(g)} <span style="opacity:.6">· ${cnt}</span></td></tr>`;
         lastG=g;
       }
-      html+=_renderCatRow(item,typeIco,typeLbl,typeClr);
-    });
-  } else {
-    filtered.forEach(item=>{html+=_renderCatRow(item,typeIco,typeLbl,typeClr);});
-  }
-  el.innerHTML=html;
+    }
+    rows+=_renderCatRow(item,stockLocs);
+  });
+  el.innerHTML=`<table class="mat-table">
+    <thead><tr>
+      <th style="width:42px;text-align:center">Type</th><th>Naam</th><th>Context</th>
+      <th style="width:74px;text-align:right">Aantal</th><th style="width:118px">Opslag</th><th style="width:64px"></th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
-function _renderCatRow(item,typeIco,typeLbl,typeClr){
+function _renderCatRow(item,stockLocs){
   const uid=item.type+'-'+item.raw_id;
-  const stockageLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
-  const stockageOpts='<option value="">— Automatisch —</option>'+stockageLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${l.name}</option>`).join('');
+  const ico=_catTypeIco[item.type]||'📦';
   if(_catEditId===uid){
     const hasQty=item.qty!==null;
+    const hasCat=item.type==='sport'||item.type==='gedeeld';
+    const hasStk=item.type!=='standaard';
     const catOpts=item.type==='sport'
       ?`<option value="sport"${item.sub==='sport'?' selected':''}>⚽ Sport</option><option value="zwembad"${item.sub==='zwembad'?' selected':''}>🏊 Zwembad</option><option value="outdoor"${item.sub==='outdoor'?' selected':''}>🏕️ Outdoor</option><option value="andere"${item.sub==='andere'?' selected':''}>📦 Andere</option>`
-      :item.type==='gedeeld'
-      ?`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`
-      :`<option value="basis"${item.sub==='basis'?' selected':''}>📋 Basis</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="slaap"${item.sub==='slaap'?' selected':''}>🛏️ Slaap</option><option value="sport"${item.sub==='sport'?' selected':''}>⚽ Sport</option><option value="audio"${item.sub==='audio'?' selected':''}>🔊 Audio</option><option value="andere"${item.sub==='andere'?' selected':''}>📦 Andere</option>`;
-    const hasCat=item.type!=='thema';
-    return `<div class="row editing" style="gap:6px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:14px">${typeIco[item.type]}</span>
-      <input class="inp gb" type="text" id="ce-naam-${uid}" value="${item.naam.replace(/"/g,'&quot;')}" style="flex:1;min-width:140px">
-      ${hasQty?`<input class="inp gb" type="number" id="ce-qty-${uid}" value="${item.qty}" min="1" style="width:65px">`:''}
-      ${hasCat?`<select class="sel gb" id="ce-cat-${uid}" style="width:120px">${catOpts}</select>`:''}
-      <select class="sel gb" id="ce-stk-${uid}" style="width:130px">${stockageOpts}</select>
-      <button class="bi save" onclick="saveCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})">&#x2713; Opslaan</button>
-      <button class="bi" onclick="_catEditId=null;renderCatalogusLijst()">&#x2715;</button>
-    </div>`;
+      :`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`;
+    const stockageOpts='<option value="">— Automatisch —</option>'+stockLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${_escH(l.name)}</option>`).join('');
+    return `<tr class="mat-edit"><td colspan="6">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:14px">${ico}</span>
+        <input class="inp gb" type="text" id="ce-naam-${uid}" value="${_attrH(item.naam)}" style="flex:1;min-width:140px">
+        ${hasQty?`<input class="inp gb" type="number" id="ce-qty-${uid}" value="${item.qty}" min="1" style="width:64px" title="Aantal">`:''}
+        ${hasCat?`<select class="sel gb" id="ce-cat-${uid}" style="width:118px">${catOpts}</select>`:''}
+        ${hasStk?`<select class="sel gb" id="ce-stk-${uid}" style="width:140px" title="Opslaglocatie">${stockageOpts}</select>`:''}
+        <button class="bi save" onclick="saveCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})">&#x2713; Opslaan</button>
+        <button class="bi" onclick="_catEditId=null;renderCatalogusLijst()">&#x2715;</button>
+      </div>
+    </td></tr>`;
   }
-  const badge=`<span class="pill ${typeClr[item.type]}">${typeIco[item.type]} ${typeLbl[item.type]}</span>`;
-  const themaBadge=item.thema?`<span class="pill" style="background:${item.thema_color}22;color:${item.thema_color};border:.5px solid ${item.thema_color}55">${item.thema}</span>`:'';
-  const subBadge=item.sub&&item.sub!=='andere'&&item.sub!=='sport'?`<span style="font-size:10px;color:var(--text3)">${item.type==='standaard'?'⛺ ':''  }${item.sub}</span>`:'';
-  const stockNaam=item.stockage_locatie_id?(stockageLocs.find(l=>l.id==item.stockage_locatie_id)?.name||null):null;
-  const stockBadge=stockNaam?`<span style="font-size:10px;color:var(--text2)">📦 ${stockNaam}</span>`:'';
-  const extra=item.type==='sport'
+  const ctx=item.type==='thema'&&item.thema
+    ?`<span class="pill" style="background:${item.thema_color}22;color:${item.thema_color};border:.5px solid ${item.thema_color}55">${_escH(item.thema)}</span>`
+    :item.type==='standaard'
+    ?`<span style="font-size:11px;color:var(--text2)">⛺ ${_escH(item.sub||'')}</span>`
+    :(item.sub&&item.sub!=='andere'&&item.sub!=='sport'&&item.sub!=='gedeeld'?`<span style="font-size:11px;color:var(--text3)">${_escH(item.sub)}</span>`:'<span style="color:var(--text3)">—</span>');
+  const aantal=item.type==='sport'
     ?`${item.sets} set${item.sets!==1?'s':''}`
     :item.type==='gedeeld'
-    ?`${item.qty} stuks · ${item.gebrCount||0} thema${(item.gebrCount||0)!==1?'\'s':''} gekoppeld`
+    ?`${item.qty} <span style="font-size:9px;color:var(--text3)">st</span>`
     :`×${item.qty}`;
+  const stk=item.stockage_locatie_id?stockLocs.find(l=>l.id==item.stockage_locatie_id):null;
+  const stkCell=stk?`📦 ${_escH(stk.name)}`:'<span style="color:var(--text3)">—</span>';
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
-  return `<div class="row">
-    <div class="ri">
-      <div class="rm" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${badge}${themaBadge}<span>${item.naam}</span>${subBadge}${stockBadge}</div>
-      <div class="rs" style="margin-top:2px">${extra}</div>
-    </div>
-    <div class="ra">
+  return `<tr>
+    <td title="${_catTypeLbl[item.type]}" style="text-align:center;font-size:15px">${ico}</td>
+    <td style="font-weight:600">${_escH(item.naam)}${item.type==='gedeeld'&&item.gebrCount?`<span style="font-size:10px;color:var(--text3);font-weight:400"> · ${item.gebrCount} thema${item.gebrCount!==1?"'s":''}</span>`:''}</td>
+    <td>${ctx}</td>
+    <td style="text-align:right;font-variant-numeric:tabular-nums">${aantal}</td>
+    <td style="font-size:11px;color:var(--text2)">${stkCell}</td>
+    <td style="text-align:right;white-space:nowrap">
       <button class="bi" onclick="_catEditId=${_q(uid)};renderCatalogusLijst()" title="Bewerken">&#x270F;&#xFE0F;</button>
       <button class="bi del" onclick="${delFn}" title="Verwijderen">&#128465;</button>
-    </div>
-  </div>`;
+    </td>
+  </tr>`;
 }
 
 async function saveCatItem(type,id,themaId){
@@ -4335,6 +4367,21 @@ let plannerWk=1;        // huidig getoond week (1-9)
 let filterLocatie='';   // locatie_id string of ''
 let filterChauf='';     // naam string of ''
 let filterStatus='';    // 'gepland'|'bevestigd'|'gedaan'|''
+let _dragTpId=null;     // transport dat versleept wordt
+
+async function dropTransportOp(datum){
+  if(_dragTpId==null)return;
+  const id=_dragTpId;_dragTpId=null;
+  const t=plannerTaken.find(x=>x.id===id);
+  if(!t||t.datum===datum)return;
+  const r=await api('PUT','/transport-taken/'+id+'/move',{datum});
+  if(r&&!r.error){
+    plannerTaken=plannerTaken.map(x=>x.id===id?{...x,...r}:x);
+    renderPlannerKalender();updatePlannerMetrics();
+    showToast('Transport verplaatst','success');
+    if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
+  }
+}
 
 function plannerWeekDagen(week){
   const j=new Date(2026,6,1);const dw=j.getDay();
@@ -4449,7 +4496,10 @@ function renderPlannerKalender(){
     col.appendChild(hd);
 
     const body=document.createElement('div');
-    body.style.cssText='padding:4px;display:flex;flex-direction:column;gap:4px;background:'+(isWeekend?'var(--bg3)':'var(--bg)')+';min-height:100px;';
+    body.style.cssText='padding:4px;display:flex;flex-direction:column;gap:4px;background:'+(isWeekend?'var(--bg3)':'var(--bg)')+';min-height:100px;transition:outline .1s;';
+    body.ondragover=e=>{if(_dragTpId!=null){e.preventDefault();body.style.outline='2px dashed var(--green)';body.style.outlineOffset='-2px';}};
+    body.ondragleave=()=>{body.style.outline='';};
+    body.ondrop=e=>{e.preventDefault();body.style.outline='';dropTransportOp(iso);};
 
     if(taken.length===0){
       const emp=document.createElement('div');
@@ -4466,7 +4516,10 @@ function renderPlannerKalender(){
           opdracht:{bg:'#F3EEFB',border:'#B89DE8',text:'#4A1F8C',icon:'📋'},
         };
         const tc=typColors[t.type]||typColors.opdracht;
-        card.style.cssText='background:'+tc.bg+';border:.5px solid '+tc.border+';border-radius:6px;padding:5px 7px;cursor:pointer;';
+        card.style.cssText='background:'+tc.bg+';border:.5px solid '+tc.border+';border-radius:6px;padding:5px 7px;cursor:grab;';
+        card.draggable=true;
+        card.ondragstart=ev=>{_dragTpId=t.id;ev.dataTransfer.effectAllowed='move';card.style.opacity='.5';};
+        card.ondragend=()=>{_dragTpId=null;card.style.opacity='1';};
         const van=S.locaties.find(l=>l.id===t.van_locatie_id);
         const naar=S.locaties.find(l=>l.id===t.naar_locatie_id);
         const stDot={gepland:'🔸',bevestigd:'🔹',gedaan:'✅'}[t.status]||'🔸';
