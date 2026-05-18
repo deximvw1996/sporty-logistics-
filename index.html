@@ -1388,11 +1388,11 @@ function _buildSport(){
     groups[cat].forEach(function(item){
       var sets = item.sets || [];
       h += '<div class="card" style="margin-bottom:.75rem">';
-      if(item.foto_path) h += '<img class="sport-foto" src="/uploads/'+item.foto_path+'" onclick="openFotoUpload('+item.id+','+JSON.stringify(item.name)+')" title="Klik om foto te wijzigen">';
+      if(item.foto_path) h += '<img class="sport-foto" src="/uploads/'+item.foto_path+'" onclick="openFotoUpload('+item.id+','+_q(item.name)+')" title="Klik om foto te wijzigen">';
       h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (sets.length?'12px':'0') + '">';
       h += '<div style="flex:1"><div style="font-size:14px;font-weight:600">' + item.name + '</div>';
       h += '<div style="font-size:11px;color:var(--text2)">' + sets.length + ' sets</div></div>';
-      h += '<button class="bi" onclick="openFotoUpload('+item.id+','+JSON.stringify(item.name)+')" title="Foto beheren">&#128247;</button>';
+      h += '<button class="bi" onclick="openFotoUpload('+item.id+','+_q(item.name)+')" title="Foto beheren">&#128247;</button>';
       h += '<button class="btn-xs" onclick="invAddSet(' + item.id + ')">+ Set</button>';
       h += '<button class="bi" style="color:var(--red)" onclick="invDelSport(' + item.id + ')">&#128465;</button></div>';
       if(sets.length){
@@ -1412,7 +1412,7 @@ function _buildSport(){
           h += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">' + weeks + '</div>';
           h += '<div style="display:flex;gap:4px">';
           h += '<button class="btn-o" style="flex:1;font-size:10px;height:26px" onclick="invVerplaats(' + set.id + ')">&#128667; Verplaatsen</button>';
-          h += '<button class="bi" style="height:26px;font-size:12px" onclick="openQR(\'set\',' + set.id + ',' + JSON.stringify(item.name) + ',' + JSON.stringify(set.label) + ')" title="QR-code genereren">&#128247;</button>';
+          h += '<button class="bi" style="height:26px;font-size:12px" onclick="openQR(\'set\',' + set.id + ',' + _q(item.name) + ',' + _q(set.label) + ')" title="QR-code genereren">&#128247;</button>';
           h += '</div>';
           h += '</div>';
         });
@@ -3209,6 +3209,9 @@ async function addStd(){const name=document.getElementById('std-name').value.tri
 async function saveStd(id){const r=await api('PUT','/standaard/'+id,{name:document.getElementById('es-n-'+id).value.trim(),qty:Math.max(1,parseInt(document.getElementById('es-q-'+id).value)||1),cat:document.getElementById('es-c-'+id).value});S.standaard=S.standaard.map(s=>s.id===id?r:s);editingStd=null;renderStandaard();showToast('Opgeslagen','success');}
 async function deleteStd(id){await api('DELETE','/standaard/'+id);S.standaard=S.standaard.filter(s=>s.id!==id);renderStandaard();}
 
+// Hulpfunctie: waarde veilig als single-quoted string in onclick-attribuut
+function _q(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+`'`;}
+
 // LOCATIES
 function renderLocaties(){
   document.getElementById('loc-list').innerHTML=S.locaties.map(l=>{
@@ -3240,7 +3243,7 @@ function renderLocaties(){
         ${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}
       </div>
       <div class="ra">
-        <button class="bi" title="Geschiedenis" onclick="openLocGeschiedenis(${l.id},${JSON.stringify(l.name)})">&#128221;</button>
+        <button class="bi" title="Geschiedenis" onclick="openLocGeschiedenis(${l.id},${_q(l.name)})">&#128221;</button>
         <button class="bi" onclick="editingLoc=${l.id};renderLocaties()">&#x270F;&#xFE0F;</button>
         <button class="bi" style="color:var(--red)" onclick="deleteLoc(${l.id})">&#x1F5D1;&#xFE0F;</button>
       </div>
@@ -3503,42 +3506,61 @@ function openTerugkomst(kmId){
   _terugkomstKmId=kmId;
   document.getElementById('tk-titel').textContent='🔙 Week '+km.week+' — '+(km.locatie?.name||'?');
 
-  // Zoek alle sportsets ingepland voor dit locatie + week
+  // Sportsets ingepland voor dit locatie + week
   const gepland=[];
   (_invSport||[]).forEach(item=>{
     (item.sets||[]).forEach(s=>{
       const p=(s.planning||[]).find(pl=>pl.week===km.week&&pl.locatie_id===km.locatie_id);
-      if(p) gepland.push({set:s,item});
+      if(p) gepland.push({id:'s'+s.id,set_id:s.id,naam:item.name+' — '+s.label,type:'sport'});
     });
   });
 
+  // Thema-materiaal gekoppeld aan dit kampmoment
+  const themaItems=[];
+  (km.themas||[]).forEach(th=>{
+    (th.mat||[]).forEach(m=>{
+      themaItems.push({id:'t'+th.id+'m'+m.id,set_id:null,naam:th.name+' — '+m.name+(m.qty>1?' (×'+m.qty+')':''),type:'thema'});
+    });
+  });
+
+  const alle=[...gepland,...themaItems];
   const el=document.getElementById('tk-list');
-  if(!gepland.length){
-    el.innerHTML='<div class="empty" style="padding:1rem">Geen sportmateriaal ingepland voor dit kampmoment.</div>';
+
+  function _tkStatusRadios(uid){
+    return ['ok','schade','vermist'].map((val,i)=>
+      `<label style="display:flex;align-items:center;gap:0">
+        <input type="radio" name="tk-s-${uid}" value="${val}" ${i===0?'checked':''} style="display:none">
+        <span class="tk-status-lbl" onclick="this.previousElementSibling.checked=true;this.closest('.tk-regel').querySelectorAll('.tk-status-lbl').forEach(x=>x.style.fontWeight='400');this.style.fontWeight='600'">${['&#9989; Goed','&#9888;&#65039; Schade','&#10060; Vermist'][i]}</span>
+      </label>`
+    ).join('');
+  }
+
+  if(!alle.length){
+    el.innerHTML='<div class="empty" style="padding:1rem">Geen materiaal gevonden voor dit kampmoment.</div>';
     document.getElementById('tk-sets-data').value='[]';
   } else {
-    el.innerHTML=gepland.map(({set,item})=>`
-      <div class="tk-regel">
-        <div style="font-size:13px;font-weight:600;margin-bottom:5px">${item.name} <span style="font-weight:400;color:var(--text2)">— ${set.label}</span></div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">
-          <label style="display:flex;align-items:center;gap:0">
-            <input type="radio" name="tk-s-${set.id}" value="ok" checked style="display:none">
-            <span class="tk-status-lbl" onclick="this.previousElementSibling.checked=true;this.closest('.tk-regel').querySelectorAll('.tk-status-lbl').forEach(l=>l.style.setProperty('font-weight','400'));this.style.setProperty('font-weight','600')">&#9989; Goed</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:0">
-            <input type="radio" name="tk-s-${set.id}" value="schade" style="display:none">
-            <span class="tk-status-lbl" onclick="this.previousElementSibling.checked=true;this.closest('.tk-regel').querySelectorAll('.tk-status-lbl').forEach(l=>l.style.setProperty('font-weight','400'));this.style.setProperty('font-weight','600')">&#9888;&#65039; Schade</span>
-          </label>
-          <label style="display:flex;align-items:center;gap:0">
-            <input type="radio" name="tk-s-${set.id}" value="vermist" style="display:none">
-            <span class="tk-status-lbl" onclick="this.previousElementSibling.checked=true;this.closest('.tk-regel').querySelectorAll('.tk-status-lbl').forEach(l=>l.style.setProperty('font-weight','400'));this.style.setProperty('font-weight','600')">&#10060; Vermist</span>
-          </label>
-        </div>
-        <input class="inp" type="text" id="tk-opm-${set.id}" placeholder="Opmerking (optioneel)…" style="font-size:11px;height:28px;width:100%">
-      </div>
-    `).join('');
-    document.getElementById('tk-sets-data').value=JSON.stringify(gepland.map(({set,item})=>({
-      set_id:set.id,item_naam:item.name+' — '+set.label
+    let html='';
+    if(gepland.length){
+      html+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 0 4px;letter-spacing:.5px">⚽ Sportmateriaal</div>';
+      html+=gepland.map(r=>`
+        <div class="tk-regel">
+          <div style="font-size:13px;font-weight:600;margin-bottom:5px">${r.naam}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">${_tkStatusRadios(r.id)}</div>
+          <input class="inp" type="text" id="tk-opm-${r.id}" placeholder="Opmerking (optioneel)…" style="font-size:11px;height:28px;width:100%">
+        </div>`).join('');
+    }
+    if(themaItems.length){
+      html+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 0 4px;letter-spacing:.5px;margin-top:4px">🎨 Themamateriaal</div>';
+      html+=themaItems.map(r=>`
+        <div class="tk-regel">
+          <div style="font-size:13px;font-weight:600;margin-bottom:5px">${r.naam}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">${_tkStatusRadios(r.id)}</div>
+          <input class="inp" type="text" id="tk-opm-${r.id}" placeholder="Opmerking (optioneel)…" style="font-size:11px;height:28px;width:100%">
+        </div>`).join('');
+    }
+    el.innerHTML=html;
+    document.getElementById('tk-sets-data').value=JSON.stringify(alle.map(r=>({
+      set_id:r.set_id,item_naam:r.naam,uid:r.id
     })));
   }
   openModal('modal-terugkomst');
@@ -3550,8 +3572,8 @@ async function saveTerugkomst(){
   const regels=setsData.map(s=>({
     set_id:s.set_id,
     item_naam:s.item_naam,
-    status:document.querySelector(`input[name="tk-s-${s.set_id}"]:checked`)?.value||'ok',
-    opmerking:(document.getElementById('tk-opm-'+s.set_id)?.value||'').trim()
+    status:document.querySelector(`input[name="tk-s-${s.uid}"]:checked`)?.value||'ok',
+    opmerking:(document.getElementById('tk-opm-'+s.uid)?.value||'').trim()
   }));
   const r=await api('POST','/terugkomst',{kampmoment_id:_terugkomstKmId,datum:new Date().toLocaleDateString('nl-BE'),regels});
   if(r.error)return;
@@ -4107,12 +4129,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){document.querySelectorAll('.modal-bg.open').forEach(m=>m.classList.remove('open'));}
 });
 
-loadAll()
-  .then(()=>renderOverzicht())
-  .catch(err=>{
-    console.error('Load failed:',err);
-    showToast('Server niet bereikbaar. Is de server gestart op poort 3001?','error');
-  });async function saveThema(id){
+async function saveThema(id){
   const name=document.getElementById('es-n-'+id).value.trim();
   const color=document.getElementById('es-c-'+id).value;
   const categorie=document.getElementById('es-cat-'+id)?.value||'';
