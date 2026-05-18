@@ -224,7 +224,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 .loc-kaart-pin{background:var(--green-dk);color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25);}
 .loc-kaart-pin.stockage{background:#E65100;}
 .qr-print-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;}
-@media print{body>*:not(#qr-print-area){display:none!important}#qr-print-area{display:block!important}}
+@media print{body>*:not(#modal-qr){display:none!important}#modal-qr{position:static!important;display:block!important;background:transparent!important;box-shadow:none!important;}}
 @media(max-width:700px){
   .metrics{grid-template-columns:repeat(2,1fr);}
   .ov-dag-detail{grid-template-columns:1fr;}
@@ -3315,13 +3315,19 @@ async function addLoc(){
   const name=document.getElementById('loc-name').value.trim();if(!name)return;
   const lat=parseFloat(document.getElementById('loc-lat').value)||null;
   const lng=parseFloat(document.getElementById('loc-lng').value)||null;
-  const r=await api('POST','/locaties',{name,addr:document.getElementById('loc-addr').value.trim(),type:document.getElementById('loc-type').value,lat,lng});
+  const r=await api('POST','/locaties',{
+    name,
+    addr:document.getElementById('loc-addr').value.trim(),
+    type:document.getElementById('loc-type').value,
+    contact_naam:document.getElementById('loc-contact-naam').value.trim(),
+    contact_tel:document.getElementById('loc-contact-tel').value.trim(),
+    notities:document.getElementById('loc-notities').value.trim(),
+    lat,lng
+  });
   if(r.error)return;
   S.locaties.push(r);
-  document.getElementById('loc-name').value='';
-  document.getElementById('loc-addr').value='';
-  document.getElementById('loc-lat').value='';
-  document.getElementById('loc-lng').value='';
+  ['loc-name','loc-addr','loc-contact-naam','loc-contact-tel','loc-notities','loc-lat','loc-lng']
+    .forEach(id=>{document.getElementById(id).value='';});
   renderLocaties();
 }
 async function saveLoc(id){
