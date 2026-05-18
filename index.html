@@ -3210,7 +3210,7 @@ async function saveStd(id){const r=await api('PUT','/standaard/'+id,{name:docume
 async function deleteStd(id){await api('DELETE','/standaard/'+id);S.standaard=S.standaard.filter(s=>s.id!==id);renderStandaard();}
 
 // Hulpfunctie: waarde veilig als single-quoted string in onclick-attribuut
-function _q(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+`'`;}
+function _q(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/"/g,'&quot;')+"'";}
 
 // LOCATIES
 function renderLocaties(){
@@ -3430,19 +3430,19 @@ async function openLocGeschiedenis(locId,locNaam){
 let _fotoUploadItemId=null;
 
 function openFotoUpload(itemId,itemNaam){
+  openModal('modal-foto-upload');
   _fotoUploadItemId=itemId;
   document.getElementById('fu-titel').textContent='📷 '+itemNaam;
   document.getElementById('fu-preview').style.display='none';
   document.getElementById('fu-file').value='';
   const item=(_invSport||[]).find(i=>i.id===itemId);
   const cur=document.getElementById('fu-current');
-  if(item?.foto_path){
+  if(item&&item.foto_path){
     cur.innerHTML='<img src="/uploads/'+item.foto_path+'" style="max-width:100%;max-height:150px;object-fit:contain;border-radius:6px"><br>'
       +'<button class="btn-o" style="font-size:11px;margin-top:6px" onclick="deleteFoto('+itemId+')">&#128465; Foto verwijderen</button>';
   } else {
     cur.innerHTML='<div style="font-size:12px;color:var(--text2);padding:8px">Nog geen foto voor dit artikel.</div>';
   }
-  openModal('modal-foto-upload');
 }
 
 function _onFotoFileChange(){
@@ -3507,11 +3507,15 @@ function openTerugkomst(kmId){
   document.getElementById('tk-titel').textContent='🔙 Week '+km.week+' — '+(km.locatie?.name||'?');
 
   // Sportsets ingepland voor dit locatie + week
+  // Alleen tonen als ze NIET ook de volgende week op dezelfde locatie blijven
   const gepland=[];
+  const nextWeek=km.week+1;
   (_invSport||[]).forEach(item=>{
     (item.sets||[]).forEach(s=>{
       const p=(s.planning||[]).find(pl=>pl.week===km.week&&pl.locatie_id===km.locatie_id);
-      if(p) gepland.push({id:'s'+s.id,set_id:s.id,naam:item.name+' — '+s.label,type:'sport'});
+      if(!p) return;
+      const staysNextWeek=(s.planning||[]).some(pl=>pl.week===nextWeek&&pl.locatie_id===km.locatie_id);
+      if(!staysNextWeek) gepland.push({id:'s'+s.id,set_id:s.id,naam:item.name+' — '+s.label,type:'sport'});
     });
   });
 
@@ -3655,16 +3659,21 @@ async function geocodeAddr(addrVal,latId,lngId){
 
 // ── QR CODES ──
 function openQR(type,id,naam,sublabel){
+  openModal('modal-qr');
   document.getElementById('qr-naam').textContent=naam||'Item';
   document.getElementById('qr-sub').textContent=sublabel||'';
   const payload=window.location.origin+window.location.pathname+'?qr='+type+'-'+id;
   document.getElementById('qr-url').textContent=payload;
-  const canvas=document.getElementById('qr-canvas');
-  canvas.width=220;canvas.height=220;
-  QRCode.toCanvas(canvas,payload,{width:220,margin:2},function(err){
-    if(err){showToast('QR genereren mislukt','error');console.error(err);}
-  });
-  openModal('modal-qr');
+  setTimeout(function(){
+    try{
+      const canvas=document.getElementById('qr-canvas');
+      canvas.width=220;canvas.height=220;
+      if(typeof QRCode==='undefined'){showToast('QR-bibliotheek niet geladen','warn');return;}
+      QRCode.toCanvas(canvas,payload,{width:220,margin:2},function(err){
+        if(err){showToast('QR genereren mislukt','error');console.error(err);}
+      });
+    }catch(e){console.error('QR fout:',e);}
+  },30);
 }
 
 function _printQR(){window.print();}
@@ -4480,7 +4489,21 @@ function printInventaris() {
 
 // ── NIEUWE 5-TAB ROUTING ──
 loadAll()
-  .then(()=>{renderOverzicht();handleQrScan();})
+  .then(()=>{
+    handleQrScan();
+    // Re-render whatever tab is currently visible (incl. if user clicked a tab during loading)
+    const _initRenderMap={
+      overzicht:renderOverzicht,
+      planning:renderPlanning,
+      materiaal:renderMateriaal,
+      'transport-plan':renderTransportPlan,
+      transporten:renderTransportenOV,
+    };
+    const _activeTab=['overzicht','planning','materiaal','transport-plan','transporten']
+      .find(t=>document.getElementById('sec-'+t)?.classList.contains('active'))||'overzicht';
+    try{const p=_initRenderMap[_activeTab]?.();if(p instanceof Promise)p.catch(e=>console.error(e));}
+    catch(e){console.error('Init render error:',e);}
+  })
   .catch(err=>{
     console.error('Load failed:',err);
     showToast('Server niet bereikbaar. Is de server gestart op poort 3001?','error');
