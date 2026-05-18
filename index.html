@@ -224,6 +224,11 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 .loc-kaart-pin{background:var(--green-dk);color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25);}
 .loc-kaart-pin.stockage{background:#E65100;}
 .qr-print-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;}
+.sport-foto{width:100%;max-height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px;cursor:pointer;}
+.tk-regel{padding:8px 0;border-bottom:.5px solid var(--border);}
+.tk-regel:last-child{border-bottom:none;}
+.tk-status-lbl{display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:12px;border:.5px solid var(--border);}
+input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--green-dk);background:var(--green-bg);}
 @media print{body>*:not(#modal-qr){display:none!important}#modal-qr{position:static!important;display:block!important;background:transparent!important;box-shadow:none!important;}}
 @media(max-width:700px){
   .metrics{grid-template-columns:repeat(2,1fr);}
@@ -1383,9 +1388,11 @@ function _buildSport(){
     groups[cat].forEach(function(item){
       var sets = item.sets || [];
       h += '<div class="card" style="margin-bottom:.75rem">';
+      if(item.foto_path) h += '<img class="sport-foto" src="/uploads/'+item.foto_path+'" onclick="openFotoUpload('+item.id+','+JSON.stringify(item.name)+')" title="Klik om foto te wijzigen">';
       h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (sets.length?'12px':'0') + '">';
       h += '<div style="flex:1"><div style="font-size:14px;font-weight:600">' + item.name + '</div>';
       h += '<div style="font-size:11px;color:var(--text2)">' + sets.length + ' sets</div></div>';
+      h += '<button class="bi" onclick="openFotoUpload('+item.id+','+JSON.stringify(item.name)+')" title="Foto beheren">&#128247;</button>';
       h += '<button class="btn-xs" onclick="invAddSet(' + item.id + ')">+ Set</button>';
       h += '<button class="bi" style="color:var(--red)" onclick="invDelSport(' + item.id + ')">&#128465;</button></div>';
       if(sets.length){
@@ -3001,6 +3008,7 @@ function renderKampen(){
           <div style="font-size:11px;color:var(--text2)">${wd.length?fDag(wd[0])+' – '+fDag(wd[wd.length-1]):''} • ${km.locatie?.addr||''}</div>
         </div>
         <div style="display:flex;gap:5px;align-items:center">
+          <button class="bi" onclick="openTerugkomst(${km.id});event.stopPropagation()" title="Terugkomst verwerken" style="font-size:13px">&#128281;</button>
           <button class="bi" style="color:#A32D2D" onclick="deleteKampmoment(${km.id});event.stopPropagation()" title="Verwijder kampmoment">🗑️</button>
           <span id="km-chev-${km.id}" style="font-size:12px;color:var(--text2)">▼</span>
         </div>
@@ -3413,6 +3421,145 @@ async function openLocGeschiedenis(locId,locNaam){
   openModal('modal-loc-geschiedenis');
   const entries=await api('GET','/log?locatie_id='+locId+'&limit=50');
   _renderLogEntries(entries,el);
+}
+
+// ── FOTO UPLOAD ──
+let _fotoUploadItemId=null;
+
+function openFotoUpload(itemId,itemNaam){
+  _fotoUploadItemId=itemId;
+  document.getElementById('fu-titel').textContent='📷 '+itemNaam;
+  document.getElementById('fu-preview').style.display='none';
+  document.getElementById('fu-file').value='';
+  const item=(_invSport||[]).find(i=>i.id===itemId);
+  const cur=document.getElementById('fu-current');
+  if(item?.foto_path){
+    cur.innerHTML='<img src="/uploads/'+item.foto_path+'" style="max-width:100%;max-height:150px;object-fit:contain;border-radius:6px"><br>'
+      +'<button class="btn-o" style="font-size:11px;margin-top:6px" onclick="deleteFoto('+itemId+')">&#128465; Foto verwijderen</button>';
+  } else {
+    cur.innerHTML='<div style="font-size:12px;color:var(--text2);padding:8px">Nog geen foto voor dit artikel.</div>';
+  }
+  openModal('modal-foto-upload');
+}
+
+function _onFotoFileChange(){
+  const file=document.getElementById('fu-file').files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{const p=document.getElementById('fu-preview');p.src=e.target.result;p.style.display='block';};
+  reader.readAsDataURL(file);
+}
+
+async function _resizeImage(file,maxW=900,quality=0.78){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement('canvas');
+        const scale=Math.min(1,maxW/img.width);
+        canvas.width=Math.round(img.width*scale);
+        canvas.height=Math.round(img.height*scale);
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',quality).split(',')[1]);
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadFoto(){
+  const file=document.getElementById('fu-file').files[0];
+  if(!file){showToast('Kies eerst een foto','warn');return;}
+  showToast('Foto verwerken…','info');
+  try{
+    const base64=await _resizeImage(file);
+    const r=await api('POST','/sport/'+_fotoUploadItemId+'/foto',{data:base64,ext:'jpg'});
+    if(r.error)return;
+    const item=(_invSport||[]).find(i=>i.id===_fotoUploadItemId);
+    if(item)item.foto_path=r.foto_path;
+    showToast('Foto opgeslagen','success');
+    closeModal('modal-foto-upload');
+    _renderInv();
+  }catch(e){showToast('Upload mislukt','error');}
+}
+
+async function deleteFoto(itemId){
+  await api('DELETE','/sport/'+itemId+'/foto');
+  const item=(_invSport||[]).find(i=>i.id===itemId);
+  if(item)item.foto_path='';
+  closeModal('modal-foto-upload');
+  _renderInv();
+  showToast('Foto verwijderd','success');
+}
+
+// ── TERUGKOMST FLOW ──
+let _terugkomstKmId=null;
+
+function openTerugkomst(kmId){
+  const km=S.kampmomenten.find(k=>k.id===kmId);
+  if(!km){showToast('Kampmoment niet gevonden','error');return;}
+  _terugkomstKmId=kmId;
+  document.getElementById('tk-titel').textContent='🔙 Week '+km.week+' — '+(km.locatie?.name||'?');
+
+  // Zoek alle sportsets ingepland voor dit locatie + week
+  const gepland=[];
+  (_invSport||[]).forEach(item=>{
+    (item.sets||[]).forEach(s=>{
+      const p=(s.planning||[]).find(pl=>pl.week===km.week&&pl.locatie_id===km.locatie_id);
+      if(p) gepland.push({set:s,item});
+    });
+  });
+
+  const el=document.getElementById('tk-list');
+  if(!gepland.length){
+    el.innerHTML='<div class="empty" style="padding:1rem">Geen sportmateriaal ingepland voor dit kampmoment.</div>';
+    document.getElementById('tk-sets-data').value='[]';
+  } else {
+    el.innerHTML=gepland.map(({set,item})=>`
+      <div class="tk-regel">
+        <div style="font-size:13px;font-weight:600;margin-bottom:5px">${item.name} <span style="font-weight:400;color:var(--text2)">— ${set.label}</span></div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">
+          <label style="display:flex;align-items:center;gap:0">
+            <input type="radio" name="tk-s-${set.id}" value="ok" checked style="display:none">
+            <span class="tk-status-lbl" onclick="this.previousElementSibling.checked=true;this.closest('.tk-regel').querySelectorAll('.tk-status-lbl').forEach(l=>l.style.setProperty('font-weight','400'));this.style.setProperty('font-weight','600')">&#9989; Goed</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:0">
+            <input type="radio" name="tk-s-${set.id}" value="schade" style="display:none">
+            <span class="tk-status-lbl" onclick="this.previousElementSibling.checked=true;this.closest('.tk-regel').querySelectorAll('.tk-status-lbl').forEach(l=>l.style.setProperty('font-weight','400'));this.style.setProperty('font-weight','600')">&#9888;&#65039; Schade</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:0">
+            <input type="radio" name="tk-s-${set.id}" value="vermist" style="display:none">
+            <span class="tk-status-lbl" onclick="this.previousElementSibling.checked=true;this.closest('.tk-regel').querySelectorAll('.tk-status-lbl').forEach(l=>l.style.setProperty('font-weight','400'));this.style.setProperty('font-weight','600')">&#10060; Vermist</span>
+          </label>
+        </div>
+        <input class="inp" type="text" id="tk-opm-${set.id}" placeholder="Opmerking (optioneel)…" style="font-size:11px;height:28px;width:100%">
+      </div>
+    `).join('');
+    document.getElementById('tk-sets-data').value=JSON.stringify(gepland.map(({set,item})=>({
+      set_id:set.id,item_naam:item.name+' — '+set.label
+    })));
+  }
+  openModal('modal-terugkomst');
+}
+
+async function saveTerugkomst(){
+  const setsData=JSON.parse(document.getElementById('tk-sets-data').value||'[]');
+  if(!setsData.length){closeModal('modal-terugkomst');return;}
+  const regels=setsData.map(s=>({
+    set_id:s.set_id,
+    item_naam:s.item_naam,
+    status:document.querySelector(`input[name="tk-s-${s.set_id}"]:checked`)?.value||'ok',
+    opmerking:(document.getElementById('tk-opm-'+s.set_id)?.value||'').trim()
+  }));
+  const r=await api('POST','/terugkomst',{kampmoment_id:_terugkomstKmId,datum:new Date().toLocaleDateString('nl-BE'),regels});
+  if(r.error)return;
+  const schade=regels.filter(x=>x.status==='schade').length;
+  const vermist=regels.filter(x=>x.status==='vermist').length;
+  const msg='✅ Terugkomst opgeslagen'+(schade?` · ${schade} beschadigd`:'')+(vermist?` · ${vermist} vermist`:'');
+  showToast(msg,schade||vermist?'warn':'success');
+  closeModal('modal-terugkomst');
 }
 
 // ── KAART VIEW ──
@@ -4501,6 +4648,43 @@ loadAll()
     <div style="display:flex;gap:8px;margin-top:.75rem">
       <button class="btn-g" style="flex:1" onclick="doScanVerplaats()">&#10003; Locatie bijwerken</button>
       <button class="btn-o" onclick="closeModal('modal-scan')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Foto uploaden -->
+<div class="modal-bg" id="modal-foto-upload">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">
+      <span id="fu-titel">&#128247; Foto beheren</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-foto-upload')">&#x2715;</button>
+    </div>
+    <div id="fu-current" style="margin-bottom:.75rem;text-align:center"></div>
+    <div style="border:.5px solid var(--border);border-radius:var(--r);padding:.75rem;background:var(--bg2);margin-bottom:.75rem">
+      <label for="fu-file" style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">Nieuwe foto kiezen</label>
+      <input type="file" id="fu-file" accept="image/*" capture="environment" onchange="_onFotoFileChange()" style="font-size:12px;width:100%">
+      <img id="fu-preview" style="display:none;max-width:100%;max-height:160px;object-fit:contain;border-radius:6px;margin-top:8px">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-g" style="flex:1" onclick="uploadFoto()">&#128190; Opslaan</button>
+      <button class="btn-o" onclick="closeModal('modal-foto-upload')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Terugkomst verwerken -->
+<div class="modal-bg" id="modal-terugkomst">
+  <div class="modal" style="width:580px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-title">
+      <span id="tk-titel">&#128281; Terugkomst verwerken</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-terugkomst')">&#x2715;</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">Geef per item aan in welke staat het terugkwam. Dit wordt opgeslagen in het activiteitenlog.</div>
+    <div id="tk-list" style="overflow-y:auto;flex:1"></div>
+    <input type="hidden" id="tk-sets-data" value="[]">
+    <div style="display:flex;gap:8px;margin-top:.875rem;padding-top:.75rem;border-top:.5px solid var(--border)">
+      <button class="btn-g" style="flex:1" onclick="saveTerugkomst()">&#10003; Terugkomst opslaan</button>
+      <button class="btn-o" onclick="closeModal('modal-terugkomst')">Annuleren</button>
     </div>
   </div>
 </div>

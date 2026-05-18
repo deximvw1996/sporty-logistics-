@@ -10,6 +10,9 @@ const PORT = process.env.PORT || 3001;
 const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || __dirname;
 const DB_PATH = path.join(DATA_DIR, 'sporty.db');
 console.log('Database pad:', DB_PATH);
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+try { if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch(e) { console.warn('Uploads map aanmaken mislukt:', e.message); }
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // ── PROCES-FOUTAFHANDELING ──
 // Vangt onverwachte fouten op zodat de server niet stil crasht.
@@ -167,6 +170,9 @@ async function startServer() {
   addColumnIfMissing('locaties', 'lat', 'REAL');
   addColumnIfMissing('locaties', 'lng', 'REAL');
 
+  // Migration 7: foto per sportartikel
+  addColumnIfMissing('sport_items', 'foto_path', 'TEXT');
+
   db.run(`
     CREATE TABLE IF NOT EXISTS locaties (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, addr TEXT DEFAULT '', type TEXT DEFAULT 'kamp', contact_naam TEXT DEFAULT '', contact_tel TEXT DEFAULT '', notities TEXT DEFAULT '');
     CREATE TABLE IF NOT EXISTS themas (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, color TEXT DEFAULT '#1D9E75', categorie TEXT DEFAULT '');
@@ -223,6 +229,10 @@ async function startServer() {
 
     -- Migration 6: activiteitenlog
     CREATE TABLE IF NOT EXISTS activiteiten_log (id INTEGER PRIMARY KEY AUTOINCREMENT, tijdstip TEXT NOT NULL, type TEXT NOT NULL, actie TEXT NOT NULL, beschrijving TEXT NOT NULL, locatie_id INTEGER, locatie_naam TEXT);
+
+    -- Migration 8: terugkomst flow
+    CREATE TABLE IF NOT EXISTS terugkomst_rapporten (id INTEGER PRIMARY KEY AUTOINCREMENT, kampmoment_id INTEGER NOT NULL, datum TEXT NOT NULL, notities TEXT DEFAULT '', created_at TEXT DEFAULT '');
+    CREATE TABLE IF NOT EXISTS terugkomst_regels (id INTEGER PRIMARY KEY AUTOINCREMENT, rapport_id INTEGER NOT NULL, item_naam TEXT NOT NULL, set_id INTEGER, status TEXT DEFAULT 'ok', opmerking TEXT DEFAULT '');
   `);
 
   // Migrations for existing DBs
@@ -873,6 +883,53 @@ async function startServer() {
       if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" → ${loc?.name||'?'} (week ${week})`,locatie_id,loc?.name);
     }
     saveDb(); res.json({ok:true});
+  });
+
+  // ── FOTO PER SPORT ITEM ──
+  app.post('/api/sport/:id/foto',(req,res)=>{
+    const{data,ext}=req.body;
+    if(!data)return res.status(400).json({error:'Geen afbeeldingsdata'});
+    const item=get('SELECT * FROM sport_items WHERE id=?',[req.params.id]);
+    if(!item)return res.status(404).json({error:'Artikel niet gevonden'});
+    // Verwijder oude foto
+    if(item.foto_path){try{fs.unlinkSync(path.join(UPLOADS_DIR,item.foto_path));}catch(e){}}
+    const filename=`sport-${req.params.id}-${Date.now()}.${ext||'jpg'}`;
+    try{fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(data,'base64'));}
+    catch(e){return res.status(500).json({error:'Opslaan mislukt: '+e.message});}
+    run('UPDATE sport_items SET foto_path=? WHERE id=?',[filename,req.params.id]);
+    logAct('sport','foto',`Foto toegevoegd aan "${item.name}"`,null,null);
+    res.json({foto_path:filename});
+  });
+  app.delete('/api/sport/:id/foto',(req,res)=>{
+    const item=get('SELECT * FROM sport_items WHERE id=?',[req.params.id]);
+    if(item?.foto_path){try{fs.unlinkSync(path.join(UPLOADS_DIR,item.foto_path));}catch(e){}}
+    run('UPDATE sport_items SET foto_path=? WHERE id=?',['',req.params.id]);
+    res.json({ok:true});
+  });
+
+  // ── TERUGKOMST ──
+  app.post('/api/terugkomst',(req,res)=>{
+    const{kampmoment_id,datum,notities,regels}=req.body;
+    if(!kampmoment_id)return res.status(400).json({error:'kampmoment_id vereist'});
+    const rid=ins('INSERT INTO terugkomst_rapporten (kampmoment_id,datum,notities,created_at) VALUES (?,?,?,?)',
+      [kampmoment_id,datum||isoDate(new Date()),notities||'',now()]);
+    (regels||[]).forEach(r=>{
+      db.run('INSERT INTO terugkomst_regels (rapport_id,item_naam,set_id,status,opmerking) VALUES (?,?,?,?,?)',
+        [rid,r.item_naam,r.set_id||null,r.status||'ok',r.opmerking||'']);
+    });
+    saveDb();
+    const km=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[kampmoment_id]);
+    const schade=(regels||[]).filter(r=>r.status==='schade').length;
+    const vermist=(regels||[]).filter(r=>r.status==='vermist').length;
+    const extra=[schade?`${schade} beschadigd`:'',vermist?`${vermist} vermist`:''].filter(Boolean).join(', ');
+    logAct('terugkomst','aangemaakt',
+      `Terugkomst ${km?.loc_naam||'?'} week ${km?.week||'?'}`+(extra?` — ${extra}`:''),
+      km?.locatie_id,km?.loc_naam);
+    res.json(get('SELECT * FROM terugkomst_rapporten WHERE id=?',[rid]));
+  });
+  app.get('/api/terugkomst',(req,res)=>{
+    const rapp=all('SELECT r.*,l.name as loc_naam FROM terugkomst_rapporten r LEFT JOIN kampmomenten k ON k.id=r.kampmoment_id LEFT JOIN locaties l ON l.id=k.locatie_id ORDER BY r.id DESC');
+    res.json(rapp.map(r=>({...r,regels:all('SELECT * FROM terugkomst_regels WHERE rapport_id=?',[r.id])})));
   });
 
   // ── ACTIVITEITENLOG ──
