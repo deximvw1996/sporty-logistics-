@@ -591,22 +591,11 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
     <!-- Standaard materiaal -->
     <div id="mat-sub-standaard" style="display:none">
-      <div class="card">
-        <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">&#8505; Dit is de globale template. Gebruik &quot;Kopi&euml;ren van standaard&quot; op het tabblad Locaties om per locatie aan te passen.</div>
-        <div class="card-hd">&#128450; Standaard materiaallijst</div>
-        <div id="std-list"></div>
-        <div class="divider"></div>
-        <div class="fr">
-          <div class="fg grow"><label for="std-name">Naam</label><input class="inp" type="text" id="std-name" placeholder="bv. Ehbo kist&hellip;" onkeydown="if(event.key==='Enter')addStd()"></div>
-          <div class="fg sm"><label for="std-qty">Aantal</label><input class="inp" type="number" id="std-qty" value="1" min="1"></div>
-          <div class="fg md"><label for="std-cat">Categorie</label><select class="sel" id="std-cat">
-            <option value="admin">Administratie</option><option value="ehbo">EHBO &amp; veiligheid</option>
-            <option value="audio">Audio &amp; media</option><option value="keuken">Keuken</option>
-            <option value="slaap">Slaap &amp; verblijf</option><option value="andere">Andere</option>
-          </select></div>
-          <button class="btn-g" onclick="addStd()">+ Toevoegen</button>
-        </div>
-      </div>
+      <div style="font-size:11px;color:var(--text2);padding:6px 10px;background:var(--bg2);border-radius:var(--r);margin-bottom:.875rem">&#8505; Definieer per kamplocatie welk materiaal er standaard aanwezig is (EHBO, muziekbox, &hellip;). Dit wordt meegenomen bij transportgeneratie.</div>
+      <!-- Locatie-tabs -->
+      <div id="std-loc-tabs" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:.875rem"></div>
+      <!-- Materiaallijst voor geselecteerde locatie -->
+      <div id="std-loc-content"></div>
     </div>
 
     <!-- Stockage & Voorraad -->
@@ -666,7 +655,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
             <select class="sel" id="cat-add-type" onchange="renderCatalogusAddForm()">
               <option value="sport">&#9917; Sport</option>
               <option value="thema">&#127912; Thema-artikel</option>
-              <option value="standaard">&#128450; Standaard</option>
               <option value="gedeeld">&#128295; Gedeeld</option>
             </select>
           </div>
@@ -708,7 +696,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           <button class="fb active" id="cat-f-alle" onclick="setCatFilter('alle',this)">Alle</button>
           <button class="fb" id="cat-f-sport" onclick="setCatFilter('sport',this)">&#9917; Sport</button>
           <button class="fb" id="cat-f-thema" onclick="setCatFilter('thema',this)">&#127912; Thema</button>
-          <button class="fb" id="cat-f-standaard" onclick="setCatFilter('standaard',this)">&#128450; Standaard</button>
+          <button class="fb" id="cat-f-standaard" onclick="setCatFilter('standaard',this)">&#128450; Locatie</button>
           <button class="fb" id="cat-f-gedeeld" onclick="setCatFilter('gedeeld',this)">&#128295; Gedeeld</button>
         </div>
         <select class="sel" id="cat-sort" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px;flex-shrink:0">
@@ -2986,7 +2974,7 @@ const MAT_CATS={keuken:'🍳',slaap:'🛏️',sport:'⚽',audio:'🔊',ehbo:'�
 let S={locaties:[],themas:[],standaard:[],kampmomenten:[],spoed:[],materiaal:[],overzicht:[],locMat:{}};
 let S_chauffeurs=[];
 
-let editingLoc=null,editingStd=null,editingLocMat=null,openThId=null,editingThId=null,editingThMat={};
+let editingLoc=null,editingLocMat=null,openThId=null,editingThId=null,editingThMat={};
 let editingThema=null,editingThemaMat=null;
 let spoedFilter='alle',vFilter='alle',plannerFilter='alle';
 let mvEenheidId=null,addEenheidItemId=null,addEenheidIsPerStuk=false;
@@ -3278,11 +3266,86 @@ async function addThMat(thId){const name=document.getElementById('thm-n-'+thId).
 async function saveThMat(thId,mId){const qty=Math.max(1,parseInt(document.getElementById('etm-q-'+thId+'-'+mId).value)||1);const name=document.getElementById('etm-n-'+thId+'-'+mId).value.trim();const r=await api('PUT','/themas/'+thId+'/materiaal/'+mId,{name,qty});const th=S.themas.find(t=>t.id===thId);if(th)th.mat=th.mat.map(m=>m.id===mId?r:m);delete editingThMat[thId];renderThemas();}
 async function deleteThMat(thId,mId){await api('DELETE','/themas/'+thId+'/materiaal/'+mId);const th=S.themas.find(t=>t.id===thId);if(th)th.mat=th.mat.filter(m=>m.id!==mId);renderThemas();}
 
-// STANDAARD
-function renderStandaard(){document.getElementById('std-list').innerHTML=S.standaard.map(s=>{if(editingStd===s.id)return `<div class="row editing"><input class="inp gb" style="flex:1" type="text" id="es-n-${s.id}" value="${s.name}"><input class="inp gb" style="width:52px" type="number" id="es-q-${s.id}" value="${s.qty}" min="1"><select class="sel gb" id="es-c-${s.id}">${Object.entries(STD_CATS).map(([v,l])=>`<option value="${v}" ${v===s.cat?'selected':''}>${l}</option>`).join('')}</select><button class="bi save" onclick="saveStd(${s.id})">✓</button><button class="bi" onclick="editingStd=null;renderStandaard()">✕</button></div>`;return `<div class="row"><span class="mat-qty">\u00D7${s.qty}</span><div class="ri"><div class="rm">${s.name}</div><div class="rs">${STD_CATS[s.cat]}</div></div><div class="ra"><button class="bi" onclick="editingStd=${s.id};renderStandaard()">✏️</button><button class="bi" style="color:var(--red)" onclick="deleteStd(${s.id})">🗑️</button></div></div>`;}).join('')||'<div class="empty">Nog geen standaard materiaal.</div>';}
-async function addStd(){const name=document.getElementById('std-name').value.trim();if(!name)return;const r=await api('POST','/standaard',{name,qty:Math.max(1,parseInt(document.getElementById('std-qty').value)||1),cat:document.getElementById('std-cat').value});S.standaard.push(r);document.getElementById('std-name').value='';renderStandaard();}
-async function saveStd(id){const r=await api('PUT','/standaard/'+id,{name:document.getElementById('es-n-'+id).value.trim(),qty:Math.max(1,parseInt(document.getElementById('es-q-'+id).value)||1),cat:document.getElementById('es-c-'+id).value});S.standaard=S.standaard.map(s=>s.id===id?r:s);editingStd=null;renderStandaard();showToast('Opgeslagen','success');}
-async function deleteStd(id){await api('DELETE','/standaard/'+id);S.standaard=S.standaard.filter(s=>s.id!==id);renderStandaard();}
+// STANDAARD — materiaal per kamplocatie
+let _stdLocId=null;
+let _editStdMat=null;
+
+async function renderStandaard(){
+  const kampLocs=S.locaties.filter(l=>l.type==='kamp');
+  const tabsEl=document.getElementById('std-loc-tabs');
+  const contentEl=document.getElementById('std-loc-content');
+  if(!tabsEl||!contentEl)return;
+
+  if(!kampLocs.length){
+    tabsEl.innerHTML='';
+    contentEl.innerHTML='<div class="empty">Geen kamplocaties aangemaakt. Voeg eerst locaties toe in Planning.</div>';
+    return;
+  }
+
+  if(!_stdLocId||!kampLocs.find(l=>l.id===_stdLocId)) _stdLocId=kampLocs[0].id;
+
+  if(!S.locMat[_stdLocId]){
+    S.locMat[_stdLocId]=await api('GET','/locaties/'+_stdLocId+'/materiaal');
+  }
+
+  tabsEl.innerHTML=kampLocs.map(l=>
+    `<button class="kal-subtab${l.id===_stdLocId?' active':''}" onclick="_stdLocId=${l.id};_editStdMat=null;renderStandaard()">&#9978; ${l.name}</button>`
+  ).join('');
+
+  const loc=kampLocs.find(l=>l.id===_stdLocId);
+  if(!loc){contentEl.innerHTML='';return;}
+  const mat=S.locMat[loc.id]||[];
+
+  let h=`<div class="card"><div class="card-hd">&#9978; ${loc.name} <span style="font-weight:400;font-size:11px;color:var(--text2)">${mat.length} item${mat.length!==1?'s':''}</span></div>`;
+
+  if(mat.length){
+    mat.forEach(m=>{
+      if(_editStdMat===m.id){
+        h+=`<div class="row editing"><input class="inp gb" type="number" id="esm-q-${m.id}" value="${m.qty}" min="1" style="width:62px"><input class="inp gb" type="text" id="esm-n-${m.id}" value="${m.name.replace(/"/g,'&quot;')}" style="flex:1"><button class="bi save" onclick="saveStdMat(${loc.id},${m.id})">&#x2713;</button><button class="bi" onclick="_editStdMat=null;renderStandaard()">&#x2715;</button></div>`;
+      } else {
+        h+=`<div class="row"><span class="mat-qty">&#215;${m.qty}</span><div class="ri"><div class="rm">${m.name}</div></div><div class="ra"><button class="bi" onclick="_editStdMat=${m.id};renderStandaard()">&#x270F;&#xFE0F;</button><button class="bi" style="color:var(--red)" onclick="deleteStdMat(${loc.id},${m.id})">&#128465;</button></div></div>`;
+      }
+    });
+  } else {
+    h+='<div class="empty" style="margin-bottom:4px">Nog geen materiaal voor deze locatie.</div>';
+  }
+
+  h+=`<div class="divider"></div><div class="fr"><div class="fg grow"><label for="stdm-n">Naam</label><input class="inp" type="text" id="stdm-n" placeholder="bv. EHBO kist, muziekbox&#8230;" onkeydown="if(event.key==='Enter')addStdMat(${loc.id})"></div><div class="fg sm"><label for="stdm-q">Aantal</label><input class="inp" type="number" id="stdm-q" value="1" min="1"></div><button class="btn-g" onclick="addStdMat(${loc.id})" style="align-self:flex-end">&#43; Toevoegen</button></div></div>`;
+
+  contentEl.innerHTML=h;
+}
+
+async function addStdMat(locId){
+  const naam=(document.getElementById('stdm-n')?.value||'').trim();
+  if(!naam){showToast('Naam is verplicht','warn');return;}
+  const qty=Math.max(1,parseInt(document.getElementById('stdm-q')?.value)||1);
+  const r=await api('POST','/locaties/'+locId+'/materiaal',{name:naam,qty,cat:'andere'});
+  if(r.error)return;
+  S.locMat[locId]=S.locMat[locId]||[];
+  S.locMat[locId].push(r);
+  document.getElementById('stdm-n').value='';
+  document.getElementById('stdm-q').value='1';
+  renderStandaard();
+  showToast(naam+' toegevoegd','success');
+}
+
+async function saveStdMat(locId,id){
+  const naam=(document.getElementById('esm-n-'+id)?.value||'').trim();
+  if(!naam){showToast('Naam is verplicht','warn');return;}
+  const qty=Math.max(1,parseInt(document.getElementById('esm-q-'+id)?.value)||1);
+  const r=await api('PUT','/locatie-materiaal/'+id,{name:naam,qty,cat:'andere'});
+  if(r.error)return;
+  S.locMat[locId]=(S.locMat[locId]||[]).map(m=>m.id===id?r:m);
+  _editStdMat=null;
+  renderStandaard();
+  showToast('Opgeslagen','success');
+}
+
+async function deleteStdMat(locId,id){
+  await api('DELETE','/locatie-materiaal/'+id);
+  S.locMat[locId]=(S.locMat[locId]||[]).filter(m=>m.id!==id);
+  renderStandaard();
+}
 
 // Hulpfunctie: waarde veilig als single-quoted string in onclick-attribuut
 function _q(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/"/g,'&quot;')+"'";}
@@ -3560,8 +3623,11 @@ function _buildCatItems(){
       items.push({type:'thema',raw_id:m.id,thema_id:th.id,naam:m.name,sub:null,thema:th.name,thema_color:th.color||'#1D9E75',qty:m.qty,sets:null,stockage_locatie_id:m.stockage_locatie_id||null});
     });
   });
-  (S.standaard||[]).forEach(m=>{
-    items.push({type:'standaard',raw_id:m.id,naam:m.name,sub:m.cat||'andere',thema:null,thema_id:null,thema_color:null,qty:m.qty,sets:null,stockage_locatie_id:m.stockage_locatie_id||null});
+  // Locatiemateriaal per kamplocatie (als "standaard" type in catalogus)
+  (S.locaties||[]).filter(l=>l.type==='kamp').forEach(loc=>{
+    (S.locMat[loc.id]||[]).forEach(m=>{
+      items.push({type:'standaard',raw_id:m.id,naam:m.name,sub:loc.name,thema:null,thema_id:null,thema_color:null,qty:m.qty,sets:null,stockage_locatie_id:null,loc_id:loc.id});
+    });
   });
   (_invGedeeld||[]).forEach(m=>{
     items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,stockage_locatie_id:m.stockage_locatie_id||null});
@@ -3596,13 +3662,13 @@ function renderCatalogusLijst(){
     const th=items.filter(i=>i.type==='thema').length;
     const st=items.filter(i=>i.type==='standaard').length;
     const gd=items.filter(i=>i.type==='gedeeld').length;
-    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${sp} sport · 🎨 ${th} thema · 📋 ${st} standaard · 🔧 ${gd} gedeeld`;
+    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${sp} sport · 🎨 ${th} thema · 📋 ${st} locatie · 🔧 ${gd} gedeeld`;
   }
 
   if(!filtered.length){el.innerHTML='<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';return;}
 
   const typeIco={sport:'⚽',thema:'🎨',standaard:'📋',gedeeld:'🔧'};
-  const typeLbl={sport:'Sport',thema:'Thema',standaard:'Standaard',gedeeld:'Gedeeld'};
+  const typeLbl={sport:'Sport',thema:'Thema',standaard:'Locatie',gedeeld:'Gedeeld'};
   const typeClr={sport:'p-green',thema:'p-amber',standaard:'p-blue',gedeeld:'p-red'};
 
   let html='';
@@ -3648,7 +3714,7 @@ function _renderCatRow(item,typeIco,typeLbl,typeClr){
   }
   const badge=`<span class="pill ${typeClr[item.type]}">${typeIco[item.type]} ${typeLbl[item.type]}</span>`;
   const themaBadge=item.thema?`<span class="pill" style="background:${item.thema_color}22;color:${item.thema_color};border:.5px solid ${item.thema_color}55">${item.thema}</span>`:'';
-  const subBadge=item.sub&&item.sub!=='andere'&&item.sub!=='sport'?`<span style="font-size:10px;color:var(--text3)">${item.sub}</span>`:'';
+  const subBadge=item.sub&&item.sub!=='andere'&&item.sub!=='sport'?`<span style="font-size:10px;color:var(--text3)">${item.type==='standaard'?'⛺ ':''  }${item.sub}</span>`:'';
   const stockNaam=item.stockage_locatie_id?(stockageLocs.find(l=>l.id==item.stockage_locatie_id)?.name||null):null;
   const stockBadge=stockNaam?`<span style="font-size:10px;color:var(--text2)">📦 ${stockNaam}</span>`:'';
   const extra=item.type==='sport'
@@ -3691,11 +3757,12 @@ async function saveCatItem(type,id,themaId){
     if(r.error)return;
     const m=(_invGedeeld||[]).find(m=>m.id===id);
     if(m){m.name=naam;m.totaal=qty;m.cat=cat;m.stockage_locatie_id=stockage_locatie_id;}
-  } else {
-    const r=await api('PUT','/standaard/'+id,{name:naam,qty,cat,stockage_locatie_id});
+  } else if(type==='standaard'){
+    // locatie_materiaal — loc_id is encoded in thema_id field for routing
+    const r=await api('PUT','/locatie-materiaal/'+id,{name:naam,qty,cat:'andere'});
     if(r.error)return;
-    const m=S.standaard.find(m=>m.id===id);
-    if(m){m.name=naam;m.qty=qty;m.cat=cat;m.stockage_locatie_id=stockage_locatie_id;}
+    // Update in all locMat caches
+    Object.keys(S.locMat).forEach(lid=>{S.locMat[lid]=(S.locMat[lid]||[]).map(m=>m.id===id?{...m,name:naam,qty}:m);});
   }
   _catEditId=null;
   showToast('Opgeslagen','success');
@@ -3713,9 +3780,9 @@ async function deleteCatItem(type,id,themaId){
   } else if(type==='gedeeld'){
     await api('DELETE','/gedeeld/'+id);
     _invGedeeld=(_invGedeeld||[]).filter(m=>m.id!==id);
-  } else {
-    await api('DELETE','/standaard/'+id);
-    S.standaard=S.standaard.filter(m=>m.id!==id);
+  } else if(type==='standaard'){
+    await api('DELETE','/locatie-materiaal/'+id);
+    Object.keys(S.locMat).forEach(lid=>{S.locMat[lid]=(S.locMat[lid]||[]).filter(m=>m.id!==id);});
   }
   showToast('Artikel verwijderd','success');
   renderCatalogusLijst();
