@@ -371,6 +371,7 @@ button:disabled{opacity:.45;cursor:not-allowed;}
       <button class="kal-subtab" onclick="setPlanningSubtab('od',this)">&#9632; Open / Dicht</button>
       <button class="kal-subtab" onclick="setPlanningSubtab('ov',this)">&#128202; Overzicht</button>
       <button class="kal-subtab" onclick="setPlanningSubtab('locaties',this)">&#128205; Locaties</button>
+      <button class="kal-subtab" onclick="setPlanningSubtab('log',this)">&#128221; Log</button>
     </div>
 
     <!-- Subtab: Kampmomenten -->
@@ -504,6 +505,23 @@ button:disabled{opacity:.45;cursor:not-allowed;}
             Geen locaties met coördinaten. Bewerk een locatie en klik <strong>&#128205; Kaart</strong> naast het adresveld.
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Subtab: Activiteitenlog -->
+    <div id="plan-sub-log" style="display:none">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
+          <div class="card-hd" style="margin:0">&#128221; Activiteitenlog</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="fb active" id="log-f-alle" onclick="setLogFilter('alle',this)">Alle</button>
+            <button class="fb" id="log-f-kampmoment" onclick="setLogFilter('kampmoment',this)">&#127957; Kampmomenten</button>
+            <button class="fb" id="log-f-locatie" onclick="setLogFilter('locatie',this)">&#128205; Locaties</button>
+            <button class="fb" id="log-f-sport" onclick="setLogFilter('sport',this)">&#9917; Sport</button>
+            <button class="fb" id="log-f-spoed" onclick="setLogFilter('spoed',this)">&#128680; Spoed</button>
+          </div>
+        </div>
+        <div id="log-list"><div class="loading">Laden&hellip;</div></div>
       </div>
     </div>
   </div>
@@ -1953,13 +1971,14 @@ function setPlanningSubtab(tab,btn){
   planningSubtab=tab;
   document.querySelectorAll('#sec-planning .kal-subtab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  ['kampen','od','ov','locaties'].forEach(t=>{
+  ['kampen','od','ov','locaties','log'].forEach(t=>{
     const el=document.getElementById('plan-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
   if(tab==='od') renderKalenderOD();
   else if(tab==='ov') renderKalenderOV();
   else if(tab==='locaties'){renderLocaties();renderLocMatSection();}
+  else if(tab==='log') renderLog();
   else renderKampen();
 }
 
@@ -3213,6 +3232,7 @@ function renderLocaties(){
         ${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}
       </div>
       <div class="ra">
+        <button class="bi" title="Geschiedenis" onclick="openLocGeschiedenis(${l.id},${JSON.stringify(l.name)})">&#128221;</button>
         <button class="bi" onclick="editingLoc=${l.id};renderLocaties()">&#x270F;&#xFE0F;</button>
         <button class="bi" style="color:var(--red)" onclick="deleteLoc(${l.id})">&#x1F5D1;&#xFE0F;</button>
       </div>
@@ -3348,6 +3368,52 @@ async function saveLoc(id){
   renderLocaties();
 }
 async function deleteLoc(id){await api('DELETE','/locaties/'+id);S.locaties=S.locaties.filter(l=>l.id!==id);renderLocaties();}
+
+// ── ACTIVITEITENLOG ──
+const _logIcons={locatie:'📍',kampmoment:'🏕️',sport:'⚽',spoed:'🚨'};
+const _logActieKleur={aangemaakt:'var(--green-dk)',bewerkt:'var(--blue)',verwijderd:'var(--red)',verplaatst:'#E65100',opgelost:'var(--green-dk)',heropend:'var(--text2)'};
+let _logFilter='alle';
+
+function _renderLogEntries(entries,el){
+  if(!entries||!entries.length){el.innerHTML='<div class="empty" style="padding:1rem">Nog geen activiteiten gelogd.</div>';return;}
+  el.innerHTML=entries.map(e=>`
+    <div style="display:flex;gap:8px;padding:7px 0;border-bottom:.5px solid var(--border);align-items:flex-start">
+      <span style="font-size:16px;flex-shrink:0;margin-top:1px">${_logIcons[e.type]||'📋'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px">${e.beschrijving}</div>
+        ${e.locatie_naam?`<div style="font-size:11px;color:var(--text2);margin-top:1px">📍 ${e.locatie_naam}</div>`:''}
+      </div>
+      <div style="flex-shrink:0;text-align:right">
+        <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--bg2);color:${_logActieKleur[e.actie]||'var(--text2)'};white-space:nowrap">${e.actie}</span>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap">${e.tijdstip}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function renderLog(){
+  const el=document.getElementById('log-list');
+  if(!el)return;
+  el.innerHTML='<div class="loading">Laden&hellip;</div>';
+  const url='/log'+(_logFilter!=='alle'?'?type='+_logFilter:'?limit=200');
+  const entries=await api('GET',url);
+  _renderLogEntries(entries,el);
+}
+
+function setLogFilter(filter,btn){
+  _logFilter=filter;
+  document.querySelectorAll('#plan-sub-log .fb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLog();
+}
+
+async function openLocGeschiedenis(locId,locNaam){
+  document.getElementById('loc-gesch-titel').textContent='📜 '+locNaam;
+  const el=document.getElementById('loc-gesch-list');
+  el.innerHTML='<div class="loading">Laden&hellip;</div>';
+  openModal('modal-loc-geschiedenis');
+  const entries=await api('GET','/log?locatie_id='+locId+'&limit=50');
+  _renderLogEntries(entries,el);
+}
 
 // ── KAART VIEW ──
 let _kaartMap=null;
@@ -4436,6 +4502,17 @@ loadAll()
       <button class="btn-g" style="flex:1" onclick="doScanVerplaats()">&#10003; Locatie bijwerken</button>
       <button class="btn-o" onclick="closeModal('modal-scan')">Annuleren</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: Locatie geschiedenis -->
+<div class="modal-bg" id="modal-loc-geschiedenis">
+  <div class="modal" style="width:560px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-title">
+      <span id="loc-gesch-titel">&#128221; Geschiedenis</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-loc-geschiedenis')">&#x2715;</button>
+    </div>
+    <div id="loc-gesch-list" style="overflow-y:auto;flex:1;padding:0 4px;min-height:80px"></div>
   </div>
 </div>
 

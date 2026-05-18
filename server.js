@@ -83,6 +83,11 @@ function all(sql, p=[]) { const s=db.prepare(sql); s.bind(p); const r=[]; while(
 function ins(sql, p=[]) { db.run(sql,p); const id=get('SELECT last_insert_rowid() as id').id; saveDb(); return id; }
 function now() { return new Date().toLocaleString('nl-BE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
 function isoDate(d) { return d.toISOString().split('T')[0]; }
+function logAct(type, actie, beschrijving, locatie_id=null, locatie_naam=null) {
+  try { run('INSERT INTO activiteiten_log (tijdstip,type,actie,beschrijving,locatie_id,locatie_naam) VALUES (?,?,?,?,?,?)',
+    [now(),type,actie,beschrijving,locatie_id||null,locatie_naam||null]); }
+  catch(e) { console.error('Log fout:', e.message); }
+}
 
 async function startServer() {
   const SQL = await initSqlJs();
@@ -215,6 +220,9 @@ async function startServer() {
     CREATE TABLE IF NOT EXISTS gedeeld_gebruik (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, thema_id INTEGER NOT NULL, qty INTEGER DEFAULT 1, UNIQUE(item_id, thema_id), FOREIGN KEY(item_id) REFERENCES gedeeld_items(id) ON DELETE CASCADE);
 
     CREATE TABLE IF NOT EXISTS verbruik_log (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, delta REAL NOT NULL, reden TEXT DEFAULT '', wie TEXT DEFAULT '', transport_id INTEGER, datum TEXT DEFAULT '', created_at TEXT DEFAULT '');
+
+    -- Migration 6: activiteitenlog
+    CREATE TABLE IF NOT EXISTS activiteiten_log (id INTEGER PRIMARY KEY AUTOINCREMENT, tijdstip TEXT NOT NULL, type TEXT NOT NULL, actie TEXT NOT NULL, beschrijving TEXT NOT NULL, locatie_id INTEGER, locatie_naam TEXT);
   `);
 
   // Migrations for existing DBs
@@ -230,16 +238,24 @@ async function startServer() {
     if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});
     const id=ins('INSERT INTO locaties (name,addr,type,contact_naam,contact_tel,notities,lat,lng) VALUES (?,?,?,?,?,?,?,?)',
       [name.trim(),addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null]);
-    res.json(get('SELECT * FROM locaties WHERE id=?',[id]));
+    const loc=get('SELECT * FROM locaties WHERE id=?',[id]);
+    logAct('locatie','aangemaakt',`Locatie "${loc.name}" aangemaakt`+(addr?` (${addr})`:''),id,loc.name);
+    res.json(loc);
   });
   app.put('/api/locaties/:id',(req,res)=>{
     const{name,addr,type,contact_naam,contact_tel,notities,lat,lng}=req.body;
     run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=? WHERE id=?',
       [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,req.params.id]);
-    saveDb();
-    res.json(get('SELECT * FROM locaties WHERE id=?',[req.params.id]));
+    const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
+    logAct('locatie','bewerkt',`Locatie "${loc.name}" bewerkt`,loc.id,loc.name);
+    res.json(loc);
   });
-  app.delete('/api/locaties/:id',(req,res)=>{run('DELETE FROM locaties WHERE id=?',[req.params.id]);res.json({ok:true});});
+  app.delete('/api/locaties/:id',(req,res)=>{
+    const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
+    run('DELETE FROM locaties WHERE id=?',[req.params.id]);
+    if(loc) logAct('locatie','verwijderd',`Locatie "${loc.name}" verwijderd`,null,loc.name);
+    res.json({ok:true});
+  });
 
   // ── THEMAS ──
   app.get('/api/themas',(req,res)=>{const t=all('SELECT * FROM themas ORDER BY name');const m=all('SELECT * FROM thema_materiaal');res.json(t.map(x=>({...x,materiaal:m.filter(y=>y.thema_id===x.id)})));});
@@ -324,6 +340,8 @@ async function startServer() {
     const{locatie_id,week}=req.body;
     try {
       const id=ins('INSERT INTO kampmomenten (locatie_id,week) VALUES (?,?)',[locatie_id,week]);
+      const loc=get('SELECT * FROM locaties WHERE id=?',[locatie_id]);
+      logAct('kampmoment','aangemaakt',`Week ${week} — ${loc?.name||'?'} (nieuw kampmoment)`,locatie_id,loc?.name);
       // Auto-open alle weekdagen voor deze locatie
       const jul1=new Date(2026,6,1);const dow=jul1.getDay();
       const mnd=new Date(jul1);mnd.setDate(jul1.getDate()-(dow===0?6:dow-1));
@@ -343,15 +361,18 @@ async function startServer() {
 
   app.put('/api/kampmomenten/:id',(req,res)=>{
     const{week}=req.body;
+    const old=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[req.params.id]);
     run('UPDATE kampmomenten SET week=? WHERE id=?',[week,req.params.id]);
-    saveDb();
+    if(old) logAct('kampmoment','verplaatst',`${old.loc_naam||'?'}: week ${old.week} → week ${week}`,old.locatie_id,old.loc_naam);
     res.json(getKampmoment(req.params.id));
   });
 
   app.delete('/api/kampmomenten/:id',(req,res)=>{
+    const old=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[req.params.id]);
     run('DELETE FROM kampmoment_themas WHERE kampmoment_id=?',[req.params.id]);
     run('DELETE FROM transport_taken WHERE kampmoment_id=?',[req.params.id]);
     run('DELETE FROM kampmomenten WHERE id=?',[req.params.id]);
+    if(old) logAct('kampmoment','verwijderd',`Week ${old.week} — ${old.loc_naam||'?'} verwijderd`,old.locatie_id,old.loc_naam);
     res.json({ok:true});
   });
 
@@ -381,8 +402,22 @@ async function startServer() {
 
   // ── SPOED ──
   app.get('/api/spoed',(req,res)=>res.json(all('SELECT * FROM spoedmeldingen ORDER BY done ASC,id DESC')));
-  app.post('/api/spoed',(req,res)=>{const{item,qty,locatie_id,prio,note}=req.body;const id=ins('INSERT INTO spoedmeldingen (item,qty,locatie_id,prio,note,created_at) VALUES (?,?,?,?,?,?)',[item,qty||1,locatie_id,prio||'midden',note||'',now()]);res.json(get('SELECT * FROM spoedmeldingen WHERE id=?',[id]));});
-  app.put('/api/spoed/:id/toggle',(req,res)=>{const s=get('SELECT * FROM spoedmeldingen WHERE id=?',[req.params.id]);const nd=s.done?0:1;const t=new Date().toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});run('UPDATE spoedmeldingen SET done=?,done_time=? WHERE id=?',[nd,nd?t:'',req.params.id]);res.json(get('SELECT * FROM spoedmeldingen WHERE id=?',[req.params.id]));});
+  app.post('/api/spoed',(req,res)=>{
+    const{item,qty,locatie_id,prio,note}=req.body;
+    const id=ins('INSERT INTO spoedmeldingen (item,qty,locatie_id,prio,note,created_at) VALUES (?,?,?,?,?,?)',[item,qty||1,locatie_id,prio||'midden',note||'',now()]);
+    const loc=locatie_id?get('SELECT name FROM locaties WHERE id=?',[locatie_id]):null;
+    logAct('spoed','aangemaakt',`🚨 ${item} (${qty||1}x) — prioriteit: ${prio||'midden'}`,locatie_id||null,loc?.name||null);
+    res.json(get('SELECT * FROM spoedmeldingen WHERE id=?',[id]));
+  });
+  app.put('/api/spoed/:id/toggle',(req,res)=>{
+    const s=get('SELECT * FROM spoedmeldingen WHERE id=?',[req.params.id]);
+    const nd=s.done?0:1;
+    const t=new Date().toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
+    run('UPDATE spoedmeldingen SET done=?,done_time=? WHERE id=?',[nd,nd?t:'',req.params.id]);
+    const loc=s.locatie_id?get('SELECT name FROM locaties WHERE id=?',[s.locatie_id]):null;
+    logAct('spoed',nd?'opgelost':'heropend',`${nd?'✅':'🔁'} Spoedmelding "${s.item}" ${nd?'opgelost':'heropend'}`,s.locatie_id||null,loc?.name||null);
+    res.json(get('SELECT * FROM spoedmeldingen WHERE id=?',[req.params.id]));
+  });
   app.delete('/api/spoed/:id',(req,res)=>{run('DELETE FROM spoedmeldingen WHERE id=?',[req.params.id]);res.json({ok:true});});
 
   // ── MATERIAAL ──
@@ -828,12 +863,29 @@ async function startServer() {
   // Sport planning (which set is where which week)
   app.post('/api/sport/sets/:id/plan', (req,res) => {
     const {week, locatie_id} = req.body;
+    const setInfo=get('SELECT ss.*,si.name as item_naam FROM sport_sets ss LEFT JOIN sport_items si ON si.id=ss.item_id WHERE ss.id=?',[req.params.id]);
     if (locatie_id === null || locatie_id === undefined || locatie_id === '') {
       run('DELETE FROM sport_planning WHERE set_id=? AND week=?', [req.params.id, week]);
+      if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" — week ${week}: locatie vrijgemaakt`,null,null);
     } else {
       run('INSERT OR REPLACE INTO sport_planning (set_id,locatie_id,week) VALUES (?,?,?)', [req.params.id, locatie_id, week]);
+      const loc=get('SELECT name FROM locaties WHERE id=?',[locatie_id]);
+      if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" → ${loc?.name||'?'} (week ${week})`,locatie_id,loc?.name);
     }
     saveDb(); res.json({ok:true});
+  });
+
+  // ── ACTIVITEITENLOG ──
+  app.get('/api/log',(req,res)=>{
+    const {locatie_id, type, limit=200}=req.query;
+    const conditions=[];const params=[];
+    if(locatie_id){conditions.push('locatie_id=?');params.push(parseInt(locatie_id));}
+    if(type&&type!=='alle'){conditions.push('type=?');params.push(type);}
+    let sql='SELECT * FROM activiteiten_log';
+    if(conditions.length) sql+=' WHERE '+conditions.join(' AND ');
+    sql+=' ORDER BY id DESC LIMIT ?';
+    params.push(Math.min(parseInt(limit)||200,500));
+    res.json(all(sql,params));
   });
 
   // ── GEDEELD MATERIAAL ──
