@@ -584,6 +584,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="btn-o" id="pl-week-next" onclick="setPlannerWk(1)">&#8594;</button>
       <div style="flex:1"></div>
       <button class="btn-g" onclick="genereerVoorstellen()">&#9889; Voorstel genereren</button>
+      <button class="btn-r" onclick="openSpoedtransport()">&#128680; Spoedtransport</button>
       <button class="btn-b" onclick="openNieuweTransport()">+ Toevoegen</button>
     </div>
 
@@ -875,6 +876,36 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="btn-g" style="flex:1" onclick="saveTpTaak()">&#128190; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-transport')">Annuleren</button>
       <button class="btn-del-sm" id="tp-delete-btn" style="display:none" onclick="deleteTpTaak()">&#128465; Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-spoedtransport">
+  <div class="modal" style="width:480px">
+    <div class="modal-title"><span>&#128680; Spoedtransport</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-spoedtransport')">&#x2715;</button></div>
+    <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">&#8505; Een dringend transport. De voorraad wordt meteen aangepast: verbruiksmateriaal gaat uit de bronvoorraad, uitrusting verhuist van bron naar bestemming.</div>
+    <div class="fr">
+      <div class="fg md"><label for="spt-kind">Soort</label><select class="sel" id="spt-kind" onchange="spoedKindChange()">
+        <option value="verbruik">&#129529; Verbruiksmateriaal</option>
+        <option value="gedeeld">&#128295; Uitrusting</option>
+        <option value="geen">&#9999;&#65039; Vrije omschrijving</option>
+      </select></div>
+      <div class="fg grow" id="spt-item-wrap"><label for="spt-item">Item</label><select class="sel" id="spt-item" style="width:100%"></select></div>
+      <div class="fg grow" id="spt-naam-wrap" style="display:none"><label for="spt-naam">Omschrijving</label><input class="inp" type="text" id="spt-naam" placeholder="bv. Tafels"></div>
+      <div class="fg sm"><label for="spt-qty">Aantal</label><input class="inp" type="number" id="spt-qty" value="1" min="1" style="width:64px"></div>
+    </div>
+    <div class="fr">
+      <div class="fg grow"><label for="spt-van">Van</label><select class="sel" id="spt-van" style="width:100%"></select></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:1px;font-size:16px">&rarr;</div>
+      <div class="fg grow"><label for="spt-naar">Naar</label><select class="sel" id="spt-naar" style="width:100%"></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg md"><label for="spt-datum">Datum</label><input class="inp" type="date" id="spt-datum"></div>
+      <div class="fg sm"><label for="spt-tijd">Tijdstip</label><input class="inp" type="time" id="spt-tijd" value="09:00"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      <button class="btn-r" style="flex:1" onclick="saveSpoedtransport()">&#128680; Spoedtransport aanmaken</button>
+      <button class="btn-o" onclick="closeModal('modal-spoedtransport')">Annuleren</button>
     </div>
   </div>
 </div>
@@ -3739,7 +3770,7 @@ function _buildCatItems(){
     });
   });
   (_invGedeeld||[]).forEach(m=>{
-    items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,stockage_locatie_id:m.stockage_locatie_id||null});
+    items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,stockage_locatie_id:m.stockage_locatie_id||null,stock:m.stock||[]});
   });
   return items;
 }
@@ -3848,8 +3879,13 @@ function _renderCatRow(item,stockLocs){
     :item.type==='gedeeld'
     ?`${item.qty} <span style="font-size:9px;color:var(--text3)">st</span>`
     :`×${item.qty}`;
-  const stk=item.stockage_locatie_id?stockLocs.find(l=>l.id==item.stockage_locatie_id):null;
-  const stkCell=stk?`📦 ${_escH(stk.name)}`:'<span style="color:var(--text3)">—</span>';
+  let stkCell;
+  if(item.type==='gedeeld'&&item.stock&&item.stock.length){
+    stkCell=item.stock.map(s=>`${_escH(s.locatie_name)}:&nbsp;<b>${s.qty}</b>`).join('<br>');
+  }else{
+    const stk=item.stockage_locatie_id?stockLocs.find(l=>l.id==item.stockage_locatie_id):null;
+    stkCell=stk?`📦 ${_escH(stk.name)}`:'<span style="color:var(--text3)">—</span>';
+  }
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
   return `<tr>
     <td title="${_catTypeLbl[item.type]}" style="text-align:center;font-size:15px">${ico}</td>
@@ -4381,6 +4417,68 @@ async function dropTransportOp(datum){
     showToast('Transport verplaatst','success');
     if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
   }
+}
+
+// ── SPOEDTRANSPORT ──
+let _spVerbruik=[];
+async function openSpoedtransport(){
+  const locOpts=(S.locaties||[]).map(l=>`<option value="${l.id}">${l.type==='stockage'?'\u{1F4E6}':'⛺'} ${_escH(l.name)}</option>`).join('');
+  document.getElementById('spt-van').innerHTML=locOpts;
+  document.getElementById('spt-naar').innerHTML=locOpts;
+  document.getElementById('spt-datum').value=new Date().toISOString().slice(0,10);
+  document.getElementById('spt-tijd').value='09:00';
+  document.getElementById('spt-qty').value='1';
+  document.getElementById('spt-naam').value='';
+  try{_spVerbruik=await api('GET','/verbruik');}catch(e){_spVerbruik=[];}
+  if(!_invGedeeld||!_invGedeeld.length){try{_invGedeeld=await api('GET','/gedeeld');}catch(e){_invGedeeld=[];}}
+  document.getElementById('spt-kind').value='verbruik';
+  spoedKindChange();
+  openModal('modal-spoedtransport');
+}
+function spoedKindChange(){
+  const kind=document.getElementById('spt-kind').value;
+  const itemWrap=document.getElementById('spt-item-wrap');
+  const naamWrap=document.getElementById('spt-naam-wrap');
+  const sel=document.getElementById('spt-item');
+  if(kind==='geen'){
+    itemWrap.style.display='none';naamWrap.style.display='';
+    return;
+  }
+  itemWrap.style.display='';naamWrap.style.display='none';
+  if(kind==='verbruik'){
+    const items=_spVerbruik||[];
+    sel.innerHTML=items.length?items.map(i=>`<option value="${i.id}">${_escH(i.name)}</option>`).join(''):'<option value="">— geen verbruiksmateriaal —</option>';
+  }else{
+    const items=_invGedeeld||[];
+    sel.innerHTML=items.length?items.map(i=>`<option value="${i.id}">${_escH(i.name)}</option>`).join(''):'<option value="">— geen uitrusting —</option>';
+  }
+}
+async function saveSpoedtransport(){
+  const kind=document.getElementById('spt-kind').value;
+  const van=parseInt(document.getElementById('spt-van').value)||null;
+  const naar=parseInt(document.getElementById('spt-naar').value)||null;
+  const qty=Math.max(1,parseInt(document.getElementById('spt-qty').value)||1);
+  const datum=document.getElementById('spt-datum').value;
+  const tijd=document.getElementById('spt-tijd').value||'09:00';
+  let item='',ref_id=null;
+  if(kind==='geen'){
+    item=document.getElementById('spt-naam').value.trim();
+    if(!item){showToast('Geef een omschrijving','warn');return;}
+  }else{
+    const sel=document.getElementById('spt-item');
+    ref_id=parseInt(sel.value)||null;
+    if(!ref_id){showToast('Kies een item','warn');return;}
+    item=sel.options[sel.selectedIndex].textContent.trim();
+  }
+  if(van&&naar&&van===naar){showToast('Van en naar mogen niet gelijk zijn','warn');return;}
+  if(kind==='gedeeld'&&!naar){showToast('Kies een bestemming voor de uitrusting','warn');return;}
+  const r=await api('POST','/spoedtransport',{datum,tijd,van_locatie_id:van,naar_locatie_id:naar,item,qty,kind,ref_id});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  closeModal('modal-spoedtransport');
+  showToast('Spoedtransport aangemaakt','success');
+  try{_invGedeeld=await api('GET','/gedeeld');}catch(e){}
+  if(document.getElementById('sec-transport-plan')?.classList.contains('active'))renderPlanner();
+  if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
 }
 
 function plannerWeekDagen(week){

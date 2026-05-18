@@ -242,6 +242,9 @@ async function startServer() {
     -- Migration 8: terugkomst flow
     CREATE TABLE IF NOT EXISTS terugkomst_rapporten (id INTEGER PRIMARY KEY AUTOINCREMENT, kampmoment_id INTEGER NOT NULL, datum TEXT NOT NULL, notities TEXT DEFAULT '', created_at TEXT DEFAULT '');
     CREATE TABLE IF NOT EXISTS terugkomst_regels (id INTEGER PRIMARY KEY AUTOINCREMENT, rapport_id INTEGER NOT NULL, item_naam TEXT NOT NULL, set_id INTEGER, status TEXT DEFAULT 'ok', opmerking TEXT DEFAULT '');
+
+    -- Migration 10: per-locatie telling voor gedeeld materiaal (uitrusting zoals ovens)
+    CREATE TABLE IF NOT EXISTS gedeeld_stock (id INTEGER PRIMARY KEY AUTOINCREMENT, gedeeld_id INTEGER NOT NULL, locatie_id INTEGER NOT NULL, qty INTEGER NOT NULL DEFAULT 0, UNIQUE(gedeeld_id,locatie_id), FOREIGN KEY(gedeeld_id) REFERENCES gedeeld_items(id) ON DELETE CASCADE);
   `);
 
   // Migrations for existing DBs
@@ -1016,12 +1019,22 @@ async function startServer() {
   });
 
   // ── GEDEELD MATERIAAL ──
+  // Zorg dat een gedeeld item per-locatie voorraad heeft; bij ontbreken staat alles op thuis-stockage
+  function ensureGedeeldStock(item){
+    const rows=all('SELECT * FROM gedeeld_stock WHERE gedeeld_id=?',[item.id]);
+    if(!rows.length && item.stockage_locatie_id && (item.totaal||0)>0){
+      run('INSERT OR IGNORE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,?)',[item.id,item.stockage_locatie_id,item.totaal]);
+      return all('SELECT * FROM gedeeld_stock WHERE gedeeld_id=?',[item.id]);
+    }
+    return rows;
+  }
   app.get('/api/gedeeld', (req,res) => {
     const items = all('SELECT * FROM gedeeld_items ORDER BY cat, name');
     const gebruik = all('SELECT gg.*, t.name as thema_name FROM gedeeld_gebruik gg LEFT JOIN themas t ON t.id=gg.thema_id');
     // Calculate conflicts per week: for each week, sum qty needed across all themas active that week
     const kts = all('SELECT * FROM kampmoment_themas');
     const kms = all('SELECT * FROM kampmomenten');
+    const locs = all('SELECT id,name,type FROM locaties');
     res.json(items.map(item => {
       const g = gebruik.filter(u => u.item_id === item.id);
       // Per week: which themas are active, how many of this item needed
@@ -1032,8 +1045,17 @@ async function startServer() {
         const needed = g.filter(u => activeThemas.has(u.thema_id)).reduce((sum, u) => sum + u.qty, 0);
         if (needed > 0) weekConflicts[week] = {needed, alarm: needed > item.totaal};
       }
-      return {...item, gebruik: g, weekConflicts};
+      const stock = ensureGedeeldStock(item).map(s=>({...s,locatie_name:(locs.find(l=>l.id===s.locatie_id)||{}).name||'?'}));
+      return {...item, gebruik: g, weekConflicts, stock};
     }));
+  });
+  // Voorraad per locatie zetten voor een gedeeld item
+  app.post('/api/gedeeld/:id/stock', (req,res) => {
+    const {locatie_id, qty} = req.body;
+    if(!locatie_id) return res.status(400).json({error:'Locatie vereist'});
+    run('INSERT OR REPLACE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,?)',[req.params.id,locatie_id,Math.max(0,qty||0)]);
+    saveDb();
+    res.json(get('SELECT * FROM gedeeld_stock WHERE gedeeld_id=? AND locatie_id=?',[req.params.id,locatie_id]));
   });
 
   app.post('/api/gedeeld', (req,res) => {
@@ -1049,6 +1071,7 @@ async function startServer() {
   });
   app.delete('/api/gedeeld/:id', (req,res) => {
     run('DELETE FROM gedeeld_gebruik WHERE item_id=?', [req.params.id]);
+    run('DELETE FROM gedeeld_stock WHERE gedeeld_id=?', [req.params.id]);
     run('DELETE FROM gedeeld_items WHERE id=?', [req.params.id]);
     saveDb(); res.json({ok:true});
   });
@@ -1063,6 +1086,39 @@ async function startServer() {
   app.delete('/api/gedeeld/:id/gebruik/:thema_id', (req,res) => {
     run('DELETE FROM gedeeld_gebruik WHERE item_id=? AND thema_id=?', [req.params.id, req.params.thema_id]);
     saveDb(); res.json({ok:true});
+  });
+
+  // ── SPOEDTRANSPORT ──
+  // Maakt een dringend transport + past de voorraad aan (verbruik of gedeeld/uitrusting)
+  app.post('/api/spoedtransport',(req,res)=>{
+    const {datum,tijd,van_locatie_id,naar_locatie_id,item,qty,kind,ref_id} = req.body;
+    const naam=(item||'').trim();
+    if(!naam) return res.status(400).json({error:'Item is verplicht'});
+    const aantal=Math.max(1,parseInt(qty)||1);
+    const ts=now();
+    const taakId=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+      ['extra',datum||isoDate(new Date()),tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts]);
+    ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taakId,naam,aantal,'spoed']);
+    // Voorraad-effect
+    if(kind==='verbruik' && ref_id && van_locatie_id){
+      run('INSERT OR IGNORE INTO verbruik_stock(item_id,locatie_id,qty,minimum,eenheid) VALUES(?,?,0,0,\'stuks\')',[ref_id,van_locatie_id]);
+      run('UPDATE verbruik_stock SET qty=MAX(0,qty-?) WHERE item_id=? AND locatie_id=?',[aantal,ref_id,van_locatie_id]);
+      ins('INSERT INTO verbruik_log(item_id,locatie_id,delta,reden,wie,transport_id,datum,created_at) VALUES(?,?,?,?,?,?,?,?)',
+        [ref_id,van_locatie_id,-aantal,'Spoedtransport','',taakId,isoDate(new Date()),new Date().toISOString()]);
+    } else if(kind==='gedeeld' && ref_id){
+      const gi=get('SELECT * FROM gedeeld_items WHERE id=?',[ref_id]);
+      if(gi) ensureGedeeldStock(gi);
+      if(van_locatie_id){
+        run('INSERT OR IGNORE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,0)',[ref_id,van_locatie_id]);
+        run('UPDATE gedeeld_stock SET qty=MAX(0,qty-?) WHERE gedeeld_id=? AND locatie_id=?',[aantal,ref_id,van_locatie_id]);
+      }
+      if(naar_locatie_id){
+        run('INSERT OR IGNORE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,0)',[ref_id,naar_locatie_id]);
+        run('UPDATE gedeeld_stock SET qty=qty+? WHERE gedeeld_id=? AND locatie_id=?',[aantal,ref_id,naar_locatie_id]);
+      }
+    }
+    saveDb();
+    res.json(get('SELECT * FROM transport_taken WHERE id=?',[taakId]));
   });
 
   app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
