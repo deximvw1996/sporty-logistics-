@@ -690,6 +690,12 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
               <option value="andere">&#128230; Andere</option>
             </select>
           </div>
+          <div class="fg md" id="cat-add-stockage-wrap">
+            <label for="cat-add-stockage">Opslag</label>
+            <select class="sel" id="cat-add-stockage">
+              <option value="">— Automatisch —</option>
+            </select>
+          </div>
           <button class="btn-g" onclick="addCatalogusItem()" style="align-self:flex-end">&#43; Toevoegen</button>
         </div>
       </div>
@@ -3463,6 +3469,10 @@ async function renderCatalogus(){
   }
   const thSel=document.getElementById('cat-add-thema');
   if(thSel) thSel.innerHTML=(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')||'<option value="">— Geen thema\'s —</option>';
+  // Vul stockage-dropdowns in add-form
+  const stOpts='<option value="">— Automatisch —</option>'+(S.locaties||[]).filter(l=>l.type==='stockage').map(l=>`<option value="${l.id}">📦 ${l.name}</option>`).join('');
+  const stSel=document.getElementById('cat-add-stockage');
+  if(stSel) stSel.innerHTML=stOpts;
   renderCatalogusAddForm();
   renderCatalogusLijst();
 }
@@ -3492,24 +3502,26 @@ async function addCatalogusItem(){
   if(!naam){showToast('Voer een naam in','warn');return;}
   const qty=parseInt(document.getElementById('cat-add-qty')?.value)||1;
   const cat=document.getElementById('cat-add-cat')?.value||'andere';
+  const stockage_locatie_id=parseInt(document.getElementById('cat-add-stockage')?.value)||null;
   if(type==='sport'){
-    const r=await api('POST','/sport',{name:naam,cat});
+    const r=await api('POST','/sport',{name:naam,cat,stockage_locatie_id});
     if(r.error)return;
     _invSport=[...(_invSport||[]),{...r,sets:[]}];
   } else if(type==='thema'){
     const thId=parseInt(document.getElementById('cat-add-thema')?.value);
     if(!thId){showToast('Kies een thema','warn');return;}
-    const r=await api('POST','/themas/'+thId+'/materiaal',{name:naam,qty});
+    const r=await api('POST','/themas/'+thId+'/materiaal',{name:naam,qty,stockage_locatie_id});
     if(r.error)return;
     const th=S.themas.find(t=>t.id===thId);
     if(th){th.materiaal=th.materiaal||[];th.materiaal.push(r);th.mat=th.materiaal;}
   } else {
-    const r=await api('POST','/standaard',{name:naam,qty,cat});
+    const r=await api('POST','/standaard',{name:naam,qty,cat,stockage_locatie_id});
     if(r.error)return;
     S.standaard.push(r);
   }
   document.getElementById('cat-add-naam').value='';
   document.getElementById('cat-add-qty').value='1';
+  document.getElementById('cat-add-stockage').value='';
   showToast('Artikel toegevoegd','success');
   renderCatalogusLijst();
 }
@@ -3524,15 +3536,15 @@ function setCatFilter(filter,btn){
 function _buildCatItems(){
   const items=[];
   (_invSport||[]).forEach(item=>{
-    items.push({type:'sport',raw_id:item.id,naam:item.name,sub:item.cat||'sport',thema:null,thema_id:null,thema_color:null,qty:null,sets:item.sets?.length||0});
+    items.push({type:'sport',raw_id:item.id,naam:item.name,sub:item.cat||'sport',thema:null,thema_id:null,thema_color:null,qty:null,sets:item.sets?.length||0,stockage_locatie_id:item.stockage_locatie_id||null});
   });
   (S.themas||[]).forEach(th=>{
     (th.materiaal||th.mat||[]).forEach(m=>{
-      items.push({type:'thema',raw_id:m.id,thema_id:th.id,naam:m.name,sub:null,thema:th.name,thema_color:th.color||'#1D9E75',qty:m.qty,sets:null});
+      items.push({type:'thema',raw_id:m.id,thema_id:th.id,naam:m.name,sub:null,thema:th.name,thema_color:th.color||'#1D9E75',qty:m.qty,sets:null,stockage_locatie_id:m.stockage_locatie_id||null});
     });
   });
   (S.standaard||[]).forEach(m=>{
-    items.push({type:'standaard',raw_id:m.id,naam:m.name,sub:m.cat||'andere',thema:null,thema_id:null,thema_color:null,qty:m.qty,sets:null});
+    items.push({type:'standaard',raw_id:m.id,naam:m.name,sub:m.cat||'andere',thema:null,thema_id:null,thema_color:null,qty:m.qty,sets:null,stockage_locatie_id:m.stockage_locatie_id||null});
   });
   return items;
 }
@@ -3593,6 +3605,8 @@ function renderCatalogusLijst(){
 
 function _renderCatRow(item,typeIco,typeLbl,typeClr){
   const uid=item.type+'-'+item.raw_id;
+  const stockageLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
+  const stockageOpts='<option value="">— Automatisch —</option>'+stockageLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${l.name}</option>`).join('');
   if(_catEditId===uid){
     const hasQty=item.qty!==null;
     const catOpts=item.type==='sport'
@@ -3602,8 +3616,9 @@ function _renderCatRow(item,typeIco,typeLbl,typeClr){
     return `<div class="row editing" style="gap:6px;flex-wrap:wrap;align-items:center">
       <span style="font-size:14px">${typeIco[item.type]}</span>
       <input class="inp gb" type="text" id="ce-naam-${uid}" value="${item.naam.replace(/"/g,'&quot;')}" style="flex:1;min-width:140px">
-      ${hasQty?`<input class="inp gb" type="number" id="ce-qty-${uid}" value="${item.qty}" min="1" style="width:65px">`:'' }
+      ${hasQty?`<input class="inp gb" type="number" id="ce-qty-${uid}" value="${item.qty}" min="1" style="width:65px">`:''}
       ${hasCat?`<select class="sel gb" id="ce-cat-${uid}" style="width:120px">${catOpts}</select>`:''}
+      <select class="sel gb" id="ce-stk-${uid}" style="width:130px">${stockageOpts}</select>
       <button class="bi save" onclick="saveCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})">&#x2713; Opslaan</button>
       <button class="bi" onclick="_catEditId=null;renderCatalogusLijst()">&#x2715;</button>
     </div>`;
@@ -3611,13 +3626,15 @@ function _renderCatRow(item,typeIco,typeLbl,typeClr){
   const badge=`<span class="pill ${typeClr[item.type]}">${typeIco[item.type]} ${typeLbl[item.type]}</span>`;
   const themaBadge=item.thema?`<span class="pill" style="background:${item.thema_color}22;color:${item.thema_color};border:.5px solid ${item.thema_color}55">${item.thema}</span>`:'';
   const subBadge=item.sub&&item.sub!=='andere'&&item.sub!=='sport'?`<span style="font-size:10px;color:var(--text3)">${item.sub}</span>`:'';
+  const stockNaam=item.stockage_locatie_id?(stockageLocs.find(l=>l.id==item.stockage_locatie_id)?.name||null):null;
+  const stockBadge=stockNaam?`<span style="font-size:10px;color:var(--text2)">📦 ${stockNaam}</span>`:'';
   const extra=item.type==='sport'
     ?`${item.sets} set${item.sets!==1?'s':''}`
     :`×${item.qty}`;
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
   return `<div class="row">
     <div class="ri">
-      <div class="rm" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${badge}${themaBadge}<span>${item.naam}</span>${subBadge}</div>
+      <div class="rm" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${badge}${themaBadge}<span>${item.naam}</span>${subBadge}${stockBadge}</div>
       <div class="rs" style="margin-top:2px">${extra}</div>
     </div>
     <div class="ra">
@@ -3633,21 +3650,22 @@ async function saveCatItem(type,id,themaId){
   if(!naam){showToast('Naam is verplicht','warn');return;}
   const qty=parseInt(document.getElementById('ce-qty-'+uid)?.value)||1;
   const cat=document.getElementById('ce-cat-'+uid)?.value||'andere';
+  const stockage_locatie_id=parseInt(document.getElementById('ce-stk-'+uid)?.value)||null;
   if(type==='sport'){
-    const r=await api('PUT','/sport/'+id,{name:naam,cat,notities:''});
+    const r=await api('PUT','/sport/'+id,{name:naam,cat,notities:'',stockage_locatie_id});
     if(r.error)return;
     const item=(_invSport||[]).find(i=>i.id===id);
-    if(item){item.name=naam;item.cat=cat;}
+    if(item){item.name=naam;item.cat=cat;item.stockage_locatie_id=stockage_locatie_id;}
   } else if(type==='thema'){
-    const r=await api('PUT','/themas/'+themaId+'/materiaal/'+id,{name:naam,qty});
+    const r=await api('PUT','/themas/'+themaId+'/materiaal/'+id,{name:naam,qty,stockage_locatie_id});
     if(r.error)return;
     const th=S.themas.find(t=>t.id===themaId);
-    if(th){const m=(th.materiaal||[]).find(m=>m.id===id);if(m){m.name=naam;m.qty=qty;}}
+    if(th){const m=(th.materiaal||[]).find(m=>m.id===id);if(m){m.name=naam;m.qty=qty;m.stockage_locatie_id=stockage_locatie_id;}}
   } else {
-    const r=await api('PUT','/standaard/'+id,{name:naam,qty,cat});
+    const r=await api('PUT','/standaard/'+id,{name:naam,qty,cat,stockage_locatie_id});
     if(r.error)return;
     const m=S.standaard.find(m=>m.id===id);
-    if(m){m.name=naam;m.qty=qty;m.cat=cat;}
+    if(m){m.name=naam;m.qty=qty;m.cat=cat;m.stockage_locatie_id=stockage_locatie_id;}
   }
   _catEditId=null;
   showToast('Opgeslagen','success');
