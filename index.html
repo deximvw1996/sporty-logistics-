@@ -4066,7 +4066,8 @@ function _renderCatRow(item,stockLocs){
     stkCell=stk?`📦 ${_escH(stk.name)}`:'<span style="color:var(--text3)">—</span>';
   }
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
-  const expanded=item.type==='verbruik'&&_catExpandId===uid;
+  const canExpand=item.type==='verbruik'||item.type==='gedeeld';
+  const expanded=canExpand&&_catExpandId===uid;
   const row=`<tr${_catSel.has(uid)?' style="background:var(--bg2)"':''}>
     <td style="text-align:center"><input type="checkbox"${_catSel.has(uid)?' checked':''} onclick="catSelToggle(${_q(uid)})"></td>
     <td title="${_catTypeLbl[item.type]}" style="text-align:center;font-size:15px">${item.type==='verbruik'&&item.alarm?'🔴':ico}</td>
@@ -4075,39 +4076,46 @@ function _renderCatRow(item,stockLocs){
     <td style="text-align:right;font-variant-numeric:tabular-nums">${aantal}</td>
     <td style="font-size:11px;color:var(--text2)">${stkCell}</td>
     <td style="text-align:right;white-space:nowrap">
-      ${item.type==='verbruik'?`<button class="bi" onclick="toggleCatExpand(${_q(uid)})" title="Voorraad per locatie">${expanded?'▲':'▼'}</button>`:''}
+      ${canExpand?`<button class="bi" onclick="toggleCatExpand(${_q(uid)})" title="Locaties tonen">${expanded?'▲':'▼'}</button>`:''}
       <button class="bi" onclick="_catEditId=${_q(uid)};renderCatalogusLijst()" title="Bewerken">&#x270F;&#xFE0F;</button>
       <button class="bi del" onclick="${delFn}" title="Verwijderen">&#128465;</button>
     </td>
   </tr>`;
-  return expanded?row+_renderVerbruikDetail(item):row;
+  return expanded?row+_renderStockDetail(item):row;
 }
 
 function toggleCatExpand(uid){_catExpandId=_catExpandId===uid?null:uid;renderCatalogusLijst();}
 
-function _renderVerbruikDetail(item){
+function _renderStockDetail(item){
+  const isVerbruik=item.type==='verbruik';
   const locs=(S.locaties||[]).slice().sort((a,b)=>{
     if(a.type!==b.type)return a.type==='stockage'?-1:1;
     return a.name.localeCompare(b.name,'nl');
   });
   if(!locs.length)return `<tr><td colspan="7" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
   const byLoc={};(item.stock||[]).forEach(s=>byLoc[s.locatie_id]=s);
+  const pref=isVerbruik?'vs':'gs';
   const rows=locs.map(l=>{
     const s=byLoc[l.id]||{qty:0,minimum:0};
-    const low=s.minimum>0&&s.qty<=s.minimum;
+    const low=isVerbruik&&s.minimum>0&&s.qty<=s.minimum;
+    const saveFn=isVerbruik?`saveVerbruikStock(${item.raw_id},${l.id})`:`saveGedeeldStock(${item.raw_id},${l.id})`;
     return `<tr>
       <td style="padding:3px 8px;font-size:12px">${l.type==='stockage'?'📦':'⛺'} ${_escH(l.name)}</td>
-      <td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="vs-q-${item.raw_id}-${l.id}" value="${s.qty}" style="width:70px${low?';color:var(--red)':''}"></td>
-      <td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="vs-m-${item.raw_id}-${l.id}" value="${s.minimum}" style="width:70px"></td>
-      <td style="padding:3px 8px"><button class="bi save" onclick="saveVerbruikStock(${item.raw_id},${l.id})" title="Opslaan">&#x2713;</button></td>
+      <td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="${pref}-q-${item.raw_id}-${l.id}" value="${s.qty}" style="width:70px${low?';color:var(--red)':''}"></td>
+      ${isVerbruik?`<td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="vs-m-${item.raw_id}-${l.id}" value="${s.minimum}" style="width:70px"></td>`:''}
+      <td style="padding:3px 8px"><button class="bi save" onclick="${saveFn}" title="Opslaan">&#x2713;</button></td>
     </tr>`;
   }).join('');
+  const verdeeld=locs.reduce((sum,l)=>sum+((byLoc[l.id]||{}).qty||0),0);
+  const hdr=isVerbruik
+    ?'📦 Voorraad &amp; minimum per locatie'
+    :`📦 Aantal per locatie · <b>${verdeeld}</b> verdeeld van ${item.qty||0} totaal`;
   return `<tr class="mat-detail"><td colspan="7" style="padding:0;background:var(--bg2)">
     <div style="padding:8px 12px">
-      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">📦 Voorraad &amp; minimum per locatie</div>
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">${hdr}</div>
       <table style="border-collapse:collapse">
         <thead><tr style="font-size:10px;color:var(--text3);text-align:left">
-          <th style="padding:2px 8px">Locatie</th><th style="padding:2px 4px">Voorraad</th><th style="padding:2px 4px">Minimum</th><th></th>
+          <th style="padding:2px 8px">Locatie</th><th style="padding:2px 4px">Aantal</th>${isVerbruik?'<th style="padding:2px 4px">Minimum</th>':''}<th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -4125,6 +4133,17 @@ async function saveVerbruikStock(itemId,locId){
   const fresh=await api('GET','/verbruik');
   if(Array.isArray(fresh))_invVerbruik=fresh;
   showToast('Voorraad bijgewerkt','success');
+  renderCatalogusLijst();
+}
+
+async function saveGedeeldStock(itemId,locId){
+  const qEl=document.getElementById('gs-q-'+itemId+'-'+locId);
+  const qty=Math.max(0,parseInt(qEl?.value)||0);
+  const r=await api('POST','/gedeeld/'+itemId+'/stock',{locatie_id:locId,qty});
+  if(r&&r.error)return;
+  const fresh=await api('GET','/gedeeld');
+  if(Array.isArray(fresh))_invGedeeld=fresh;
+  showToast('Locatie bijgewerkt','success');
   renderCatalogusLijst();
 }
 
