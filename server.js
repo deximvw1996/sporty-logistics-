@@ -158,6 +158,10 @@ async function startServer() {
     if (schemaVersion > 0) console.log('  Migratie 3 uitgevoerd');
   }
 
+  // Migration 5: lat/lng voor kaart view
+  addColumnIfMissing('locaties', 'lat', 'REAL');
+  addColumnIfMissing('locaties', 'lng', 'REAL');
+
   db.run(`
     CREATE TABLE IF NOT EXISTS locaties (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, addr TEXT DEFAULT '', type TEXT DEFAULT 'kamp', contact_naam TEXT DEFAULT '', contact_tel TEXT DEFAULT '', notities TEXT DEFAULT '');
     CREATE TABLE IF NOT EXISTS themas (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, color TEXT DEFAULT '#1D9E75', categorie TEXT DEFAULT '');
@@ -221,8 +225,20 @@ async function startServer() {
 
   // ── LOCATIES ──
   app.get('/api/locaties',(req,res)=>res.json(all('SELECT * FROM locaties ORDER BY type,name')));
-  app.post('/api/locaties',(req,res)=>{const{name,addr,type,contact_naam,contact_tel,notities}=req.body;if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});const id=ins('INSERT INTO locaties (name,addr,type,contact_naam,contact_tel,notities) VALUES (?,?,?,?,?,?)',[name.trim(),addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'']);res.json(get('SELECT * FROM locaties WHERE id=?',[id]));})
-  app.put('/api/locaties/:id',(req,res)=>{const{name,addr,type}=req.body;run('UPDATE locaties SET name=?,addr=?,type=? WHERE id=?',[name,addr||'',type||'kamp',req.params.id]);res.json(get('SELECT * FROM locaties WHERE id=?',[req.params.id]));});
+  app.post('/api/locaties',(req,res)=>{
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng}=req.body;
+    if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});
+    const id=ins('INSERT INTO locaties (name,addr,type,contact_naam,contact_tel,notities,lat,lng) VALUES (?,?,?,?,?,?,?,?)',
+      [name.trim(),addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null]);
+    res.json(get('SELECT * FROM locaties WHERE id=?',[id]));
+  });
+  app.put('/api/locaties/:id',(req,res)=>{
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng}=req.body;
+    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=? WHERE id=?',
+      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,req.params.id]);
+    saveDb();
+    res.json(get('SELECT * FROM locaties WHERE id=?',[req.params.id]));
+  });
   app.delete('/api/locaties/:id',(req,res)=>{run('DELETE FROM locaties WHERE id=?',[req.params.id]);res.json({ok:true});});
 
   // ── THEMAS ──

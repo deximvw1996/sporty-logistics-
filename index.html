@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Sporty vzw &mdash; Logistiek</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#fff;--bg2:#f5f5f3;--bg3:#eceae4;--text:#1a1a18;--text2:#6b6b67;--text3:#9a9a95;--border:rgba(0,0,0,.11);--border2:rgba(0,0,0,.2);--green:#1D9E75;--green-bg:#E1F5EE;--green-dk:#085041;--red:#E24B4A;--red-bg:#FCEBEB;--red-dk:#791F1F;--amber:#EF9F27;--amber-bg:#FAEEDA;--amber-dk:#633806;--blue:#378ADD;--blue-bg:#E6F1FB;--blue-dk:#0C447C;--r:8px;--rl:12px}
@@ -217,6 +220,11 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 .row{transition:background .1s;}
 .km-card{transition:box-shadow .15s;}
 .km-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08);}
+#kaart-map{height:420px;border-radius:var(--rl);border:.5px solid var(--border);overflow:hidden;}
+.loc-kaart-pin{background:var(--green-dk);color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25);}
+.loc-kaart-pin.stockage{background:#E65100;}
+.qr-print-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;}
+@media print{body>*:not(#qr-print-area){display:none!important}#qr-print-area{display:block!important}}
 @media(max-width:700px){
   .metrics{grid-template-columns:repeat(2,1fr);}
   .ov-dag-detail{grid-template-columns:1fr;}
@@ -445,30 +453,57 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 
     <!-- Subtab: Locaties -->
     <div id="plan-sub-locaties" style="display:none">
-      <div class="card">
-        <div class="card-hd">&#128205; Kamplocaties &amp; stockage</div>
-        <div id="loc-list"><div class="loading">Laden&hellip;</div></div>
-        <div class="divider"></div>
-        <div class="sl">Nieuwe locatie</div>
-        <div class="fr">
-          <div class="fg grow"><label for="loc-name">Naam <span style="color:var(--red)">*</span></label><input class="inp" type="text" id="loc-name" placeholder="bv. Sporthal Kessel-Lo" onkeydown="if(event.key==='Enter')addLoc()"></div>
-          <div class="fg grow"><label for="loc-addr">Adres</label><input class="inp" type="text" id="loc-addr" placeholder="Straat, gemeente"></div>
-          <div class="fg md"><label for="loc-type">Type</label><select class="sel" id="loc-type">
-            <option value="kamp">&#9978; Kamplocatie</option>
-            <option value="stockage">&#128230; Stockage</option>
-          </select></div>
-          <button class="btn-g" onclick="addLoc()">+ Toevoegen</button>
-          </div><div class="fr">
-          <div class="fg md"><label for="loc-contact-naam">Contactpersoon</label><input class="inp" type="text" id="loc-contact-naam" placeholder="Naam verantwoordelijke"></div>
-          <div class="fg md"><label for="loc-contact-tel">Telefoon</label><input class="inp" type="tel" id="loc-contact-tel" placeholder="+32 4..."></div>
-          <div class="fg grow"><label for="loc-notities">Notities</label><input class="inp" type="text" id="loc-notities" placeholder="Toegangscode, bijzonderheden..."></div>
-        </div>
+      <!-- View toggle -->
+      <div style="display:flex;gap:6px;margin-bottom:.75rem">
+        <button class="ov-view-btn active" id="loc-view-lijst" onclick="setLocView('lijst',this)">&#128203; Lijst</button>
+        <button class="ov-view-btn" id="loc-view-kaart" onclick="setLocView('kaart',this)">&#128205; Kaart</button>
       </div>
-      <!-- Basismateriaal per locatie -->
-      <div class="card">
-        <div class="card-hd">&#128230; Basismateriaal per locatie</div>
-        <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">&#8505; Dit materiaal gaat altijd mee naar de locatie, los van de thema&apos;s. Elke hoeveelheid is instelbaar per locatie.</div>
-        <div id="loc-mat-section"><div class="loading">Laden&hellip;</div></div>
+
+      <!-- Lijst view -->
+      <div id="loc-view-lijst-section">
+        <div class="card">
+          <div class="card-hd">&#128205; Kamplocaties &amp; stockage</div>
+          <div id="loc-list"><div class="loading">Laden&hellip;</div></div>
+          <div class="divider"></div>
+          <div class="sl">Nieuwe locatie</div>
+          <div class="fr">
+            <div class="fg grow"><label for="loc-name">Naam <span style="color:var(--red)">*</span></label><input class="inp" type="text" id="loc-name" placeholder="bv. Sporthal Kessel-Lo" onkeydown="if(event.key==='Enter')addLoc()"></div>
+            <div class="fg grow"><label for="loc-addr">Adres</label><input class="inp" type="text" id="loc-addr" placeholder="Straat, gemeente"></div>
+            <div class="fg md"><label for="loc-type">Type</label><select class="sel" id="loc-type">
+              <option value="kamp">&#9978; Kamplocatie</option>
+              <option value="stockage">&#128230; Stockage</option>
+            </select></div>
+            <button class="btn-xs" onclick="geocodeAddr(document.getElementById('loc-addr').value,'loc-lat','loc-lng')" title="Zoek coördinaten op basis van adres">&#128205; Kaart</button>
+            <button class="btn-g" onclick="addLoc()">+ Toevoegen</button>
+          </div>
+          <div class="fr">
+            <div class="fg md"><label for="loc-contact-naam">Contactpersoon</label><input class="inp" type="text" id="loc-contact-naam" placeholder="Naam verantwoordelijke"></div>
+            <div class="fg md"><label for="loc-contact-tel">Telefoon</label><input class="inp" type="tel" id="loc-contact-tel" placeholder="+32 4..."></div>
+            <div class="fg grow"><label for="loc-notities">Notities</label><input class="inp" type="text" id="loc-notities" placeholder="Toegangscode, bijzonderheden..."></div>
+          </div>
+          <input type="hidden" id="loc-lat">
+          <input type="hidden" id="loc-lng">
+        </div>
+        <!-- Basismateriaal per locatie -->
+        <div class="card">
+          <div class="card-hd">&#128230; Basismateriaal per locatie</div>
+          <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">&#8505; Dit materiaal gaat altijd mee naar de locatie, los van de thema&apos;s. Elke hoeveelheid is instelbaar per locatie.</div>
+          <div id="loc-mat-section"><div class="loading">Laden&hellip;</div></div>
+        </div>
+      </div><!-- /loc-view-lijst-section -->
+
+      <!-- Kaart view -->
+      <div id="loc-view-kaart-section" style="display:none">
+        <div class="card" style="padding:.75rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.625rem">
+            <div class="card-hd" style="margin:0">&#128205; Locaties op kaart</div>
+            <div style="font-size:11px;color:var(--text2)">Klik op een pin voor details &middot; Adres opslaan legt pin automatisch</div>
+          </div>
+          <div id="kaart-map"></div>
+          <div id="kaart-geen" style="display:none;font-size:12px;color:var(--text2);margin-top:.5rem;text-align:center">
+            Geen locaties met coördinaten. Bewerk een locatie en klik <strong>&#128205; Kaart</strong> naast het adresveld.
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1350,7 +1385,10 @@ function _buildSport(){
           h += '<button class="bi" style="font-size:10px;color:var(--red)" onclick="invDelSet(' + set.id + ')">&#x2715;</button></div>';
           h += '<div style="font-size:11px;color:var(--text2);margin-bottom:7px">&#128205; ' + (set.locatie_name||'Stockage') + '</div>';
           h += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">' + weeks + '</div>';
-          h += '<button class="btn-o" style="width:100%;font-size:10px;height:26px" onclick="invVerplaats(' + set.id + ')">&#128667; Verplaatsen</button>';
+          h += '<div style="display:flex;gap:4px">';
+          h += '<button class="btn-o" style="flex:1;font-size:10px;height:26px" onclick="invVerplaats(' + set.id + ')">&#128667; Verplaatsen</button>';
+          h += '<button class="bi" style="height:26px;font-size:12px" onclick="openQR(\'set\',' + set.id + ',' + JSON.stringify(item.name) + ',' + JSON.stringify(set.label) + ')" title="QR-code genereren">&#128247;</button>';
+          h += '</div>';
           h += '</div>';
         });
         h += '</div>';
@@ -3145,7 +3183,41 @@ async function saveStd(id){const r=await api('PUT','/standaard/'+id,{name:docume
 async function deleteStd(id){await api('DELETE','/standaard/'+id);S.standaard=S.standaard.filter(s=>s.id!==id);renderStandaard();}
 
 // LOCATIES
-function renderLocaties(){document.getElementById('loc-list').innerHTML=S.locaties.map(l=>{if(editingLoc===l.id)return `<div class="row editing" style="flex-direction:column;gap:6px;align-items:stretch"><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp gb" style="flex:2;min-width:120px" type="text" id="el-n-${l.id}" value="${l.name}" placeholder="Naam"><input class="inp gb" style="flex:2;min-width:140px" type="text" id="el-a-${l.id}" value="${l.addr||''}" placeholder="Adres"><select class="sel gb" id="el-t-${l.id}"><option value="kamp" ${l.type==='kamp'?'selected':''}>⛺ Kamp</option><option value="stockage" ${l.type==='stockage'?'selected':''}>📦 Stockage</option></select></div><div style="display:flex;gap:6px;flex-wrap:wrap"><input class="inp gb" style="flex:2;min-width:130px" type="text" id="el-cn-${l.id}" value="${l.contact_naam||''}" placeholder="Contactpersoon"><input class="inp gb" style="flex:1;min-width:110px" type="tel" id="el-ct-${l.id}" value="${l.contact_tel||''}" placeholder="Telefoon"><input class="inp gb" style="flex:3;min-width:160px" type="text" id="el-nt-${l.id}" value="${l.notities||''}" placeholder="Notities"><button class="bi save" onclick="saveLoc(${l.id})">✓ Opslaan</button><button class="bi" onclick="editingLoc=null;renderLocaties()">✕</button></div></div>`;return `<div class="row"><span>${l.type==='stockage'?'📦':'⛺'}</span><div class="ri"><div class="rm">${l.name}</div><div class="rs">${l.addr||'Geen adres'} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span></div>${l.contact_naam||l.contact_tel?`<div class="loc-contact">${l.contact_naam?'<span>👤 '+l.contact_naam+'</span>':''}${l.contact_tel?'<a href="tel:'+l.contact_tel+'">📱 '+l.contact_tel+'</a>':''}</div>`:''}${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}</div><div class="ra"><button class="bi" onclick="editingLoc=${l.id};renderLocaties()">✏️</button><button class="bi" style="color:var(--red)" onclick="deleteLoc(${l.id})">🗑️</button></div></div>`;}).join('')||'<div class="empty">Nog geen locaties.</div>';
+function renderLocaties(){
+  document.getElementById('loc-list').innerHTML=S.locaties.map(l=>{
+    const hasCoords = l.lat && l.lng;
+    if(editingLoc===l.id) return `
+      <div class="row editing" style="flex-direction:column;gap:6px;align-items:stretch">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input class="inp gb" style="flex:2;min-width:120px" type="text" id="el-n-${l.id}" value="${l.name}" placeholder="Naam">
+          <input class="inp gb" style="flex:3;min-width:140px" type="text" id="el-a-${l.id}" value="${l.addr||''}" placeholder="Adres">
+          <select class="sel gb" id="el-t-${l.id}"><option value="kamp" ${l.type==='kamp'?'selected':''}>⛺ Kamp</option><option value="stockage" ${l.type==='stockage'?'selected':''}>📦 Stockage</option></select>
+          <button class="btn-xs" onclick="geocodeAddr(document.getElementById('el-a-${l.id}').value,'el-lat-${l.id}','el-lng-${l.id}')" title="Zoek coördinaten">&#128205; Kaart</button>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input class="inp gb" style="flex:2;min-width:130px" type="text" id="el-cn-${l.id}" value="${l.contact_naam||''}" placeholder="Contactpersoon">
+          <input class="inp gb" style="flex:1;min-width:110px" type="tel" id="el-ct-${l.id}" value="${l.contact_tel||''}" placeholder="Telefoon">
+          <input class="inp gb" style="flex:3;min-width:160px" type="text" id="el-nt-${l.id}" value="${l.notities||''}" placeholder="Notities">
+          <input type="number" step="0.000001" class="inp gb" style="width:90px" id="el-lat-${l.id}" value="${l.lat||''}" placeholder="Lat">
+          <input type="number" step="0.000001" class="inp gb" style="width:90px" id="el-lng-${l.id}" value="${l.lng||''}" placeholder="Lng">
+          <button class="bi save" onclick="saveLoc(${l.id})">&#x2713; Opslaan</button>
+          <button class="bi" onclick="editingLoc=null;renderLocaties()">&#x2715;</button>
+        </div>
+      </div>`;
+    return `<div class="row">
+      <span>${l.type==='stockage'?'📦':'⛺'}</span>
+      <div class="ri">
+        <div class="rm">${l.name}${hasCoords?'<span style="font-size:9px;color:var(--green-dk);margin-left:5px">📍</span>':'<span style="font-size:9px;color:var(--text3);margin-left:5px" title="Geen coördinaten — bewerk om toe te voegen">○ geen kaart</span>'}</div>
+        <div class="rs">${l.addr||'Geen adres'} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span></div>
+        ${l.contact_naam||l.contact_tel?`<div class="loc-contact">${l.contact_naam?'<span>👤 '+l.contact_naam+'</span>':''}${l.contact_tel?'<a href="tel:'+l.contact_tel+'">📱 '+l.contact_tel+'</a>':''}</div>`:''}
+        ${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}
+      </div>
+      <div class="ra">
+        <button class="bi" onclick="editingLoc=${l.id};renderLocaties()">&#x270F;&#xFE0F;</button>
+        <button class="bi" style="color:var(--red)" onclick="deleteLoc(${l.id})">&#x1F5D1;&#xFE0F;</button>
+      </div>
+    </div>`;
+  }).join('')||'<div class="empty">Nog geen locaties.</div>';
   renderLocMatSection();
 }
 async function addLocMat(locId){
@@ -3239,9 +3311,169 @@ function renderLocMatSection(){
     el.appendChild(card);
   });
 }
-async function addLoc(){const name=document.getElementById('loc-name').value.trim();if(!name)return;const r=await api('POST','/locaties',{name,addr:document.getElementById('loc-addr').value.trim(),type:document.getElementById('loc-type').value});S.locaties.push(r);document.getElementById('loc-name').value='';document.getElementById('loc-addr').value='';renderLocaties();}
-async function saveLoc(id){const r=await api('PUT','/locaties/'+id,{name:document.getElementById('el-n-'+id).value.trim(),addr:document.getElementById('el-a-'+id).value.trim(),type:document.getElementById('el-t-'+id).value});S.locaties=S.locaties.map(l=>l.id===id?r:l);editingLoc=null;renderLocaties();}
+async function addLoc(){
+  const name=document.getElementById('loc-name').value.trim();if(!name)return;
+  const lat=parseFloat(document.getElementById('loc-lat').value)||null;
+  const lng=parseFloat(document.getElementById('loc-lng').value)||null;
+  const r=await api('POST','/locaties',{name,addr:document.getElementById('loc-addr').value.trim(),type:document.getElementById('loc-type').value,lat,lng});
+  if(r.error)return;
+  S.locaties.push(r);
+  document.getElementById('loc-name').value='';
+  document.getElementById('loc-addr').value='';
+  document.getElementById('loc-lat').value='';
+  document.getElementById('loc-lng').value='';
+  renderLocaties();
+}
+async function saveLoc(id){
+  const lat=parseFloat(document.getElementById('el-lat-'+id)?.value)||null;
+  const lng=parseFloat(document.getElementById('el-lng-'+id)?.value)||null;
+  const r=await api('PUT','/locaties/'+id,{
+    name:document.getElementById('el-n-'+id).value.trim(),
+    addr:document.getElementById('el-a-'+id).value.trim(),
+    type:document.getElementById('el-t-'+id).value,
+    contact_naam:document.getElementById('el-cn-'+id)?.value.trim()||'',
+    contact_tel:document.getElementById('el-ct-'+id)?.value.trim()||'',
+    notities:document.getElementById('el-nt-'+id)?.value.trim()||'',
+    lat,lng
+  });
+  if(r.error)return;
+  S.locaties=S.locaties.map(l=>l.id===id?r:l);
+  editingLoc=null;
+  renderLocaties();
+}
 async function deleteLoc(id){await api('DELETE','/locaties/'+id);S.locaties=S.locaties.filter(l=>l.id!==id);renderLocaties();}
+
+// ── KAART VIEW ──
+let _kaartMap=null;
+
+function setLocView(view,btn){
+  document.getElementById('loc-view-lijst-section').style.display=view==='lijst'?'':'none';
+  document.getElementById('loc-view-kaart-section').style.display=view==='kaart'?'':'none';
+  document.querySelectorAll('#plan-sub-locaties .ov-view-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(view==='kaart') renderKaart();
+}
+
+function renderKaart(){
+  const withCoords=S.locaties.filter(l=>l.lat&&l.lng);
+  const geen=document.getElementById('kaart-geen');
+  const mapDiv=document.getElementById('kaart-map');
+  if(!withCoords.length){
+    mapDiv.style.display='none';
+    if(geen)geen.style.display='';
+    return;
+  }
+  mapDiv.style.display='';
+  if(geen)geen.style.display='none';
+
+  if(_kaartMap){_kaartMap.remove();_kaartMap=null;}
+  const center=[withCoords.reduce((s,l)=>s+l.lat,0)/withCoords.length,
+                withCoords.reduce((s,l)=>s+l.lng,0)/withCoords.length];
+  _kaartMap=L.map('kaart-map').setView(center,10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(_kaartMap);
+
+  withCoords.forEach(l=>{
+    const isStock=l.type==='stockage';
+    const icon=L.divIcon({
+      className:'',
+      html:'<div class="loc-kaart-pin'+(isStock?' stockage':'')+'">'+l.name+'</div>',
+      iconAnchor:[0,0]
+    });
+    const popup='<b>'+(isStock?'📦':'⛺')+' '+l.name+'</b>'
+      +(l.addr?'<br><small>'+l.addr+'</small>':'')
+      +(l.contact_naam?'<br>'+l.contact_naam:'')
+      +(l.contact_tel?'<br><a href="tel:'+l.contact_tel+'">'+l.contact_tel+'</a>':'');
+    L.marker([l.lat,l.lng],{icon}).addTo(_kaartMap).bindPopup(popup);
+  });
+
+  if(withCoords.length>1){
+    const bounds=L.latLngBounds(withCoords.map(l=>[l.lat,l.lng]));
+    _kaartMap.fitBounds(bounds,{padding:[30,30]});
+  }
+}
+
+async function geocodeAddr(addrVal,latId,lngId){
+  const addr=(addrVal||'').trim();
+  if(!addr){showToast('Voer eerst een adres in','warn');return;}
+  showToast('Adres opzoeken…','info');
+  try{
+    const url='https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(addr);
+    const res=await fetch(url,{headers:{'Accept-Language':'nl'}});
+    const data=await res.json();
+    if(!data||!data.length){showToast('Adres niet gevonden','error');return;}
+    const lat=parseFloat(data[0].lat).toFixed(6);
+    const lng=parseFloat(data[0].lon).toFixed(6);
+    document.getElementById(latId).value=lat;
+    document.getElementById(lngId).value=lng;
+    showToast('📍 Coördinaten gevonden: '+lat+', '+lng,'success');
+  }catch(e){showToast('Geocoding mislukt','error');}
+}
+
+// ── QR CODES ──
+function openQR(type,id,naam,sublabel){
+  document.getElementById('qr-naam').textContent=naam||'Item';
+  document.getElementById('qr-sub').textContent=sublabel||'';
+  const payload=window.location.origin+window.location.pathname+'?qr='+type+'-'+id;
+  document.getElementById('qr-url').textContent=payload;
+  const canvas=document.getElementById('qr-canvas');
+  canvas.width=220;canvas.height=220;
+  QRCode.toCanvas(canvas,payload,{width:220,margin:2},function(err){
+    if(err){showToast('QR genereren mislukt','error');console.error(err);}
+  });
+  openModal('modal-qr');
+}
+
+function _printQR(){window.print();}
+
+function handleQrScan(){
+  const p=new URLSearchParams(window.location.search);
+  const qr=p.get('qr');
+  if(!qr)return;
+  const dashIdx=qr.indexOf('-');
+  if(dashIdx<0)return;
+  const type=qr.slice(0,dashIdx);
+  const id=parseInt(qr.slice(dashIdx+1));
+  if(!type||isNaN(id))return;
+
+  document.getElementById('scan-item-type').value=type;
+  document.getElementById('scan-item-id').value=id;
+
+  let naam='Item #'+id;
+  if(type==='set'){
+    outer:for(const item of (_invSport||[])){
+      for(const s of (item.sets||[])){
+        if(s.id===id){naam=item.name+(s.label?' — '+s.label:'');break outer;}
+      }
+    }
+  }
+  document.getElementById('scan-info').textContent=naam;
+  document.getElementById('scan-titel').textContent='📷 '+naam;
+
+  const locSel=document.getElementById('scan-loc');
+  locSel.innerHTML=S.locaties.map(l=>'<option value="'+l.id+'">'+(l.type==='stockage'?'📦':'⛺')+' '+l.name+'</option>').join('');
+  openModal('modal-scan');
+}
+
+async function doScanVerplaats(){
+  const type=document.getElementById('scan-item-type').value;
+  const id=parseInt(document.getElementById('scan-item-id').value);
+  const locId=parseInt(document.getElementById('scan-loc').value);
+  const loc=S.locaties.find(l=>l.id===locId);
+  if(!loc)return;
+
+  if(type==='set'){
+    const week=S.kampmomenten.length?Math.min(...S.kampmomenten.map(k=>k.week)):1;
+    const r=await api('POST','/sport/sets/'+id+'/plan',{week,locatie_id:locId});
+    if(r&&!r.error){
+      _patchSportPlan(id,week,locId,loc.name);
+      showToast('📍 Locatie bijgewerkt naar '+loc.name,'success');
+      closeModal('modal-scan');
+    }
+  }
+}
 
 // VOORRAAD
 function setVFilter(f,btn){vFilter=f;document.querySelectorAll('#sec-voorraad .fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderVoorraad();}
@@ -4012,7 +4244,7 @@ function printInventaris() {
 
 // ── NIEUWE 5-TAB ROUTING ──
 loadAll()
-  .then(()=>renderOverzicht())
+  .then(()=>{renderOverzicht();handleQrScan();})
   .catch(err=>{
     console.error('Load failed:',err);
     showToast('Server niet bereikbaar. Is de server gestart op poort 3001?','error');
@@ -4156,6 +4388,47 @@ loadAll()
     <div style="display:flex;gap:8px;margin-top:.75rem">
       <button class="btn-g" style="flex:1" onclick="saveMutatie()">&#x2713; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-mutatie')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: QR Code tonen -->
+<div class="modal-bg" id="modal-qr">
+  <div class="modal" style="width:340px;text-align:center">
+    <div class="modal-title">
+      <span>&#128247; QR Code</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-qr')">&#x2715;</button>
+    </div>
+    <div id="qr-print-area" class="qr-print-wrap" style="padding:.5rem">
+      <div id="qr-naam" style="font-size:14px;font-weight:600;margin-bottom:2px"></div>
+      <div id="qr-sub" style="font-size:11px;color:var(--text2);margin-bottom:.75rem"></div>
+      <canvas id="qr-canvas" style="border-radius:8px;border:.5px solid var(--border)"></canvas>
+      <div id="qr-url" style="font-size:9px;color:var(--text3);word-break:break-all;max-width:240px;margin-top:.25rem"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:1rem">
+      <button class="btn-b" onclick="_printQR()">&#128438; Afdrukken</button>
+      <button class="btn-o" onclick="closeModal('modal-qr')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: QR scan — locatie bijwerken -->
+<div class="modal-bg" id="modal-scan">
+  <div class="modal" style="width:380px">
+    <div class="modal-title">
+      <span id="scan-titel">&#128247; Gescand item</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-scan')">&#x2715;</button>
+    </div>
+    <div id="scan-info" style="background:var(--bg2);border-radius:var(--r);padding:10px 12px;margin-bottom:1rem;font-size:13px"></div>
+    <div class="fr"><div class="fg grow">
+      <label for="scan-loc">Verplaats naar locatie</label>
+      <select class="sel" id="scan-loc" style="width:100%"></select>
+    </div></div>
+    <input type="hidden" id="scan-item-id">
+    <input type="hidden" id="scan-item-type">
+    <div style="display:flex;gap:8px;margin-top:.75rem">
+      <button class="btn-g" style="flex:1" onclick="doScanVerplaats()">&#10003; Locatie bijwerken</button>
+      <button class="btn-o" onclick="closeModal('modal-scan')">Annuleren</button>
     </div>
   </div>
 </div>
