@@ -579,9 +579,13 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;">
-      <button class="btn-o" id="pl-week-prev" onclick="setPlannerWk(-1)">&#8592;</button>
+      <div style="display:flex;border:.5px solid var(--border2);border-radius:var(--r);overflow:hidden">
+        <button class="ov-view-btn active" id="pl-view-week" onclick="setPlannerView('week')">Week</button>
+        <button class="ov-view-btn" id="pl-view-dag" onclick="setPlannerView('dag')">Dag</button>
+      </div>
+      <button class="btn-o" id="pl-week-prev" onclick="plannerNav(-1)">&#8592;</button>
       <span id="pl-week-label" style="font-size:14px;font-weight:600;min-width:200px;text-align:center"></span>
-      <button class="btn-o" id="pl-week-next" onclick="setPlannerWk(1)">&#8594;</button>
+      <button class="btn-o" id="pl-week-next" onclick="plannerNav(1)">&#8594;</button>
       <div style="flex:1"></div>
       <button class="btn-g" onclick="genereerVoorstellen()">&#9889; Voorstel genereren</button>
       <button class="btn-r" onclick="openSpoedtransport()">&#128680; Spoedtransport</button>
@@ -681,6 +685,12 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       </select>
     </div>
 
+    <div id="tp-bulk-bar" style="display:none;align-items:center;gap:10px;background:var(--bg2);padding:8px 12px;border-radius:var(--r);margin-bottom:.5rem">
+      <span id="tp-bulk-count" style="font-size:12px;color:var(--text2)">0 geselecteerd</span>
+      <div style="flex:1"></div>
+      <button class="btn-o" onclick="clearTpSelectie()">Selectie wissen</button>
+      <button class="btn-del-sm" onclick="deleteSelectedTransporten()">&#128465; Verwijder geselecteerde</button>
+    </div>
     <div id="tp-ov-list"></div>
 
     <!-- Spoed toevoegen modal trigger hidden form -->
@@ -2156,7 +2166,7 @@ async function renderTransportenOV(){
       const stLbl={gepland:'Gepland',bevestigd:'Bevestigd',gedaan:'Gedaan'}[t.status]||t.status;
       card.className='tp-taak '+(t.type||'');
       const matH=(t.regels||[]).map(r=>`<div class="mat-row"><span class="mat-qty">\u00D7${r.qty}</span>${r.naam}</div>`).join('');
-      card.innerHTML=`<div class="tp-hd"><span style="font-size:16px">${icn}</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${t.opmerking||t.type}</div><div style="font-size:11px;color:var(--text2)">${van?.name||'?'} \u2192 ${naar?.name||'?'}${t.tijd?' \u00B7 '+t.tijd:''}${t.wie?' \u00B7 &#128100; '+t.wie:''}</div></div><span class="pill ${stCls}" style="cursor:pointer" title="Klik om status te wijzigen">${stLbl}</span></div>${matH?'<div class="tp-body">'+matH+'</div>':''}`;
+      card.innerHTML=`<div class="tp-hd"><input type="checkbox" class="tp-sel" ${_tpSelected.has(t.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleTpSelectie(${t.id},this)" style="width:15px;height:15px;flex-shrink:0;cursor:pointer" title="Selecteer"><span style="font-size:16px">${icn}</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${t.opmerking||t.type}</div><div style="font-size:11px;color:var(--text2)">${van?.name||'?'} \u2192 ${naar?.name||'?'}${t.tijd?' \u00B7 '+t.tijd:''}${t.wie?' \u00B7 &#128100; '+t.wie:''}</div></div><span class="pill ${stCls}" style="cursor:pointer" title="Klik om status te wijzigen">${stLbl}</span></div>${matH?'<div class="tp-body">'+matH+'</div>':''}`;
       card.querySelector('.tp-hd').onclick=()=>openEditTp(t.id);
       card.querySelector('.pill').onclick=e=>{e.stopPropagation();cycleStatus(e,t.id);};
       if((t.regels||[]).length>0){
@@ -2170,6 +2180,7 @@ async function renderTransportenOV(){
     el.appendChild(card);
   });
   updatePlannerMetrics();
+  updateTpBulkBar();
 }
 
 function setTpFilter(f,btn){
@@ -2177,6 +2188,36 @@ function setTpFilter(f,btn){
   document.querySelectorAll('#sec-transporten .fb').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderTransportenOV();
+}
+
+// ── Meerdere transporten selecteren & verwijderen ──
+const _tpSelected=new Set();
+function toggleTpSelectie(id,cb){
+  if(cb.checked)_tpSelected.add(id);else _tpSelected.delete(id);
+  updateTpBulkBar();
+}
+function updateTpBulkBar(){
+  const bar=document.getElementById('tp-bulk-bar');
+  if(!bar)return;
+  bar.style.display=_tpSelected.size?'flex':'none';
+  const c=document.getElementById('tp-bulk-count');
+  if(c)c.textContent=_tpSelected.size+' geselecteerd';
+}
+function clearTpSelectie(){
+  _tpSelected.clear();
+  updateTpBulkBar();
+  renderTransportenOV();
+}
+async function deleteSelectedTransporten(){
+  const ids=[..._tpSelected];
+  if(!ids.length)return;
+  if(!confirm(ids.length+' transport'+(ids.length!==1?'en':'')+' verwijderen? Dit kan niet ongedaan gemaakt worden.'))return;
+  for(const id of ids){await api('DELETE','/transport-taken/'+id);}
+  _tpSelected.clear();
+  updateTpBulkBar();
+  showToast(ids.length+' transport'+(ids.length!==1?'en':'')+' verwijderd','success');
+  renderTransportenOV();
+  if(document.getElementById('sec-transport-plan')?.classList.contains('active'))renderPlanner();
 }
 
 function openNieuweSpoed(){
@@ -3563,6 +3604,13 @@ function _kampCardHTML(km){
   </div>`;
 }
 
+function _materiaalKeuzeOpts(){
+  const names=new Set();
+  (_invSport||[]).forEach(i=>{if(i&&i.name)names.add(i.name);});
+  (S.themas||[]).forEach(t=>(t.materiaal||t.mat||[]).forEach(m=>{if(m&&m.name)names.add(m.name);}));
+  (_invGedeeld||[]).forEach(i=>{if(i&&i.name)names.add(i.name);});
+  return [...names].sort((a,b)=>a.localeCompare(b,'nl'));
+}
 function _locMatRowsHTML(locId){
   const mat=S.locMat[locId]||[];
   let h='';
@@ -3574,7 +3622,10 @@ function _locMatRowsHTML(locId){
     }
   });
   if(!mat.length)h+='<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Nog geen standaardmateriaal.</div>';
-  h+='<div class="add-row" style="margin-top:8px"><input type="text" class="ai grow" id="lm-n-'+locId+'" placeholder="Naam materiaal…"><input type="number" class="ai sm" id="lm-q-'+locId+'" value="1" min="1"><button class="btn-xs" onclick="addLocMat('+locId+')">+ Toevoegen</button></div>';
+  const opts=_materiaalKeuzeOpts();
+  const selOpts=opts.length?opts.map(n=>`<option value="${_attrH(n)}">${_escH(n)}</option>`).join(''):'<option value="">— geen materiaal in de lijst —</option>';
+  h+='<div class="add-row" style="margin-top:8px"><select class="ai grow" id="lm-n-'+locId+'" title="Kies uit de materiaallijst">'+selOpts+'</select><input type="number" class="ai sm" id="lm-q-'+locId+'" value="1" min="1"><button class="btn-xs" onclick="addLocMat('+locId+')">+ Toevoegen</button></div>';
+  h+='<div style="font-size:10px;color:var(--text3);margin-top:5px">Kies uit bestaand materiaal. Nieuw materiaal voeg je toe in het Materiaal-tabblad.</div>';
   return h;
 }
 
@@ -3611,6 +3662,10 @@ async function renderLocatieDetail(){
   const isKamp=l.type!=='stockage';
   if(isKamp&&S.locMat[l.id]===undefined){
     try{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}catch(e){S.locMat[l.id]=[];}
+  }
+  if(isKamp){
+    if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
+    if(!_invGedeeld||!_invGedeeld.length){try{_invGedeeld=await api('GET','/gedeeld');}catch(e){}}
   }
   let h='';
   // Header
@@ -4400,10 +4455,30 @@ async function openHist(eid,label){document.getElementById('hist-item-title').te
 
 // ── TRANSPORTPLANNER (weekkalender) ──
 let plannerWk=1;        // huidig getoond week (1-9)
+let plannerView='week'; // 'week' of 'dag'
+let plannerDag=null;    // iso-datum in dagweergave
 let filterLocatie='';   // locatie_id string of ''
 let filterChauf='';     // naam string of ''
 let filterStatus='';    // 'gepland'|'bevestigd'|'gedaan'|''
 let _dragTpId=null;     // transport dat versleept wordt
+
+function setPlannerView(v){
+  plannerView=v;
+  const wb=document.getElementById('pl-view-week'),db=document.getElementById('pl-view-dag');
+  if(wb)wb.classList.toggle('active',v==='week');
+  if(db)db.classList.toggle('active',v==='dag');
+  if(v==='dag'&&!plannerDag){
+    const days=plannerWeekDagen(plannerWk);plannerDag=isoLocal(days[0]);
+  }
+  renderPlannerKalender();
+}
+function plannerNav(delta){
+  if(plannerView==='week'){setPlannerWk(delta);return;}
+  const base=plannerDag||isoLocal(plannerWeekDagen(plannerWk)[0]);
+  const d=new Date(base+'T12:00:00');d.setDate(d.getDate()+delta);
+  plannerDag=isoLocal(d);
+  renderPlannerKalender();
+}
 
 async function dropTransportOp(datum){
   if(_dragTpId==null)return;
@@ -4487,9 +4562,9 @@ function plannerWeekDagen(week){
   const ma=new Date(m);ma.setDate(m.getDate()+(week-1)*7);
   // Show zo-1 through zo (8 days: prep day zo before + ma..vr + za + zo)
   // Actually: show wo-1 through zo (to capture prep/ophaal days)
-  // Let's show the full week window: from 2 days before ma to 2 days after vr
+  // Week loopt van maandag t/m zondag
   const days=[];
-  const start=new Date(ma);start.setDate(ma.getDate()-1); // zo before = prep day
+  const start=new Date(ma); // maandag
   for(let i=0;i<7;i++){
     const d=new Date(start);d.setDate(start.getDate()+i);
     days.push(d);
@@ -4545,12 +4620,36 @@ function updatePlannerMetrics(){
   document.getElementById('pl-todo').textContent=plannerTaken.filter(t=>t.status==='gepland').length;
 }
 
-function renderPlannerKalender(){
-  // Week navigation
-  document.getElementById('pl-week-label').textContent=plannerWeekLabel(plannerWk);
-  document.getElementById('pl-week-prev').disabled=(plannerWk<=1);
-  document.getElementById('pl-week-next').disabled=(plannerWk>=9);
+function _plannerCardEl(t,wide){
+  const card=document.createElement('div');
+  const typColors={
+    levering:{bg:'#E1F5EE',border:'#5DCAA5',text:'#085041',icon:'🟢'},
+    ophaling:{bg:'#E6F1FB',border:'#85B7EB',text:'#0C447C',icon:'🔵'},
+    extra:{bg:'#FAEEDA',border:'#F0C878',text:'#633806',icon:'🟡'},
+    opdracht:{bg:'#F3EEFB',border:'#B89DE8',text:'#4A1F8C',icon:'📋'},
+  };
+  const tc=typColors[t.type]||typColors.opdracht;
+  card.style.cssText='background:'+tc.bg+';border:.5px solid '+tc.border+';border-radius:6px;padding:'+(wide?'8px 11px':'5px 7px')+';cursor:grab;';
+  card.draggable=true;
+  card.ondragstart=ev=>{_dragTpId=t.id;ev.dataTransfer.effectAllowed='move';card.style.opacity='.5';};
+  card.ondragend=()=>{_dragTpId=null;card.style.opacity='1';};
+  const van=S.locaties.find(l=>l.id===t.van_locatie_id);
+  const naar=S.locaties.find(l=>l.id===t.naar_locatie_id);
+  const stDot={gepland:'🔸',bevestigd:'🔹',gedaan:'✅'}[t.status]||'🔸';
+  const fs=wide?'13px':'10px',fs2=wide?'11px':'9px';
+  const locLabel=t.type==='opdracht'?'':(van&&naar?(wide?van.name+' → '+naar.name:van.name.split(' ')[0]+' → '+naar.name.split(' ')[0]):van?'Van '+(wide?van.name:van.name.split(' ')[0]):naar?'Naar '+(wide?naar.name:naar.name.split(' ')[0]):'');
+  card.innerHTML='<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
+    +'<span style="font-size:'+fs+'">'+tc.icon+'</span>'
+    +'<span style="font-size:'+fs+';font-weight:600;color:'+tc.text+';flex:1;overflow:hidden;'+(wide?'':'white-space:nowrap;text-overflow:ellipsis')+'">'+_escH(t.opmerking||t.type)+'</span>'
+    +'<span style="font-size:'+fs2+'">'+stDot+'</span>'
+    +'</div>'
+    +(locLabel?'<div style="font-size:'+fs2+';color:var(--text2)">'+_escH(locLabel)+'</div>':'')
+    +(t.tijd?'<div style="font-size:'+fs2+';color:var(--text2)">'+t.tijd+(t.wie?' · 👤 '+_escH(t.wie):'')+'</div>':'');
+  card.onclick=()=>openEditTp(t.id);
+  return card;
+}
 
+function renderPlannerKalender(){
   // Filter dropdowns
   const locSel=document.getElementById('pl-filter-loc');
   if(locSel.options.length<=1){
@@ -4566,15 +4665,29 @@ function renderPlannerKalender(){
 
   document.getElementById('pl-filter-status').value=filterStatus;
 
-  // Build the 7-column week view
-  const days=plannerWeekDagen(plannerWk);
   const DOW_FULL=['zo','ma','di','wo','do','vr','za'];
+  const DOW_LONG=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
   const MND_S=['','jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-  const gelotenSet=new Set((plannerTaken._gelotenDagen||[]));
 
   const grid=document.getElementById('pl-kalender-grid');
   grid.innerHTML='';
-  grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:6px;';
+  const prevBtn=document.getElementById('pl-week-prev'),nextBtn=document.getElementById('pl-week-next');
+  const wide=plannerView==='dag';
+
+  let days;
+  if(wide){
+    if(!plannerDag)plannerDag=isoLocal(plannerWeekDagen(plannerWk)[0]);
+    const d=new Date(plannerDag+'T12:00:00');
+    days=[d];
+    document.getElementById('pl-week-label').textContent=DOW_LONG[d.getDay()]+' '+d.getDate()+' '+MND_S[d.getMonth()+1];
+    prevBtn.disabled=false;nextBtn.disabled=false;
+    grid.style.cssText='display:grid;grid-template-columns:1fr;gap:6px;';
+  }else{
+    days=plannerWeekDagen(plannerWk);
+    document.getElementById('pl-week-label').textContent=plannerWeekLabel(plannerWk);
+    prevBtn.disabled=(plannerWk<=1);nextBtn.disabled=(plannerWk>=9);
+    grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:6px;';
+  }
 
   days.forEach(day=>{
     const iso=isoLocal(day);
@@ -4583,13 +4696,12 @@ function renderPlannerKalender(){
     const taken=takenOpDag(iso);
 
     const col=document.createElement('div');
-    col.style.cssText='min-height:120px;border-radius:var(--rl);overflow:hidden;'+(isWeekend?'opacity:.65':'');
+    col.style.cssText='min-height:120px;border-radius:var(--rl);overflow:hidden;'+(isWeekend&&!wide?'opacity:.65':'');
 
-    // Day header
     const hd=document.createElement('div');
-    hd.style.cssText='padding:5px 8px;font-size:11px;font-weight:600;display:flex;justify-content:space-between;align-items:center;'
+    hd.style.cssText='padding:5px 8px;font-size:'+(wide?'13px':'11px')+';font-weight:600;display:flex;justify-content:space-between;align-items:center;'
       +(isWeekend?'background:var(--bg3);color:var(--text3);':'background:var(--bg2);color:var(--text2);');
-    hd.innerHTML='<span>'+DOW_FULL[dow]+' '+day.getDate()+' '+MND_S[day.getMonth()+1]+'</span>'
+    hd.innerHTML='<span>'+(wide?DOW_LONG[dow]:DOW_FULL[dow])+' '+day.getDate()+' '+MND_S[day.getMonth()+1]+'</span>'
       +'<button style="background:transparent;border:none;cursor:pointer;font-size:14px;padding:0 2px;color:var(--text2)" title="Taak toevoegen op deze datum" onclick="openNieuweTransportOp(\''+iso+'\')">+</button>';
     col.appendChild(hd);
 
@@ -4601,37 +4713,11 @@ function renderPlannerKalender(){
 
     if(taken.length===0){
       const emp=document.createElement('div');
-      emp.style.cssText='font-size:10px;color:var(--text3);padding:6px 4px;text-align:center;';
-      emp.textContent=isWeekend?'—':'Vrij';
+      emp.style.cssText='font-size:'+(wide?'12px':'10px')+';color:var(--text3);padding:'+(wide?'16px':'6px 4px')+';text-align:center;';
+      emp.textContent=(isWeekend&&!wide)?'—':'Geen transporten';
       body.appendChild(emp);
     } else {
-      taken.sort((a,b)=>a.tijd.localeCompare(b.tijd)).forEach(t=>{
-        const card=document.createElement('div');
-        const typColors={
-          levering:{bg:'#E1F5EE',border:'#5DCAA5',text:'#085041',icon:'🟢'},
-          ophaling:{bg:'#E6F1FB',border:'#85B7EB',text:'#0C447C',icon:'🔵'},
-          extra:{bg:'#FAEEDA',border:'#F0C878',text:'#633806',icon:'🟡'},
-          opdracht:{bg:'#F3EEFB',border:'#B89DE8',text:'#4A1F8C',icon:'📋'},
-        };
-        const tc=typColors[t.type]||typColors.opdracht;
-        card.style.cssText='background:'+tc.bg+';border:.5px solid '+tc.border+';border-radius:6px;padding:5px 7px;cursor:grab;';
-        card.draggable=true;
-        card.ondragstart=ev=>{_dragTpId=t.id;ev.dataTransfer.effectAllowed='move';card.style.opacity='.5';};
-        card.ondragend=()=>{_dragTpId=null;card.style.opacity='1';};
-        const van=S.locaties.find(l=>l.id===t.van_locatie_id);
-        const naar=S.locaties.find(l=>l.id===t.naar_locatie_id);
-        const stDot={gepland:'🔸',bevestigd:'🔹',gedaan:'✅'}[t.status]||'🔸';
-        const locLabel=t.type==='opdracht'?'':(van&&naar?van.name.split(' ')[0]+' → '+naar.name.split(' ')[0]:van?'Van '+van.name.split(' ')[0]:naar?'Naar '+naar.name.split(' ')[0]:'');
-        card.innerHTML='<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
-          +'<span style="font-size:10px">'+tc.icon+'</span>'
-          +'<span style="font-size:10px;font-weight:600;color:'+tc.text+';flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+(t.opmerking||t.type)+'</span>'
-          +'<span style="font-size:9px">'+stDot+'</span>'
-          +'</div>'
-          +(locLabel?'<div style="font-size:9px;color:var(--text2)">'+locLabel+'</div>':'')
-          +(t.tijd?'<div style="font-size:9px;color:var(--text2)">'+t.tijd+(t.wie?' · 👤 '+t.wie:'')+'</div>':'');
-        card.onclick=()=>openEditTp(t.id);
-        body.appendChild(card);
-      });
+      taken.sort((a,b)=>a.tijd.localeCompare(b.tijd)).forEach(t=>body.appendChild(_plannerCardEl(t,wide)));
     }
     col.appendChild(body);
     grid.appendChild(col);
