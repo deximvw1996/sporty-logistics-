@@ -397,10 +397,8 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-materiaal">
     <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;">
-      <button class="kal-subtab active" onclick="setMatSubtab('catalogus',this)">&#128203; Overzicht</button>
-      <button class="kal-subtab" onclick="setMatSubtab('themas',this)">&#127991; Thema&apos;s</button>
-      <button class="kal-subtab" onclick="setMatSubtab('stockage',this)">&#128230; Voorraad</button>
-      <button class="kal-subtab" onclick="setMatSubtab('inventaris',this)">&#127890; Inventaris</button>
+      <button class="kal-subtab active" onclick="setMatSubtab('catalogus',this)">&#128230; Materiaal</button>
+      <button class="kal-subtab" onclick="setMatSubtab('themas',this)">&#127912; Thema&apos;s</button>
     </div>
 
     <!-- Thema's -->
@@ -444,50 +442,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       </div>
     </div>
 
-    <!-- Stockage & Voorraad -->
-    <div id="mat-sub-stockage" style="display:none">
-      <div style="display:flex;justify-content:space-between;margin-bottom:.875rem">
-        <div class="filter-row" style="margin-bottom:0">
-          <span class="filter-lbl">Toon:</span>
-          <button class="fb active" onclick="setVFilter('alle',this)">Alle</button>
-          <button class="fb" onclick="setVFilter('stockage',this)">&#128230; Stockage</button>
-          <button class="fb" onclick="setVFilter('kamp',this)">&#9978; Kamplocaties</button>
-        </div>
-        <button class="btn-g" onclick="setMatSubtabToMBeheer()">&#9881; Materiaal beheren</button>
-      </div>
-      <div id="voorraad-list"></div>
-
-      <!-- Inline materiaal beheer -->
-      <div id="mat-beheer-inline" style="display:none;margin-top:1rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-          <div style="font-size:13px;font-weight:600">&#128230; Materiaalitems beheren</div>
-          <button class="btn-o" onclick="document.getElementById('mat-beheer-inline').style.display='none';renderVoorraad();">&larr; Terug naar voorraad</button>
-        </div>
-        <div class="card">
-          <div class="card-hd">&#128230; Materiaalitems</div>
-          <div id="mat-beheer-list"></div>
-          <div class="divider"></div>
-          <div class="fr">
-            <div class="fg grow"><label for="mat-name">Naam</label><input class="inp" type="text" id="mat-name" placeholder="bv. Oven, Tenten&hellip;" onkeydown="if(event.key==='Enter')addMatItem()"></div>
-            <div class="fg md"><label for="mat-cat">Categorie</label><select class="sel" id="mat-cat">
-              <option value="keuken">&#127859; Keuken</option><option value="slaap">&#128719; Slaap</option>
-              <option value="sport">&#9917; Sport</option><option value="audio">&#128266; Audio</option>
-              <option value="ehbo">&#127973; EHBO</option><option value="admin">&#128203; Admin</option>
-              <option value="andere">&#128230; Andere</option>
-            </select></div>
-            <div class="fg md"><label for="mat-tracking">Bijhouden</label><select class="sel" id="mat-tracking">
-              <option value="per_stuk">Per stuk (met label)</option>
-              <option value="per_type">Per type + aantal</option>
-            </select></div>
-            <button class="btn-g" onclick="addMatItem()">+ Toevoegen</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Inventaris -->
-    <div id="mat-sub-inventaris" style="display:none"><div id="inv-content" style="min-height:100px"></div></div>
-
     <!-- Catalogus: alle materialen in één overzicht -->
     <div id="mat-sub-catalogus" style="display:none">
 
@@ -501,6 +455,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
               <option value="sport">&#9917; Sport</option>
               <option value="thema">&#127912; Thema-artikel</option>
               <option value="gedeeld">&#128295; Gedeeld</option>
+              <option value="verbruik">&#129529; Verbruik</option>
             </select>
           </div>
           <div class="fg grow">
@@ -543,6 +498,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           <button class="fb" id="cat-f-thema" onclick="setCatFilter('thema',this)">&#127912; Thema</button>
           <button class="fb" id="cat-f-standaard" onclick="setCatFilter('standaard',this)">&#128450; Locatie</button>
           <button class="fb" id="cat-f-gedeeld" onclick="setCatFilter('gedeeld',this)">&#128295; Gedeeld</button>
+          <button class="fb" id="cat-f-verbruik" onclick="setCatFilter('verbruik',this)">&#129529; Verbruik</button>
         </div>
         <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;flex-shrink:0">Groeperen
           <select class="sel" id="cat-group" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px">
@@ -1244,6 +1200,7 @@ async function addThemaMat(themaId){
 var _invSport = [];
 var _invGedeeld = [];
 var _invTab = 'sport';
+var _themaGedeeldTried = false;
 
 // ── HERBRUIKBARE MINI-MODAL HELPERS ──
 var _locKiesCb = null;
@@ -1966,25 +1923,13 @@ function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  ['themas','stockage','inventaris','catalogus'].forEach(t=>{
+  ['themas','catalogus'].forEach(t=>{
     const el=document.getElementById('mat-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
   if(tab==='themas'){renderThemas();renderThemaCatBeheer();// refresh cat selects
 document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.innerHTML=renderThemaCatSelect(cur);});}
-  else if(tab==='stockage'){
-  document.getElementById('mat-beheer-inline').style.display='none';
-  document.getElementById('voorraad-list').style.display='block';
-  renderVoorraad();
-}
-else if(tab==='inventaris'){renderInventarisTab();}
-else if(tab==='catalogus'){renderCatalogus();}
-}
-
-function setMatSubtabToMBeheer(){
-  document.getElementById('voorraad-list').style.display='none';
-  document.getElementById('mat-beheer-inline').style.display='block';
-  renderMatBeheer();
+  else if(tab==='catalogus'){renderCatalogus();}
 }
 
 // ── TAB RENDER FUNCTIONS ──
@@ -2227,9 +2172,6 @@ function openNieuweSpoed(){
     document.getElementById('sp-loc').innerHTML=S.locaties.map(l=>`<option value="${l.id}">${l.type==='stockage'?'\u{1F4E6}':'\u26FA'} ${l.name}</option>`).join('');
   }
 }
-
-// showMatBeheer compatibility shim
-function showMatBeheer(){ setMatSubtabToMBeheer(); }
 
 // renderKalender now routes to OD by default
 function renderKalender(){ 
@@ -3104,6 +3046,75 @@ async function deleteThemaMat(themaId, matId){
   setTimeout(()=>{const b=document.getElementById('thema-body-'+themaId);if(b)b.style.display='block';},50);
 }
 
+function _themaAddMode(themaId){
+  const mode=document.getElementById('thadd-mode-'+themaId)?.value;
+  const eg=document.getElementById('thadd-eigen-'+themaId);
+  const gd=document.getElementById('thadd-gedeeld-'+themaId);
+  if(eg)eg.style.display=mode==='gedeeld'?'none':'flex';
+  if(gd)gd.style.display=mode==='gedeeld'?'flex':'none';
+}
+
+function _reopenThemaBody(themaId){
+  setTimeout(()=>{const b=document.getElementById('thema-body-'+themaId);if(b)b.style.display='block';},50);
+}
+
+async function koppelGedeeld(themaId){
+  const gid=parseInt(document.getElementById('thg-sel-'+themaId)?.value);
+  if(!gid){showToast('Kies gedeeld materiaal','warn');return;}
+  const qty=Math.max(1,parseInt(document.getElementById('thg-q-'+themaId)?.value)||1);
+  const r=await api('POST','/gedeeld/'+gid+'/gebruik',{thema_id:themaId,qty});
+  if(r&&r.error)return;
+  const g=(_invGedeeld||[]).find(x=>x.id===gid);
+  if(g){
+    g.gebruik=g.gebruik||[];
+    const ex=g.gebruik.find(u=>u.thema_id===themaId);
+    const thName=(S.themas.find(t=>t.id===themaId)||{}).name;
+    if(ex)ex.qty=qty; else g.gebruik.push({item_id:gid,thema_id:themaId,qty,thema_name:thName});
+  }
+  renderThemas();
+  _reopenThemaBody(themaId);
+  showToast('Gedeeld materiaal gekoppeld','success');
+}
+
+async function updateGedeeldQty(themaId,gedeeldId){
+  const qty=Math.max(1,parseInt(document.getElementById('thg-eq-'+themaId+'-'+gedeeldId)?.value)||1);
+  const r=await api('POST','/gedeeld/'+gedeeldId+'/gebruik',{thema_id:themaId,qty});
+  if(r&&r.error)return;
+  const g=(_invGedeeld||[]).find(x=>x.id===gedeeldId);
+  if(g){const u=(g.gebruik||[]).find(x=>x.thema_id===themaId);if(u)u.qty=qty;}
+  renderThemas();
+  _reopenThemaBody(themaId);
+  showToast('Aantal bijgewerkt','success');
+}
+
+async function ontkoppelGedeeld(themaId,gedeeldId){
+  await api('DELETE','/gedeeld/'+gedeeldId+'/gebruik/'+themaId);
+  const g=(_invGedeeld||[]).find(x=>x.id===gedeeldId);
+  if(g)g.gebruik=(g.gebruik||[]).filter(u=>u.thema_id!==themaId);
+  renderThemas();
+  _reopenThemaBody(themaId);
+  showToast('Ontkoppeld','success');
+}
+
+async function convertNaarGedeeld(themaId,matId,gedeeldId,qty,alreadyLinked){
+  const g=(_invGedeeld||[]).find(x=>x.id===gedeeldId);
+  const msg=alreadyLinked
+    ?'Dit gedeelde materiaal is al gekoppeld aan dit thema. De dubbele thema-materiaalregel verwijderen?'
+    :('Deze thema-materiaalregel omzetten naar een koppeling met het gedeelde materiaal "'+(g?g.name:'')+'"?');
+  if(!confirm(msg))return;
+  const aantal=Math.max(1,parseInt(qty)||1);
+  if(!alreadyLinked){
+    const r=await api('POST','/gedeeld/'+gedeeldId+'/gebruik',{thema_id:themaId,qty:aantal});
+    if(r&&r.error)return;
+    if(g){g.gebruik=g.gebruik||[];const thName=(S.themas.find(t=>t.id===themaId)||{}).name;g.gebruik.push({item_id:gedeeldId,thema_id:themaId,qty:aantal,thema_name:thName});}
+  }
+  await api('DELETE','/themas/'+themaId+'/materiaal/'+matId);
+  S.themas=S.themas.map(t=>t.id===themaId?{...t,materiaal:(t.materiaal||[]).filter(m=>m.id!==matId)}:t);
+  renderThemas();
+  _reopenThemaBody(themaId);
+  showToast(alreadyLinked?'Dubbele regel opgeruimd':'Omgezet naar gedeeld materiaal','success');
+}
+
 function renderThemas(){
   // Ensure the themas subtab is visible
   const subDiv=document.getElementById('mat-sub-themas');
@@ -3117,6 +3128,10 @@ function renderThemas(){
   }
   const el=document.getElementById('thema-list');
   if(!el)return;
+  if(!_invGedeeld.length&&!_themaGedeeldTried){
+    _themaGedeeldTried=true;
+    api('GET','/gedeeld').then(r=>{if(Array.isArray(r))_invGedeeld=r;renderThemas();});
+  }
   el.innerHTML='';
   if(!S.themas.length){el.innerHTML='<div class="empty">Nog geen themas aangemaakt.</div>';return;}
 
@@ -3144,6 +3159,7 @@ function renderThemas(){
     groups[cat].forEach(t=>{
       const card=document.createElement('div');card.className='exp-card';
       const mat=t.materiaal||[];
+      const koppel=(_invGedeeld||[]).map(g=>{const u=(g.gebruik||[]).find(x=>x.thema_id===t.id);return u?{g,qty:u.qty}:null;}).filter(Boolean);
       const hd=document.createElement('div');hd.className='exp-hd';
       hd.onclick=(e)=>{if(editingThema===t.id)return;if(e.target.tagName!=='BUTTON'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='SELECT'&&!e.target.closest('button'))toggleThemaBody(t.id);};
 
@@ -3156,7 +3172,7 @@ function renderThemas(){
           <button class="bi" onclick="event.stopPropagation();editingThema=null;renderThemas()">✕</button>`;
       } else {
         hd.innerHTML=`<span class="thema-swatch" style="background:${t.color}"></span>
-          <div class="ri"><div class="rm">${t.name}</div><div class="rs">${mat.length} materiaalitems${t.categorie?' · '+t.categorie:''}</div></div>
+          <div class="ri"><div class="rm">${t.name}</div><div class="rs">${mat.length+koppel.length} materiaalitems${t.categorie?' · '+t.categorie:''}</div></div>
           <div class="ra">
             <button class="bi" onclick="event.stopPropagation();editingThema=${t.id};renderThemas()">✏️</button>
             <button class="bi" style="color:var(--red)" onclick="event.stopPropagation();deleteThema(${t.id})">🗑️</button>
@@ -3172,14 +3188,50 @@ function renderThemas(){
         } else {
           const qty=document.createElement('span');qty.className='mat-qty';qty.textContent='×'+m.qty;
           const nm=document.createElement('span');nm.style.flex='1';nm.textContent=m.name;
+          row.appendChild(qty);row.appendChild(nm);
+          const gMatch=(_invGedeeld||[]).find(g=>(g.name||'').trim().toLowerCase()===(m.name||'').trim().toLowerCase());
+          if(gMatch){
+            const linked=(gMatch.gebruik||[]).some(u=>u.thema_id===t.id);
+            const cb=document.createElement('button');cb.className='btn-xs';
+            cb.style.cssText='background:#BA751722;color:#BA7517;border:.5px solid #BA751755';
+            cb.textContent=linked?'Dubbel opruimen':'→ Koppel gedeeld';
+            cb.title=linked?('Al gekoppeld als gedeeld materiaal — verwijder deze dubbele thema-regel'):('Omzetten naar een koppeling met het gedeelde materiaal "'+gMatch.name+'"');
+            cb.onclick=()=>convertNaarGedeeld(t.id,m.id,gMatch.id,m.qty,linked);
+            row.appendChild(cb);
+          }
           const eb=document.createElement('button');eb.className='bi';eb.textContent='✏️';eb.onclick=()=>{editingThemaMat=m.id;renderThemas();body.style.display='block';};
           const db=document.createElement('button');db.className='bi';db.style.color='var(--red)';db.textContent='🗑️';db.onclick=()=>deleteThemaMat(t.id,m.id);
-          row.appendChild(qty);row.appendChild(nm);row.appendChild(eb);row.appendChild(db);
+          row.appendChild(eb);row.appendChild(db);
         }
         body.appendChild(row);
       });
-      const addRow=document.createElement('div');addRow.className='add-row';addRow.style.marginTop='8px';
-      addRow.innerHTML=`<input type="text" class="ai grow" id="thm-n-${t.id}" placeholder="Materiaal toevoegen…"><input type="number" class="ai sm" id="thm-q-${t.id}" value="1" min="1"><button class="btn-xs" onclick="addThemaMat(${t.id})">+ Toevoegen</button>`;
+      // Gekoppeld gedeeld materiaal
+      if(koppel.length){
+        const kl=document.createElement('div');kl.className='sl';kl.style.cssText='margin:10px 0 4px';kl.textContent='🔧 Gekoppeld gedeeld materiaal';body.appendChild(kl);
+        koppel.forEach(({g,qty})=>{
+          const row=document.createElement('div');row.className='mat-row';
+          row.innerHTML=`<input type="number" class="ai sm" id="thg-eq-${t.id}-${g.id}" value="${qty}" min="1" title="Aantal" style="width:52px">`
+            +`<span style="flex:1">🔧 ${_escH(g.name)}</span>`
+            +`<button class="bi save" onclick="updateGedeeldQty(${t.id},${g.id})" title="Aantal opslaan">✓</button>`
+            +`<button class="btn-xs" style="background:var(--bg2);color:var(--text2)" onclick="ontkoppelGedeeld(${t.id},${g.id})">Ontkoppel</button>`;
+          body.appendChild(row);
+        });
+      }
+      // Toevoegen / koppelen
+      const beschikbaar=(_invGedeeld||[]).filter(g=>!(g.gebruik||[]).some(u=>u.thema_id===t.id));
+      const gedeeldOpts=beschikbaar.length?beschikbaar.map(g=>`<option value="${g.id}">${_escH(g.name)}</option>`).join(''):'<option value="">— geen gedeeld materiaal —</option>';
+      const addRow=document.createElement('div');addRow.style.cssText='margin-top:10px;border-top:.5px solid var(--border);padding-top:8px';
+      addRow.innerHTML=`<select class="ai" id="thadd-mode-${t.id}" onchange="_themaAddMode(${t.id})" style="margin-bottom:6px">`
+        +`<option value="eigen">✏️ Nieuw thema-materiaal</option>`
+        +`<option value="gedeeld">🔧 Bestaand gedeeld koppelen</option></select>`
+        +`<div class="add-row" id="thadd-eigen-${t.id}" style="display:flex">`
+        +`<input type="text" class="ai grow" id="thm-n-${t.id}" placeholder="Materiaal toevoegen…">`
+        +`<input type="number" class="ai sm" id="thm-q-${t.id}" value="1" min="1">`
+        +`<button class="btn-xs" onclick="addThemaMat(${t.id})">+ Toevoegen</button></div>`
+        +`<div class="add-row" id="thadd-gedeeld-${t.id}" style="display:none">`
+        +`<select class="ai grow" id="thg-sel-${t.id}">${gedeeldOpts}</select>`
+        +`<input type="number" class="ai sm" id="thg-q-${t.id}" value="1" min="1">`
+        +`<button class="btn-xs" onclick="koppelGedeeld(${t.id})">🔗 Koppelen</button></div>`;
       body.appendChild(addRow);
       card.appendChild(hd);card.appendChild(body);
       el.appendChild(card);
@@ -3714,6 +3766,8 @@ async function renderLocatieDetail(){
 // ── MATERIAALCATALOGUS ──
 let _catFilter='alle';
 let _catEditId=null;
+let _catExpandId=null;
+let _invVerbruik=[];
 
 async function renderCatalogus(){
   if(!_invSport||!_invSport.length){
@@ -3723,6 +3777,10 @@ async function renderCatalogus(){
   if(!_invGedeeld||!_invGedeeld.length){
     const r=await api('GET','/gedeeld');
     _invGedeeld=Array.isArray(r)?r:[];
+  }
+  if(!_invVerbruik||!_invVerbruik.length){
+    const r=await api('GET','/verbruik');
+    _invVerbruik=Array.isArray(r)?r:[];
   }
   // Locatiemateriaal van alle kamplocaties inladen zodat het overzicht volledig is
   if(!S.locMat)S.locMat={};
@@ -3741,13 +3799,17 @@ async function renderCatalogus(){
   renderCatalogusLijst();
 }
 
+const _verbruikCatOpts='<option value="keuken">🍳 Keuken</option><option value="slaap">🛏️ Slaap</option><option value="sport">⚽ Sport</option><option value="audio">🔊 Audio</option><option value="ehbo">🏥 EHBO</option><option value="admin">📋 Admin</option><option value="andere">📦 Andere</option>';
+
 function renderCatalogusAddForm(){
   const type=document.getElementById('cat-add-type')?.value||'sport';
   const qw=document.getElementById('cat-add-qty-wrap');
   const tw=document.getElementById('cat-add-thema-wrap');
   const cw=document.getElementById('cat-add-cat-wrap');
+  const sw=document.getElementById('cat-add-stockage-wrap');
   const ql=qw?.querySelector('label');
   if(!qw)return;
+  if(sw)sw.style.display='';
   if(type==='sport'){
     qw.style.display='none';tw.style.display='none';cw.style.display='';
     document.getElementById('cat-add-cat').innerHTML='<option value="sport">⚽ Sport</option><option value="zwembad">🏊 Zwembad</option><option value="outdoor">🏕️ Outdoor</option><option value="andere">📦 Andere</option>';
@@ -3760,6 +3822,10 @@ function renderCatalogusAddForm(){
     qw.style.display='';tw.style.display='none';cw.style.display='';
     if(ql)ql.textContent='Totaal stuks';
     document.getElementById('cat-add-cat').innerHTML='<option value="opblaas">🎈 Opblaas</option><option value="keuken">🍳 Keuken</option><option value="gedeeld">📦 Andere</option>';
+  } else if(type==='verbruik'){
+    qw.style.display='none';tw.style.display='none';cw.style.display='';
+    if(sw)sw.style.display='none';
+    document.getElementById('cat-add-cat').innerHTML=_verbruikCatOpts;
   } else {
     qw.style.display='';tw.style.display='none';cw.style.display='';
     if(ql)ql.textContent='Aantal';
@@ -3789,6 +3855,10 @@ async function addCatalogusItem(){
     const r=await api('POST','/gedeeld',{name:naam,totaal:qty,cat,stockage_locatie_id});
     if(r.error)return;
     _invGedeeld=[...(_invGedeeld||[]),{...r,gebruik:[],weekConflicts:{}}];
+  } else if(type==='verbruik'){
+    const r=await api('POST','/materiaal',{name:naam,tracking:'verbruik',cat});
+    if(r.error)return;
+    _invVerbruik=[...(_invVerbruik||[]),{...r,stock:[],totaal:0,alarm:false,log:[]}];
   } else {
     const r=await api('POST','/standaard',{name:naam,qty,cat,stockage_locatie_id});
     if(r.error)return;
@@ -3825,13 +3895,17 @@ function _buildCatItems(){
     });
   });
   (_invGedeeld||[]).forEach(m=>{
-    items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,stockage_locatie_id:m.stockage_locatie_id||null,stock:m.stock||[]});
+    items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,gebruik:m.gebruik||[],stockage_locatie_id:m.stockage_locatie_id||null,stock:m.stock||[]});
+  });
+  (_invVerbruik||[]).forEach(m=>{
+    const minTot=(m.stock||[]).reduce((s,x)=>s+(x.minimum||0),0);
+    items.push({type:'verbruik',raw_id:m.id,naam:m.name,sub:m.cat||'andere',thema:null,thema_id:null,thema_color:null,qty:m.totaal||0,sets:null,stockage_locatie_id:null,stock:m.stock||[],minimum:minTot,alarm:!!m.alarm});
   });
   return items;
 }
 
-const _catTypeIco={sport:'⚽',thema:'🎨',standaard:'📋',gedeeld:'🔧'};
-const _catTypeLbl={sport:'Sport',thema:'Thema',standaard:'Locatie',gedeeld:'Gedeeld'};
+const _catTypeIco={sport:'⚽',thema:'🎨',standaard:'📋',gedeeld:'🔧',verbruik:'🧻'};
+const _catTypeLbl={sport:'Sport',thema:'Thema',standaard:'Locatie',gedeeld:'Gedeeld',verbruik:'Verbruik'};
 
 function renderCatalogusLijst(){
   const search=(document.getElementById('cat-search')?.value||'').toLowerCase().trim();
@@ -3857,7 +3931,7 @@ function renderCatalogusLijst(){
   if(statsEl){
     const tot=items.length,sh=filtered.length;
     const c=t=>items.filter(i=>i.type===t).length;
-    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${c('sport')} sport · 🎨 ${c('thema')} thema · 📋 ${c('standaard')} locatie · 🔧 ${c('gedeeld')} gedeeld`;
+    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${c('sport')} sport · 🎨 ${c('thema')} thema · 📋 ${c('standaard')} locatie · 🔧 ${c('gedeeld')} gedeeld · 🧻 ${c('verbruik')} verbruik`;
   }
 
   if(!filtered.length){el.innerHTML='<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';return;}
@@ -3901,15 +3975,19 @@ function renderCatalogusLijst(){
   </table>`;
 }
 
+const _verbruikCatLbl={keuken:'🍳 Keuken',slaap:'🛏️ Slaap',sport:'⚽ Sport',audio:'🔊 Audio',ehbo:'🏥 EHBO',admin:'📋 Admin',andere:'📦 Andere'};
+
 function _renderCatRow(item,stockLocs){
   const uid=item.type+'-'+item.raw_id;
   const ico=_catTypeIco[item.type]||'📦';
   if(_catEditId===uid){
-    const hasQty=item.qty!==null;
-    const hasCat=item.type==='sport'||item.type==='gedeeld';
-    const hasStk=item.type!=='standaard';
+    const hasQty=item.qty!==null&&item.type!=='sport'&&item.type!=='verbruik';
+    const hasCat=item.type==='sport'||item.type==='gedeeld'||item.type==='verbruik';
+    const hasStk=item.type!=='standaard'&&item.type!=='verbruik';
     const catOpts=item.type==='sport'
       ?`<option value="sport"${item.sub==='sport'?' selected':''}>⚽ Sport</option><option value="zwembad"${item.sub==='zwembad'?' selected':''}>🏊 Zwembad</option><option value="outdoor"${item.sub==='outdoor'?' selected':''}>🏕️ Outdoor</option><option value="andere"${item.sub==='andere'?' selected':''}>📦 Andere</option>`
+      :item.type==='verbruik'
+      ?Object.keys(_verbruikCatLbl).map(c=>`<option value="${c}"${(item.sub||'andere')===c?' selected':''}>${_verbruikCatLbl[c]}</option>`).join('')
       :`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`;
     const stockageOpts='<option value="">— Automatisch —</option>'+stockLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${_escH(l.name)}</option>`).join('');
     return `<tr class="mat-edit"><td colspan="6">
@@ -3924,35 +4002,93 @@ function _renderCatRow(item,stockLocs){
       </div>
     </td></tr>`;
   }
+  const _themaPill=(name,color)=>{const c=color||'#888780';return `<span class="pill" style="background:${c}22;color:${c};border:.5px solid ${c}55">${_escH(name)}</span>`;};
   const ctx=item.type==='thema'&&item.thema
-    ?`<span class="pill" style="background:${item.thema_color}22;color:${item.thema_color};border:.5px solid ${item.thema_color}55">${_escH(item.thema)}</span>`
+    ?_themaPill(item.thema,item.thema_color)
     :item.type==='standaard'
     ?`<span style="font-size:11px;color:var(--text2)">⛺ ${_escH(item.sub||'')}</span>`
+    :item.type==='gedeeld'
+    ?((item.gebruik&&item.gebruik.length)
+      ?`<span style="display:flex;flex-wrap:wrap;gap:3px">${item.gebruik.map(g=>{const th=(S.themas||[]).find(t=>t.id===g.thema_id);return _themaPill(g.thema_name||(th&&th.name)||'?',th&&th.color);}).join('')}</span>`
+      :'<span style="font-size:11px;color:var(--text3)">— geen thema —</span>')
     :(item.sub&&item.sub!=='andere'&&item.sub!=='sport'&&item.sub!=='gedeeld'?`<span style="font-size:11px;color:var(--text3)">${_escH(item.sub)}</span>`:'<span style="color:var(--text3)">—</span>');
   const aantal=item.type==='sport'
     ?`${item.sets} set${item.sets!==1?'s':''}`
     :item.type==='gedeeld'
     ?`${item.qty} <span style="font-size:9px;color:var(--text3)">st</span>`
+    :item.type==='verbruik'
+    ?`<span style="${item.alarm?'color:var(--red);font-weight:700':''}">${item.qty}</span>${item.minimum>0?`<br><span style="font-size:9px;color:var(--text3)">min ${item.minimum}</span>`:''}`
     :`×${item.qty}`;
   let stkCell;
-  if(item.type==='gedeeld'&&item.stock&&item.stock.length){
-    stkCell=item.stock.map(s=>`${_escH(s.locatie_name)}:&nbsp;<b>${s.qty}</b>`).join('<br>');
+  if((item.type==='gedeeld'||item.type==='verbruik')&&item.stock&&item.stock.length){
+    stkCell=item.stock.map(s=>{
+      const low=item.type==='verbruik'&&s.minimum>0&&s.qty<=s.minimum;
+      return `${_escH(s.locatie_name)}:&nbsp;<b style="${low?'color:var(--red)':''}">${s.qty}</b>`;
+    }).join('<br>');
   }else{
     const stk=item.stockage_locatie_id?stockLocs.find(l=>l.id==item.stockage_locatie_id):null;
     stkCell=stk?`📦 ${_escH(stk.name)}`:'<span style="color:var(--text3)">—</span>';
   }
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
-  return `<tr>
-    <td title="${_catTypeLbl[item.type]}" style="text-align:center;font-size:15px">${ico}</td>
-    <td style="font-weight:600">${_escH(item.naam)}${item.type==='gedeeld'&&item.gebrCount?`<span style="font-size:10px;color:var(--text3);font-weight:400"> · ${item.gebrCount} thema${item.gebrCount!==1?"'s":''}</span>`:''}</td>
+  const expanded=item.type==='verbruik'&&_catExpandId===uid;
+  const row=`<tr>
+    <td title="${_catTypeLbl[item.type]}" style="text-align:center;font-size:15px">${item.type==='verbruik'&&item.alarm?'🔴':ico}</td>
+    <td style="font-weight:600">${_escH(item.naam)}</td>
     <td>${ctx}</td>
     <td style="text-align:right;font-variant-numeric:tabular-nums">${aantal}</td>
     <td style="font-size:11px;color:var(--text2)">${stkCell}</td>
     <td style="text-align:right;white-space:nowrap">
+      ${item.type==='verbruik'?`<button class="bi" onclick="toggleCatExpand(${_q(uid)})" title="Voorraad per locatie">${expanded?'▲':'▼'}</button>`:''}
       <button class="bi" onclick="_catEditId=${_q(uid)};renderCatalogusLijst()" title="Bewerken">&#x270F;&#xFE0F;</button>
       <button class="bi del" onclick="${delFn}" title="Verwijderen">&#128465;</button>
     </td>
   </tr>`;
+  return expanded?row+_renderVerbruikDetail(item):row;
+}
+
+function toggleCatExpand(uid){_catExpandId=_catExpandId===uid?null:uid;renderCatalogusLijst();}
+
+function _renderVerbruikDetail(item){
+  const locs=(S.locaties||[]).slice().sort((a,b)=>{
+    if(a.type!==b.type)return a.type==='stockage'?-1:1;
+    return a.name.localeCompare(b.name,'nl');
+  });
+  if(!locs.length)return `<tr><td colspan="6" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
+  const byLoc={};(item.stock||[]).forEach(s=>byLoc[s.locatie_id]=s);
+  const rows=locs.map(l=>{
+    const s=byLoc[l.id]||{qty:0,minimum:0};
+    const low=s.minimum>0&&s.qty<=s.minimum;
+    return `<tr>
+      <td style="padding:3px 8px;font-size:12px">${l.type==='stockage'?'📦':'⛺'} ${_escH(l.name)}</td>
+      <td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="vs-q-${item.raw_id}-${l.id}" value="${s.qty}" style="width:70px${low?';color:var(--red)':''}"></td>
+      <td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="vs-m-${item.raw_id}-${l.id}" value="${s.minimum}" style="width:70px"></td>
+      <td style="padding:3px 8px"><button class="bi save" onclick="saveVerbruikStock(${item.raw_id},${l.id})" title="Opslaan">&#x2713;</button></td>
+    </tr>`;
+  }).join('');
+  return `<tr class="mat-detail"><td colspan="6" style="padding:0;background:var(--bg2)">
+    <div style="padding:8px 12px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">📦 Voorraad &amp; minimum per locatie</div>
+      <table style="border-collapse:collapse">
+        <thead><tr style="font-size:10px;color:var(--text3);text-align:left">
+          <th style="padding:2px 8px">Locatie</th><th style="padding:2px 4px">Voorraad</th><th style="padding:2px 4px">Minimum</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </td></tr>`;
+}
+
+async function saveVerbruikStock(itemId,locId){
+  const qEl=document.getElementById('vs-q-'+itemId+'-'+locId);
+  const mEl=document.getElementById('vs-m-'+itemId+'-'+locId);
+  const qty=Math.max(0,parseInt(qEl?.value)||0);
+  const minimum=Math.max(0,parseInt(mEl?.value)||0);
+  const r=await api('POST','/verbruik/'+itemId+'/stock',{locatie_id:locId,qty,minimum});
+  if(r&&r.error)return;
+  const fresh=await api('GET','/verbruik');
+  if(Array.isArray(fresh))_invVerbruik=fresh;
+  showToast('Voorraad bijgewerkt','success');
+  renderCatalogusLijst();
 }
 
 async function saveCatItem(type,id,themaId){
@@ -3977,6 +4113,11 @@ async function saveCatItem(type,id,themaId){
     if(r.error)return;
     const m=(_invGedeeld||[]).find(m=>m.id===id);
     if(m){m.name=naam;m.totaal=qty;m.cat=cat;m.stockage_locatie_id=stockage_locatie_id;}
+  } else if(type==='verbruik'){
+    const r=await api('PUT','/materiaal/'+id,{name:naam,tracking:'verbruik',cat});
+    if(r.error)return;
+    const m=(_invVerbruik||[]).find(m=>m.id===id);
+    if(m){m.name=naam;m.cat=cat;}
   } else if(type==='standaard'){
     // locatie_materiaal — loc_id is encoded in thema_id field for routing
     const r=await api('PUT','/locatie-materiaal/'+id,{name:naam,qty,cat:'andere'});
@@ -4000,6 +4141,9 @@ async function deleteCatItem(type,id,themaId){
   } else if(type==='gedeeld'){
     await api('DELETE','/gedeeld/'+id);
     _invGedeeld=(_invGedeeld||[]).filter(m=>m.id!==id);
+  } else if(type==='verbruik'){
+    await api('DELETE','/materiaal/'+id);
+    _invVerbruik=(_invVerbruik||[]).filter(m=>m.id!==id);
   } else if(type==='standaard'){
     await api('DELETE','/locatie-materiaal/'+id);
     Object.keys(S.locMat).forEach(lid=>{S.locMat[lid]=(S.locMat[lid]||[]).filter(m=>m.id!==id);});
