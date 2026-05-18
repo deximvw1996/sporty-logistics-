@@ -284,15 +284,14 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div style="font-size:11px;color:var(--text2)">Zomer 2026</div>
     </div>
     <div style="flex:1"></div>
-    <span class="badge-spoed" id="badge-spoed" style="display:none;background:var(--red);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="goTo('transporten')">&#128680; <span id="badge-spoed-n">0</span> spoed</span>
+    <span class="badge-spoed" id="badge-spoed" style="display:none;background:var(--red);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="goTo('transport-plan')">&#128680; <span id="badge-spoed-n">0</span> spoed</span>
   </div>
 
   <div class="nav">
-    <button class="nb active" onclick="goTo('overzicht')">&#128203; Overzicht</button>
-    <button class="nb" onclick="goTo('planning')">&#128197; Planning</button>
+    <button class="nb active" onclick="goTo('overzicht')">&#128202; Overzicht</button>
+    <button class="nb" onclick="goTo('transport-plan')">&#128197; Planning</button>
     <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
-    <button class="nb" onclick="goTo('transport-plan')">&#128667; Plannen</button>
-    <button class="nb" onclick="goTo('transporten')">&#128202; Transporten</button>
+    <button class="nb" onclick="goTo('planning')">&#128205; Locaties</button>
   </div>
 
   <div class="content">
@@ -320,7 +319,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="card" id="ov-spoed-card" style="display:none;border-color:#F09595">
         <div class="card-hd" style="color:#A32D2D;display:flex;justify-content:space-between;align-items:center">
           <span>&#128680; Open spoedleveringen</span>
-          <button class="btn-r" style="font-size:11px;height:26px" onclick="goTo('transporten')">Alle transporten &rarr;</button>
+          <button class="btn-r" style="font-size:11px;height:26px" onclick="goTo('transport-plan')">Alle transporten &rarr;</button>
         </div>
         <div id="ov-spoed-list"></div>
       </div>
@@ -329,7 +328,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="card">
         <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
           <span>&#128667; Aankomende transporten</span>
-          <button class="btn-o" onclick="goTo('transporten')">Alle transporten &rarr;</button>
+          <button class="btn-o" onclick="goTo('transport-plan')">Alle transporten &rarr;</button>
         </div>
         <div id="ov-transporten"></div>
       </div>
@@ -338,7 +337,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="card">
         <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
           <span>&#128197; Geplande kampmomenten</span>
-          <button class="btn-o" onclick="goTo('planning')">Bekijken &rarr;</button>
+          <button class="btn-o" onclick="goTo('planning')">Locaties &rarr;</button>
         </div>
         <div id="ov-kampen"></div>
       </div>
@@ -366,7 +365,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   </div><!-- /sec-overzicht -->
 
   <!-- ═══════════════════════════════════════════════════════
-       TAB 2: PLANNING
+       TAB 4: LOCATIES
   ═══════════════════════════════════════════════════════ -->
 
   <div class="sec" id="sec-planning">
@@ -714,6 +713,10 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
        TAB 4: TRANSPORT PLANNEN
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-transport-plan">
+    <div style="display:flex;gap:5px;margin-bottom:1rem">
+      <button class="kal-subtab active" onclick="goTo('transport-plan')">&#9889; Plannen</button>
+      <button class="kal-subtab" onclick="goTo('transporten')">&#128202; Alle transporten</button>
+    </div>
     <div class="metrics">
       <div class="metric"><div class="metric-label">Leveringen</div><div class="metric-val g" id="pl-lev">0</div></div>
       <div class="metric"><div class="metric-label">Ophalingen</div><div class="metric-val b" id="pl-oph">0</div></div>
@@ -791,10 +794,14 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </details>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════
-       TAB 5: TRANSPORTEN OVERZICHT
-  ═══════════════════════════════════════════════════════ -->
+  </div><!-- /sec-transport-plan -->
+
+  <!-- Transporten (bereikbaar via Planning tab → Alle transporten) -->
   <div class="sec" id="sec-transporten">
+    <div style="display:flex;gap:5px;margin-bottom:1rem">
+      <button class="kal-subtab" onclick="goTo('transport-plan')">&#9889; Plannen</button>
+      <button class="kal-subtab active" onclick="goTo('transporten')">&#128202; Alle transporten</button>
+    </div>
     <!-- Nieuwe spoed/opdracht toevoegen -->
     <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
       <button class="btn-r" onclick="openNieuweSpoed()">&#128680; Spoedlevering melden</button>
@@ -2004,8 +2011,9 @@ async function addSpoed(){
 
 
 
-// ── NIEUWE 5-TAB ROUTING ──
+// ── 4-TAB ROUTING ──
 const SECS=['overzicht','planning','materiaal','transport-plan','transporten'];
+
 
 function goTo(id){
   SECS.forEach(s=>{
@@ -2013,7 +2021,13 @@ function goTo(id){
     if(el) el.classList.toggle('active',s===id);
   });
   document.querySelectorAll('.nb').forEach((b,i)=>{
-    b.classList.toggle('active',['overzicht','planning','materiaal','transport-plan','transporten'][i]===id);
+    const active=[
+      id==='overzicht',
+      id==='transport-plan'||id==='transporten',
+      id==='materiaal',
+      id==='planning'
+    ][i]||false;
+    b.classList.toggle('active',active);
   });
   const renderMap={
     overzicht:renderOverzicht,
