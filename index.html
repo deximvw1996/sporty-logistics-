@@ -6,7 +6,7 @@
 <title>Sporty vzw &mdash; Logistiek</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- QR codes worden gegenereerd via api.qrserver.com (geen JS-bibliotheek nodig) -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#fff;--bg2:#f5f5f3;--bg3:#eceae4;--text:#1a1a18;--text2:#6b6b67;--text3:#9a9a95;--border:rgba(0,0,0,.11);--border2:rgba(0,0,0,.2);--green:#1D9E75;--green-bg:#E1F5EE;--green-dk:#085041;--red:#E24B4A;--red-bg:#FCEBEB;--red-dk:#791F1F;--amber:#EF9F27;--amber-bg:#FAEEDA;--amber-dk:#633806;--blue:#378ADD;--blue-bg:#E6F1FB;--blue-dk:#0C447C;--r:8px;--rl:12px}
@@ -3509,13 +3509,15 @@ function openTerugkomst(kmId){
   // Sportsets ingepland voor dit locatie + week
   // Alleen tonen als ze NIET ook de volgende week op dezelfde locatie blijven
   const gepland=[];
+  let sportBlijftAantal=0;
   const nextWeek=km.week+1;
   (_invSport||[]).forEach(item=>{
     (item.sets||[]).forEach(s=>{
-      const p=(s.planning||[]).find(pl=>pl.week===km.week&&pl.locatie_id===km.locatie_id);
+      const p=(s.planning||[]).find(pl=>Number(pl.week)===Number(km.week)&&Number(pl.locatie_id)===Number(km.locatie_id));
       if(!p) return;
-      const staysNextWeek=(s.planning||[]).some(pl=>pl.week===nextWeek&&pl.locatie_id===km.locatie_id);
-      if(!staysNextWeek) gepland.push({id:'s'+s.id,set_id:s.id,naam:item.name+' — '+s.label,type:'sport'});
+      const staysNextWeek=(s.planning||[]).some(pl=>Number(pl.week)===Number(nextWeek)&&Number(pl.locatie_id)===Number(km.locatie_id));
+      if(staysNextWeek) sportBlijftAantal++;
+      else gepland.push({id:'s'+s.id,set_id:s.id,naam:item.name+' — '+s.label,type:'sport'});
     });
   });
 
@@ -3539,13 +3541,16 @@ function openTerugkomst(kmId){
     ).join('');
   }
 
-  if(!alle.length){
+  if(!alle.length&&sportBlijftAantal===0){
     el.innerHTML='<div class="empty" style="padding:1rem">Geen materiaal gevonden voor dit kampmoment.</div>';
     document.getElementById('tk-sets-data').value='[]';
   } else {
     let html='';
-    if(gepland.length){
+    if(gepland.length||sportBlijftAantal>0){
       html+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 0 4px;letter-spacing:.5px">⚽ Sportmateriaal</div>';
+      if(sportBlijftAantal>0){
+        html+=`<div style="font-size:11px;color:var(--blue-dk);background:var(--blue-bg);border-radius:6px;padding:6px 10px;margin-bottom:6px">ℹ️ ${sportBlijftAantal} set(s) blijven volgende week op dezelfde locatie — hoeven nog niet terug.</div>`;
+      }
       html+=gepland.map(r=>`
         <div class="tk-regel">
           <div style="font-size:13px;font-weight:600;margin-bottom:5px">${r.naam}</div>
@@ -3664,16 +3669,12 @@ function openQR(type,id,naam,sublabel){
   document.getElementById('qr-sub').textContent=sublabel||'';
   const payload=window.location.origin+window.location.pathname+'?qr='+type+'-'+id;
   document.getElementById('qr-url').textContent=payload;
-  setTimeout(function(){
-    try{
-      const canvas=document.getElementById('qr-canvas');
-      canvas.width=220;canvas.height=220;
-      if(typeof QRCode==='undefined'){showToast('QR-bibliotheek niet geladen','warn');return;}
-      QRCode.toCanvas(canvas,payload,{width:220,margin:2},function(err){
-        if(err){showToast('QR genereren mislukt','error');console.error(err);}
-      });
-    }catch(e){console.error('QR fout:',e);}
-  },30);
+  const img=document.getElementById('qr-canvas');
+  img.src='';
+  img.alt='QR laden…';
+  img.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data='+encodeURIComponent(payload);
+  img.onload=function(){img.alt='QR code';};
+  img.onerror=function(){img.alt='QR genereren mislukt';showToast('QR genereren mislukt – check internetverbinding','warn');};
 }
 
 function _printQR(){window.print();}
@@ -4661,7 +4662,7 @@ loadAll()
     <div id="qr-print-area" class="qr-print-wrap" style="padding:.5rem">
       <div id="qr-naam" style="font-size:14px;font-weight:600;margin-bottom:2px"></div>
       <div id="qr-sub" style="font-size:11px;color:var(--text2);margin-bottom:.75rem"></div>
-      <canvas id="qr-canvas" style="border-radius:8px;border:.5px solid var(--border)"></canvas>
+      <img id="qr-canvas" style="width:220px;height:220px;border-radius:8px;border:.5px solid var(--border)" alt="QR code">
       <div id="qr-url" style="font-size:9px;color:var(--text3);word-break:break-all;max-width:240px;margin-top:.25rem"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:1rem">
