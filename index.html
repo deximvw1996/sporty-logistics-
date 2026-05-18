@@ -475,9 +475,14 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           <div class="fr">
             <div class="fg grow"><label for="loc-name">Naam <span style="color:var(--red)">*</span></label><input class="inp" type="text" id="loc-name" placeholder="bv. Sporthal Kessel-Lo" onkeydown="if(event.key==='Enter')addLoc()"></div>
             <div class="fg grow"><label for="loc-addr">Adres</label><input class="inp" type="text" id="loc-addr" placeholder="Straat, gemeente"></div>
-            <div class="fg md"><label for="loc-type">Type</label><select class="sel" id="loc-type">
+            <div class="fg md"><label for="loc-type">Type</label><select class="sel" id="loc-type" onchange="document.getElementById('loc-stockage-rol-wrap').style.display=this.value==='stockage'?'flex':'none'">
               <option value="kamp">&#9978; Kamplocatie</option>
               <option value="stockage">&#128230; Stockage</option>
+            </select></div>
+            <div class="fg md" id="loc-stockage-rol-wrap" style="display:none"><label for="loc-stockage-rol">Stockage voor</label><select class="sel" id="loc-stockage-rol">
+              <option value="beide">&#128230; Alles</option>
+              <option value="sport">&#9917; Sport</option>
+              <option value="thema">&#127912; Thema</option>
             </select></div>
             <button class="btn-xs" onclick="geocodeAddr(document.getElementById('loc-addr').value,'loc-lat','loc-lng')" title="Zoek coördinaten op basis van adres">&#128205; Kaart</button>
             <button class="btn-g" onclick="addLoc()">+ Toevoegen</button>
@@ -3221,7 +3226,8 @@ function renderLocaties(){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <input class="inp gb" style="flex:2;min-width:120px" type="text" id="el-n-${l.id}" value="${l.name}" placeholder="Naam">
           <input class="inp gb" style="flex:3;min-width:140px" type="text" id="el-a-${l.id}" value="${l.addr||''}" placeholder="Adres">
-          <select class="sel gb" id="el-t-${l.id}"><option value="kamp" ${l.type==='kamp'?'selected':''}>⛺ Kamp</option><option value="stockage" ${l.type==='stockage'?'selected':''}>📦 Stockage</option></select>
+          <select class="sel gb" id="el-t-${l.id}" onchange="const w=document.getElementById('el-sr-wrap-${l.id}');if(w)w.style.display=this.value==='stockage'?'flex':'none'"><option value="kamp" ${l.type==='kamp'?'selected':''}>⛺ Kamp</option><option value="stockage" ${l.type==='stockage'?'selected':''}>📦 Stockage</option></select>
+          <div class="fg" id="el-sr-wrap-${l.id}" style="display:${l.type==='stockage'?'flex':'none'}"><select class="sel gb" id="el-sr-${l.id}"><option value="beide" ${(l.stockage_rol||'beide')==='beide'?'selected':''}>📦 Alles</option><option value="sport" ${l.stockage_rol==='sport'?'selected':''}>⚽ Sport</option><option value="thema" ${l.stockage_rol==='thema'?'selected':''}>🎨 Thema</option></select></div>
           <button class="btn-xs" onclick="geocodeAddr(document.getElementById('el-a-${l.id}').value,'el-lat-${l.id}','el-lng-${l.id}')" title="Zoek coördinaten">&#128205; Kaart</button>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -3238,7 +3244,7 @@ function renderLocaties(){
       <span>${l.type==='stockage'?'📦':'⛺'}</span>
       <div class="ri">
         <div class="rm">${l.name}${hasCoords?'<span style="font-size:9px;color:var(--green-dk);margin-left:5px">📍</span>':'<span style="font-size:9px;color:var(--text3);margin-left:5px" title="Geen coördinaten — bewerk om toe te voegen">○ geen kaart</span>'}</div>
-        <div class="rs">${l.addr||'Geen adres'} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span></div>
+        <div class="rs">${l.addr||'Geen adres'} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span>${l.type==='stockage'&&l.stockage_rol&&l.stockage_rol!=='beide'?` <span class="pill p-blue">${l.stockage_rol==='sport'?'⚽ Sport':'🎨 Thema'}</span>`:''}</div>
         ${l.contact_naam||l.contact_tel?`<div class="loc-contact">${l.contact_naam?'<span>👤 '+l.contact_naam+'</span>':''}${l.contact_tel?'<a href="tel:'+l.contact_tel+'">📱 '+l.contact_tel+'</a>':''}</div>`:''}
         ${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}
       </div>
@@ -3346,10 +3352,12 @@ async function addLoc(){
   const name=document.getElementById('loc-name').value.trim();if(!name)return;
   const lat=parseFloat(document.getElementById('loc-lat').value)||null;
   const lng=parseFloat(document.getElementById('loc-lng').value)||null;
+  const locType=document.getElementById('loc-type').value;
   const r=await api('POST','/locaties',{
     name,
     addr:document.getElementById('loc-addr').value.trim(),
-    type:document.getElementById('loc-type').value,
+    type:locType,
+    stockage_rol:locType==='stockage'?document.getElementById('loc-stockage-rol').value:'beide',
     contact_naam:document.getElementById('loc-contact-naam').value.trim(),
     contact_tel:document.getElementById('loc-contact-tel').value.trim(),
     notities:document.getElementById('loc-notities').value.trim(),
@@ -3359,6 +3367,7 @@ async function addLoc(){
   S.locaties.push(r);
   ['loc-name','loc-addr','loc-contact-naam','loc-contact-tel','loc-notities','loc-lat','loc-lng']
     .forEach(id=>{document.getElementById(id).value='';});
+  document.getElementById('loc-stockage-rol-wrap').style.display='none';
   renderLocaties();
 }
 async function saveLoc(id){
@@ -3368,6 +3377,7 @@ async function saveLoc(id){
     name:document.getElementById('el-n-'+id).value.trim(),
     addr:document.getElementById('el-a-'+id).value.trim(),
     type:document.getElementById('el-t-'+id).value,
+    stockage_rol:document.getElementById('el-sr-'+id)?.value||'beide',
     contact_naam:document.getElementById('el-cn-'+id)?.value.trim()||'',
     contact_tel:document.getElementById('el-ct-'+id)?.value.trim()||'',
     notities:document.getElementById('el-nt-'+id)?.value.trim()||'',
