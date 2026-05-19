@@ -351,6 +351,13 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div id="global-search-results" style="display:none;position:absolute;top:36px;left:0;right:0;background:var(--bg);border:.5px solid var(--border2);border-radius:var(--rl);box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;max-height:320px;overflow-y:auto"></div>
     </div>
     <button id="dark-toggle" onclick="toggleDarkMode()" title="Donkere modus" style="background:transparent;border:.5px solid var(--border2);border-radius:var(--r);padding:4px 8px;cursor:pointer;font-size:14px;color:var(--text2)">🌙</button>
+    <button id="time-toggle" onclick="toggleTimeMachine()" title="Datum simuleren" style="background:transparent;border:.5px solid var(--border2);border-radius:var(--r);padding:4px 8px;cursor:pointer;font-size:14px;color:var(--text2)">🕐</button>
+    <div id="time-machine" style="display:none;align-items:center;gap:6px;background:var(--amber-bg);border:.5px solid var(--amber);border-radius:var(--r);padding:4px 8px;">
+      <span style="font-size:11px;color:var(--amber-dk);font-weight:600">Simuleer datum:</span>
+      <input type="date" id="sim-date-input" onchange="setSimDate(this.value)" style="font-size:11px;border:.5px solid var(--amber);border-radius:4px;padding:2px 4px;background:var(--bg);color:var(--text)">
+      <button onclick="setSimDate('')" style="font-size:11px;background:transparent;border:.5px solid var(--amber);border-radius:4px;padding:2px 6px;cursor:pointer;color:var(--amber-dk)">Reset</button>
+    </div>
+    <span id="sim-indicator" style="display:none;align-items:center;gap:4px;background:var(--amber-bg);border:.5px solid var(--amber);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;color:var(--amber-dk);cursor:pointer" onclick="toggleTimeMachine()" title="Klik om datum te wijzigen">🕐 <span id="sim-date-label"></span></span>
     <span class="badge-spoed" id="badge-spoed" style="display:none;background:var(--red);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="goTo('transport-plan')">&#128680; <span id="badge-spoed-n">0</span> spoed</span>
   </div>
 
@@ -1449,6 +1456,27 @@ async function addSpoed(){
 
 
 
+// ── TIJDMACHINE ──
+let _simDate=null;
+function _appNow(){return _simDate?new Date(_simDate+'T12:00:00'):new Date();}
+function toggleTimeMachine(){
+  const el=document.getElementById('time-machine');
+  const isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'flex';
+  if(!isOpen){const inp=document.getElementById('sim-date-input');inp.value=_simDate||new Date().toISOString().split('T')[0];}
+}
+function setSimDate(v){
+  _simDate=v||null;
+  const ind=document.getElementById('sim-indicator');
+  if(ind)ind.style.display=_simDate?'inline-flex':'none';
+  const lbl=document.getElementById('sim-date-label');
+  if(lbl&&_simDate)lbl.textContent=new Date(_simDate+'T12:00:00').toLocaleDateString('nl-BE',{day:'numeric',month:'short',year:'numeric'});
+  if(!v)document.getElementById('time-machine').style.display='none';
+  const renderMap={overzicht:renderOverzicht,planning:renderPlanning,'transport-plan':renderTransportPlan,transporten:renderTransportenOV};
+  const activeTab=SECS.find(t=>document.getElementById('sec-'+t)?.classList.contains('active'))||'overzicht';
+  try{renderMap[activeTab]?.();}catch(e){console.error(e);}
+}
+
 // ── 4-TAB ROUTING ──
 const SECS=['overzicht','planning','materiaal','transport-plan','transporten'];
 
@@ -1549,8 +1577,8 @@ async function renderOverzicht(){
   }).join('')+(openSpoed.length>4?`<div style="font-size:11px;color:var(--text2);padding:6px 10px">+ ${openSpoed.length-4} meer</div>`:'');
 
   // Aankomende transporten (next 7 days)
-  const now=new Date();
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()+7);
+  const now=_appNow();
+  const cutoff=_appNow();cutoff.setDate(cutoff.getDate()+7);
   const upcoming=taken
     .filter(t=>t.status!=='gedaan'&&t.datum)
     .filter(t=>{return t.datum>=isoLocal(now)&&t.datum<=isoLocal(cutoff);})
@@ -1608,8 +1636,8 @@ async function renderTransportenOV(){
   const periodeEl=document.getElementById('tp-filter-periode');
   const periode=periodeEl?periodeEl.value:'aankomend';
 
-  const now=new Date();
-  const weekEnd=new Date();weekEnd.setDate(weekEnd.getDate()+7);
+  const now=_appNow();
+  const weekEnd=_appNow();weekEnd.setDate(weekEnd.getDate()+7);
 
   // Combine: transport-taken + open spoed als separate entries
   const allItems=[];
