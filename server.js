@@ -249,6 +249,31 @@ async function startServer() {
 
   // Migrations for existing DBs
   try { db.run("ALTER TABLE locaties ADD COLUMN type TEXT DEFAULT 'kamp'"); } catch(e){}
+
+  // Migration 11: spoed-effect uitgesteld tot status "gedaan"
+  // spoed_effect_toegepast=1 als default zodat bestaande records niet dubbel worden verwerkt
+  addColumnIfMissing('transport_taken', 'spoed_kind', "TEXT DEFAULT ''");
+  addColumnIfMissing('transport_taken', 'spoed_ref_id', "INTEGER DEFAULT 0");
+  addColumnIfMissing('transport_taken', 'spoed_effect_toegepast', "INTEGER DEFAULT 1");
+
+  // Migration 12: vakantieperiodes
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS vakantieperiodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    naam TEXT NOT NULL,
+    start_datum TEXT NOT NULL,
+    eind_datum TEXT NOT NULL,
+    max_weken INTEGER DEFAULT 9
+  )`);
+  // Seed default periode Zomer 2026 als die nog niet bestaat
+  const bestaandePeriodes = all('SELECT id FROM vakantieperiodes');
+  if (!bestaandePeriodes.length) {
+    ins("INSERT INTO vakantieperiodes (naam,start_datum,eind_datum,max_weken) VALUES ('Zomer 2026','2026-06-29','2026-09-06',9)");
+    console.log('  Standaardperiode "Zomer 2026" aangemaakt');
+  }
+  addColumnIfMissing('kampmomenten', 'periode_id', 'INTEGER DEFAULT 1');
+  // Koppel bestaande kampmomenten aan periode 1 als ze nog niet gekoppeld zijn
+  try { db.run("UPDATE kampmomenten SET periode_id=1 WHERE periode_id IS NULL OR periode_id=0"); } catch(e){}
+
   saveDb();
 
 
@@ -325,6 +350,16 @@ async function startServer() {
   });
 
   // ── KAMPMOMENTEN ──
+  // Hulpfunctie: geef de maandagdatum van week w in een periode
+  function periodeWeekMaandag(week, periode_id) {
+    const p = get('SELECT * FROM vakantieperiodes WHERE id=?', [periode_id||1]) ||
+              get('SELECT * FROM vakantieperiodes ORDER BY id LIMIT 1') ||
+              {start_datum:'2026-06-29', eind_datum:'2026-09-06'};
+    const start = new Date(p.start_datum+'T12:00:00');
+    const r = new Date(start); r.setDate(start.getDate()+(week-1)*7);
+    return {maandag:r, periode:p};
+  }
+
   function getKampmoment(id) {
     const km = get('SELECT * FROM kampmomenten WHERE id=?',[id]);
     if (!km) return null;
@@ -335,43 +370,41 @@ async function startServer() {
       const mat = all('SELECT * FROM thema_materiaal WHERE thema_id=?',[kt.thema_id]);
       return {...th, mat, kt_id: kt.id};
     });
-    // Open dagen voor deze locatie in deze week
-    const jul1=new Date(2026,6,1); const dow=jul1.getDay();
-    const mnd=new Date(jul1); mnd.setDate(jul1.getDate()-(dow===0?6:dow-1));
-    const ws=new Date(mnd); ws.setDate(mnd.getDate()+(km.week-1)*7);
+    const {maandag:ws, periode} = periodeWeekMaandag(km.week, km.periode_id);
+    const eind = new Date(periode.eind_datum+'T23:59:59');
     const locMat=all('SELECT * FROM locatie_materiaal WHERE locatie_id=?',[km.locatie_id]);
     const openDagen=[];
     const gelotenSet=new Set(all('SELECT datum FROM gesloten_dagen').map(g=>g.datum));
     for(let i=0;i<5;i++){
       const d=new Date(ws); d.setDate(ws.getDate()+i);
-      if(d.getMonth()!==6&&d.getMonth()!==7) continue;
+      if(d>eind) continue;
       const iso=isoDate(d);
       if(gelotenSet.has(iso)) continue;
       const dagRec=get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[km.locatie_id,iso]);
       if(dagRec?dagRec.open==1:true) openDagen.push(iso);
     }
-    return {...km, locatie:loc, themas, open_dagen:openDagen, locatie_materiaal:locMat};
+    return {...km, locatie:loc, themas, open_dagen:openDagen, locatie_materiaal:locMat, periode};
   }
 
   app.get('/api/kampmomenten',(req,res)=>{
-    const kms=all('SELECT * FROM kampmomenten ORDER BY week,locatie_id');
+    const kms=all('SELECT * FROM kampmomenten ORDER BY periode_id,week,locatie_id');
     res.json(kms.map(km=>getKampmoment(km.id)).filter(Boolean));
   });
 
   app.post('/api/kampmomenten',(req,res)=>{
-    const{locatie_id,week}=req.body;
+    const{locatie_id,week,periode_id}=req.body;
+    const periodeIdToUse=periode_id||1;
     try {
-      const id=ins('INSERT INTO kampmomenten (locatie_id,week) VALUES (?,?)',[locatie_id,week]);
+      const id=ins('INSERT INTO kampmomenten (locatie_id,week,periode_id) VALUES (?,?,?)',[locatie_id,week,periodeIdToUse]);
       const loc=get('SELECT * FROM locaties WHERE id=?',[locatie_id]);
       logAct('kampmoment','aangemaakt',`Week ${week} — ${loc?.name||'?'} (nieuw kampmoment)`,locatie_id,loc?.name);
       // Auto-open alle weekdagen voor deze locatie
-      const jul1=new Date(2026,6,1);const dow=jul1.getDay();
-      const mnd=new Date(jul1);mnd.setDate(jul1.getDate()-(dow===0?6:dow-1));
-      const ws=new Date(mnd);ws.setDate(mnd.getDate()+(week-1)*7);
+      const {maandag:ws, periode} = periodeWeekMaandag(week, periodeIdToUse);
+      const eind = new Date(periode.eind_datum+'T23:59:59');
       const gelotenSet=new Set(all('SELECT datum FROM gesloten_dagen').map(g=>g.datum));
       for(let i=0;i<5;i++){
         const d=new Date(ws);d.setDate(ws.getDate()+i);
-        if(d.getMonth()!==6&&d.getMonth()!==7)continue;
+        if(d>eind)continue;
         const iso=isoDate(d);
         if(gelotenSet.has(iso))continue;
         const ex=get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[locatie_id,iso]);
@@ -624,14 +657,16 @@ async function startServer() {
     const sportStockageId=locs.find(l=>l.type==='stockage'&&(l.stockage_rol==='sport'||l.stockage_rol==='beide'))?.id||stockage[0]?.id||null;
     const themaStockageId=locs.find(l=>l.type==='stockage'&&(l.stockage_rol==='thema'||l.stockage_rol==='beide'))?.id||stockage[0]?.id||null;
 
-    const jul1=new Date(2026,6,1);const dow=jul1.getDay();
-    const mnd=new Date(jul1);mnd.setDate(jul1.getDate()-(dow===0?6:dow-1));
+    const allPeriodes=all('SELECT * FROM vakantieperiodes');
+    const defaultPeriode=allPeriodes[0]||{id:1,start_datum:'2026-06-29',eind_datum:'2026-09-06'};
     const voorstellen=[];
 
     function getOpenDagen(km){
-      const ws=new Date(mnd);ws.setDate(mnd.getDate()+(km.week-1)*7);
+      const periode=allPeriodes.find(p=>p.id===(km.periode_id||1))||defaultPeriode;
+      const ws=new Date(periode.start_datum+'T12:00:00');ws.setDate(ws.getDate()+(km.week-1)*7);
+      const eind=new Date(periode.eind_datum+'T23:59:59');
       const days=[];
-      for(let i=0;i<5;i++){const d=new Date(ws);d.setDate(ws.getDate()+i);if(d.getMonth()!==6&&d.getMonth()!==7)continue;const iso=isoDate(d);if(gelotenDagen.includes(iso))continue;const dr=kalDagen.find(k=>k.locatie_id===km.locatie_id&&k.datum===iso);if(dr?dr.open==1:true)days.push(iso);}
+      for(let i=0;i<5;i++){const d=new Date(ws);d.setDate(ws.getDate()+i);if(d>eind)continue;const iso=isoDate(d);if(gelotenDagen.includes(iso))continue;const dr=kalDagen.find(k=>k.locatie_id===km.locatie_id&&k.datum===iso);if(dr?dr.open==1:true)days.push(iso);}
       return days;
     }
     function prevWorkday(iso){const d=new Date(iso);d.setDate(d.getDate()-1);if(d.getDay()===0)d.setDate(d.getDate()-2);if(d.getDay()===6)d.setDate(d.getDate()-1);return isoDate(d);}
@@ -788,12 +823,46 @@ async function startServer() {
   app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',[type,datum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now()]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere']));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,datum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);res.json({ok:true});});
-  app.put('/api/transport-taken/:id/status',(req,res)=>{run('UPDATE transport_taken SET status=? WHERE id=?',[req.body.status,req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
+  app.put('/api/transport-taken/:id/status',(req,res)=>{
+    run('UPDATE transport_taken SET status=? WHERE id=?',[req.body.status,req.params.id]);
+    // Als status → "gedaan": spoed-voorraadeffect toepassen als dat nog niet gebeurd is
+    if(req.body.status==='gedaan'){
+      const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
+      if(taak)_pasSpoedEffectToe(taak);
+    }
+    res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));
+  });
   app.put('/api/transport-taken/:id/move',(req,res)=>{const{datum,tijd}=req.body;const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!t)return res.status(404).json({error:'Transport niet gevonden'});run('UPDATE transport_taken SET datum=?,tijd=? WHERE id=?',[datum||t.datum,tijd||t.tijd,req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taak_id,naam,qty||1,soort||'andere']);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
   app.delete('/api/transport-regels/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE id=?',[req.params.id]);res.json({ok:true});});
 
 
+
+  // ── VAKANTIEPERIODES ──
+  app.get('/api/periodes', (req,res) => res.json(all('SELECT * FROM vakantieperiodes ORDER BY start_datum')));
+  app.post('/api/periodes', (req,res) => {
+    const {naam, start_datum, eind_datum} = req.body;
+    if(!naam||!start_datum||!eind_datum) return res.status(400).json({error:'Naam, startdatum en einddatum zijn verplicht'});
+    // Bereken max_weken uit het aantal kalenderdagen
+    const diffMs=new Date(eind_datum+'T12:00:00')-new Date(start_datum+'T12:00:00');
+    const max_weken=Math.max(1,Math.ceil((diffMs/86400000+1)/7));
+    const id=ins('INSERT INTO vakantieperiodes (naam,start_datum,eind_datum,max_weken) VALUES (?,?,?,?)',[naam,start_datum,eind_datum,max_weken]);
+    res.json(get('SELECT * FROM vakantieperiodes WHERE id=?',[id]));
+  });
+  app.put('/api/periodes/:id', (req,res) => {
+    const {naam, start_datum, eind_datum} = req.body;
+    if(!naam||!start_datum||!eind_datum) return res.status(400).json({error:'Naam, startdatum en einddatum zijn verplicht'});
+    const diffMs=new Date(eind_datum+'T12:00:00')-new Date(start_datum+'T12:00:00');
+    const max_weken=Math.max(1,Math.ceil((diffMs/86400000+1)/7));
+    run('UPDATE vakantieperiodes SET naam=?,start_datum=?,eind_datum=?,max_weken=? WHERE id=?',[naam,start_datum,eind_datum,max_weken,req.params.id]);
+    res.json(get('SELECT * FROM vakantieperiodes WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/periodes/:id', (req,res) => {
+    const kms=all('SELECT COUNT(*) as n FROM kampmomenten WHERE periode_id=?',[req.params.id]);
+    if(kms[0]?.n>0) return res.status(400).json({error:'Periode heeft nog kampmomenten. Verplaats of verwijder ze eerst.'});
+    run('DELETE FROM vakantieperiodes WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
 
   // ── DATA EXPORT / IMPORT ──
   app.get('/api/export', (req, res) => {
@@ -1089,37 +1158,50 @@ async function startServer() {
   });
 
   // ── SPOEDTRANSPORT ──
-  // Maakt een dringend transport + past de voorraad aan (verbruik of gedeeld/uitrusting)
+  // Maakt een dringend transport. Voorraad wordt pas aangepast bij status "gedaan".
   app.post('/api/spoedtransport',(req,res)=>{
     const {datum,tijd,van_locatie_id,naar_locatie_id,item,qty,kind,ref_id} = req.body;
     const naam=(item||'').trim();
     if(!naam) return res.status(400).json({error:'Item is verplicht'});
     const aantal=Math.max(1,parseInt(qty)||1);
     const ts=now();
-    const taakId=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
-      ['extra',datum||isoDate(new Date()),tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts]);
+    // spoed_effect_toegepast=0: wordt pas verwerkt wanneer status → "gedaan"
+    const taakId=ins(
+      'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+      ['extra',datum||isoDate(new Date()),tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts,kind||'',ref_id||0,0]);
     ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taakId,naam,aantal,'spoed']);
-    // Voorraad-effect
-    if(kind==='verbruik' && ref_id && van_locatie_id){
-      run('INSERT OR IGNORE INTO verbruik_stock(item_id,locatie_id,qty,minimum,eenheid) VALUES(?,?,0,0,\'stuks\')',[ref_id,van_locatie_id]);
-      run('UPDATE verbruik_stock SET qty=MAX(0,qty-?) WHERE item_id=? AND locatie_id=?',[aantal,ref_id,van_locatie_id]);
-      ins('INSERT INTO verbruik_log(item_id,locatie_id,delta,reden,wie,transport_id,datum,created_at) VALUES(?,?,?,?,?,?,?,?)',
-        [ref_id,van_locatie_id,-aantal,'Spoedtransport','',taakId,isoDate(new Date()),new Date().toISOString()]);
-    } else if(kind==='gedeeld' && ref_id){
-      const gi=get('SELECT * FROM gedeeld_items WHERE id=?',[ref_id]);
-      if(gi) ensureGedeeldStock(gi);
-      if(van_locatie_id){
-        run('INSERT OR IGNORE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,0)',[ref_id,van_locatie_id]);
-        run('UPDATE gedeeld_stock SET qty=MAX(0,qty-?) WHERE gedeeld_id=? AND locatie_id=?',[aantal,ref_id,van_locatie_id]);
-      }
-      if(naar_locatie_id){
-        run('INSERT OR IGNORE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,0)',[ref_id,naar_locatie_id]);
-        run('UPDATE gedeeld_stock SET qty=qty+? WHERE gedeeld_id=? AND locatie_id=?',[aantal,ref_id,naar_locatie_id]);
-      }
-    }
     saveDb();
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[taakId]));
   });
+
+  // Helper: pas spoed-voorraadeffect toe voor één transport
+  function _pasSpoedEffectToe(taak) {
+    if(!taak||taak.spoed_effect_toegepast||!taak.spoed_kind)return;
+    const kind=taak.spoed_kind;
+    const ref_id=taak.spoed_ref_id;
+    const van=taak.van_locatie_id;
+    const naar=taak.naar_locatie_id;
+    const regels=all('SELECT * FROM transport_regels WHERE taak_id=? AND soort=\'spoed\'',[taak.id]);
+    const aantal=regels.reduce((s,r)=>s+(parseInt(r.qty)||1),0)||1;
+    if(kind==='verbruik'&&ref_id&&van){
+      run('INSERT OR IGNORE INTO verbruik_stock(item_id,locatie_id,qty,minimum,eenheid) VALUES(?,?,0,0,\'stuks\')',[ref_id,van]);
+      run('UPDATE verbruik_stock SET qty=MAX(0,qty-?) WHERE item_id=? AND locatie_id=?',[aantal,ref_id,van]);
+      ins('INSERT INTO verbruik_log(item_id,locatie_id,delta,reden,wie,transport_id,datum,created_at) VALUES(?,?,?,?,?,?,?,?)',
+        [ref_id,van,-aantal,'Spoedtransport (gedaan)','',taak.id,isoDate(new Date()),new Date().toISOString()]);
+    } else if(kind==='gedeeld'&&ref_id){
+      const gi=get('SELECT * FROM gedeeld_items WHERE id=?',[ref_id]);
+      if(gi) ensureGedeeldStock(gi);
+      if(van){
+        run('INSERT OR IGNORE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,0)',[ref_id,van]);
+        run('UPDATE gedeeld_stock SET qty=MAX(0,qty-?) WHERE gedeeld_id=? AND locatie_id=?',[aantal,ref_id,van]);
+      }
+      if(naar){
+        run('INSERT OR IGNORE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,0)',[ref_id,naar]);
+        run('UPDATE gedeeld_stock SET qty=qty+? WHERE gedeeld_id=? AND locatie_id=?',[aantal,ref_id,naar]);
+      }
+    }
+    run('UPDATE transport_taken SET spoed_effect_toegepast=1 WHERE id=?',[taak.id]);
+  }
 
   app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
 

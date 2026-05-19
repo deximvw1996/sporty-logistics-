@@ -290,7 +290,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div class="logo">&#9978;</div>
     <div>
       <div style="font-size:15px;font-weight:600;">Sporty vzw &mdash; Logistiek</div>
-      <div style="font-size:11px;color:var(--text2)">Zomer 2026</div>
+      <div style="font-size:11px;color:var(--text2)" id="topbar-periode">Zomer 2026</div>
     </div>
     <div style="flex:1"></div>
     <span class="badge-spoed" id="badge-spoed" style="display:none;background:var(--red);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="goTo('transport-plan')">&#128680; <span id="badge-spoed-n">0</span> spoed</span>
@@ -314,6 +314,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="ov-view-btn active" onclick="showOvMain()">&#128202; Overzicht</button>
       <button class="ov-view-btn" onclick="showWeekMatOverzicht()">&#128203; Week materiaal</button>
       <button class="ov-view-btn" onclick="showConflicten()">&#9888;&#65039; Conflicten</button>
+      <button class="ov-view-btn" onclick="showPeriodesBeheer()">&#128197; Periodes</button>
     </div>
 
     <div id="ov-main">
@@ -357,9 +358,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <button class="btn-o" onclick="showOvMain()" style="font-size:12px">&#8592; Overzicht</button>
         <strong>Materiaaloverzicht per week</strong>
         <select class="sel" id="week-mat-sel" onchange="renderWeekMateriaalOverzicht()" style="width:120px">
-          <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
-          <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
-          <option value="7">Week 7</option><option value="8">Week 8</option><option value="9">Week 9</option>
+          <option value="1">Week 1</option>
         </select>
       </div>
       <div id="week-mat-content"></div>
@@ -370,6 +369,15 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <strong>Conflicten &amp; waarschuwingen</strong>
       </div>
       <div id="conflict-list"></div>
+    </div>
+
+    <div id="periodes-ov" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
+        <button class="btn-o" onclick="showOvMain()" style="font-size:12px">&#8592; Overzicht</button>
+        <strong>Vakantieperiodes</strong>
+        <button class="btn-g" onclick="openNieuwePeriode()" style="margin-left:auto">+ Nieuwe periode</button>
+      </div>
+      <div id="periodes-list"></div>
     </div>
   </div><!-- /sec-overzicht -->
 
@@ -534,6 +542,12 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="metric"><div class="metric-label">Nog te plannen</div><div class="metric-val a" id="pl-todo">0</div></div>
     </div>
 
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--text2);font-weight:600">📅 Periode:</span>
+      <select class="sel" id="pl-periode-sel" style="height:28px;font-size:11px" onchange="setPlannerPeriode(this.value)">
+        <option value="">— laden —</option>
+      </select>
+    </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;">
       <div style="display:flex;border:.5px solid var(--border2);border-radius:var(--r);overflow:hidden">
         <button class="ov-view-btn active" id="pl-view-week" onclick="setPlannerView('week')">Week</button>
@@ -690,7 +704,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
     <div class="fr">
       <div class="fg md"><label for="sh-datum">Datum</label>
-        <input class="inp" type="date" id="sh-datum" min="2026-06-28" max="2026-09-06">
+        <input class="inp" type="date" id="sh-datum">
       </div>
       <div class="fg sm"><label for="sh-start">Van</label>
         <input class="inp" type="time" id="sh-start" value="08:00">
@@ -763,7 +777,10 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   <div class="modal">
     <div class="modal-title"><span id="modal-km-title">Kampmoment toevoegen</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-km')">&#x2715;</button></div>
     <div class="fr">
-      <div class="fg sm"><label for="km-week">Week (1&ndash;9)</label><input class="inp" type="number" id="km-week" min="1" max="9" placeholder="1&ndash;9" oninput="updateKmPreview()"></div>
+      <div class="fg grow"><label for="km-periode">Vakantieperiode</label><select class="sel" id="km-periode" style="width:100%" onchange="updateKmWeekMax();updateKmPreview()"></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg sm"><label for="km-week">Week</label><input class="inp" type="number" id="km-week" min="1" max="9" placeholder="1…" oninput="updateKmPreview()"></div>
       <div class="fg grow"><label for="km-loc">Locatie</label><select class="sel" id="km-loc" style="width:100%"></select></div>
     </div>
     <div id="km-preview" style="font-size:12px;color:var(--green-dk);background:var(--green-bg);padding:6px 10px;border-radius:var(--r);margin-bottom:12px;display:none"></div>
@@ -846,10 +863,28 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   </div>
 </div>
 
+<div class="modal-bg" id="modal-periode">
+  <div class="modal" style="width:420px">
+    <div class="modal-title"><span id="modal-periode-title">Periode</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-periode')">&#x2715;</button></div>
+    <div class="fr">
+      <div class="fg grow"><label for="mp-naam">Naam</label><input class="inp" type="text" id="mp-naam" placeholder="bv. Paasvakantie 2027" style="width:100%"></div>
+    </div>
+    <div class="fr">
+      <div class="fg grow"><label for="mp-start">Startdatum (maandag week 1)</label><input class="inp" type="date" id="mp-start"></div>
+      <div class="fg grow"><label for="mp-eind">Einddatum</label><input class="inp" type="date" id="mp-eind"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">&#8505; Kies een <strong>maandag</strong> als startdatum. Het systeem berekent automatisch het aantal weken.</div>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      <button class="btn-g" style="flex:1" onclick="savePeriode()">&#128190; Opslaan</button>
+      <button class="btn-o" onclick="closeModal('modal-periode')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-spoedtransport">
   <div class="modal" style="width:480px">
     <div class="modal-title"><span>&#128680; Spoedtransport</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-spoedtransport')">&#x2715;</button></div>
-    <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">&#8505; Een dringend transport. De voorraad wordt meteen aangepast: verbruiksmateriaal gaat uit de bronvoorraad, uitrusting verhuist van bron naar bestemming.</div>
+    <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">&#8505; Een dringend transport. De voorraad wordt aangepast zodra je het transport op <strong>Gedaan</strong> zet: verbruiksmateriaal gaat uit de bronvoorraad, uitrusting verhuist van bron naar bestemming.</div>
     <div class="fr">
       <div class="fg md"><label for="spt-kind">Soort</label><select class="sel" id="spt-kind" onchange="spoedKindChange()">
         <option value="verbruik">&#129529; Verbruiksmateriaal</option>
@@ -883,6 +918,7 @@ function showOvMain(){
   const main=document.getElementById('ov-main');if(main)main.style.display='block';
   const wm=document.getElementById('week-mat-ov');if(wm)wm.style.display='none';
   const co=document.getElementById('conflict-ov');if(co)co.style.display='none';
+  const po=document.getElementById('periodes-ov');if(po)po.style.display='none';
   document.querySelectorAll('#sec-overzicht .ov-view-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
 }
 
@@ -891,6 +927,15 @@ function showWeekMatOverzicht(){
   document.getElementById('ov-main').style.display='none';
   document.getElementById('week-mat-ov').style.display='block';
   document.getElementById('conflict-ov').style.display='none';
+  // Vul week-opties op basis van actieve periode
+  const sel=document.getElementById('week-mat-sel');
+  if(sel){
+    const maxWk=_periodeMaxWeken();
+    sel.innerHTML=Array.from({length:maxWk},(_,i)=>`<option value="${i+1}">Week ${i+1}</option>`).join('');
+    // Open automatisch op de eerste week met een kampmoment
+    const kmsInPeriode=S.kampmomenten.filter(k=>!S.activePeriode||k.periode_id===S.activePeriode.id);
+    if(kmsInPeriode.length)sel.value=String(Math.min(...kmsInPeriode.map(k=>k.week)));
+  }
   renderWeekMateriaalOverzicht();
 }
 
@@ -898,7 +943,87 @@ function showConflicten(){
   document.getElementById('ov-main').style.display='none';
   document.getElementById('conflict-ov').style.display='block';
   document.getElementById('week-mat-ov').style.display='none';
+  document.getElementById('periodes-ov').style.display='none';
   checkConflicten();
+}
+
+function showPeriodesBeheer(){
+  document.getElementById('ov-main').style.display='none';
+  document.getElementById('conflict-ov').style.display='none';
+  document.getElementById('week-mat-ov').style.display='none';
+  document.getElementById('periodes-ov').style.display='block';
+  document.querySelectorAll('#sec-overzicht .ov-view-btn').forEach((b,i)=>b.classList.toggle('active',i===3));
+  renderPeriodesList();
+}
+function renderPeriodesList(){
+  const el=document.getElementById('periodes-list');if(!el)return;
+  const periodes=S.periodes||[];
+  if(!periodes.length){el.innerHTML='<div class="empty">Geen periodes aangemaakt.</div>';return;}
+  el.innerHTML=periodes.map(p=>{
+    const nKm=S.kampmomenten.filter(k=>k.periode_id===p.id).length;
+    const isActief=S.activePeriode&&S.activePeriode.id===p.id;
+    return `<div class="row" style="${isActief?'border-color:#5DCAA5;background:var(--green-bg)':''}">
+      <div class="ri">
+        <div class="rm">${isActief?'✅ ':''}${_escH(p.naam)}</div>
+        <div class="rs">${p.start_datum} – ${p.eind_datum} · ${p.max_weken} weken · ${nKm} kampmoment${nKm!==1?'en':''}</div>
+      </div>
+      <div class="ra">
+        ${!isActief?`<button class="btn-o" style="font-size:11px" onclick="setActivePeriode(${p.id})">Activeren</button>`:''}
+        <button class="bi" onclick="editPeriode(${p.id})">✏️</button>
+        ${nKm===0?`<button class="bi del" onclick="deletePeriode(${p.id})">🗑️</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+let _editPeriodeId=null;
+function openNieuwePeriode(){
+  _editPeriodeId=null;
+  document.getElementById('modal-periode-title').textContent='Nieuwe periode';
+  document.getElementById('mp-naam').value='';
+  document.getElementById('mp-start').value='';
+  document.getElementById('mp-eind').value='';
+  openModal('modal-periode');
+}
+function editPeriode(id){
+  const p=(S.periodes||[]).find(x=>x.id===id);if(!p)return;
+  _editPeriodeId=id;
+  document.getElementById('modal-periode-title').textContent='Periode bewerken';
+  document.getElementById('mp-naam').value=p.naam;
+  document.getElementById('mp-start').value=p.start_datum;
+  document.getElementById('mp-eind').value=p.eind_datum;
+  openModal('modal-periode');
+}
+async function savePeriode(){
+  const naam=document.getElementById('mp-naam').value.trim();
+  const start=document.getElementById('mp-start').value;
+  const eind=document.getElementById('mp-eind').value;
+  if(!naam||!start||!eind){showToast('Vul naam, start en einddatum in','warn');return;}
+  if(start>eind){showToast('Startdatum moet voor einddatum liggen','warn');return;}
+  let r;
+  if(_editPeriodeId)r=await api('PUT','/periodes/'+_editPeriodeId,{naam,start_datum:start,eind_datum:eind});
+  else r=await api('POST','/periodes',{naam,start_datum:start,eind_datum:eind});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  S.periodes=await api('GET','/periodes');
+  if(!_editPeriodeId)S.activePeriode=r; // nieuwe periode meteen actief
+  closeModal('modal-periode');
+  renderPeriodesList();
+  showToast(_editPeriodeId?'Periode bijgewerkt':'Periode aangemaakt','success');
+  const tbl=document.getElementById('topbar-periode');if(tbl&&S.activePeriode)tbl.textContent=S.activePeriode.naam;
+}
+async function deletePeriode(id){
+  if(!confirm('Periode verwijderen?'))return;
+  const r=await api('DELETE','/periodes/'+id);
+  if(r&&r.error){showToast(r.error,'error');return;}
+  S.periodes=await api('GET','/periodes');
+  renderPeriodesList();
+  showToast('Periode verwijderd','info');
+}
+function setActivePeriode(id){
+  const p=(S.periodes||[]).find(x=>x.id===id);if(!p)return;
+  S.activePeriode=p;
+  const tbl=document.getElementById('topbar-periode');if(tbl)tbl.textContent=p.naam;
+  showToast('Actieve periode: '+p.naam,'success');
+  renderPeriodesList();
 }
 
 // ── WEEKOVERZICHT MATERIAAL ──
@@ -1967,7 +2092,7 @@ async function renderOverzicht(){
   const cutoff=new Date();cutoff.setDate(cutoff.getDate()+7);
   const upcoming=taken
     .filter(t=>t.status!=='gedaan'&&t.datum)
-    .filter(t=>{const d=new Date(t.datum+'T12:00:00');return d>=now&&d<=cutoff;})
+    .filter(t=>{return t.datum>=isoLocal(now)&&t.datum<=isoLocal(cutoff);})
     .sort((a,b)=>a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd))
     .slice(0,6);
   const tpEl=document.getElementById('ov-transporten');
@@ -2064,7 +2189,7 @@ async function renderTransportenOV(){
   else filtered=allItems.filter(t=>t.type===tpFilter&&t.status!=='gedaan');
 
   // Filter by period
-  if(periode==='aankomend') filtered=filtered.filter(t=>{if(!t.datum)return true;const d=new Date(t.datum+'T12:00:00');return d>=now;});
+  if(periode==='aankomend') filtered=filtered.filter(t=>{if(!t.datum)return true;return t.datum>=isoLocal(now);});
   else if(periode==='week') filtered=filtered.filter(t=>{if(!t.datum)return true;const d=new Date(t.datum+'T12:00:00');return d>=now&&d<=weekEnd;});
 
   // Sort
@@ -2269,7 +2394,7 @@ function showToast(msg, type){
 let kalData=null;
 let kalSubtab='od'; // 'od' of 'ov'
 let ovView='maand'; // 'dag'|'week'|'maand'
-let ovDate=new Date(2026,6,1); // huidige navigatiedatum
+let ovDate=null; // wordt gezet na loadAll (= start actieve periode)
 let ovLocFilter=null; // null=alle, of locatie_id
 let kalLocFilter=null;
 
@@ -2308,11 +2433,11 @@ function renderKalenderOD(){
     const DOW=['zo','ma','di','wo','do','vr','za'];
     // All days of the month (including weekends for context, grayed out)
     const all=[];
-    const d=new Date(2026,maand-1,1);
+    const d=new Date(jaar,maand-1,1);
     while(d.getMonth()===maand-1){all.push(new Date(d));d.setDate(d.getDate()+1);}
     let h='<table class="od-table"><thead>';
     // Month header spanning all columns
-    h+=`<tr><th class="loc-col" style="border-bottom:none"></th><th colspan="${all.length}" style="text-align:center;font-size:13px;font-weight:700;padding:8px 4px;border-bottom:.5px solid var(--border)">${MND_NM[maand]} 2026</th></tr>`;
+    h+=`<tr><th class="loc-col" style="border-bottom:none"></th><th colspan="${all.length}" style="text-align:center;font-size:13px;font-weight:700;padding:8px 4px;border-bottom:.5px solid var(--border)">${MND_NM[maand]} ${jaar}</th></tr>`;
     // Day headers
     h+='<tr><th class="loc-col">Locatie</th>';
     all.forEach(day=>{
@@ -2402,7 +2527,8 @@ function updateOVNavLabel(){
 }
 
 function getWkNrOv(d){
-  const j=new Date(2026,6,1);const dw=j.getDay();const m=new Date(j);m.setDate(j.getDate()-(dw===0?6:dw-1));
+  const p=_activePeriode();
+  const m=new Date(p.start_datum+'T12:00:00');
   return Math.floor((d-m)/604800000)+1;
 }
 
@@ -2418,8 +2544,9 @@ function navOv(delta){
   if(ovView==='maand'){ovDate=new Date(ovDate.getFullYear(),ovDate.getMonth()+delta,1);}
   else if(ovView==='week'){ovDate=new Date(ovDate);ovDate.setDate(ovDate.getDate()+delta*7);}
   else{ovDate=new Date(ovDate);ovDate.setDate(ovDate.getDate()+delta);}
-  // Clamp to zomer 2026
-  const min=new Date(2026,5,28);const max=new Date(2026,8,6);
+  // Clamp to actieve periode
+  const _p=_activePeriode();
+  const min=new Date(_p.start_datum+'T00:00:00');const max=new Date(_p.eind_datum+'T23:59:59');
   if(ovDate<min)ovDate=min;if(ovDate>max)ovDate=max;
   updateOVNavLabel();
   renderOVGrid();
@@ -2501,7 +2628,7 @@ function buildOVMaand(){
 
 function buildOVWeek(){
   const wn=getWkNrOv(ovDate);
-  if(wn<1||wn>9)return '<div class="empty">Geen zomerweek.</div>';
+  if(wn<1||wn>_periodeMaxWeken())return '<div class="empty">Geen week in deze periode.</div>';
   const wd=getWeekDagen(wn);
   if(!wd.length)return '<div class="empty">Geen kampweken in deze periode.</div>';
   const gSet=new Set((kalData.gesloten_dagen||[]).map(g=>g.datum));
@@ -2684,10 +2811,8 @@ S_thema_cats=await api('GET','/thema-categorieen');
 function renderPloegGrid(){
   document.getElementById('ploeg-week-label').textContent=plannerWeekLabel(ploegWk);
 
-  // Days: zo before week through zo after (8 days like planner)
-  const j=new Date(2026,6,1);const dw=j.getDay();
-  const mnd=new Date(j);mnd.setDate(j.getDate()-(dw===0?6:dw-1));
-  const ma=new Date(mnd);ma.setDate(mnd.getDate()+(ploegWk-1)*7);
+  // Days: ma t/m zo van de geselecteerde week
+  const ma=getWeekMaandag(ploegWk);
   const days=[];
   const start=new Date(ma);start.setDate(ma.getDate()-1);
   for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);days.push(d);}
@@ -2884,9 +3009,16 @@ async function api(m,p,b){
     return m==='GET'?[]:{error:'Server niet bereikbaar'};
   }
 }
-async function loadAll(){const[a,b,c,d,e,f,g,h]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/spoed'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,spoed:e,materiaal:f,overzicht:g,locMat:{}};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
+async function loadAll(){const[a,b,c,d,e,f,g,h,periodes]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/spoed'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender'),api('GET','/periodes')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,spoed:e,materiaal:f,overzicht:g,locMat:{},periodes:Array.isArray(periodes)?periodes:[]};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
 S_chauffeurs=await api('GET','/chauffeurs');fillChaufDatalist();
-S_thema_cats=await api('GET','/thema-categorieen');updateSpoedBadge();}
+S_thema_cats=await api('GET','/thema-categorieen');
+// Stel de actieve periode in: eerste periode of de eerste met kampmomenten
+if(S.periodes.length){const metKamp=S.periodes.find(p=>S.kampmomenten.some(k=>k.periode_id===p.id));S.activePeriode=metKamp||S.periodes[0];}
+const tbl=document.getElementById('topbar-periode');if(tbl&&S.activePeriode)tbl.textContent=S.activePeriode.naam;
+// Initialiseer kalender navigatiedatum op start actieve periode
+if(S.activePeriode&&!ovDate)ovDate=new Date(S.activePeriode.start_datum+'T12:00:00');
+else if(!ovDate)ovDate=new Date(2026,6,1);
+updateSpoedBadge();}
 async function reloadVoorraad(){const[a,b]=await Promise.all([api('GET','/materiaal'),api('GET','/overzicht')]);S.materiaal=a;S.overzicht=b;}
 
 
@@ -2907,8 +3039,30 @@ function fillChaufDatalist(){
   const dl=document.getElementById('chauf-datalist');
   if(dl)dl.innerHTML=S_chauffeurs.map(c=>`<option value="${c.name}">`).join('');
 }
-function getWeekMaandag(w){const j=new Date(2026,6,1);const dw=j.getDay();const m=new Date(j);m.setDate(j.getDate()-(dw===0?6:dw-1));const r=new Date(m);r.setDate(m.getDate()+(w-1)*7);return r;}
-function getWeekDagen(w){const ma=getWeekMaandag(w);const r=[];for(let i=0;i<5;i++){const d=new Date(ma);d.setDate(ma.getDate()+i);if(d.getMonth()===6||d.getMonth()===7)r.push(d);}return r;}
+// ── Periode-helpers (Blok B) ──
+function _activePeriode(periodeArg){
+  if(periodeArg&&periodeArg.start_datum)return periodeArg;
+  return S.activePeriode||{start_datum:'2026-06-29',eind_datum:'2026-09-06',max_weken:9,naam:'Zomer 2026'};
+}
+function getWeekMaandag(w,periode){
+  const p=_activePeriode(periode);
+  const start=new Date(p.start_datum+'T12:00:00');
+  const r=new Date(start);r.setDate(start.getDate()+(w-1)*7);return r;
+}
+function getWeekDagen(w,periode){
+  const p=_activePeriode(periode);
+  const ma=getWeekMaandag(w,p);
+  const eind=new Date(p.eind_datum+'T23:59:59');
+  const r=[];
+  for(let i=0;i<5;i++){const d=new Date(ma);d.setDate(ma.getDate()+i);if(d<=eind)r.push(d);}
+  return r;
+}
+function _periodeMaxWeken(periode){
+  const p=_activePeriode(periode);
+  if(p.max_weken)return p.max_weken;
+  const diffMs=new Date(p.eind_datum+'T12:00:00')-new Date(p.start_datum+'T12:00:00');
+  return Math.max(1,Math.ceil((diffMs/86400000+1)/7));
+}
 const MND=['','jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 const DOW=['zo','ma','di','wo','do','vr','za'];
 function fDag(d){return d.getDate()+' '+MND[d.getMonth()+1];}
@@ -2979,8 +3133,24 @@ function renderKampen(){
 
 function toggleKmBody(id){const b=document.getElementById('km-body-'+id);const c=document.getElementById('km-chev-'+id);const o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.textContent=o?'▼':'▲';}
 
+function _fillKmPeriodeSelect(selectedId){
+  const sel=document.getElementById('km-periode');
+  if(!sel)return;
+  sel.innerHTML=(S.periodes||[]).map(p=>`<option value="${p.id}">${p.naam}</option>`).join('');
+  if(selectedId)sel.value=String(selectedId);
+  else if(S.activePeriode)sel.value=String(S.activePeriode.id);
+}
+function updateKmWeekMax(){
+  const periodeId=parseInt(document.getElementById('km-periode')?.value);
+  const p=(S.periodes||[]).find(x=>x.id===periodeId)||S.activePeriode;
+  const max=p?_periodeMaxWeken(p):9;
+  const inp=document.getElementById('km-week');
+  if(inp){inp.max=max;inp.placeholder='1–'+max;}
+}
 function openNieuwKampmoment(preLocId){
   document.getElementById('modal-km-title').textContent='Kampmoment toevoegen';
+  _fillKmPeriodeSelect();
+  updateKmWeekMax();
   document.getElementById('km-week').value='';
   document.getElementById('km-preview').style.display='none';
   document.getElementById('km-loc').innerHTML=S.locaties.filter(l=>l.type==='kamp').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
@@ -2988,14 +3158,25 @@ function openNieuwKampmoment(preLocId){
   renderKmCheckboxes([]);
   openModal('modal-km');
 }
-function updateKmPreview(){const w=parseInt(document.getElementById('km-week').value);const el=document.getElementById('km-preview');if(!w||w<1||w>9){el.style.display='none';return;}const wd=getWeekDagen(w);el.textContent=wd.length?'📅 Week '+w+' · '+fDag(wd[0])+'–'+fDag(wd[wd.length-1])+' 2026':'Week '+w+' valt buiten de zomer';el.style.display='block';}
+function updateKmPreview(){
+  const w=parseInt(document.getElementById('km-week').value);
+  const periodeId=parseInt(document.getElementById('km-periode')?.value);
+  const p=(S.periodes||[]).find(x=>x.id===periodeId)||S.activePeriode;
+  const el=document.getElementById('km-preview');
+  const max=p?_periodeMaxWeken(p):9;
+  if(!w||w<1||w>max){el.style.display='none';return;}
+  const wd=getWeekDagen(w,p);
+  el.textContent=wd.length?'📅 Week '+w+' · '+fDag(wd[0])+'–'+fDag(wd[wd.length-1])+(p?' ('+p.naam+')':''):'Week '+w+' valt buiten de periode';
+  el.style.display='block';
+}
 function renderKmCheckboxes(sel){document.getElementById('km-thema-checkboxes').innerHTML=S.themas.map(th=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r);cursor:pointer;border:.5px solid var(--border)"><input type="checkbox" value="${th.id}" ${sel.includes(th.id)?'checked':''} style="accent-color:${th.color};width:15px;height:15px"><span class="thema-tag" style="background:${th.color}22;color:${th.color}">${th.name}</span></label>`).join('');}
 async function saveKampmoment(){
   const week=parseInt(document.getElementById('km-week').value);
   const locatie_id=parseInt(document.getElementById('km-loc').value);
+  const periode_id=parseInt(document.getElementById('km-periode')?.value)||S.activePeriode?.id||1;
   if(!week||!locatie_id){alert('Vul week en locatie in.');return;}
   const checked=[...document.querySelectorAll('#km-thema-checkboxes input:checked')].map(cb=>parseInt(cb.value));
-  const km=await api('POST','/kampmomenten',{week,locatie_id});
+  const km=await api('POST','/kampmomenten',{week,locatie_id,periode_id});
   if(km.error){alert(km.error);return;}
   for(const tid of checked)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid});
   S.kampmomenten=await api('GET','/kampmomenten');
@@ -3746,6 +3927,23 @@ async function renderLocatieDetail(){
       </div>
       ${kms.length?kms.map(_kampCardHTML).join(''):'<div class="empty">Nog geen kampmomenten voor deze locatie.</div>'}
     </div>`;
+    // Huidige uitrusting (sport sets + gedeeld)
+    const setsHier=(_invSport||[]).flatMap(si=>(si.sets||[]).filter(s=>s.locatie_id===l.id).map(s=>({naam:(si.name||'?')+' — '+s.label,type:'sport'})));
+    const gedeeldHier=(_invGedeeld||[]).filter(gi=>(gi.stock||[]).some(s=>s.locatie_id===l.id&&(s.qty||0)>0));
+    if(setsHier.length||gedeeldHier.length){
+      h+=`<div class="card" style="margin-top:.75rem">
+        <div class="card-hd">🏅 Huidige uitrusting op locatie</div>`;
+      if(setsHier.length){
+        h+='<div class="sl" style="margin-bottom:4px">⚽ Sportsets ('+setsHier.length+')</div>';
+        h+=setsHier.map(s=>`<div class="mat-row"><span class="mat-qty">⚽</span><span style="flex:1">${_escH(s.naam)}</span></div>`).join('');
+      }
+      if(gedeeldHier.length){
+        if(setsHier.length)h+='<div style="height:6px"></div>';
+        h+='<div class="sl" style="margin-bottom:4px">🔧 Gedeeld materiaal ('+gedeeldHier.length+')</div>';
+        h+=gedeeldHier.map(gi=>{const s=(gi.stock||[]).find(s=>s.locatie_id===l.id);return `<div class="mat-row"><span class="mat-qty">×${s?.qty||0}</span><span style="flex:1">${_escH(gi.name)}</span></div>`;}).join('');
+      }
+      h+='</div>';
+    }
     // Standaardmateriaal
     h+=`<div class="card" style="margin-top:.75rem">
       <div class="card-hd">📦 Standaardmateriaal</div>
@@ -4891,9 +5089,8 @@ async function saveSpoedtransport(){
 }
 
 function plannerWeekDagen(week){
-  const j=new Date(2026,6,1);const dw=j.getDay();
-  const m=new Date(j);m.setDate(j.getDate()-(dw===0?6:dw-1));
-  const ma=new Date(m);ma.setDate(m.getDate()+(week-1)*7);
+  const p=_activePeriode();
+  const ma=getWeekMaandag(week,p);
   // Show zo-1 through zo (8 days: prep day zo before + ma..vr + za + zo)
   // Actually: show wo-1 through zo (to capture prep/ophaal days)
   // Week loopt van maandag t/m zondag
@@ -4930,10 +5127,29 @@ function takenOpDag(datum){
   return plannerTaken.filter(t=>t.datum===datum&&taakMatchesFilters(t));
 }
 
+function _fillPlannerPeriodeSel(){
+  const sel=document.getElementById('pl-periode-sel');
+  if(!sel)return;
+  sel.innerHTML=(S.periodes||[]).map(p=>`<option value="${p.id}">${p.naam}</option>`).join('');
+  if(S.activePeriode)sel.value=String(S.activePeriode.id);
+}
+function setPlannerPeriode(idStr){
+  const id=parseInt(idStr);
+  const p=(S.periodes||[]).find(x=>x.id===id);
+  if(p){S.activePeriode=p;const tbl=document.getElementById('topbar-periode');if(tbl)tbl.textContent=p.naam;}
+  plannerWk=1;
+  // Zet op eerste week met kampmoment in deze periode
+  const kmsInPeriode=S.kampmomenten.filter(k=>k.periode_id===id);
+  if(kmsInPeriode.length)plannerWk=Math.min(...kmsInPeriode.map(k=>k.week));
+  renderPlannerKalender();updatePlannerMetrics();
+}
 async function renderPlanner(){
+  // Vul periode-selector
+  _fillPlannerPeriodeSel();
   // Default to first active kamp week if not set
-  if(plannerWk===1&&S.kampmomenten.length){
-    const wks=[...S.kampmomenten].sort((a,b)=>a.week-b.week);
+  const kmsInPeriode=S.kampmomenten.filter(k=>!S.activePeriode||k.periode_id===S.activePeriode.id);
+  if(plannerWk===1&&kmsInPeriode.length){
+    const wks=[...kmsInPeriode].sort((a,b)=>a.week-b.week);
     plannerWk=wks[0].week;
   }
 
@@ -5019,7 +5235,8 @@ function renderPlannerKalender(){
   }else{
     days=plannerWeekDagen(plannerWk);
     document.getElementById('pl-week-label').textContent=plannerWeekLabel(plannerWk);
-    prevBtn.disabled=(plannerWk<=1);nextBtn.disabled=(plannerWk>=9);
+    const maxWk=_periodeMaxWeken();
+    prevBtn.disabled=(plannerWk<=1);nextBtn.disabled=(plannerWk>=maxWk);
     grid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:6px;';
   }
 
@@ -5051,7 +5268,38 @@ function renderPlannerKalender(){
       emp.textContent=(isWeekend&&!wide)?'—':'Geen transporten';
       body.appendChild(emp);
     } else {
-      taken.sort((a,b)=>a.tijd.localeCompare(b.tijd)).forEach(t=>body.appendChild(_plannerCardEl(t,wide)));
+      // Groepeer per route (van → naar) voor samengevouwen weergave in weekview
+      if(!wide){
+        const routeKey=t=>`${t.van_locatie_id||''}→${t.naar_locatie_id||''}→${t.type}`;
+        const groups=new Map();
+        taken.sort((a,b)=>a.tijd.localeCompare(b.tijd)).forEach(t=>{const k=routeKey(t);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(t);});
+        groups.forEach(groep=>{
+          if(groep.length===1){body.appendChild(_plannerCardEl(groep[0],false));return;}
+          // Meerdere transporten zelfde route → samengevoegde kaart
+          const t0=groep[0];
+          const van=S.locaties.find(l=>l.id===t0.van_locatie_id);
+          const naar=S.locaties.find(l=>l.id===t0.naar_locatie_id);
+          const typColors={levering:{bg:'#E1F5EE',border:'#5DCAA5',text:'#085041',icon:'🟢'},ophaling:{bg:'#E6F1FB',border:'#85B7EB',text:'#0C447C',icon:'🔵'},extra:{bg:'#FAEEDA',border:'#F0C878',text:'#633806',icon:'🟡'},opdracht:{bg:'#F3EEFB',border:'#B89DE8',text:'#4A1F8C',icon:'📋'}};
+          const tc=typColors[t0.type]||typColors.opdracht;
+          const statussen=groep.map(t=>t.status);
+          const alGedaan=statussen.every(s=>s==='gedaan');
+          const stDot=alGedaan?'✅':statussen.some(s=>s==='bevestigd')?'🔹':'🔸';
+          const wrap=document.createElement('div');
+          wrap.style.cssText='background:'+tc.bg+';border:.5px solid '+tc.border+';border-radius:6px;padding:5px 7px;cursor:pointer;';
+          wrap.innerHTML='<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
+            +'<span style="font-size:10px">'+tc.icon+'</span>'
+            +'<span style="font-size:10px;font-weight:700;color:'+tc.text+';flex:1">'+groep.length+'× '+(van&&naar?van.name.split(' ')[0]+' → '+naar.name.split(' ')[0]:t0.type)+'</span>'
+            +'<span style="font-size:9px">'+stDot+'</span>'
+            +'</div>'
+            +'<div style="font-size:9px;color:var(--text2)">'
+            +groep.map(t=>'• '+_escH(t.opmerking||t.type)).join('<br>')
+            +'</div>';
+          wrap.onclick=()=>openEditTp(t0.id); // opent eerste
+          body.appendChild(wrap);
+        });
+      } else {
+        taken.sort((a,b)=>a.tijd.localeCompare(b.tijd)).forEach(t=>body.appendChild(_plannerCardEl(t,true)));
+      }
     }
     col.appendChild(body);
     grid.appendChild(col);
@@ -5059,7 +5307,7 @@ function renderPlannerKalender(){
 }
 
 function setPlannerWk(delta){
-  plannerWk=Math.max(1,Math.min(9,plannerWk+delta));
+  plannerWk=Math.max(1,Math.min(_periodeMaxWeken(),plannerWk+delta));
   renderPlannerKalender();
 }
 
@@ -5594,7 +5842,7 @@ loadAll()
       <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-dagrapport')">✕</button>
     </div>
     <div class="fr">
-      <div class="fg grow"><label for="dr-datum">Datum</label><input class="inp" type="date" id="dr-datum" min="2026-06-28" max="2026-09-06"></div>
+      <div class="fg grow"><label for="dr-datum">Datum</label><input class="inp" type="date" id="dr-datum"></div>
     </div>
     <div class="fr">
       <div class="fg grow"><label for="dr-chauf">Chauffeur</label>
