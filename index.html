@@ -602,10 +602,36 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   </div><!-- /sec-materiaal -->
 
   <!-- ═══════════════════════════════════════════════════════
+       TAB 4a: TRANSPORTEN OPSTELLEN (noden-backlog)
+  ═══════════════════════════════════════════════════════ -->
+  <div class="sec" id="sec-transport-noden">
+    <div style="display:flex;gap:5px;margin-bottom:1rem">
+      <button class="kal-subtab active" onclick="goTo('transport-noden')">&#128229; Op te stellen</button>
+      <button class="kal-subtab" onclick="goTo('transport-plan')">&#9889; Plannen</button>
+      <button class="kal-subtab" onclick="goTo('transporten')">&#128202; Alle transporten</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--rl);margin-bottom:.875rem">
+      &#8505; Stel hier op <strong>wat</strong> er vervoerd moet worden. Datum en chauffeur plan je later in bij <strong>Plannen</strong>.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <button class="btn-g" onclick="genereerNoden()">&#9889; Voorstel genereren</button>
+      <button class="btn-b" onclick="openNieuweNood()">+ Nood toevoegen</button>
+    </div>
+    <div id="noden-voorstellen" style="display:none">
+      <div class="card" style="border-color:#5DCAA5">
+        <div class="card-hd" style="color:var(--green-dk)">&#9889; Gegenereerde voorstellen &mdash; voeg toe aan de backlog</div>
+        <div id="noden-voorstellen-lijst"></div>
+      </div>
+    </div>
+    <div id="noden-lijst"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
        TAB 4: TRANSPORT PLANNEN
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-transport-plan">
     <div style="display:flex;gap:5px;margin-bottom:1rem">
+      <button class="kal-subtab" onclick="goTo('transport-noden')">&#128229; Op te stellen</button>
       <button class="kal-subtab active" onclick="goTo('transport-plan')">&#9889; Plannen</button>
       <button class="kal-subtab" onclick="goTo('transporten')">&#128202; Alle transporten</button>
     </div>
@@ -613,7 +639,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="metric"><div class="metric-label">Leveringen</div><div class="metric-val g" id="pl-lev">0</div></div>
       <div class="metric"><div class="metric-label">Ophalingen</div><div class="metric-val b" id="pl-oph">0</div></div>
       <div class="metric"><div class="metric-label">Bevestigd</div><div class="metric-val g" id="pl-bev">0</div></div>
-      <div class="metric"><div class="metric-label">Nog te plannen</div><div class="metric-val a" id="pl-todo">0</div></div>
+      <div class="metric" style="cursor:pointer" onclick="goTo('transport-noden')" title="Naar de backlog"><div class="metric-label">Op te stellen</div><div class="metric-val a" id="pl-todo">0</div></div>
     </div>
 
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem;flex-wrap:wrap;">
@@ -631,9 +657,8 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <span id="pl-week-label" style="font-size:14px;font-weight:600;min-width:200px;text-align:center"></span>
       <button class="btn-o" id="pl-week-next" onclick="plannerNav(1)">&#8594;</button>
       <div style="flex:1"></div>
-      <button class="btn-g" onclick="genereerVoorstellen()">&#9889; Voorstel genereren</button>
       <button class="btn-r" onclick="openSpoedtransport()">&#128680; Spoedtransport</button>
-      <button class="btn-b" onclick="openNieuweTransport()">+ Toevoegen</button>
+      <button class="btn-b" onclick="openNieuweRitOp()">+ Nieuwe rit</button>
     </div>
 
     <div style="display:flex;gap:6px;margin-bottom:.875rem;flex-wrap:wrap;align-items:flex-end;padding:.625rem .875rem;background:var(--bg2);border-radius:var(--rl);">
@@ -658,14 +683,9 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="btn-o" onclick="clearPlannerFilters()">&#x2715; Wis</button>
     </div>
 
-    <div id="pl-kalender-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:1.25rem"></div>
+    <div id="pl-backlog-strip"></div>
 
-    <div id="pl-voorstellen" style="display:none">
-      <div class="card" style="border-color:#5DCAA5">
-        <div class="card-hd" style="color:var(--green-dk)">&#9889; Gegenereerde voorstellen &mdash; controleer en sla op</div>
-        <div id="pl-voorstellen-lijst"></div>
-      </div>
-    </div>
+    <div id="pl-kalender-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:1.25rem"></div>
 
     <!-- Ploegplanning -->
     <details style="margin-top:.5rem">
@@ -702,6 +722,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   <!-- Transporten (bereikbaar via Planning tab → Alle transporten) -->
   <div class="sec" id="sec-transporten">
     <div style="display:flex;gap:5px;margin-bottom:1rem">
+      <button class="kal-subtab" onclick="goTo('transport-noden')">&#128229; Op te stellen</button>
       <button class="kal-subtab" onclick="goTo('transport-plan')">&#9889; Plannen</button>
       <button class="kal-subtab active" onclick="goTo('transporten')">&#128202; Alle transporten</button>
     </div>
@@ -873,37 +894,66 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 <div class="modal-bg" id="modal-transport">
   <div class="modal" style="width:540px">
     <div class="modal-title"><span id="modal-transport-title">Transport</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-transport')">&#x2715;</button></div>
+    <div id="tp-rit-info" style="display:none;font-size:11px;color:var(--blue-dk);padding:6px 10px;background:var(--blue-bg);border-radius:var(--r);margin-bottom:10px"></div>
     <div class="fr">
       <div class="fg md"><label for="tp-type">Type</label><select class="sel" id="tp-type">
         <option value="levering">&#128994; Levering</option><option value="ophaling">&#128309; Ophaling</option><option value="extra">&#128993; Extra</option>
       </select></div>
-      <div class="fg md"><label for="tp-datum">Datum</label><input class="inp" type="date" id="tp-datum"></div>
       <div class="fg sm"><label for="tp-tijd">Tijdstip</label><input class="inp" type="time" id="tp-tijd" value="09:00"></div>
+      <div class="fg md"><label for="tp-status">Status</label><select class="sel" id="tp-status">
+        <option value="gepland">Gepland</option><option value="bevestigd">Bevestigd</option><option value="gedaan">Gedaan</option>
+      </select></div>
     </div>
     <div class="fr">
       <div class="fg grow"><label for="tp-van">Van</label><select class="sel" id="tp-van" style="width:100%"></select></div>
       <div style="display:flex;align-items:flex-end;padding-bottom:1px;font-size:16px">&rarr;</div>
       <div class="fg grow"><label for="tp-naar">Naar</label><select class="sel" id="tp-naar" style="width:100%"></select></div>
     </div>
-    <div class="fr"><div class="fg grow"><label for="tp-opmerking">Omschrijving</label><input class="inp" type="text" id="tp-opmerking" style="width:100%" placeholder="bv. Levering week 4 Kessel-Lo &mdash; 6 thema&apos;s"></div></div>
-    <div class="fr">
-      <div class="fg grow"><label for="tp-wie">Wie rijdt?</label><input class="inp" type="text" id="tp-wie" list="chauf-datalist" placeholder="Naam of kies…" autocomplete="off"><datalist id="chauf-datalist"></datalist></div>
-      <div class="fg md"><label for="tp-status">Status</label><select class="sel" id="tp-status">
-        <option value="gepland">Gepland</option><option value="bevestigd">Bevestigd</option><option value="gedaan">Gedaan</option>
-      </select></div>
-    </div>
+    <div class="fr"><div class="fg grow"><label for="tp-opmerking">Omschrijving</label><input class="inp" type="text" id="tp-opmerking" style="width:100%" placeholder="bv. Levering Kessel-Lo &mdash; 6 thema&apos;s"></div></div>
     <div class="divider"></div>
     <div class="sl">Materiaal</div>
     <div id="tp-regels-lijst" style="margin-bottom:8px"></div>
     <div class="add-row">
-      <input type="text" class="ai grow" id="tp-regel-naam" placeholder="Materiaalnaam&hellip;" onkeydown="if(event.key==='Enter')addTpRegel()">
+      <input type="text" class="ai grow" id="tp-regel-naam" list="tp-mat-datalist" placeholder="Kies of typ materiaal&hellip;" autocomplete="off" onkeydown="if(event.key==='Enter')addTpRegel()">
+      <datalist id="tp-mat-datalist"></datalist>
       <input type="number" class="ai sm" id="tp-regel-qty" value="1" min="1">
       <button class="btn-xs" onclick="addTpRegel()">+ Toevoegen</button>
+    </div>
+    <div class="add-row" style="margin-top:6px">
+      <select class="sel" id="tp-thema-add" style="flex:1;height:32px;font-size:12px"></select>
+      <button class="btn-xs" onclick="voegThemaToe()">+ Heel thema</button>
     </div>
     <div style="display:flex;gap:8px;margin-top:1rem">
       <button class="btn-g" style="flex:1" onclick="saveTpTaak()">&#128190; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-transport')">Annuleren</button>
       <button class="btn-del-sm" id="tp-delete-btn" style="display:none" onclick="deleteTpTaak()">&#128465; Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Rit (groepeert transporten op één dag) -->
+<div class="modal-bg" id="modal-rit">
+  <div class="modal" style="width:560px">
+    <div class="modal-title"><span id="modal-rit-title">Rit</span><button class="modal-close" aria-label="Sluiten" onclick="annuleerRit()">&#x2715;</button></div>
+    <div class="fr">
+      <div class="fg md"><label for="rit-datum">Datum</label><input class="inp" type="date" id="rit-datum"></div>
+      <div class="fg grow"><label for="rit-chauffeur">Chauffeur</label><input class="inp" type="text" id="rit-chauffeur" list="chauf-datalist" placeholder="Naam of kies&hellip;" autocomplete="off"><datalist id="chauf-datalist"></datalist></div>
+      <div class="fg md"><label for="rit-status">Status</label><select class="sel" id="rit-status">
+        <option value="gepland">Gepland</option><option value="bevestigd">Bevestigd</option><option value="gedaan">Gedaan</option>
+      </select></div>
+    </div>
+    <div class="fr"><div class="fg grow"><label for="rit-opmerking">Opmerking</label><input class="inp" type="text" id="rit-opmerking" style="width:100%" placeholder="bv. Ochtendrit"></div></div>
+    <div class="divider"></div>
+    <div class="sl">Transporten in deze rit</div>
+    <div id="rit-leden" style="margin-bottom:8px"></div>
+    <div class="add-row">
+      <select class="sel" id="rit-nood-add" style="flex:1;height:32px;font-size:12px"></select>
+      <button class="btn-xs" onclick="addNoodAanRit()">+ Uit backlog</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      <button class="btn-g" style="flex:1" onclick="saveRit()">&#128190; Opslaan</button>
+      <button class="btn-o" onclick="annuleerRit()">Sluiten</button>
+      <button class="btn-del-sm" onclick="deleteRit()">&#128465; Rit verwijderen</button>
     </div>
   </div>
 </div>
@@ -1484,7 +1534,7 @@ function setSimDate(v){
 }
 
 // ── 4-TAB ROUTING ──
-const SECS=['overzicht','planning','materiaal','transport-plan','transporten'];
+const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten'];
 
 
 function goTo(id){
@@ -1495,7 +1545,7 @@ function goTo(id){
   document.querySelectorAll('.nb').forEach((b,i)=>{
     const active=[
       id==='overzicht',
-      id==='transport-plan'||id==='transporten',
+      id==='transport-plan'||id==='transporten'||id==='transport-noden',
       id==='materiaal',
       id==='planning'
     ][i]||false;
@@ -1505,6 +1555,7 @@ function goTo(id){
     overzicht:renderOverzicht,
     planning:renderPlanning,
     materiaal:renderMateriaal,
+    'transport-noden':renderNoden,
     'transport-plan':renderTransportPlan,
     transporten:renderTransportenOV,
   };
@@ -1687,32 +1738,35 @@ async function renderTransportenOV(){
   if(periode==='aankomend') filtered=filtered.filter(t=>{if(!t.datum)return true;return t.datum>=isoLocal(now);});
   else if(periode==='week') filtered=filtered.filter(t=>{if(!t.datum)return true;const d=new Date(t.datum+'T12:00:00');return d>=now&&d<=weekEnd;});
 
-  // Sort
+  // Sort: spoed (0) → noden zonder datum (1) → geplande transporten op datum (2)
+  const _grp=t=>t._soort==='spoed'?0:(!t.datum?1:2);
   filtered.sort((a,b)=>{
-    if(!a.datum&&!b.datum)return 0;
-    if(!a.datum)return -1; // spoed zonder datum bovenaan
-    if(!b.datum)return 1;
-    return a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd);
+    const ga=_grp(a),gb=_grp(b);
+    if(ga!==gb)return ga-gb;
+    if(ga===2)return a.datum.localeCompare(b.datum)||(a.tijd||'').localeCompare(b.tijd||'');
+    return 0;
   });
 
   const el=document.getElementById('tp-ov-list');
   if(!filtered.length){el.innerHTML='<div class="empty">Geen transporten gevonden.</div>';return;}
 
   el.innerHTML='';
-  let lastDate='';
+  let lastKey='';
   filtered.forEach(t=>{
-    if(t.datum&&t.datum!==lastDate){
-      lastDate=t.datum;
+    const key=t._soort==='spoed'?'__spoed':(!t.datum?'__nood':t.datum);
+    if(key!==lastKey){
+      lastKey=key;
       const dh=document.createElement('div');
-      dh.style.cssText='font-size:11px;font-weight:600;color:var(--text2);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
-      dh.textContent=fIso(t.datum);
-      el.appendChild(dh);
-    } else if(!t.datum&&lastDate!=='__spoed'){
-      lastDate='__spoed';
-      const dh=document.createElement('div');
-      dh.style.cssText='font-size:11px;font-weight:600;color:var(--red-dk);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
-      dh.textContent='&#128680; Spoedleveringen (geen datum)';
-      dh.innerHTML='&#128680; Spoedleveringen';
+      if(key==='__spoed'){
+        dh.style.cssText='font-size:11px;font-weight:600;color:var(--red-dk);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
+        dh.innerHTML='&#128680; Spoedleveringen';
+      } else if(key==='__nood'){
+        dh.style.cssText='font-size:11px;font-weight:600;color:var(--amber-dk);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
+        dh.innerHTML='&#128229; Nog op te stellen — niet ingepland';
+      } else {
+        dh.style.cssText='font-size:11px;font-weight:600;color:var(--text2);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
+        dh.textContent=fIso(t.datum);
+      }
       el.appendChild(dh);
     }
 
@@ -3340,6 +3394,7 @@ function _materiaalKeuzeOpts(){
   (_invSport||[]).forEach(i=>{if(i&&i.name)names.add(i.name);});
   (S.themas||[]).forEach(t=>(t.materiaal||t.mat||[]).forEach(m=>{if(m&&m.name)names.add(m.name);}));
   (_invGedeeld||[]).forEach(i=>{if(i&&i.name)names.add(i.name);});
+  (_invVerbruik||[]).forEach(i=>{if(i&&i.name)names.add(i.name);});
   return [...names].sort((a,b)=>a.localeCompare(b,'nl'));
 }
 function _locMatRowsHTML(locId){
@@ -4456,7 +4511,11 @@ let plannerDag=null;    // iso-datum in dagweergave
 let filterLocatie='';   // locatie_id string of ''
 let filterChauf='';     // naam string of ''
 let filterStatus='';    // 'gepland'|'bevestigd'|'gedaan'|''
-let _dragTpId=null;     // transport dat versleept wordt
+let plannerRitten=[];   // [{...rit, taken:[...]}] — geplande ritten
+let noden=[];           // transport_taken zonder rit (rit_id null) — backlog
+let _dragRitId=null;    // rit die versleept wordt tussen dagen
+let _dragNoodId=null;   // nood die uit de backlog versleept wordt
+let editingRitId=null;  // huidige rit in modal-rit
 
 function setPlannerView(v){
   plannerView=v;
@@ -4476,17 +4535,28 @@ function plannerNav(delta){
   renderPlannerKalender();
 }
 
-async function dropTransportOp(datum){
-  if(_dragTpId==null)return;
-  const id=_dragTpId;_dragTpId=null;
-  const t=plannerTaken.find(x=>x.id===id);
-  if(!t||t.datum===datum)return;
-  const r=await api('PUT','/transport-taken/'+id+'/move',{datum});
-  if(r&&!r.error){
-    plannerTaken=plannerTaken.map(x=>x.id===id?{...x,...r}:x);
-    renderPlannerKalender();updatePlannerMetrics();
-    showToast('Transport verplaatst','success');
-    if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
+async function _herlaadPlanner(){
+  plannerTaken=await api('GET','/transport-taken');
+  plannerRitten=await api('GET','/ritten');
+  noden=plannerTaken.filter(t=>!t.rit_id);
+  renderPlannerKalender();
+  updatePlannerMetrics();
+  renderBacklogStrip();
+  if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
+  if(document.getElementById('sec-transport-noden')?.classList.contains('active'))renderNodenLijst();
+}
+
+async function dropOpDag(iso){
+  if(_dragRitId!=null){
+    const id=_dragRitId;_dragRitId=null;
+    const rit=plannerRitten.find(r=>r.id===id);
+    if(!rit||rit.datum===iso)return;
+    const r=await api('PUT','/ritten/'+id,{datum:iso});
+    if(r&&!r.error){await _herlaadPlanner();showToast('Rit verplaatst','success');}
+  } else if(_dragNoodId!=null){
+    const id=_dragNoodId;_dragNoodId=null;
+    const r=await api('POST','/ritten',{datum:iso,taak_ids:[id]});
+    if(r&&!r.error){await _herlaadPlanner();showToast('Ingepland in nieuwe rit','success');}
   }
 }
 
@@ -4573,22 +4643,28 @@ function plannerWeekLabel(week){
   return 'Week '+week+' \u00B7 '+fDag(wd[0])+'\u2013'+fDag(wd[wd.length-1]);
 }
 
-function taakMatchesFilters(t){
+function _ritStatus(rit){
+  const ts=(rit.taken||[]).map(t=>t.status);
+  if(!ts.length)return rit.status||'gepland';
+  if(ts.every(s=>s==='gedaan'))return 'gedaan';
+  if(ts.some(s=>s==='bevestigd'||s==='gedaan'))return 'bevestigd';
+  return 'gepland';
+}
+function ritMatchesFilters(rit){
   if(filterLocatie){
     const lid=parseInt(filterLocatie);
-    if(t.van_locatie_id!==lid&&t.naar_locatie_id!==lid)return false;
+    if(!(rit.taken||[]).some(t=>t.van_locatie_id===lid||t.naar_locatie_id===lid))return false;
   }
   if(filterChauf){
-    if(!(t.wie||'').toLowerCase().includes(filterChauf.toLowerCase()))return false;
+    if(!(rit.chauffeur||'').toLowerCase().includes(filterChauf.toLowerCase()))return false;
   }
   if(filterStatus){
-    if(t.status!==filterStatus)return false;
+    if(_ritStatus(rit)!==filterStatus)return false;
   }
   return true;
 }
-
-function takenOpDag(datum){
-  return plannerTaken.filter(t=>t.datum===datum&&taakMatchesFilters(t));
+function rittenOpDag(datum){
+  return plannerRitten.filter(r=>r.datum===datum&&ritMatchesFilters(r));
 }
 
 function _fillPlannerPeriodeSel(){
@@ -4618,49 +4694,75 @@ async function renderPlanner(){
   }
 
   plannerTaken=await api('GET','/transport-taken');
+  plannerRitten=await api('GET','/ritten');
+  noden=plannerTaken.filter(t=>!t.rit_id);
+  await _zorgMatData();
   // Load chauffeurs if needed
   if(!S_chauffeurs.length) S_chauffeurs=await api('GET','/chauffeurs');fillChaufDatalist();
 S_thema_cats=await api('GET','/thema-categorieen');
   renderPlannerKalender();
   updatePlannerMetrics();
+  renderBacklogStrip();
   renderChauffeursBeheer();
 }
 
 function updatePlannerMetrics(){
-  const vis=plannerTaken.filter(taakMatchesFilters);
   document.getElementById('pl-lev').textContent=plannerTaken.filter(t=>t.type==='levering').length;
   document.getElementById('pl-oph').textContent=plannerTaken.filter(t=>t.type==='ophaling').length;
   document.getElementById('pl-bev').textContent=plannerTaken.filter(t=>t.status==='bevestigd').length;
-  document.getElementById('pl-todo').textContent=plannerTaken.filter(t=>t.status==='gepland').length;
+  document.getElementById('pl-todo').textContent=plannerTaken.filter(t=>!t.rit_id).length;
 }
 
-function _plannerCardEl(t,wide){
-  const card=document.createElement('div');
-  const typColors={
-    levering:{bg:'#E1F5EE',border:'#5DCAA5',text:'#085041',icon:'🟢'},
-    ophaling:{bg:'#E6F1FB',border:'#85B7EB',text:'#0C447C',icon:'🔵'},
-    extra:{bg:'#FAEEDA',border:'#F0C878',text:'#633806',icon:'🟡'},
-    opdracht:{bg:'#F3EEFB',border:'#B89DE8',text:'#4A1F8C',icon:'📋'},
-  };
-  const tc=typColors[t.type]||typColors.opdracht;
-  card.style.cssText='background:'+tc.bg+';border:.5px solid '+tc.border+';border-radius:6px;padding:'+(wide?'8px 11px':'5px 7px')+';cursor:grab;';
-  card.draggable=true;
-  card.ondragstart=ev=>{_dragTpId=t.id;ev.dataTransfer.effectAllowed='move';card.style.opacity='.5';};
-  card.ondragend=()=>{_dragTpId=null;card.style.opacity='1';};
+const _tpTypIco={levering:'🟢',ophaling:'🔵',extra:'🟡',opdracht:'📋'};
+function _ritRoute(t){
   const van=S.locaties.find(l=>l.id===t.van_locatie_id);
   const naar=S.locaties.find(l=>l.id===t.naar_locatie_id);
-  const stDot={gepland:'🔸',bevestigd:'🔹',gedaan:'✅'}[t.status]||'🔸';
+  if(van&&naar)return van.name.split(' ')[0]+'→'+naar.name.split(' ')[0];
+  if(van)return 'van '+van.name.split(' ')[0];
+  if(naar)return 'naar '+naar.name.split(' ')[0];
+  return '';
+}
+function _ritCardEl(rit,wide){
+  const card=document.createElement('div');
+  const st=_ritStatus(rit);
+  const stDot={gepland:'🔸',bevestigd:'🔹',gedaan:'✅'}[st]||'🔸';
+  const n=(rit.taken||[]).length;
+  card.style.cssText='background:var(--bg);border:.5px solid var(--border2);border-left:3px solid var(--green);border-radius:6px;padding:'+(wide?'8px 11px':'5px 7px')+';cursor:grab;';
+  card.draggable=true;
+  card.ondragstart=ev=>{_dragRitId=rit.id;ev.dataTransfer.effectAllowed='move';card.style.opacity='.5';};
+  card.ondragend=()=>{_dragRitId=null;card.style.opacity='1';};
   const fs=wide?'13px':'10px',fs2=wide?'11px':'9px';
-  const locLabel=t.type==='opdracht'?'':(van&&naar?(wide?van.name+' → '+naar.name:van.name.split(' ')[0]+' → '+naar.name.split(' ')[0]):van?'Van '+(wide?van.name:van.name.split(' ')[0]):naar?'Naar '+(wide?naar.name:naar.name.split(' ')[0]):'');
+  const max=wide?20:4;
+  const ledenHtml=(rit.taken||[]).slice(0,max).map(t=>
+    '<div style="font-size:'+fs2+';color:var(--text2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'
+    +(_tpTypIco[t.type]||'📦')+' '+(t.tijd?t.tijd+' ':'')+_escH(t.opmerking||_ritRoute(t)||t.type)+'</div>').join('');
+  const meer=n>max?'<div style="font-size:'+fs2+';color:var(--text3)">+'+(n-max)+' meer</div>':'';
   card.innerHTML='<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
-    +'<span style="font-size:'+fs+'">'+tc.icon+'</span>'
-    +'<span style="font-size:'+fs+';font-weight:600;color:'+tc.text+';flex:1;overflow:hidden;'+(wide?'':'white-space:nowrap;text-overflow:ellipsis')+'">'+_escH(t.opmerking||t.type)+'</span>'
+    +'<span style="font-size:'+fs+'">🚚</span>'
+    +'<span style="font-size:'+fs+';font-weight:700;color:var(--text);flex:1;overflow:hidden;'+(wide?'':'white-space:nowrap;text-overflow:ellipsis')+'">'+n+'× rit'+(rit.chauffeur?' · 👤 '+_escH(rit.chauffeur):'')+'</span>'
     +'<span style="font-size:'+fs2+'">'+stDot+'</span>'
     +'</div>'
-    +(locLabel?'<div style="font-size:'+fs2+';color:var(--text2)">'+_escH(locLabel)+'</div>':'')
-    +(t.tijd?'<div style="font-size:'+fs2+';color:var(--text2)">'+t.tijd+(t.wie?' · 👤 '+_escH(t.wie):'')+'</div>':'');
-  card.onclick=()=>openEditTp(t.id);
+    +(ledenHtml||'<div style="font-size:'+fs2+';color:var(--text3)">leeg</div>')+meer
+    +(rit.opmerking?'<div style="font-size:'+fs2+';color:var(--text3);font-style:italic">'+_escH(rit.opmerking)+'</div>':'');
+  card.onclick=()=>openRitModal(rit.id);
   return card;
+}
+
+function renderBacklogStrip(){
+  const el=document.getElementById('pl-backlog-strip');
+  if(!el)return;
+  if(!noden.length){el.innerHTML='';return;}
+  const chips=noden.map(t=>{
+    const lbl=_escH(t.opmerking||_ritRoute(t)||t.type);
+    return '<span draggable="true" ondragstart="_dragNoodId='+t.id+';event.dataTransfer.effectAllowed=\'move\'" ondragend="_dragNoodId=null" '
+      +'style="display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:.5px solid var(--border2);border-radius:999px;padding:3px 4px 3px 9px;font-size:11px;cursor:grab">'
+      +'📦 '+lbl
+      +' <button onclick="planNood('+t.id+')" title="Inplannen" style="background:var(--green-bg);border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px">📅</button>'
+      +'</span>';
+  }).join('');
+  el.innerHTML='<div style="padding:8px 10px;background:var(--amber-bg);border:.5px solid var(--amber);border-radius:var(--rl);margin-bottom:.75rem">'
+    +'<div style="font-size:11px;font-weight:600;color:var(--amber-dk);margin-bottom:6px">📥 Op te stellen ('+noden.length+') — sleep op een dag of klik 📅</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+chips+'</div></div>';
 }
 
 function renderPlannerKalender(){
@@ -4708,7 +4810,7 @@ function renderPlannerKalender(){
     const iso=isoLocal(day);
     const dow=day.getDay();
     const isWeekend=(dow===0||dow===6);
-    const taken=takenOpDag(iso);
+    const ritten=rittenOpDag(iso);
 
     const col=document.createElement('div');
     col.style.cssText='min-height:120px;border-radius:var(--rl);overflow:hidden;'+(isWeekend&&!wide?'opacity:.65':'');
@@ -4717,53 +4819,22 @@ function renderPlannerKalender(){
     hd.style.cssText='padding:5px 8px;font-size:'+(wide?'13px':'11px')+';font-weight:600;display:flex;justify-content:space-between;align-items:center;'
       +(isWeekend?'background:var(--bg3);color:var(--text3);':'background:var(--bg2);color:var(--text2);');
     hd.innerHTML='<span>'+(wide?DOW_LONG[dow]:DOW_FULL[dow])+' '+day.getDate()+' '+MND_S[day.getMonth()+1]+'</span>'
-      +'<button style="background:transparent;border:none;cursor:pointer;font-size:14px;padding:0 2px;color:var(--text2)" title="Taak toevoegen op deze datum" onclick="openNieuweTransportOp(\''+iso+'\')">+</button>';
+      +'<button style="background:transparent;border:none;cursor:pointer;font-size:14px;padding:0 2px;color:var(--text2)" title="Nieuwe rit op deze dag" onclick="openNieuweRitOp(\''+iso+'\')">+</button>';
     col.appendChild(hd);
 
     const body=document.createElement('div');
     body.style.cssText='padding:4px;display:flex;flex-direction:column;gap:4px;background:'+(isWeekend?'var(--bg3)':'var(--bg)')+';min-height:100px;transition:outline .1s;';
-    body.ondragover=e=>{if(_dragTpId!=null){e.preventDefault();body.style.outline='2px dashed var(--green)';body.style.outlineOffset='-2px';}};
+    body.ondragover=e=>{if(_dragRitId!=null||_dragNoodId!=null){e.preventDefault();body.style.outline='2px dashed var(--green)';body.style.outlineOffset='-2px';}};
     body.ondragleave=()=>{body.style.outline='';};
-    body.ondrop=e=>{e.preventDefault();body.style.outline='';dropTransportOp(iso);};
+    body.ondrop=e=>{e.preventDefault();body.style.outline='';dropOpDag(iso);};
 
-    if(taken.length===0){
+    if(ritten.length===0){
       const emp=document.createElement('div');
       emp.style.cssText='font-size:'+(wide?'12px':'10px')+';color:var(--text3);padding:'+(wide?'16px':'6px 4px')+';text-align:center;';
-      emp.textContent=(isWeekend&&!wide)?'—':'Geen transporten';
+      emp.textContent=(isWeekend&&!wide)?'—':'Geen ritten';
       body.appendChild(emp);
     } else {
-      // Groepeer per route (van → naar) voor samengevouwen weergave in weekview
-      if(!wide){
-        const routeKey=t=>`${t.van_locatie_id||''}→${t.naar_locatie_id||''}→${t.type}`;
-        const groups=new Map();
-        taken.sort((a,b)=>a.tijd.localeCompare(b.tijd)).forEach(t=>{const k=routeKey(t);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(t);});
-        groups.forEach(groep=>{
-          if(groep.length===1){body.appendChild(_plannerCardEl(groep[0],false));return;}
-          // Meerdere transporten zelfde route → samengevoegde kaart
-          const t0=groep[0];
-          const van=S.locaties.find(l=>l.id===t0.van_locatie_id);
-          const naar=S.locaties.find(l=>l.id===t0.naar_locatie_id);
-          const typColors={levering:{bg:'#E1F5EE',border:'#5DCAA5',text:'#085041',icon:'🟢'},ophaling:{bg:'#E6F1FB',border:'#85B7EB',text:'#0C447C',icon:'🔵'},extra:{bg:'#FAEEDA',border:'#F0C878',text:'#633806',icon:'🟡'},opdracht:{bg:'#F3EEFB',border:'#B89DE8',text:'#4A1F8C',icon:'📋'}};
-          const tc=typColors[t0.type]||typColors.opdracht;
-          const statussen=groep.map(t=>t.status);
-          const alGedaan=statussen.every(s=>s==='gedaan');
-          const stDot=alGedaan?'✅':statussen.some(s=>s==='bevestigd')?'🔹':'🔸';
-          const wrap=document.createElement('div');
-          wrap.style.cssText='background:'+tc.bg+';border:.5px solid '+tc.border+';border-radius:6px;padding:5px 7px;cursor:pointer;';
-          wrap.innerHTML='<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
-            +'<span style="font-size:10px">'+tc.icon+'</span>'
-            +'<span style="font-size:10px;font-weight:700;color:'+tc.text+';flex:1">'+groep.length+'× '+(van&&naar?van.name.split(' ')[0]+' → '+naar.name.split(' ')[0]:t0.type)+'</span>'
-            +'<span style="font-size:9px">'+stDot+'</span>'
-            +'</div>'
-            +'<div style="font-size:9px;color:var(--text2)">'
-            +groep.map(t=>'• '+_escH(t.opmerking||t.type)).join('<br>')
-            +'</div>';
-          wrap.onclick=()=>openEditTp(t0.id); // opent eerste
-          body.appendChild(wrap);
-        });
-      } else {
-        taken.sort((a,b)=>a.tijd.localeCompare(b.tijd)).forEach(t=>body.appendChild(_plannerCardEl(t,true)));
-      }
+      ritten.forEach(rit=>body.appendChild(_ritCardEl(rit,wide)));
     }
     col.appendChild(body);
     grid.appendChild(col);
@@ -4790,9 +4861,116 @@ function clearPlannerFilters(){
   renderPlannerKalender();
 }
 
-function openNieuweTransportOp(datum){
-  openNieuweTransport();
-  document.getElementById('tp-datum').value=datum;
+// ── RITTEN (laag 2: plannen) ──
+async function openNieuweRitOp(datum){
+  const d=datum||(plannerView==='dag'&&plannerDag)||isoLocal(plannerWeekDagen(plannerWk)[0]);
+  const r=await api('POST','/ritten',{datum:d});
+  if(!r||r.error){showToast('Aanmaken mislukt','error');return;}
+  plannerRitten.push(r);
+  openRitModal(r.id);
+}
+async function planNood(noodId){
+  // Maak een rit (op de eerste dag van de huidige week) met deze nood; pas datum aan in de modal.
+  const d=(plannerView==='dag'&&plannerDag)||isoLocal(plannerWeekDagen(plannerWk)[0])||isoLocal(_appNow());
+  const r=await api('POST','/ritten',{datum:d,taak_ids:[noodId]});
+  if(!r||r.error){showToast('Inplannen mislukt','error');return;}
+  await _herfetchRitten();
+  openRitModal(r.id);
+  showToast('Ingepland — kies datum en chauffeur','success');
+}
+function openRitModal(id){
+  const rit=plannerRitten.find(r=>r.id===id);
+  if(!rit){showToast('Rit niet gevonden','warn');return;}
+  editingRitId=id;
+  fillChaufDatalist();
+  document.getElementById('modal-rit-title').textContent='Rit — '+fIso(rit.datum);
+  document.getElementById('rit-datum').value=rit.datum||'';
+  document.getElementById('rit-chauffeur').value=rit.chauffeur||'';
+  document.getElementById('rit-status').value=rit.status||'gepland';
+  document.getElementById('rit-opmerking').value=rit.opmerking||'';
+  renderRitLeden();
+  openModal('modal-rit');
+}
+function renderRitLeden(){
+  const rit=plannerRitten.find(r=>r.id===editingRitId);
+  const el=document.getElementById('rit-leden');
+  if(!rit){el.innerHTML='';return;}
+  const leden=rit.taken||[];
+  el.innerHTML=leden.length?leden.map(t=>{
+    const route=_ritRoute(t);
+    return `<div class="mat-row" style="gap:6px;align-items:center">`
+      +`<span>${_tpTypIco[t.type]||'\u{1F4E6}'}</span>`
+      +`<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escH(t.opmerking||route||t.type)}`
+      +(route&&t.opmerking?` <span style="color:var(--text3);font-size:10px">${_escH(route)}</span>`:'')+`</span>`
+      +`<input type="time" value="${t.tijd||'09:00'}" onchange="zetTaakTijd(${t.id},this.value)" style="width:84px;height:28px;font-size:11px;border:.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text)">`
+      +`<button class="bi" title="Transport bewerken" onclick="openEditTp(${t.id})">✏️</button>`
+      +`<button class="bi" style="color:var(--red)" title="Uit rit halen" onclick="ontkoppelVanRit(${t.id})">⤴</button>`
+      +`</div>`;
+  }).join(''):'<div style="font-size:12px;color:var(--text2)">Nog geen transporten — voeg er een toe uit de backlog.</div>';
+  const sel=document.getElementById('rit-nood-add');
+  sel.innerHTML=noden.length
+    ?'<option value="">— Kies uit de backlog —</option>'+noden.map(t=>`<option value="${t.id}">${_escH(t.opmerking||_ritRoute(t)||t.type)}</option>`).join('')
+    :'<option value="">— Backlog is leeg —</option>';
+}
+async function zetTaakTijd(taakId,tijd){
+  await api('PUT','/transport-taken/'+taakId+'/move',{tijd});
+  const rit=plannerRitten.find(r=>r.id===editingRitId);
+  if(rit){const t=(rit.taken||[]).find(x=>x.id===taakId);if(t)t.tijd=tijd;}
+}
+async function addNoodAanRit(){
+  const sel=document.getElementById('rit-nood-add');
+  const id=parseInt(sel.value);
+  if(!id){showToast('Kies eerst een nood','warn');return;}
+  const r=await api('PUT','/transport-taken/'+id+'/rit',{rit_id:editingRitId});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  await _herfetchRitten();
+  renderRitLeden();
+}
+async function ontkoppelVanRit(taakId){
+  const r=await api('PUT','/transport-taken/'+taakId+'/rit',{rit_id:null});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  await _herfetchRitten();
+  renderRitLeden();
+}
+async function _herfetchRitten(){
+  plannerTaken=await api('GET','/transport-taken');
+  plannerRitten=await api('GET','/ritten');
+  noden=plannerTaken.filter(t=>!t.rit_id);
+}
+async function saveRit(){
+  if(!editingRitId)return;
+  const datum=document.getElementById('rit-datum').value;
+  if(!datum){showToast('Datum is verplicht','warn');return;}
+  const r=await api('PUT','/ritten/'+editingRitId,{
+    datum,
+    chauffeur:document.getElementById('rit-chauffeur').value.trim(),
+    status:document.getElementById('rit-status').value,
+    opmerking:document.getElementById('rit-opmerking').value.trim()
+  });
+  if(r&&r.error){showToast(r.error,'error');return;}
+  editingRitId=null;
+  closeModal('modal-rit');
+  await _herlaadPlanner();
+  showToast('Rit opgeslagen','success');
+}
+async function deleteRit(){
+  if(!editingRitId)return;
+  if(!confirm('Rit verwijderen? De transporten gaan terug naar de backlog.'))return;
+  await api('DELETE','/ritten/'+editingRitId);
+  editingRitId=null;
+  closeModal('modal-rit');
+  await _herlaadPlanner();
+  showToast('Rit verwijderd','success');
+}
+async function annuleerRit(){
+  // Lege, ongewijzigde rit → opruimen zodat er geen spookrit blijft staan
+  const rit=plannerRitten.find(r=>r.id===editingRitId);
+  if(rit&&(rit.taken||[]).length===0){
+    try{await api('DELETE','/ritten/'+editingRitId);}catch(e){}
+  }
+  editingRitId=null;
+  closeModal('modal-rit');
+  await _herlaadPlanner();
 }
 
 // Chauffeurs beheer
@@ -4820,86 +4998,204 @@ async function deleteChauf(id){
 
 function setPlannerFilter(f,btn){} // stub - no longer used, kept for compat
 
-async function cycleStatus(e,id){e.stopPropagation();const t=plannerTaken.find(x=>x.id===id);if(!t)return;const v={gepland:'bevestigd',bevestigd:'gedaan',gedaan:'gepland'}[t.status]||'gepland';const r=await api('PUT','/transport-taken/'+id+'/status',{status:v});plannerTaken=plannerTaken.map(x=>x.id===id?{...x,...r}:x);
-  renderPlannerKalender();updatePlannerMetrics();
-  if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
+async function cycleStatus(e,id){
+  e.stopPropagation();
+  const t=plannerTaken.find(x=>x.id===id);if(!t)return;
+  const v={gepland:'bevestigd',bevestigd:'gedaan',gedaan:'gepland'}[t.status]||'gepland';
+  await api('PUT','/transport-taken/'+id+'/status',{status:v});
+  await _herverversTransportSchermen();
 }
-async function genereerVoorstellen(){
+// \u2500\u2500 NODEN (laag 1: opstellen) \u2500\u2500
+async function renderNoden(){
+  plannerTaken=await api('GET','/transport-taken');
+  noden=plannerTaken.filter(t=>!t.rit_id);
+  await _zorgMatData();
+  renderNodenLijst();
+}
+function renderNodenLijst(){
+  const el=document.getElementById('noden-lijst');
+  if(!el)return;
+  if(!noden.length){
+    el.innerHTML='<div class="empty">Nog geen transport-noden. Voeg er een toe of genereer een voorstel.</div>';
+    return;
+  }
+  el.innerHTML=noden.map(t=>{
+    const route=_ritRoute(t);
+    const matN=(t.regels||[]).length;
+    return `<div class="tp-taak" style="border-left:3px solid var(--amber);margin-bottom:.5rem">`
+      +`<div class="tp-hd">`
+      +`<span style="font-size:16px">${_tpTypIco[t.type]||'\u{1F4E6}'}</span>`
+      +`<div style="flex:1"><div style="font-size:13px;font-weight:500">${_escH(t.opmerking||t.type)}</div>`
+      +`<div style="font-size:11px;color:var(--text2)">${_escH(route||'\u2014')}${matN?' \u00B7 '+matN+' materiaalitem'+(matN!==1?'s':''):''}</div></div>`
+      +`<button class="btn-g" style="height:28px;font-size:11px" onclick="planNood(${t.id})">\u{1F4C5} Plan in</button>`
+      +`<button class="bi" title="Bewerken" onclick="openEditTp(${t.id})">\u270F\uFE0F</button>`
+      +`<button class="bi" style="color:var(--red)" title="Verwijderen" onclick="verwijderNood(${t.id})">\u{1F5D1}\uFE0F</button>`
+      +`</div></div>`;
+  }).join('');
+}
+async function verwijderNood(id){
+  if(!confirm('Deze nood verwijderen?'))return;
+  await api('DELETE','/transport-taken/'+id);
+  await renderNoden();
+  if(document.getElementById('sec-transport-plan')?.classList.contains('active'))_herlaadPlanner();
+}
+function openNieuweNood(){
+  openNieuweTransport(); // modal-transport zonder datum/chauffeur = een nood
+}
+async function genereerNoden(){
   const vs=await api('POST','/transport-genereer');
-  if(!vs.length){alert('Geen kampmomenten gevonden om voorstellen voor te genereren.');return;}
-  tpVoorstellen=vs.sort((a,b)=>a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd));
-  renderVoorstellen();
+  if(!vs||!vs.length){showToast('Geen kampmomenten gevonden om voorstellen te maken','warn');return;}
+  tpVoorstellen=vs;
+  renderNoodVoorstellen();
 }
-
-function renderVoorstellen(){
-  const container=document.getElementById('pl-voorstellen');
-  const el=document.getElementById('pl-voorstellen-lijst');
+function renderNoodVoorstellen(){
+  const container=document.getElementById('noden-voorstellen');
+  const el=document.getElementById('noden-voorstellen-lijst');
   if(!tpVoorstellen.length){container.style.display='none';return;}
   container.style.display='block';
   el.innerHTML='';
   tpVoorstellen.forEach((v,i)=>{
     const isOph=v.type==='ophaling';
-    const isWissel=v.opmerking&&v.opmerking.includes('wissel');
     const vanNm=S.locaties.find(l=>l.id===v.van_locatie_id)?.name||'Stockage';
     const naarNm=S.locaties.find(l=>l.id===v.naar_locatie_id)?.name||'Stockage';
-    const icn={levering:'\u{1F7E2}',ophaling:'\u{1F535}',extra:'\u{1F7E1}',opdracht:'\u{1F4CB}'}[v.type]||'\u{1F4E6}';
-    const borderColor=isWissel?'#B89DE8':isOph?'#85B7EB':'#5DCAA5';
-    const bgColor=isWissel?'#F8F5FF':isOph?'#F8FBFF':'#FAFFFE';
-    const richting=isOph?v.locatie+' \u2192 '+(naarNm):vanNm+' \u2192 '+v.locatie;
+    const richting=isOph?v.locatie+' \u2192 '+naarNm:vanNm+' \u2192 '+v.locatie;
     const mat=(v.materiaal||[]);
     const card=document.createElement('div');
     card.className='voorstel-card';
-    card.style.cssText='border-color:'+borderColor+';background:'+bgColor+';';
-    const matRows=mat.map(m=>'<div class="mat-row"><span class="mat-qty">\u00D7'+m.qty+'</span>'+m.naam+'</div>').join('');
-    card.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
-      +'<span style="font-size:15px">'+icn+'</span>'
-      +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+v.opmerking+'</div>'
-      +'<div style="font-size:11px;color:var(--text2)">'+richting+'</div></div>'
-      +'<button class="btn-g" style="height:28px;font-size:11px" id="vst-save-'+i+'">Opslaan</button></div>'
-      +'<div class="fr" style="gap:6px;margin-bottom:6px">'
-      +'<div class="fg sm"><label style="font-size:10px">Datum</label>'
-      +'<input class="inp" type="date" id="vd-d-'+i+'" value="'+v.datum+'" style="height:28px;font-size:11px"></div>'
-      +'<div class="fg sm"><label style="font-size:10px">Tijd</label>'
-      +'<input class="inp" type="time" id="vd-t-'+i+'" value="'+v.tijd+'" style="height:28px;font-size:11px;width:80px"></div>'
-      +'<div class="fg grow"><label style="font-size:10px">Wie rijdt?</label>'
-      +'<input class="inp" type="text" id="vd-w-'+i+'" placeholder="Naam\u2026" style="height:28px;font-size:11px"></div></div>'
-      +(mat.length?'<details><summary style="font-size:11px;color:var(--text2);cursor:pointer">'+mat.length+' materiaalitems</summary><div style="margin-top:6px">'+matRows+'</div></details>':'');
-    card.querySelector('#vst-save-'+i).onclick=()=>slaVoorstelOp(i);
+    card.style.cssText='border-color:#5DCAA5;background:#FAFFFE;';
+    const matRows=mat.map(m=>'<div class="mat-row"><span class="mat-qty">\u00D7'+m.qty+'</span>'+_escH(m.naam)+'</div>').join('');
+    card.innerHTML='<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="font-size:15px">'+(_tpTypIco[v.type]||'\u{1F4E6}')+'</span>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+_escH(v.opmerking)+'</div>'
+      +'<div style="font-size:11px;color:var(--text2)">'+_escH(richting)+'</div></div>'
+      +'<button class="btn-g" style="height:28px;font-size:11px" id="nv-save-'+i+'">+ Backlog</button></div>'
+      +(mat.length?'<details style="margin-top:6px"><summary style="font-size:11px;color:var(--text2);cursor:pointer">'+mat.length+' materiaalitems</summary><div style="margin-top:6px">'+matRows+'</div></details>':'');
+    card.querySelector('#nv-save-'+i).onclick=()=>slaNoodOp(i);
     el.appendChild(card);
   });
 }
-
-async function slaVoorstelOp(i){
+async function slaNoodOp(i){
   const v=tpVoorstellen[i];
-  const datum=document.getElementById('vd-d-'+i).value;
-  const tijd=document.getElementById('vd-t-'+i).value;
-  const wie=document.getElementById('vd-w-'+i).value.trim();
   const isOph=v.type==='ophaling';
   const r=await api('POST','/transport-taken',{
-    type:v.type,datum,tijd,wie,opmerking:v.opmerking,kampmoment_id:v.kampmoment_id,
+    type:v.type,opmerking:v.opmerking,kampmoment_id:v.kampmoment_id,
     van_locatie_id:isOph?v.locatie_id:v.van_locatie_id,
     naar_locatie_id:isOph?v.naar_locatie_id:v.locatie_id,
     regels:(v.materiaal||[]).map(m=>({naam:m.naam,qty:m.qty,soort:m.soort}))
   });
-  plannerTaken.push(r);
+  if(r&&r.error){showToast(r.error,'error');return;}
   tpVoorstellen.splice(i,1);
-  renderVoorstellen();
-  renderPlannerKalender();
-  updatePlannerMetrics();
+  renderNoodVoorstellen();
+  await renderNoden();
+  showToast('Toegevoegd aan de backlog','success');
 }
 
-function openNieuweTransport(){// Populate chauffeur datalist
-const dl=document.getElementById('chauf-datalist');
-if(dl){dl.innerHTML=S_chauffeurs.map(c=>`<option value="${c.name}">`).join('');}
-editingTpId=null;tpRegels=[];document.getElementById('modal-transport-title').textContent='Transport toevoegen';document.getElementById('tp-type').value='levering';document.getElementById('tp-datum').value='';document.getElementById('tp-tijd').value='09:00';document.getElementById('tp-opmerking').value='';document.getElementById('tp-wie').value='';document.getElementById('tp-status').value='gepland';document.getElementById('tp-delete-btn').style.display='none';fillTpLocs();renderTpRegels();openModal('modal-transport');}
-function openEditTp(id){const dl=document.getElementById('chauf-datalist');
-if(dl){dl.innerHTML=S_chauffeurs.map(c=>`<option value="${c.name}">`).join('');}
-const t=plannerTaken.find(x=>x.id===id);if(!t)return;editingTpId=id;tpRegels=(t.regels||[]).map(r=>({...r}));document.getElementById('modal-transport-title').textContent='Transport bewerken';document.getElementById('tp-type').value=t.type||'levering';document.getElementById('tp-datum').value=t.datum||'';document.getElementById('tp-tijd').value=t.tijd||'09:00';document.getElementById('tp-opmerking').value=t.opmerking||'';document.getElementById('tp-wie').value=t.wie||'';document.getElementById('tp-status').value=t.status||'gepland';document.getElementById('tp-delete-btn').style.display='block';fillTpLocs(t.van_locatie_id,t.naar_locatie_id);renderTpRegels();openModal('modal-transport');}
+let _matDataGeladen=false;
+async function _zorgMatData(){
+  if(_matDataGeladen)return;
+  try{
+    if(!_invSport||!_invSport.length)_invSport=await api('GET','/sport');
+    if(!_invGedeeld||!_invGedeeld.length)_invGedeeld=await api('GET','/gedeeld');
+    if(!_invVerbruik||!_invVerbruik.length)_invVerbruik=await api('GET','/verbruik');
+  }catch(e){}
+  _matDataGeladen=true;
+}
+function fillMatDatalist(){
+  const dl=document.getElementById('tp-mat-datalist');
+  if(dl)dl.innerHTML=_materiaalKeuzeOpts().map(n=>`<option value="${_attrH(n)}">`).join('');
+}
+function fillThemaAddSelect(){
+  const sel=document.getElementById('tp-thema-add');
+  if(sel)sel.innerHTML='<option value="">— Heel thema toevoegen —</option>'+(S.themas||[]).map(t=>`<option value="${t.id}">${_escH(t.name)}</option>`).join('');
+}
+function voegThemaToe(){
+  const sel=document.getElementById('tp-thema-add');
+  const tid=parseInt(sel.value);
+  if(!tid){showToast('Kies eerst een thema','warn');return;}
+  const th=(S.themas||[]).find(t=>t.id===tid);
+  const mat=th?(th.materiaal||th.mat||[]):[];
+  if(!mat.length){showToast('Dit thema heeft geen materiaal','warn');return;}
+  mat.forEach(m=>tpRegels.push({naam:'['+th.name+'] '+m.name,qty:m.qty||1,soort:'thema'}));
+  sel.value='';
+  renderTpRegels();
+  showToast(mat.length+' items toegevoegd','success');
+}
+function openNieuweTransport(){
+  editingTpId=null;tpRegels=[];
+  document.getElementById('modal-transport-title').textContent='Nieuw transport';
+  document.getElementById('tp-type').value='levering';
+  document.getElementById('tp-tijd').value='09:00';
+  document.getElementById('tp-status').value='gepland';
+  document.getElementById('tp-opmerking').value='';
+  document.getElementById('tp-delete-btn').style.display='none';
+  document.getElementById('tp-rit-info').style.display='none';
+  fillTpLocs();fillThemaAddSelect();fillMatDatalist();renderTpRegels();
+  openModal('modal-transport');
+}
+function openEditTp(id){
+  const t=plannerTaken.find(x=>x.id===id);if(!t)return;
+  editingTpId=id;tpRegels=(t.regels||[]).map(r=>({...r}));
+  document.getElementById('modal-transport-title').textContent='Transport bewerken';
+  document.getElementById('tp-type').value=t.type||'levering';
+  document.getElementById('tp-tijd').value=t.tijd||'09:00';
+  document.getElementById('tp-status').value=t.status||'gepland';
+  document.getElementById('tp-opmerking').value=t.opmerking||'';
+  document.getElementById('tp-delete-btn').style.display='block';
+  const info=document.getElementById('tp-rit-info');
+  if(t.rit_id){
+    const rit=plannerRitten.find(r=>r.id===t.rit_id);
+    info.style.display='';
+    info.innerHTML='\u{1F4C5} Ingepland in een rit'+(rit?' op '+fIso(rit.datum)+(rit.chauffeur?' — \u{1F464} '+_escH(rit.chauffeur):''):'')+'. Datum &amp; chauffeur beheer je via de rit.';
+  } else {
+    info.style.display='none';
+  }
+  fillTpLocs(t.van_locatie_id,t.naar_locatie_id);fillThemaAddSelect();fillMatDatalist();renderTpRegels();
+  openModal('modal-transport');
+}
 function fillTpLocs(van,naar){const opts=S.locaties.map(l=>`<option value="${l.id}">${l.type==='stockage'?'📦':'⛺'} ${l.name}</option>`).join('');document.getElementById('tp-van').innerHTML='<option value="">— Geen —</option>'+opts;document.getElementById('tp-naar').innerHTML='<option value="">— Geen —</option>'+opts;if(van)document.getElementById('tp-van').value=van;if(naar)document.getElementById('tp-naar').value=naar;}
 function renderTpRegels(){document.getElementById('tp-regels-lijst').innerHTML=tpRegels.map((r,i)=>`<div class="mat-row"><span class="mat-qty">\u00D7${r.qty}</span><span style="flex:1">${r.naam}</span><button class="bi" style="color:var(--red)" onclick="tpRegels.splice(${i},1);renderTpRegels()">🗑️</button></div>`).join('')||'<div style="font-size:12px;color:var(--text2);margin-bottom:4px">Nog geen materiaal.</div>';}
 function addTpRegel(){const naam=document.getElementById('tp-regel-naam').value.trim();if(!naam)return;tpRegels.push({naam,qty:parseInt(document.getElementById('tp-regel-qty').value)||1,soort:'andere'});document.getElementById('tp-regel-naam').value='';document.getElementById('tp-regel-qty').value='1';renderTpRegels();}
-async function saveTpTaak(){const body={type:document.getElementById('tp-type').value,datum:document.getElementById('tp-datum').value,tijd:document.getElementById('tp-tijd').value,opmerking:document.getElementById('tp-opmerking').value.trim(),wie:document.getElementById('tp-wie').value.trim(),status:document.getElementById('tp-status').value,van_locatie_id:document.getElementById('tp-van').value||null,naar_locatie_id:document.getElementById('tp-naar').value||null,regels:tpRegels};if(!body.datum){alert('Vul een datum in.');return;}if(editingTpId){await api('PUT','/transport-taken/'+editingTpId,body);for(const rg of(plannerTaken.find(t=>t.id===editingTpId)?.regels||[]))await api('DELETE','/transport-regels/'+rg.id);for(const rg of tpRegels)await api('POST','/transport-regels',{taak_id:editingTpId,...rg});}else{await api('POST','/transport-taken',body);}plannerTaken=await api('GET','/transport-taken');closeModal('modal-transport');renderPlannerKalender();updatePlannerMetrics();}
-async function deleteTpTaak(){if(!editingTpId)return;if(!confirm('Transport verwijderen?'))return;await api('DELETE','/transport-taken/'+editingTpId);plannerTaken=plannerTaken.filter(t=>t.id!==editingTpId);closeModal('modal-transport');renderPlannerKalender();updatePlannerMetrics();}
+async function _herverversTransportSchermen(){
+  await _herfetchRitten();
+  if(document.getElementById('sec-transport-noden')?.classList.contains('active'))renderNodenLijst();
+  if(document.getElementById('sec-transport-plan')?.classList.contains('active')){renderPlannerKalender();updatePlannerMetrics();renderBacklogStrip();}
+  if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
+}
+async function saveTpTaak(){
+  const body={
+    type:document.getElementById('tp-type').value,
+    tijd:document.getElementById('tp-tijd').value,
+    status:document.getElementById('tp-status').value,
+    opmerking:document.getElementById('tp-opmerking').value.trim(),
+    van_locatie_id:document.getElementById('tp-van').value||null,
+    naar_locatie_id:document.getElementById('tp-naar').value||null,
+    regels:tpRegels
+  };
+  if(editingTpId){
+    await api('PUT','/transport-taken/'+editingTpId,body);
+    for(const rg of(plannerTaken.find(t=>t.id===editingTpId)?.regels||[]))await api('DELETE','/transport-regels/'+rg.id);
+    for(const rg of tpRegels)await api('POST','/transport-regels',{taak_id:editingTpId,...rg});
+  }else{
+    await api('POST','/transport-taken',body); // geen datum, geen rit_id → nood
+  }
+  closeModal('modal-transport');
+  await _herverversTransportSchermen();
+  if(editingRitId&&document.getElementById('modal-rit').classList.contains('open'))renderRitLeden();
+  showToast('Transport opgeslagen','success');
+}
+async function deleteTpTaak(){
+  if(!editingTpId)return;
+  if(!confirm('Transport verwijderen?'))return;
+  await api('DELETE','/transport-taken/'+editingTpId);
+  editingTpId=null;
+  closeModal('modal-transport');
+  await _herverversTransportSchermen();
+  if(editingRitId&&document.getElementById('modal-rit').classList.contains('open')){
+    if(plannerRitten.find(r=>r.id===editingRitId))renderRitLeden();
+    else{editingRitId=null;closeModal('modal-rit');}
+  }
+  showToast('Transport verwijderd','success');
+}
 
 // SPOED
 
@@ -5285,10 +5581,11 @@ loadAll()
       overzicht:renderOverzicht,
       planning:renderPlanning,
       materiaal:renderMateriaal,
+      'transport-noden':renderNoden,
       'transport-plan':renderTransportPlan,
       transporten:renderTransportenOV,
     };
-    const _activeTab=['overzicht','planning','materiaal','transport-plan','transporten']
+    const _activeTab=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten']
       .find(t=>document.getElementById('sec-'+t)?.classList.contains('active'))||'overzicht';
     try{const p=_initRenderMap[_activeTab]?.();if(p instanceof Promise)p.catch(e=>console.error(e));}
     catch(e){console.error('Init render error:',e);}
@@ -5305,12 +5602,15 @@ function _downloadCSV(rows,filename){const csv=rows.map(r=>r.map(_csvEscape).joi
 function exportTransportenCSV(){
   const taken=plannerTaken||[];
   if(!taken.length){showToast('Geen transporten om te exporteren','warn');return;}
+  const ritById={};(plannerRitten||[]).forEach(r=>{ritById[r.id]=r;});
   const rows=[['Datum','Type','Van','Naar','Chauffeur','Status','Opmerking']];
   taken.forEach(t=>{
     const van=S.locaties.find(l=>l.id===t.van_locatie_id)?.name||'';
     const naar=S.locaties.find(l=>l.id===t.naar_locatie_id)?.name||'';
-    const chauf=t.chauffeur_naam||'';
-    rows.push([t.datum||'',t.type||'',van,naar,chauf,t.status||'',t.opmerking||'']);
+    const rit=t.rit_id?ritById[t.rit_id]:null;
+    const chauf=(rit&&rit.chauffeur)||t.wie||'';
+    const datum=t.datum||(t.rit_id?'':'(op te stellen)');
+    rows.push([datum,t.type||'',van,naar,chauf,t.status||'',t.opmerking||'']);
   });
   _downloadCSV(rows,'transporten_'+new Date().toISOString().substring(0,10)+'.csv');
   showToast('CSV gedownload','success');
@@ -5351,7 +5651,7 @@ function globalSearch(q){
     // Gedeeld materiaal
     (_invGedeeld||[]).forEach(m=>{if(m.name&&m.name.toLowerCase().includes(q))results.push({icon:'🔧',label:m.name,sub:'Gedeeld materiaal',action:`goTo('materiaal')`});});
     // Transporten
-    (plannerTaken||[]).filter(t=>t.opmerking&&t.opmerking.toLowerCase().includes(q)).slice(0,5).forEach(t=>{results.push({icon:'🚚',label:t.opmerking||t.type,sub:(t.datum||'')+'  '+t.type,action:`goTo('transporten')`});});
+    (plannerTaken||[]).filter(t=>t.opmerking&&t.opmerking.toLowerCase().includes(q)).slice(0,5).forEach(t=>{results.push({icon:'🚚',label:t.opmerking||t.type,sub:t.rit_id?((t.datum||'')+' · '+t.type):'Op te stellen · '+t.type,action:t.rit_id?`goTo('transport-plan')`:`goTo('transport-noden')`});});
     // Periodes
     (S.periodes||[]).forEach(p=>{if(p.naam&&p.naam.toLowerCase().includes(q))results.push({icon:'📅',label:p.naam,sub:'Vakantieperiode',action:`goTo('overzicht')`});});
 

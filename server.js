@@ -277,6 +277,26 @@ async function startServer() {
   // Migration 13: locatie_id direct op sport_items
   addColumnIfMissing('sport_items', 'locatie_id', 'INTEGER');
 
+  // Migration 14: transport ritten (groepering van transporten)
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS transport_ritten (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    datum TEXT NOT NULL,
+    chauffeur TEXT DEFAULT '',
+    opmerking TEXT DEFAULT '',
+    status TEXT DEFAULT 'gepland',
+    created_at TEXT DEFAULT ''
+  )`);
+  addColumnIfMissing('transport_taken', 'rit_id', 'INTEGER');
+  // Backfill: elke gedateerde taak zonder rit krijgt een eigen 1-op-1 rit.
+  // Idempotent: na de backfill heeft de taak een rit_id en matcht de WHERE niets meer.
+  const _teBackfillen = all("SELECT * FROM transport_taken WHERE (rit_id IS NULL OR rit_id=0) AND datum IS NOT NULL AND datum<>''");
+  _teBackfillen.forEach(t => {
+    const ritId = ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
+      [t.datum, t.wie||'', '', t.status||'gepland', t.created_at||now()]);
+    db.run('UPDATE transport_taken SET rit_id=? WHERE id=?', [ritId, t.id]);
+  });
+  if (_teBackfillen.length) console.log(`  Migratie 14: ${_teBackfillen.length} ritten aangemaakt (backfill)`);
+
   saveDb();
 
 
@@ -823,9 +843,9 @@ async function startServer() {
     voorstellen.sort((a,b)=>a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd));
     res.json(voorstellen);
   });
-  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',[type,datum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now()]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere']));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
-  app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,datum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
-  app.delete('/api/transport-taken/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);res.json({ok:true});});
+  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere']));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
+  app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
+  app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)run('DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
   app.put('/api/transport-taken/:id/status',(req,res)=>{
     run('UPDATE transport_taken SET status=? WHERE id=?',[req.body.status,req.params.id]);
     // Als status → "gedaan": spoed-voorraadeffect toepassen als dat nog niet gebeurd is
@@ -835,11 +855,88 @@ async function startServer() {
     }
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));
   });
-  app.put('/api/transport-taken/:id/move',(req,res)=>{const{datum,tijd}=req.body;const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!t)return res.status(404).json({error:'Transport niet gevonden'});run('UPDATE transport_taken SET datum=?,tijd=? WHERE id=?',[datum||t.datum,tijd||t.tijd,req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
+  app.put('/api/transport-taken/:id/move',(req,res)=>{const{datum,tijd}=req.body;const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!t)return res.status(404).json({error:'Transport niet gevonden'});
+    if(t.rit_id){
+      // Verplaats de hele rit (datum + cascade naar alle leden)
+      if(datum){run('UPDATE transport_ritten SET datum=? WHERE id=?',[datum,t.rit_id]);run('UPDATE transport_taken SET datum=? WHERE rit_id=?',[datum,t.rit_id]);}
+      if(tijd)run('UPDATE transport_taken SET tijd=? WHERE id=?',[tijd,req.params.id]);
+    } else {
+      // Losse taak (nood) op een dag gesleept → maak een 1-op-1 rit
+      const d=datum||t.datum||'';
+      if(d){const nid=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',[d,t.wie||'','','gepland',now()]);run('UPDATE transport_taken SET rit_id=?,datum=?,tijd=? WHERE id=?',[nid,d,tijd||t.tijd,req.params.id]);}
+      else run('UPDATE transport_taken SET tijd=? WHERE id=?',[tijd||t.tijd,req.params.id]);
+    }
+    res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taak_id,naam,qty||1,soort||'andere']);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
   app.delete('/api/transport-regels/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE id=?',[req.params.id]);res.json({ok:true});});
 
-
+  // ── TRANSPORT RITTEN ──
+  function _ritMetTaken(rit){
+    if(!rit) return null;
+    const taken=all('SELECT * FROM transport_taken WHERE rit_id=? ORDER BY tijd',[rit.id]);
+    const regels=all('SELECT * FROM transport_regels');
+    return {...rit, taken: taken.map(t=>({...t, regels: regels.filter(r=>r.taak_id===t.id)}))};
+  }
+  app.get('/api/ritten',(req,res)=>{
+    const ritten=all('SELECT * FROM transport_ritten ORDER BY datum');
+    res.json(ritten.map(_ritMetTaken));
+  });
+  app.post('/api/ritten',(req,res)=>{
+    const {datum,chauffeur,opmerking,status,taak_ids}=req.body;
+    if(!datum) return res.status(400).json({error:'Datum is verplicht'});
+    const id=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
+      [datum,chauffeur||'',opmerking||'',status||'gepland',now()]);
+    if(Array.isArray(taak_ids)) taak_ids.forEach(tid=>{
+      run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[id,datum,chauffeur||'',tid]);
+    });
+    res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[id])));
+  });
+  app.put('/api/ritten/:id',(req,res)=>{
+    const {datum,chauffeur,opmerking,status}=req.body;
+    const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
+    if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
+    run('UPDATE transport_ritten SET datum=?,chauffeur=?,opmerking=?,status=? WHERE id=?',
+      [datum||rit.datum,
+       chauffeur!==undefined?chauffeur:rit.chauffeur,
+       opmerking!==undefined?opmerking:rit.opmerking,
+       status||rit.status,
+       req.params.id]);
+    // Sync gedenormaliseerde velden naar de leden-taken
+    if(datum&&datum!==rit.datum) run('UPDATE transport_taken SET datum=? WHERE rit_id=?',[datum,req.params.id]);
+    if(chauffeur!==undefined&&chauffeur!==rit.chauffeur) run('UPDATE transport_taken SET wie=? WHERE rit_id=?',[chauffeur,req.params.id]);
+    res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id])));
+  });
+  app.delete('/api/ritten/:id',(req,res)=>{
+    const leden=all('SELECT * FROM transport_taken WHERE rit_id=?',[req.params.id]);
+    leden.forEach(t=>{
+      if(t.spoed_kind){
+        // Spoedtransport mag geen datum verliezen → eigen verse rit
+        const nid=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
+          [t.datum,t.wie||'','Spoedtransport','gepland',now()]);
+        run('UPDATE transport_taken SET rit_id=? WHERE id=?',[nid,t.id]);
+      } else {
+        run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=?",[t.id]);
+      }
+    });
+    run('DELETE FROM transport_ritten WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
+  // Koppel een taak aan een rit (getal), of ontkoppel → nood (null)
+  app.put('/api/transport-taken/:id/rit',(req,res)=>{
+    const {rit_id}=req.body;
+    const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
+    if(!t) return res.status(404).json({error:'Transport niet gevonden'});
+    if(rit_id===null||rit_id===undefined||rit_id===''){
+      run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=?",[req.params.id]);
+    } else {
+      const rit=get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]);
+      if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
+      run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[rit_id,rit.datum,rit.chauffeur||'',req.params.id]);
+    }
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
+    const regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[req.params.id]);
+    res.json({...taak,regels});
+  });
 
   // ── VAKANTIEPERIODES ──
   app.get('/api/periodes', (req,res) => res.json(all('SELECT * FROM vakantieperiodes ORDER BY start_datum')));
@@ -891,6 +988,7 @@ async function startServer() {
       verbruik_log: all('SELECT * FROM verbruik_log'),
       transport_taken: all('SELECT * FROM transport_taken'),
       transport_regels: all('SELECT * FROM transport_regels'),
+      transport_ritten: all('SELECT * FROM transport_ritten'),
       chauffeurs: all('SELECT * FROM chauffeurs'),
       ploeg_shifts: all('SELECT * FROM ploeg_shifts'),
     };
@@ -902,7 +1000,7 @@ async function startServer() {
   // Reset: wis alle data voor import
   app.post('/api/import/reset', (req, res) => {
     try {
-      const tables = ['ploeg_shifts','transport_regels','transport_taken','verbruik_log',
+      const tables = ['ploeg_shifts','transport_regels','transport_taken','transport_ritten','verbruik_log',
         'verbruik_stock','set_planning','verplaatsingen','materiaal_eenheden','materiaal_items',
         'locatie_materiaal','spoedmeldingen','gesloten_dagen','kalender_dagen',
         'kampmoment_themas','kampmomenten','standaard_materiaal','thema_materiaal',
@@ -935,8 +1033,9 @@ async function startServer() {
       set_planning: ['id','eenheid_id','locatie_id','week'],
       verbruik_stock: ['id','item_id','locatie_id','qty','minimum','eenheid'],
       verbruik_log: ['id','item_id','locatie_id','delta','reden','wie','transport_id','datum','created_at'],
-      transport_taken: ['id','type','datum','tijd','van_locatie_id','naar_locatie_id','opmerking','wie','kampmoment_id','status','created_at'],
+      transport_taken: ['id','type','datum','tijd','van_locatie_id','naar_locatie_id','opmerking','wie','kampmoment_id','status','created_at','rit_id'],
       transport_regels: ['id','taak_id','naam','qty','soort'],
+      transport_ritten: ['id','datum','chauffeur','opmerking','status','created_at'],
       chauffeurs: ['id','name'],
       ploeg_shifts: ['id','chauffeur_id','datum','start_tijd','eind_tijd','type','opmerking'],
     };
@@ -1168,10 +1267,14 @@ async function startServer() {
     if(!naam) return res.status(400).json({error:'Item is verplicht'});
     const aantal=Math.max(1,parseInt(qty)||1);
     const ts=now();
+    const spoedDatum=datum||isoDate(new Date());
+    // Eigen 1-op-1 rit zodat spoed uniform op de weekplanner verschijnt
+    const ritId=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
+      [spoedDatum,'','Spoedtransport','gepland',ts]);
     // spoed_effect_toegepast=0: wordt pas verwerkt wanneer status → "gedaan"
     const taakId=ins(
-      'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
-      ['extra',datum||isoDate(new Date()),tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts,kind||'',ref_id||0,0]);
+      'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      ['extra',spoedDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts,kind||'',ref_id||0,0,ritId]);
     ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taakId,naam,aantal,'spoed']);
     saveDb();
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[taakId]));
