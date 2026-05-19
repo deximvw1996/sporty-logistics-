@@ -555,6 +555,12 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
               <option value="andere">&#128230; Andere</option>
             </select>
           </div>
+          <div class="fg md" id="cat-add-locatie-wrap" style="display:none">
+            <label for="cat-add-locatie">Huidige locatie</label>
+            <select class="sel" id="cat-add-locatie">
+              <option value="">— Onbekend —</option>
+            </select>
+          </div>
           <div class="fg md" id="cat-add-stockage-wrap">
             <label for="cat-add-stockage">Opslag</label>
             <select class="sel" id="cat-add-stockage">
@@ -3493,6 +3499,9 @@ async function renderCatalogus(){
   const stOpts='<option value="">— Automatisch —</option>'+(S.locaties||[]).filter(l=>l.type==='stockage').map(l=>`<option value="${l.id}">📦 ${l.name}</option>`).join('');
   const stSel=document.getElementById('cat-add-stockage');
   if(stSel) stSel.innerHTML=stOpts;
+  const locOpts='<option value="">— Onbekend —</option>'+(S.locaties||[]).map(l=>`<option value="${l.id}">${l.type==='kamp'?'⛺':'📦'} ${l.name}</option>`).join('');
+  const locSel=document.getElementById('cat-add-locatie');
+  if(locSel) locSel.innerHTML=locOpts;
   renderCatalogusAddForm();
   renderCatalogusLijst();
 }
@@ -3505,11 +3514,14 @@ function renderCatalogusAddForm(){
   const tw=document.getElementById('cat-add-thema-wrap');
   const cw=document.getElementById('cat-add-cat-wrap');
   const sw=document.getElementById('cat-add-stockage-wrap');
+  const lw=document.getElementById('cat-add-locatie-wrap');
   const ql=qw?.querySelector('label');
   if(!qw)return;
   if(sw)sw.style.display='';
+  if(lw)lw.style.display='none';
   if(type==='sport'){
     qw.style.display='none';tw.style.display='none';cw.style.display='';
+    if(lw)lw.style.display='';
     document.getElementById('cat-add-cat').innerHTML='<option value="sport">⚽ Sport</option><option value="zwembad">🏊 Zwembad</option><option value="outdoor">🏕️ Outdoor</option><option value="andere">📦 Andere</option>';
   } else if(type==='thema'){
     qw.style.display='';tw.style.display='';cw.style.display='none';
@@ -3539,7 +3551,8 @@ async function addCatalogusItem(){
   const cat=document.getElementById('cat-add-cat')?.value||'andere';
   const stockage_locatie_id=parseInt(document.getElementById('cat-add-stockage')?.value)||null;
   if(type==='sport'){
-    const r=await api('POST','/sport',{name:naam,cat,stockage_locatie_id});
+    const locatie_id=parseInt(document.getElementById('cat-add-locatie')?.value)||null;
+    const r=await api('POST','/sport',{name:naam,cat,stockage_locatie_id,locatie_id});
     if(r.error)return;
     _invSport=[...(_invSport||[]),{...r,sets:[]}];
   } else if(type==='thema'){
@@ -3579,7 +3592,7 @@ function setCatFilter(filter,btn){
 function _buildCatItems(){
   const items=[];
   (_invSport||[]).forEach(item=>{
-    items.push({type:'sport',raw_id:item.id,naam:item.name,sub:item.cat||'sport',thema:null,thema_id:null,thema_color:null,qty:null,sets:item.sets?.length||0,stockage_locatie_id:item.stockage_locatie_id||null});
+    items.push({type:'sport',raw_id:item.id,naam:item.name,sub:item.cat||'sport',thema:null,thema_id:null,thema_color:null,qty:null,sets:item.sets?.length||0,locatie_id:item.locatie_id||null,locatie_naam:item.locatie_name||null,stockage_locatie_id:item.stockage_locatie_id||null});
   });
   (S.themas||[]).forEach(th=>{
     (th.materiaal||th.mat||[]).forEach(m=>{
@@ -3593,7 +3606,8 @@ function _buildCatItems(){
     });
   });
   (_invGedeeld||[]).forEach(m=>{
-    items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,gebruik:m.gebruik||[],stockage_locatie_id:m.stockage_locatie_id||null,stock:m.stock||[]});
+    const _stockTot=(m.stock||[]).reduce((s,x)=>s+(x.qty||0),0);
+    items.push({type:'gedeeld',raw_id:m.id,naam:m.name,sub:m.cat||'gedeeld',thema:null,thema_id:null,thema_color:null,qty:_stockTot||m.totaal,sets:null,gebrCount:(m.gebruik||[]).length,gebruik:m.gebruik||[],stockage_locatie_id:m.stockage_locatie_id||null,stock:m.stock||[]});
   });
   (_invVerbruik||[]).forEach(m=>{
     const minTot=(m.stock||[]).reduce((s,x)=>s+(x.minimum||0),0);
@@ -3716,12 +3730,14 @@ function _renderCatRow(item,stockLocs){
       ?Object.keys(_verbruikCatLbl).map(c=>`<option value="${c}"${(item.sub||'andere')===c?' selected':''}>${_verbruikCatLbl[c]}</option>`).join('')
       :`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`;
     const stockageOpts='<option value="">— Automatisch —</option>'+stockLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${_escH(l.name)}</option>`).join('');
+    const locatieOpts='<option value="">— Onbekend —</option>'+(S.locaties||[]).map(l=>`<option value="${l.id}"${item.locatie_id==l.id?' selected':''}>${l.type==='kamp'?'⛺':'📦'} ${_escH(l.name)}</option>`).join('');
     return `<tr class="mat-edit"><td colspan="7">
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <span style="font-size:14px">${ico}</span>
         <input class="inp gb" type="text" id="ce-naam-${uid}" value="${_attrH(item.naam)}" style="flex:1;min-width:140px">
         ${hasQty?`<input class="inp gb" type="number" id="ce-qty-${uid}" value="${item.qty}" min="1" style="width:64px" title="Aantal">`:''}
         ${hasCat?`<select class="sel gb" id="ce-cat-${uid}" style="width:118px">${catOpts}</select>`:''}
+        ${item.type==='sport'?`<select class="sel gb" id="ce-loc-${uid}" style="width:150px" title="Huidige locatie">${locatieOpts}</select>`:''}
         ${hasStk?`<select class="sel gb" id="ce-stk-${uid}" style="width:140px" title="Opslaglocatie">${stockageOpts}</select>`:''}
         ${(item.type==='thema'||item.type==='standaard'||item.type==='verbruik')?`<button class="btn-xs" style="background:#BA751722;color:#BA7517;border:.5px solid #BA751755;height:32px" onclick="maakGedeeld(${_q(item.type)},${item.raw_id},${item.thema_id||'null'},${item.loc_id||'null'})" title="Omzetten naar gedeeld materiaal">&#128295; Maak gedeeld</button>`:''}
         <button class="bi save" onclick="saveCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})">&#x2713; Opslaan</button>
@@ -3740,7 +3756,7 @@ function _renderCatRow(item,stockLocs){
       :'<span style="font-size:11px;color:var(--text3)">— geen thema —</span>')
     :(item.sub&&item.sub!=='andere'&&item.sub!=='sport'&&item.sub!=='gedeeld'?`<span style="font-size:11px;color:var(--text3)">${_escH(item.sub)}</span>`:'<span style="color:var(--text3)">—</span>');
   const aantal=item.type==='sport'
-    ?`${item.sets} set${item.sets!==1?'s':''}`
+    ?(item.locatie_naam?`<span style="font-size:10px;background:var(--blue-bg);color:var(--blue-dk);border-radius:4px;padding:1px 6px;white-space:nowrap">📍 ${_escH(item.locatie_naam)}</span>`:'<span style="color:var(--text3);font-size:11px">—</span>')
     :item.type==='gedeeld'
     ?`${item.qty} <span style="font-size:9px;color:var(--text3)">st</span>`
     :item.type==='verbruik'
@@ -3886,10 +3902,11 @@ async function saveCatItem(type,id,themaId){
   const cat=document.getElementById('ce-cat-'+uid)?.value||'andere';
   const stockage_locatie_id=parseInt(document.getElementById('ce-stk-'+uid)?.value)||null;
   if(type==='sport'){
-    const r=await api('PUT','/sport/'+id,{name:naam,cat,notities:'',stockage_locatie_id});
+    const locatie_id=parseInt(document.getElementById('ce-loc-'+uid)?.value)||null;
+    const r=await api('PUT','/sport/'+id,{name:naam,cat,notities:'',stockage_locatie_id,locatie_id});
     if(r.error)return;
     const item=(_invSport||[]).find(i=>i.id===id);
-    if(item){item.name=naam;item.cat=cat;item.stockage_locatie_id=stockage_locatie_id;}
+    if(item){item.name=naam;item.cat=cat;item.stockage_locatie_id=stockage_locatie_id;item.locatie_id=locatie_id;item.locatie_name=(S.locaties||[]).find(l=>l.id===locatie_id)?.name||null;}
   } else if(type==='thema'){
     const r=await api('PUT','/themas/'+themaId+'/materiaal/'+id,{name:naam,qty,stockage_locatie_id});
     if(r.error)return;

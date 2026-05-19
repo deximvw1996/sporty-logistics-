@@ -274,6 +274,9 @@ async function startServer() {
   // Koppel bestaande kampmomenten aan periode 1 als ze nog niet gekoppeld zijn
   try { db.run("UPDATE kampmomenten SET periode_id=1 WHERE periode_id IS NULL OR periode_id=0"); } catch(e){}
 
+  // Migration 13: locatie_id direct op sport_items
+  addColumnIfMissing('sport_items', 'locatie_id', 'INTEGER');
+
   saveDb();
 
 
@@ -953,7 +956,7 @@ async function startServer() {
 
   // ── SPORT MATERIAAL ──
   app.get('/api/sport', (req,res) => {
-    const items = all('SELECT * FROM sport_items ORDER BY cat, name');
+    const items = all('SELECT si.*, l.name as locatie_name FROM sport_items si LEFT JOIN locaties l ON l.id=si.locatie_id ORDER BY si.cat, si.name');
     const sets = all('SELECT ss.*, l.name as locatie_name FROM sport_sets ss LEFT JOIN locaties l ON l.id=ss.locatie_id ORDER BY ss.item_id, ss.label');
     const planning = all('SELECT sp.*, l.name as locatie_name FROM sport_planning sp LEFT JOIN locaties l ON l.id=sp.locatie_id');
     res.json(items.map(item => ({
@@ -966,15 +969,15 @@ async function startServer() {
   });
 
   app.post('/api/sport', (req,res) => {
-    const {name, cat, notities, stockage_locatie_id} = req.body;
+    const {name, cat, notities, stockage_locatie_id, locatie_id} = req.body;
     if (!name) return res.status(400).json({error: 'Naam vereist'});
-    const id = ins('INSERT INTO sport_items (name,cat,notities,stockage_locatie_id) VALUES (?,?,?,?)', [name, cat||'sport', notities||'', stockage_locatie_id||null]);
-    res.json({...get('SELECT * FROM sport_items WHERE id=?', [id]), sets: []});
+    const id = ins('INSERT INTO sport_items (name,cat,notities,stockage_locatie_id,locatie_id) VALUES (?,?,?,?,?)', [name, cat||'sport', notities||'', stockage_locatie_id||null, locatie_id||null]);
+    res.json({...get('SELECT si.*, l.name as locatie_name FROM sport_items si LEFT JOIN locaties l ON l.id=si.locatie_id WHERE si.id=?', [id]), sets: []});
   });
   app.put('/api/sport/:id', (req,res) => {
-    const {name,cat,notities,stockage_locatie_id} = req.body;
-    run('UPDATE sport_items SET name=?,cat=?,notities=?,stockage_locatie_id=? WHERE id=?', [name,cat||'sport',notities||'',stockage_locatie_id||null,req.params.id]);
-    res.json(get('SELECT * FROM sport_items WHERE id=?', [req.params.id]));
+    const {name,cat,notities,stockage_locatie_id,locatie_id} = req.body;
+    run('UPDATE sport_items SET name=?,cat=?,notities=?,stockage_locatie_id=?,locatie_id=? WHERE id=?', [name,cat||'sport',notities||'',stockage_locatie_id||null,locatie_id||null,req.params.id]);
+    res.json(get('SELECT si.*, l.name as locatie_name FROM sport_items si LEFT JOIN locaties l ON l.id=si.locatie_id WHERE si.id=?', [req.params.id]));
   });
   app.delete('/api/sport/:id', (req,res) => {
     const sets = all('SELECT id FROM sport_sets WHERE item_id=?', [req.params.id]);
