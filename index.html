@@ -3695,6 +3695,7 @@ function _renderCatRow(item,stockLocs){
         ${hasQty?`<input class="inp gb" type="number" id="ce-qty-${uid}" value="${item.qty}" min="1" style="width:64px" title="Aantal">`:''}
         ${hasCat?`<select class="sel gb" id="ce-cat-${uid}" style="width:118px">${catOpts}</select>`:''}
         ${hasStk?`<select class="sel gb" id="ce-stk-${uid}" style="width:140px" title="Opslaglocatie">${stockageOpts}</select>`:''}
+        ${(item.type==='thema'||item.type==='standaard'||item.type==='verbruik')?`<button class="btn-xs" style="background:#BA751722;color:#BA7517;border:.5px solid #BA751755;height:32px" onclick="maakGedeeld(${_q(item.type)},${item.raw_id},${item.thema_id||'null'},${item.loc_id||'null'})" title="Omzetten naar gedeeld materiaal">&#128295; Maak gedeeld</button>`:''}
         <button class="bi save" onclick="saveCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})">&#x2713; Opslaan</button>
         <button class="bi" onclick="_catEditId=null;renderCatalogusLijst()">&#x2715;</button>
       </div>
@@ -3911,6 +3912,59 @@ async function _catItemDelete(type,id,themaId){
 async function deleteCatItem(type,id,themaId){
   await _catItemDelete(type,id,themaId);
   showToast('Artikel verwijderd','success');
+  renderCatalogusLijst();
+}
+
+// ── OMZETTEN NAAR GEDEELD MATERIAAL ──
+// Zet thema-, locatie- of verbruiksmateriaal om naar een echt gedeeld item.
+async function maakGedeeld(type,id,themaId,locId){
+  const uid=type+'-'+id;
+  let bron={},naam='',qty=1;
+  if(type==='thema'){
+    const th=S.themas.find(t=>t.id===themaId);
+    bron=(th&&(th.materiaal||[]).find(m=>m.id===id))||{};
+    qty=bron.qty||1;
+  } else if(type==='standaard'){
+    bron=((S.locMat&&S.locMat[locId])||[]).find(m=>m.id===id)||{};
+    qty=bron.qty||1;
+  } else if(type==='verbruik'){
+    bron=(_invVerbruik||[]).find(m=>m.id===id)||{};
+    qty=(bron.stock||[]).reduce((s,x)=>s+(x.qty||0),0)||bron.totaal||1;
+  } else {
+    showToast('Dit type kan niet omgezet worden','warn');return;
+  }
+  // Huidige bewerkveld-waarden hebben voorrang (gebruiker kan naam/aantal aangepast hebben)
+  const naamEl=document.getElementById('ce-naam-'+uid);
+  const qtyEl=document.getElementById('ce-qty-'+uid);
+  naam=((naamEl?naamEl.value:bron.name)||'').trim();
+  if(qtyEl&&parseInt(qtyEl.value))qty=parseInt(qtyEl.value);
+  qty=Math.max(1,qty);
+  if(!naam){showToast('Naam is verplicht','warn');return;}
+  const dup=(_invGedeeld||[]).find(g=>(g.name||'').trim().toLowerCase()===naam.toLowerCase());
+  const msg=dup
+    ?('Er bestaat al gedeeld materiaal "'+dup.name+'".\n\nToch een nieuw, apart gedeeld item maken van "'+naam+'"? Het originele item wordt verwijderd.')
+    :('"'+naam+'" omzetten naar gedeeld materiaal?\n\nHet originele '+(_catTypeLbl[type]||type).toLowerCase()+'-item wordt verwijderd.');
+  if(!confirm(msg))return;
+  // 1. Nieuw gedeeld item aanmaken
+  const g=await api('POST','/gedeeld',{name:naam,totaal:qty,cat:'gedeeld'});
+  if(!g||g.error||!g.id){showToast('Aanmaken van gedeeld item mislukt','error');return;}
+  // 2. Koppeling / voorraad overnemen
+  if(type==='thema'){
+    await api('POST','/gedeeld/'+g.id+'/gebruik',{thema_id:themaId,qty});
+  } else if(type==='standaard'&&locId){
+    await api('POST','/gedeeld/'+g.id+'/stock',{locatie_id:locId,qty});
+  } else if(type==='verbruik'){
+    for(const s of (bron.stock||[])){
+      if((s.qty||0)>0)await api('POST','/gedeeld/'+g.id+'/stock',{locatie_id:s.locatie_id,qty:s.qty});
+    }
+  }
+  // 3. Origineel verwijderen
+  await _catItemDelete(type,id,themaId);
+  // 4. Verversen
+  const fresh=await api('GET','/gedeeld');
+  if(Array.isArray(fresh))_invGedeeld=fresh;
+  _catEditId=null;
+  showToast('"'+naam+'" is nu gedeeld materiaal','success');
   renderCatalogusLijst();
 }
 
