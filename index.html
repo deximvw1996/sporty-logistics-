@@ -282,6 +282,60 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 .mat-table tr.mat-edit td,.mat-table tr.mat-edit:hover td{background:var(--bg2)}
 .mat-table .bi{padding:2px 4px}
 
+/* ── MOBIEL (≤600px) ── */
+@media(max-width:600px){
+  .app{max-width:100%;box-shadow:none}
+  .topbar{padding:.5rem .875rem;gap:6px}
+  .topbar-title{font-size:14px}
+  .content{padding:.75rem .625rem}
+  .metrics{grid-template-columns:repeat(2,1fr);gap:6px}
+  .metric-val{font-size:16px}
+  /* Tabellen scrollen horizontaal */
+  .kal-wrap,.od-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .od-table{min-width:600px}
+  .kal-table{min-width:500px}
+  /* Planner week-grid: kleiner */
+  #pl-kalender-grid{font-size:11px}
+  #pl-kalender-grid .tp-hd{padding:.5rem .625rem;gap:6px}
+  /* Maandkalender kleinere cellen */
+  .maand-kal td,.maand-kal th{padding:2px 1px}
+  .dag-vak{min-height:55px;padding:2px}
+  /* Knoppen in nav */
+  .nb{padding:5px 7px;font-size:11px}
+  /* Filter-rij wrappen */
+  .filter-row{gap:4px}
+  .fb{padding:3px 8px}
+  /* Modals */
+  .modal{width:95vw!important;padding:.875rem;max-height:92vh}
+  /* Kaart volledige breedte */
+  #loc-map{height:200px}
+  /* Formulieren stapelen */
+  .fr{flex-direction:column}
+  .fg.md .inp,.fg.md .sel{width:100%}
+  .fg.sm .inp,.fg.sm .sel{width:100%}
+  /* Overzicht-acties wrappen */
+  .s-actions{flex-wrap:wrap}
+  /* Transport-kaarten */
+  .tp-taak{font-size:12px}
+  /* Periode-selector in topbar verbergen op klein scherm */
+  #topbar-periode{font-size:10px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+@media(max-width:400px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .nb{padding:4px 5px;font-size:10px}
+  .content{padding:.5rem}
+}
+
+[data-theme="dark"]{
+  --bg:#1a1a18;--bg2:#242422;--bg3:#2e2e2c;
+  --text:#e8e8e4;--text2:#a0a09c;--text3:#6b6b67;
+  --border:rgba(255,255,255,.1);--border2:rgba(255,255,255,.2);
+  --green:#1D9E75;--green-bg:#0d3d2e;--green-dk:#4dcaa5;
+  --red:#E24B4A;--red-bg:#3d1515;--red-dk:#f09595;
+  --amber:#EF9F27;--amber-bg:#3d2c0d;--amber-dk:#f0c57a;
+  --blue:#378ADD;--blue-bg:#0c2640;--blue-dk:#85b7eb;
+}
+
 </style>
 </head>
 <body>
@@ -289,10 +343,14 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   <div class="topbar">
     <div class="logo">&#9978;</div>
     <div>
-      <div style="font-size:15px;font-weight:600;">Sporty vzw &mdash; Logistiek</div>
+      <div class="topbar-title" style="font-size:15px;font-weight:600;">Sporty vzw &mdash; Logistiek</div>
       <div style="font-size:11px;color:var(--text2)" id="topbar-periode">Zomer 2026</div>
     </div>
-    <div style="flex:1"></div>
+    <div id="global-search-wrap" style="flex:1;max-width:300px;position:relative;margin:0 8px">
+      <input type="text" id="global-search" class="inp" placeholder="🔍 Zoeken..." style="width:100%;padding-left:8px" oninput="globalSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';globalSearch('')}" autocomplete="off">
+      <div id="global-search-results" style="display:none;position:absolute;top:36px;left:0;right:0;background:var(--bg);border:.5px solid var(--border2);border-radius:var(--rl);box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;max-height:320px;overflow-y:auto"></div>
+    </div>
+    <button id="dark-toggle" onclick="toggleDarkMode()" title="Donkere modus" style="background:transparent;border:.5px solid var(--border2);border-radius:var(--r);padding:4px 8px;cursor:pointer;font-size:14px;color:var(--text2)">🌙</button>
     <span class="badge-spoed" id="badge-spoed" style="display:none;background:var(--red);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="goTo('transport-plan')">&#128680; <span id="badge-spoed-n">0</span> spoed</span>
   </div>
 
@@ -347,7 +405,10 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="card">
         <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center">
           <span>&#128197; Geplande kampmomenten</span>
-          <button class="btn-o" onclick="goTo('planning')">Locaties &rarr;</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn-o" onclick="exportKampoverzichtCSV()" title="Download als CSV">📥 Kampen CSV</button>
+            <button class="btn-o" onclick="goTo('planning')">Locaties &rarr;</button>
+          </div>
         </div>
         <div id="ov-kampen"></div>
       </div>
@@ -635,6 +696,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
       <button class="btn-r" onclick="openNieuweSpoed()">&#128680; Spoedlevering melden</button>
       <button class="btn-b" onclick="openNieuweTransport()">+ Transport / opdracht toevoegen</button>
+      <button class="btn-o" onclick="exportTransportenCSV()" title="Download als CSV">📥 Export CSV</button>
     </div>
 
     <!-- Filters -->
@@ -794,36 +856,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   </div>
 </div>
 
-<div class="modal-bg" id="modal-mv">
-  <div class="modal">
-    <div class="modal-title"><span>&#128230; Materiaal verplaatsen</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-mv')">&#x2715;</button></div>
-    <div id="mv-info" style="font-size:13px;font-weight:500;margin-bottom:12px;padding:8px 10px;background:var(--bg2);border-radius:var(--r)"></div>
-    <div class="fr"><div class="fg grow"><label for="mv-naar">Verplaatsen naar</label><select class="sel" id="mv-naar" style="width:100%"></select></div></div>
-    <div class="fr">
-      <div class="fg sm"><label for="mv-qty">Aantal</label><input class="inp" type="number" id="mv-qty" value="1" min="1"></div>
-      <div class="fg grow"><label for="mv-reden">Reden</label><input class="inp" type="text" id="mv-reden" placeholder="bv. Kamp week 4&hellip;"></div>
-    </div>
-    <button class="btn-b" style="width:100%;margin-top:4px" onclick="doVerplaats()">Verplaatsen bevestigen</button>
-  </div>
-</div>
-
-<div class="modal-bg" id="modal-hist">
-  <div class="modal">
-    <div class="modal-title"><span>&#128336; Geschiedenis</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-hist')">&#x2715;</button></div>
-    <div id="hist-item-title" style="font-size:13px;font-weight:500;margin-bottom:12px;color:var(--text2)"></div>
-    <div id="hist-list"></div>
-  </div>
-</div>
-
-<div class="modal-bg" id="modal-eenheid">
-  <div class="modal">
-    <div class="modal-title"><span id="modal-eenheid-title">Toevoegen</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-eenheid')">&#x2715;</button></div>
-    <div class="fr"><div class="fg grow"><label id="eenheid-lbl" for="eenheid-label">Label</label><input class="inp" type="text" id="eenheid-label"></div></div>
-    <div class="fr" id="eenheid-qty-row"><div class="fg sm"><label for="eenheid-qty">Aantal</label><input class="inp" type="number" id="eenheid-qty" value="1" min="1"></div></div>
-    <div class="fr"><div class="fg grow"><label for="eenheid-loc">Locatie</label><select class="sel" id="eenheid-loc" style="width:100%"></select></div></div>
-    <button class="btn-g" style="width:100%;margin-top:4px" onclick="doAddEenheid()">+ Toevoegen</button>
-  </div>
-</div>
 
 <div class="modal-bg" id="modal-transport">
   <div class="modal" style="width:540px">
@@ -1327,54 +1359,7 @@ var _invGedeeld = [];
 var _invTab = 'sport';
 var _themaGedeeldTried = false;
 
-// ── HERBRUIKBARE MINI-MODAL HELPERS ──
-var _locKiesCb = null;
-var _labelKiesCb = null;
-var _editTotId = null;
-
-function _openLocKies(titel, locs, callback){
-  document.getElementById('loc-kies-titel').textContent = titel;
-  var sel = document.getElementById('loc-kies-sel');
-  sel.innerHTML = locs.map(function(l){
-    var icon = l.type==='stockage'?'📦':l.type==='kamp'?'⛺':'📍';
-    return '<option value="'+l.id+'">'+icon+' '+l.name+'</option>';
-  }).join('');
-  _locKiesCb = callback;
-  openModal('modal-loc-kies');
-}
-function _locKiesConfirm(){
-  var locId = parseInt(document.getElementById('loc-kies-sel').value);
-  var loc = S.locaties.find(function(l){return l.id===locId;});
-  if(!loc){showToast('Geen locatie geselecteerd','warn');return;}
-  closeModal('modal-loc-kies');
-  if(_locKiesCb){var cb=_locKiesCb;_locKiesCb=null;cb(loc);}
-}
-function _labelKiesConfirm(){
-  var val = document.getElementById('label-kies-inp').value.trim();
-  if(!val){showToast('Voer een naam in','warn');return;}
-  closeModal('modal-label-kies');
-  if(_labelKiesCb){var cb=_labelKiesCb;_labelKiesCb=null;cb(val);}
-}
-async function _editTotConfirm(){
-  var qty = parseInt(document.getElementById('edit-tot-qty').value);
-  if(!qty||isNaN(qty)||qty<1){showToast('Ongeldige hoeveelheid','warn');return;}
-  closeModal('modal-edit-tot');
-  var item = _invGedeeld.find(function(i){return i.id===_editTotId;});
-  const r = await api('PUT','/gedeeld/'+_editTotId,{name:item.name,cat:item.cat,totaal:qty});
-  if(r && !r.error){
-    var idx = _invGedeeld.findIndex(function(i){return i.id===_editTotId;});
-    if(idx>=0){
-      _invGedeeld[idx].totaal = qty;
-      // Recalculate alarm flags locally (needed stays the same, only totaal changed)
-      if(_invGedeeld[idx].weekConflicts){
-        Object.values(_invGedeeld[idx].weekConflicts).forEach(function(wc){
-          wc.alarm = wc.needed > qty;
-        });
-      }
-    }
-  }
-  _renderInv();
-}
+// ── MINI-MODAL HELPERS (week-kies + dagplanning-kies) ──
 async function _weekKiesConfirm(){
   var w = parseInt(document.getElementById('week-kies-nr').value);
   if(!w||w<1||w>9){showToast('Ongeldige week (1-9)','warn');return;}
@@ -1403,113 +1388,7 @@ async function _dagplanningKiesConfirm(){
 }
 
 
-
-
-
-function _setInvTab(tab){
-  _invTab = tab;
-  _renderInv();
-}
-
-function _renderInv(){
-  var c = document.getElementById('inv-content');
-  if(!c) return;
-  var html = _buildTabs();
-  if(_invTab === 'sport') html += _buildSport();
-  else if(_invTab === 'thema') html += _buildThema();
-  else html += _buildGedeeld();
-  c.innerHTML = html;
-}
-
-function _buildSport(){
-  var h = '<div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">';
-  h += '<input class="inp" type="text" id="inv-s-naam" placeholder="Naam artikel" style="width:180px;margin-right:6px">';
-  h += '<select class="sel" id="inv-s-cat" style="margin-right:6px"><option value="sport">Sport</option><option value="zwembad">Zwembad</option><option value="outdoor">Outdoor</option><option value="andere">Andere</option></select>';
-  h += '<button class="btn-g" onclick="invAddSport()">+ Artikel</button></div>';
-  if(!_invSport.length) return h + '<div class="empty">Nog geen sportmateriaal. Voeg een artikel toe.</div>';
-  var groups = {};
-  _invSport.forEach(function(item){ var c = item.cat||'andere'; if(!groups[c])groups[c]=[]; groups[c].push(item); });
-  Object.keys(groups).sort().forEach(function(cat){
-    h += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:10px 0 4px;border-bottom:.5px solid var(--border);margin-bottom:8px">' + cat + '</div>';
-    groups[cat].forEach(function(item){
-      var sets = item.sets || [];
-      h += '<div class="card" style="margin-bottom:.75rem">';
-      if(item.foto_path) h += '<img class="sport-foto" src="/uploads/'+item.foto_path+'" onclick="openFotoUpload('+item.id+','+_q(item.name)+')" title="Klik om foto te wijzigen">';
-      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (sets.length?'12px':'0') + '">';
-      h += '<div style="flex:1"><div style="font-size:14px;font-weight:600">' + item.name + '</div>';
-      h += '<div style="font-size:11px;color:var(--text2)">' + sets.length + ' sets</div></div>';
-      h += '<button class="bi" onclick="openFotoUpload('+item.id+','+_q(item.name)+')" title="Foto beheren">&#128247;</button>';
-      h += '<button class="btn-xs" onclick="invAddSet(' + item.id + ')">+ Set</button>';
-      h += '<button class="bi" style="color:var(--red)" onclick="invDelSport(' + item.id + ')">&#128465;</button></div>';
-      if(sets.length){
-        h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">';
-        sets.forEach(function(set){
-          var planned = set.planning && set.planning.length > 0;
-          var weeks = '';
-          for(var w=1;w<=9;w++){
-            var p = set.planning ? set.planning.find(function(pl){return pl.week===w;}) : null;
-            weeks += '<span onclick="invTogWeek(' + set.id + ',' + w + ',' + (p?p.locatie_id:'null') + ')" title="' + (p?p.locatie_name:'') + '" style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:' + (p?'var(--green-dk)':'var(--border)') + ';color:' + (p?'white':'var(--text3)') + '">' + w + '</span>';
-          }
-          h += '<div style="border:.5px solid ' + (planned?'#5DCAA5':'var(--border)') + ';border-radius:var(--rl);padding:10px;background:' + (planned?'#FAFFFE':'var(--bg2)') + '">';
-          h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
-          h += '<span style="font-size:12px;font-weight:600">' + set.label + '</span>';
-          h += '<button class="bi" style="font-size:10px;color:var(--red)" onclick="invDelSet(' + set.id + ')">&#x2715;</button></div>';
-          h += '<div style="font-size:11px;color:var(--text2);margin-bottom:7px">&#128205; ' + (set.locatie_name||'Stockage') + '</div>';
-          h += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">' + weeks + '</div>';
-          h += '<div style="display:flex;gap:4px">';
-          h += '<button class="btn-o" style="flex:1;font-size:10px;height:26px" onclick="invVerplaats(' + set.id + ')">&#128667; Verplaatsen</button>';
-          h += '<button class="bi" style="height:26px;font-size:12px" onclick="openQR(\'set\',' + set.id + ',' + _q(item.name) + ',' + _q(set.label) + ')" title="QR-code genereren">&#128247;</button>';
-          h += '</div>';
-          h += '</div>';
-        });
-        h += '</div>';
-      }
-      h += '</div>';
-    });
-  });
-  return h;
-}
-
-async function invAddSport(){
-  var name = document.getElementById('inv-s-naam').value.trim();
-  var cat = document.getElementById('inv-s-cat').value || 'sport';
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/sport',{name:name,cat:cat});
-  document.getElementById('inv-s-naam').value = '';
-  _invSport = await api('GET','/sport');
-  _renderInv();
-  showToast(name+' aangemaakt','success');
-}
-
-async function invAddSet(itemId){
-  document.getElementById('label-kies-inp').value = '';
-  document.getElementById('label-kies-titel').textContent = 'Nieuwe set toevoegen';
-  document.getElementById('label-kies-lbl').textContent = 'Naam (bv. Voetbalzak 1)';
-  _labelKiesCb = async function(label){
-    const newSet = await api('POST','/sport/'+itemId+'/sets',{label:label,locatie_id:null});
-    if(newSet && !newSet.error){
-      var sport = _invSport.find(function(s){return s.id===itemId;});
-      if(sport) sport.sets.push(newSet);
-    }
-    _renderInv();
-    showToast(label+' toegevoegd','success');
-  };
-  openModal('modal-label-kies');
-}
-
-async function invDelSport(id){
-  if(!confirm('Verwijderen?')) return;
-  await api('DELETE','/sport/'+id);
-  _invSport = await api('GET','/sport');
-  _renderInv();
-}
-
-async function invDelSet(id){
-  if(!confirm('Set verwijderen?')) return;
-  await api('DELETE','/sport/sets/'+id);
-  _invSport = await api('GET','/sport');
-  _renderInv();
-}
+function _renderInv(){} // no-op (legacy UI verwijderd)
 
 function _patchSportPlan(setId, week, locId, locName){
   _invSport.forEach(function(item){
@@ -1521,424 +1400,6 @@ function _patchSportPlan(setId, week, locId, locName){
     });
   });
 }
-async function invTogWeek(setId, week, currentLocId){
-  if(currentLocId && currentLocId !== 'null'){
-    const r = await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:null});
-    if(!r.error){ _patchSportPlan(setId,week,null,null); _renderInv(); }
-  } else {
-    var kamps = S.locaties.filter(function(l){return l.type==='kamp';});
-    if(!kamps.length){showToast('Geen kamplocaties','warn');return;}
-    _openLocKies('Week '+week+' inplannen op', kamps, async function(loc){
-      const r = await api('POST','/sport/sets/'+setId+'/plan',{week:week,locatie_id:loc.id});
-      if(!r.error){ _patchSportPlan(setId,week,loc.id,loc.name); _renderInv(); }
-    });
-  }
-}
-
-async function invVerplaats(setId){
-  var set = null;
-  _invSport.forEach(function(item){item.sets.forEach(function(s){if(s.id===setId)set=s;});});
-  var label = set ? set.label : 'Set';
-  _openLocKies('Verplaatsen naar', S.locaties, async function(loc){
-    const updated = await api('PUT','/sport/sets/'+setId,{label:label,locatie_id:loc.id});
-    if(updated && !updated.error){
-      _invSport.forEach(function(item){
-        var idx = item.sets.findIndex(function(s){return s.id===setId;});
-        if(idx>=0) item.sets[idx] = Object.assign({},item.sets[idx],updated);
-      });
-    }
-    _renderInv();
-    showToast('Verplaatst naar '+loc.name,'success');
-  });
-}
-
-function _buildThema(){
-  if(!S.themas||!S.themas.length) return '<div class="empty">Geen themas gevonden.</div>';
-  var groups = {};
-  S.themas.forEach(function(t){ var c=t.categorie||'Geen categorie'; if(!groups[c])groups[c]=[]; groups[c].push(t); });
-  var h = '';
-  Object.keys(groups).sort().forEach(function(cat){
-    h += '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:10px 0 4px;border-bottom:.5px solid var(--border);margin-bottom:8px">' + cat + '</div>';
-    groups[cat].forEach(function(thema){
-      var mat = thema.materiaal || [];
-      h += '<div class="card" style="margin-bottom:.5rem">';
-      h += '<div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="var b=document.getElementById(\'th-b-'+thema.id+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'">';
-      h += '<span style="width:12px;height:12px;border-radius:50%;background:'+thema.color+';display:inline-block;flex-shrink:0"></span>';
-      h += '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+thema.name+'</div><div style="font-size:11px;color:var(--text2)">'+mat.length+' items</div></div>';
-      h += '<span>&#9658;</span></div>';
-      h += '<div id="th-b-'+thema.id+'" style="display:none;margin-top:10px;border-top:.5px solid var(--border);padding-top:8px">';
-      if(mat.length){
-        mat.forEach(function(m){ h += '<div style="display:flex;gap:8px;padding:3px 0;font-size:12px"><span style="font-weight:600;min-width:28px;color:var(--green-dk)">&times;'+m.qty+'</span><span>'+m.name+'</span></div>'; });
-      } else { h += '<div style="font-size:11px;color:var(--text2)">Geen materiaal gekoppeld.</div>'; }
-      h += '</div></div>';
-    });
-  });
-  return h;
-}
-
-function _buildGedeeld(){
-  var h = '';
-  var alarms = _invGedeeld.filter(function(i){return i.weekConflicts&&Object.values(i.weekConflicts).some(function(w){return w.alarm;});});
-  if(alarms.length){
-    h += '<div style="background:#FEF2F2;border:.5px solid #F09595;border-radius:var(--rl);padding:10px;margin-bottom:.875rem">';
-    h += '<strong style="color:#A32D2D">&#9888; Conflict</strong> ';
-    h += alarms.map(function(i){return i.name;}).join(', ');
-    h += '</div>';
-  }
-  h += '<div style="display:flex;justify-content:flex-end;margin-bottom:.75rem">';
-  h += '<input class="inp" type="text" id="inv-g-naam" placeholder="Naam" style="width:140px;margin-right:6px">';
-  h += '<select class="sel" id="inv-g-cat" style="margin-right:6px"><option value="opblaas">Opblaas</option><option value="keuken">Keuken</option><option value="gedeeld">Andere</option></select>';
-  h += '<input class="inp" type="number" id="inv-g-tot" value="1" min="1" style="width:55px;margin-right:6px">';
-  h += '<button class="btn-g" onclick="invAddGedeeld()">+ Artikel</button></div>';
-  if(!_invGedeeld.length) return h + '<div class="empty">Nog geen gedeeld materiaal.</div>';
-  _invGedeeld.forEach(function(item){
-    var alarm = item.weekConflicts&&Object.values(item.weekConflicts).some(function(w){return w.alarm;});
-    h += '<div class="card" style="margin-bottom:.75rem;'+(alarm?'border-color:var(--red)':'')+'">';
-    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
-    h += '<div style="flex:1"><div style="font-size:14px;font-weight:600">'+item.name+'</div>';
-    h += '<div style="font-size:11px;color:var(--text2)">Totaal: <strong>'+item.totaal+'</strong> stuks</div></div>';
-    h += '<button class="btn-xs" onclick="invEditTot('+item.id+','+item.totaal+')">&#9999; Aantal</button>';
-    h += '<button class="bi" style="color:var(--red)" onclick="invDelGedeeld('+item.id+')">&#128465;</button></div>';
-    if(item.weekConflicts&&Object.keys(item.weekConflicts).length){
-      h += '<div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">';
-      for(var w=1;w<=9;w++){
-        var wc=item.weekConflicts[w];
-        h += '<span style="display:inline-flex;flex-direction:column;align-items:center;border-radius:6px;padding:4px 6px;font-size:10px;min-width:34px;background:'+(wc?(wc.alarm?'#FEF2F2':'#E8F9F3'):'var(--bg2)')+';border:.5px solid '+(wc?(wc.alarm?'#F09595':'#5DCAA5'):'var(--border)')+'"><span style="font-weight:700;color:'+(wc?(wc.alarm?'var(--red)':'var(--green-dk)'):'var(--text3)')+'">W'+w+'</span>'+(wc?'<span>'+wc.needed+'</span>':'')+'</span>';
-      }
-      h += '</div>';
-    }
-    h += '<details><summary style="font-size:11px;color:var(--text2);cursor:pointer">Gebruik per thema ('+(item.gebruik?item.gebruik.length:0)+')</summary><div style="margin-top:8px">';
-    (item.gebruik||[]).forEach(function(g){
-      h += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">';
-      h += '<span style="flex:1">'+(g.thema_name||'?')+'</span>';
-      h += '<input type="number" value="'+g.qty+'" min="1" style="width:50px" class="inp" onchange="invUpdGebr('+item.id+','+g.thema_id+',this.value)">';
-      h += '<button class="bi" style="color:var(--red);font-size:10px" onclick="invDelGebr('+item.id+','+g.thema_id+')">&#x2715;</button></div>';
-    });
-    h += '<div style="display:flex;gap:6px;margin-top:8px">';
-    h += '<select class="sel" id="gsel-'+item.id+'" style="flex:1"><option value="">&#8212; Kies thema &#8212;</option>';
-    h += (S.themas||[]).map(function(t){return '<option value="'+t.id+'">'+t.name+'</option>';}).join('');
-    h += '</select><input type="number" id="gqty-'+item.id+'" value="1" min="1" style="width:60px" class="inp">';
-    h += '<button class="btn-xs" onclick="invAddGebr('+item.id+')">+ Koppel</button></div>';
-    h += '</div></details></div>';
-  });
-  return h;
-}
-
-async function invAddGedeeld(){
-  var name = document.getElementById('inv-g-naam').value.trim();
-  var cat = document.getElementById('inv-g-cat').value || 'gedeeld';
-  var tot = parseInt(document.getElementById('inv-g-tot').value) || 1;
-  if(!name){showToast('Naam is verplicht','warn');return;}
-  await api('POST','/gedeeld',{name:name,cat:cat,totaal:tot});
-  document.getElementById('inv-g-naam').value = '';
-  _invGedeeld = await api('GET','/gedeeld');
-  _renderInv();
-  showToast(name+' aangemaakt','success');
-}
-
-async function invEditTot(id,current){
-  _editTotId = id;
-  document.getElementById('edit-tot-qty').value = current;
-  openModal('modal-edit-tot');
-}
-
-async function invDelGedeeld(id){
-  if(!confirm('Verwijderen?')) return;
-  await api('DELETE','/gedeeld/'+id);
-  _invGedeeld = await api('GET','/gedeeld');
-  _renderInv();
-  showToast('Verwijderd','info');
-}
-
-async function invAddGebr(itemId){
-  var thema_id = parseInt(document.getElementById('gsel-'+itemId).value);
-  var qty = parseInt(document.getElementById('gqty-'+itemId).value) || 1;
-  if(!thema_id){showToast('Kies een thema','warn');return;}
-  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id:thema_id,qty:qty});
-  _invGedeeld = await api('GET','/gedeeld');
-  _renderInv();
-}
-
-async function invUpdGebr(itemId,themaId,qty){
-  await api('POST','/gedeeld/'+itemId+'/gebruik',{thema_id:themaId,qty:parseInt(qty)||1});
-  _invGedeeld = await api('GET','/gedeeld');
-}
-
-async function invDelGebr(itemId,themaId){
-  await api('DELETE','/gedeeld/'+itemId+'/gebruik/'+themaId);
-  _invGedeeld = await api('GET','/gedeeld');
-  _renderInv();
-}
-// ═══════════════ EINDE INVENTARIS ═══════════════
-
-
-// ── INVENTARIS TAB ──
-
-
-
-
-
-
-
-// ── SPORT ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ── THEMA ──
-
-
-// ── GEDEELD ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ── INVENTARIS TAB ──
-
-
-
-
-// ── SPORT ──
-
-
-
-
-
-
-// ── THEMA ──
-
-// ── GEDEELD ──
-
-
-
-
-
-
-async function renderInventarisTab(){
-  var matInv = document.getElementById('mat-sub-inventaris');
-  if(matInv) matInv.style.display = 'block';
-  var c = document.getElementById('inv-content');
-  if(!c) return;
-  var tabs = '<div style="display:flex;gap:6px;margin-bottom:1rem">'
-    + '<button class="ov-view-btn active" id="inv-btn-sport" onclick="_setInvTab(\'sport\')">&#9917; Sportmateriaal</button>'
-    + '<button class="ov-view-btn" id="inv-btn-thema" onclick="_setInvTab(\'thema\')">&#127912; Themamateriaal</button>'
-    + '<button class="ov-view-btn" id="inv-btn-gedeeld" onclick="_setInvTab(\'gedeeld\')">&#128295; Gedeeld materiaal</button>'
-    + '</div>';
-  c.innerHTML = tabs + '<div style="padding:1rem;color:var(--text2)">Laden...</div>';
-  try {
-    var sportRes = await api('GET','/sport');
-    var gedeeldRes = await api('GET','/gedeeld');
-    _invSport = Array.isArray(sportRes) ? sportRes : [];
-    _invGedeeld = Array.isArray(gedeeldRes) ? gedeeldRes : [];
-    _renderInv();
-  } catch(e) {
-    var c2 = document.getElementById('inv-content');
-    if(c2) c2.innerHTML = tabs + '<div style="color:red;padding:1rem">Fout: '+e.message+'</div>';
-  }
-}
-
-function _buildTabs(){
-  return '<div style="display:flex;gap:6px;margin-bottom:1rem">'
-    + '<button class="ov-view-btn '+(_invTab==="sport"?"active":"")+'" onclick="_setInvTab(\'sport\')">&#9917; Sportmateriaal</button>'
-    + '<button class="ov-view-btn '+(_invTab==="thema"?"active":"")+'" onclick="_setInvTab(\'thema\')">&#127912; Themamateriaal</button>'
-    + '<button class="ov-view-btn '+(_invTab==="gedeeld"?"active":"")+'" onclick="_setInvTab(\'gedeeld\')">&#128295; Gedeeld materiaal</button>'
-    + '</div>';
-}
-
-
-
-// ── INVENTARIS SYSTEEM ──
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ── THEMA-SETS ──
-
-
-// ── SET DETAIL MODAL ──
-function openSetDetail(item, set){
-  document.getElementById('set-detail-titel').textContent = (set.label||'Set') + ' — ' + item.name;
-  const body = document.getElementById('set-detail-body');
-  const verpl = set.verplaatsingen||[];
-  const planning = set.planning||[];
-  const DOW=['zo','ma','di','wo','do','vr','za'];
-  const MND=['','jan','feb','mrt','apr','mei','jun','jul','aug','sep'];
-
-  // Current location
-  const curLoc = S.locaties.find(l=>l.id===set.locatie_id);
-
-  // Build week planning grid
-  const weeks = [1,2,3,4,5,6,7,8,9];
-  const planHtml = `<div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin:10px 0">
-    ${weeks.map(w=>{
-      const p = planning.find(pl=>pl.week===w);
-      const isPlanned = !!p;
-      return `<div style="text-align:center;border:.5px solid ${isPlanned?'#5DCAA5':'var(--border)'};border-radius:6px;padding:6px 2px;background:${isPlanned?'#E8F9F3':'var(--bg2)'};cursor:pointer;font-size:11px" onclick="toggleSetPlanning(${set.id},${w},${isPlanned?p.locatie_id:'null'})">
-        <div style="font-weight:600">W${w}</div>
-        <div style="font-size:9px;color:${isPlanned?'var(--green-dk)':'var(--text3)'};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${isPlanned?p.locatie_name.split(' ')[0]:'—'}</div>
-      </div>`;
-    }).join('')}
-  </div>`;
-
-  // Movement history
-  const histHtml = verpl.length
-    ? verpl.slice(0,10).map(v=>`
-      <div class="row">
-        <span style="font-size:16px">📦</span>
-        <div class="ri">
-          <div class="rm">${v.van_naam||'Stockage'} → ${v.naar_naam}</div>
-          <div class="rs">${v.datum}${v.reden?' · '+v.reden:''}</div>
-        </div>
-      </div>`).join('')
-    : '<div class="empty">Nog geen verplaatsingen.</div>';
-
-  body.innerHTML = `
-    <div style="padding:.875rem">
-      <div style="display:flex;align-items:center;gap:12px;padding:.75rem;background:var(--bg2);border-radius:var(--rl);margin-bottom:1rem">
-        <div>
-          <div style="font-size:12px;color:var(--text2)">Huidige locatie</div>
-          <div style="font-size:15px;font-weight:600">${curLoc?.name||'Stockage'}</div>
-        </div>
-        <button class="btn-g" style="margin-left:auto" onclick="closeModal('modal-set-detail');openSetVerplaats(${JSON.stringify(set).replace(/"/g,'&quot;')})">📦 Verplaatsen</button>
-      </div>
-
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">📅 Planning (klik op week om in te plannen)</div>
-      ${planHtml}
-
-      <div style="font-size:12px;font-weight:600;margin:1rem 0 6px">🕐 Verplaatsingshistorie</div>
-      ${histHtml}
-    </div>`;
-  openModal('modal-set-detail');
-}
-
-async function toggleSetPlanning(eenheidId, week, currentLocId){
-  if(currentLocId){
-    await api('POST','/inventaris/sets/'+eenheidId+'/plan',{week,locatie_id:null});
-    await loadInvSets();
-    renderInvSets();
-  } else {
-    const locs = S.locaties.filter(l=>l.type==='kamp');
-    if(!locs.length){showToast('Geen kamplocaties beschikbaar','warn');return;}
-    _openLocKies('Week '+week+' — Kies locatie', locs, async function(loc){
-      await api('POST','/inventaris/sets/'+eenheidId+'/plan',{week,locatie_id:loc.id});
-      await loadInvSets();
-      renderInvSets();
-    });
-  }
-}
-
-// ── SET VERPLAATSEN ──
-function openSetVerplaats(set){
-  document.getElementById('set-verplaats-titel').textContent = 'Verplaats: '+(set.label||'Set');
-  document.getElementById('sv-eenheid-id').value = set.id;
-  document.getElementById('sv-datum').value = new Date().toISOString().split('T')[0];
-  document.getElementById('sv-reden').value = '';
-  const sel = document.getElementById('sv-naar');
-  sel.innerHTML = S.locaties.map(l=>`<option value="${l.id}">${l.type==='stockage'?'📦':'⛺'} ${l.name}</option>`).join('');
-  if(set.locatie_id) sel.value = set.locatie_id;
-  openModal('modal-set-verplaats');
-}
-
-async function saveSetVerplaats(){
-  const id = document.getElementById('sv-eenheid-id').value;
-  const naar = document.getElementById('sv-naar').value;
-  const datum = document.getElementById('sv-datum').value;
-  const reden = document.getElementById('sv-reden').value.trim();
-  if(!naar){showToast('Kies een locatie','warn');return;}
-  await api('POST','/inventaris/sets/'+id+'/verplaats',{naar_locatie_id:parseInt(naar),reden,datum});
-  closeModal('modal-set-verplaats');
-  await loadInvSets();
-  renderInvSets();
-  showToast('Set verplaatst','success');
-}
-
-// ── NIEUWE SET toevoegen aan item ──
-async function openNieuwSet(itemId, itemNaam){
-  document.getElementById('label-kies-inp').value = '';
-  document.getElementById('label-kies-titel').textContent = 'Nieuwe set: '+itemNaam;
-  document.getElementById('label-kies-lbl').textContent = 'Label (bv. "Zak #1", "Oven A")';
-  _labelKiesCb = function(label){
-    _openLocKies('Locatie voor '+label, S.locaties, async function(loc){
-      await api('POST','/materiaal/'+itemId+'/eenheden',{label,locatie_id:loc?.id||null});
-      await loadInvSets();
-      renderInvSets();
-      showToast(label+' toegevoegd','success');
-    });
-  };
-  openModal('modal-label-kies');
-}
-
-// ── VERBRUIKSSTOCK ──
-
-
-// ── MUTATIE MODAL ──
-
-
-function updateMutatieSign(){} // placeholder
-
-
-
-
-
-// ── NIEUW MATERIAAL ITEM ──
-
-
-
-
-
-
-
-// ── THEMA CATEGORIEËN ──
-
-
-async function loadThemaCats(){
-  S_thema_cats = await api('GET','/thema-categorieen');
-}
-
-
-
-
-
-
-
-
-
 
 async function addSpoed(){
   const item=document.getElementById('sp-item')?.value.trim();
@@ -3024,8 +2485,6 @@ const tbl=document.getElementById('topbar-periode');if(tbl&&S.activePeriode)tbl.
 if(S.activePeriode&&!ovDate)ovDate=new Date(S.activePeriode.start_datum+'T12:00:00');
 else if(!ovDate)ovDate=new Date(2026,6,1);
 updateSpoedBadge();}
-async function reloadVoorraad(){const[a,b]=await Promise.all([api('GET','/materiaal'),api('GET','/overzicht')]);S.materiaal=a;S.overzicht=b;}
-
 
 function updateSpoedBadge(){
   const n=(S.spoed||[]).filter(s=>!s.done).length;
@@ -4891,105 +4350,6 @@ async function doScanVerplaats(){
   }
 }
 
-// VOORRAAD
-function setVFilter(f,btn){vFilter=f;document.querySelectorAll('#sec-voorraad .fb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderVoorraad();}
-async function renderVoorraad(){
-  S.overzicht=await api('GET','/overzicht');
-  const filtered=vFilter==='alle'?S.overzicht:S.overzicht.filter(l=>l.type===vFilter);
-  const el=document.getElementById('voorraad-list');
-  if(!filtered.length){el.innerHTML='<div class="empty">Geen locaties.</div>';return;}
-  el.innerHTML='';
-  filtered.forEach(loc=>{
-    const items=loc.eenheden||[];
-    const wrap=document.createElement('div');wrap.className='loc-overview';
-    const isStock=loc.type==='stockage';
-    const hd=document.createElement('div');
-    hd.className='lo-hd '+loc.type;hd.style.cursor='pointer';
-    hd.onclick=()=>toggleLocBody(loc.id);
-    hd.innerHTML='<span style="font-size:18px">'+(isStock?'📦':'⛺')+'</span>'
-      +'<div style="flex:1"><div style="font-size:14px;font-weight:600">'+loc.name+'</div>'
-      +'<div style="font-size:11px;color:var(--text2)">'+(loc.addr||'')+' <span class="pill '+(isStock?'p-stock':'p-green')+'">'+(isStock?'Stockage':'Kamplocatie')+'</span></div></div>'
-      +'<span class="pill p-gray">'+items.length+' items</span>'
-      +'<span id="lo-chev-'+loc.id+'" style="font-size:12px;color:var(--text2);margin-left:4px">▼</span>';
-    const body=document.createElement('div');
-    body.className='lo-body';body.id='lo-body-'+loc.id;
-    body.style.display=items.length?'block':'none';
-    if(items.length){
-      items.forEach(e=>{
-        const isPS=e.item?.tracking==='per_stuk';
-        const cat=e.item?.cat||'andere';
-        const nm=(e.item?.name||'?')+(isPS&&e.label?' — '+e.label:'');
-        const row=document.createElement('div');row.className='item-line';
-        const ic=document.createElement('span');ic.style.cssText='font-size:16px;width:22px;text-align:center';ic.textContent=MAT_CATS[cat]||'📦';
-        const info=document.createElement('div');info.style.flex='1';
-        info.innerHTML='<div style="font-size:13px;font-weight:500">'+nm+'</div><div style="font-size:11px;color:var(--text2)">'+(!isPS?'×'+e.qty:'')+'</div>';
-        const btnV=document.createElement('button');btnV.className='bi';btnV.style.color='var(--blue)';btnV.title='Verplaatsen';btnV.textContent='📦→';btnV.onclick=()=>openVerplaats(e.id,nm);
-        const btnH=document.createElement('button');btnH.className='bi';btnH.style.color='var(--blue-dk)';btnH.title='Geschiedenis';btnH.textContent='🕐';btnH.onclick=()=>openHist(e.id,nm);
-        row.appendChild(ic);row.appendChild(info);row.appendChild(btnV);row.appendChild(btnH);
-        body.appendChild(row);
-      });
-    } else {
-      body.innerHTML='<div class="empty" style="padding:.75rem">Geen materiaal.</div>';
-    }
-    wrap.appendChild(hd);wrap.appendChild(body);
-    el.appendChild(wrap);
-  });
-}
-
-function toggleLocBody(id){const b=document.getElementById('lo-body-'+id);const c=document.getElementById('lo-chev-'+id);const o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.textContent=o?'▼':'▲';}
-function renderMatBeheer(){
-  const el=document.getElementById('mat-beheer-list');
-  if(!S.materiaal.length){el.innerHTML='<div class="empty">Nog geen items.</div>';return;}
-  el.innerHTML='';
-  S.materiaal.forEach(item=>{
-    const card=document.createElement('div');card.className='exp-card';
-    const n=(item.eenheden||[]).length;
-    const hd=document.createElement('div');hd.className='exp-hd';hd.onclick=()=>toggleMatItem(item.id);
-    const ic=document.createElement('span');ic.textContent=MAT_CATS[item.cat]||'📦';
-    const ri=document.createElement('div');ri.className='ri';
-    ri.innerHTML='<div class="rm">'+item.name+'</div><div class="rs">'+n+' eenheden</div>';
-    const delBtn=document.createElement('button');delBtn.className='bi';delBtn.style.color='var(--red)';delBtn.textContent='🗑️';
-    delBtn.onclick=e=>{deleteMatItem(item.id);e.stopPropagation();};
-    const chev=document.createElement('span');chev.id='mc-'+item.id;chev.style.cssText='font-size:12px;color:var(--text2)';chev.textContent='▼';
-    hd.appendChild(ic);hd.appendChild(ri);hd.appendChild(delBtn);hd.appendChild(chev);
-    const body=document.createElement('div');body.className='exp-body';body.id='mb-'+item.id;body.style.display='none';
-    (item.eenheden||[]).forEach(e=>{
-      const loc=S.locaties.find(l=>l.id===e.locatie_id);
-      const isPS=item.tracking==='per_stuk';
-      const row=document.createElement('div');row.className='mat-row';
-      if(isPS){const sp=document.createElement('span');sp.style.cssText='font-size:12px;font-weight:500';sp.textContent=e.label||'?';row.appendChild(sp);}
-      else{const sp=document.createElement('span');sp.className='mat-qty';sp.textContent='×'+e.qty;row.appendChild(sp);}
-      const lbl=document.createElement('span');lbl.style.flex='1';lbl.textContent=isPS?'':(e.label||item.name);row.appendChild(lbl);
-      const locSp=document.createElement('span');locSp.className='pill p-gray';locSp.textContent=loc?.name||'?';row.appendChild(locSp);
-      const delE=document.createElement('button');delE.className='bi';delE.style.color='var(--red)';delE.textContent='🗑️';delE.onclick=()=>deleteEenheid(e.id,item.id);row.appendChild(delE);
-      body.appendChild(row);
-    });
-    if(!(item.eenheden||[]).length){const emp=document.createElement('div');emp.style.cssText='font-size:12px;color:var(--text2)';emp.textContent='Nog geen eenheden.';body.appendChild(emp);}
-    const addDiv=document.createElement('div');addDiv.style.marginTop='8px';
-    const addBtn=document.createElement('button');addBtn.className='btn-xs';
-    addBtn.textContent='+ '+(item.tracking==='per_stuk'?'Stuk':'Voorraad')+' toevoegen';
-    addBtn.onclick=()=>openAddEenheid(item.id,item.name,item.tracking==='per_stuk');
-    addDiv.appendChild(addBtn);body.appendChild(addDiv);
-    card.appendChild(hd);card.appendChild(body);
-    el.appendChild(card);
-  });
-}
-
-function toggleMatItem(id){const b=document.getElementById('mb-'+id);const c=document.getElementById('mc-'+id);const o=b.style.display==='block';b.style.display=o?'none':'block';if(c)c.textContent=o?'▼':'▲';}
-async function addMatItem(){const name=document.getElementById('mat-name').value.trim();if(!name)return;const r=await api('POST','/materiaal',{name,cat:document.getElementById('mat-cat').value,tracking:document.getElementById('mat-tracking').value});S.materiaal.push({...r,eenheden:[]});document.getElementById('mat-name').value='';renderMatBeheer();}
-async function deleteMatItem(id){await api('DELETE','/materiaal/'+id);S.materiaal=S.materiaal.filter(i=>i.id!==id);await reloadVoorraad();renderMatBeheer();}
-async function deleteEenheid(eid,itemId){await api('DELETE','/eenheden/'+eid);const item=S.materiaal.find(i=>i.id===itemId);if(item)item.eenheden=(item.eenheden||[]).filter(e=>e.id!==eid);await reloadVoorraad();renderMatBeheer();}
-function openAddEenheid(itemId,itemName,isPerStuk){addEenheidItemId=itemId;addEenheidIsPerStuk=isPerStuk;document.getElementById('modal-eenheid-title').textContent=(isPerStuk?'Stuk: ':'Voorraad: ')+itemName;document.getElementById('eenheid-lbl').textContent=isPerStuk?'Label (bv. Oven nr. 1)':'Label (optioneel)';document.getElementById('eenheid-qty-row').style.display=isPerStuk?'none':'flex';document.getElementById('eenheid-label').value='';document.getElementById('eenheid-qty').value='1';document.getElementById('eenheid-loc').innerHTML=S.locaties.map(l=>`<option value="${l.id}">${l.type==='stockage'?'📦':'⛺'} ${l.name}</option>`).join('');openModal('modal-eenheid');}
-async function doAddEenheid(){const label=document.getElementById('eenheid-label').value.trim();const qty=parseInt(document.getElementById('eenheid-qty').value)||1;const locId=parseInt(document.getElementById('eenheid-loc').value);await api('POST','/materiaal/'+addEenheidItemId+'/eenheden',{label,qty,locatie_id:locId});const item=S.materiaal.find(i=>i.id===addEenheidItemId);if(item){const updated=await api('GET','/materiaal');S.materiaal=updated;}await reloadVoorraad();renderMatBeheer();closeModal('modal-eenheid');}
-function openVerplaats(eid,label){mvEenheidId=eid;document.getElementById('mv-info').textContent=label;document.getElementById('mv-naar').innerHTML=S.locaties.map(l=>`<option value="${l.id}">${l.type==='stockage'?'📦':'⛺'} ${l.name}</option>`).join('');document.getElementById('mv-qty').value='1';document.getElementById('mv-reden').value='';openModal('modal-mv');}
-async function doVerplaats(){const naar=parseInt(document.getElementById('mv-naar').value);const qty=parseInt(document.getElementById('mv-qty').value)||1;const reden=document.getElementById('mv-reden').value.trim();await api('POST','/eenheden/'+mvEenheidId+'/verplaats',{naar_locatie_id:naar,qty,reden});await reloadVoorraad();closeModal('modal-mv');if(document.getElementById('sec-voorraad').classList.contains('active'))renderVoorraad();if(document.getElementById('sec-mat-beheer').classList.contains('active'))renderMatBeheer();}
-async function openHist(eid,label){document.getElementById('hist-item-title').textContent=label;document.getElementById('hist-list').innerHTML='<div class="loading">Laden…</div>';openModal('modal-hist');const hist=await api('GET','/eenheden/'+eid+'/verplaatsingen');if(!hist.length){document.getElementById('hist-list').innerHTML='<div class="empty">Geen verplaatsingen.</div>';return;}document.getElementById('hist-list').innerHTML=hist.map(h=>{const van=h.van_locatie_id?(S.locaties.find(l=>l.id===h.van_locatie_id)?.name||'?'):'(nieuw)';const naar=S.locaties.find(l=>l.id===h.naar_locatie_id)?.name||'?';return `<div class="hist-row"><div class="hist-dot"></div><div><div style="font-size:12px;font-weight:500">${van} → ${naar}${h.qty>1?' (\u00D7'+h.qty+')':''}</div><div style="font-size:11px;color:var(--text2)">${h.datum||''}${h.reden?' · '+h.reden:''}</div></div></div>`;}).join('');}
-
-// TRANSPORT
-
-
-
-
 // ── TRANSPORTPLANNER (weekkalender) ──
 let plannerWk=1;        // huidig getoond week (1-9)
 let plannerView='week'; // 'week' of 'dag'
@@ -5838,6 +5198,89 @@ loadAll()
     console.error('Load failed:',err);
     showToast('Server niet bereikbaar. Is de server gestart op poort 3001?','error');
   });
+
+// ── CSV EXPORT ──
+function _csvEscape(v){const s=String(v==null?'':v);return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;}
+function _downloadCSV(rows,filename){const csv=rows.map(r=>r.map(_csvEscape).join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'}));a.download=filename;a.click();}
+
+function exportTransportenCSV(){
+  const taken=plannerTaken||[];
+  if(!taken.length){showToast('Geen transporten om te exporteren','warn');return;}
+  const rows=[['Datum','Type','Van','Naar','Chauffeur','Status','Opmerking']];
+  taken.forEach(t=>{
+    const van=S.locaties.find(l=>l.id===t.van_locatie_id)?.name||'';
+    const naar=S.locaties.find(l=>l.id===t.naar_locatie_id)?.name||'';
+    const chauf=t.chauffeur_naam||'';
+    rows.push([t.datum||'',t.type||'',van,naar,chauf,t.status||'',t.opmerking||'']);
+  });
+  _downloadCSV(rows,'transporten_'+new Date().toISOString().substring(0,10)+'.csv');
+  showToast('CSV gedownload','success');
+}
+
+function exportKampoverzichtCSV(){
+  const kms=S.kampmomenten||[];
+  if(!kms.length){showToast('Geen kampmomenten om te exporteren','warn');return;}
+  const rows=[['Locatie','Week','Start','Einde','Periode','Themas']];
+  kms.forEach(km=>{
+    const loc=S.locaties.find(l=>l.id===km.locatie_id)?.name||'';
+    const periode=(S.periodes||[]).find(p=>p.id===km.periode_id)?.naam||'';
+    const themas=(km.themas||[]).map(t=>t.name).join(';');
+    rows.push([loc,km.week||'',km.begin||'',km.eind||'',periode,themas]);
+  });
+  _downloadCSV(rows,'kampmomenten_'+new Date().toISOString().substring(0,10)+'.csv');
+  showToast('CSV gedownload','success');
+}
+
+// ── GLOBALE ZOEKFUNCTIE ──
+let _searchTimer=null;
+function globalSearch(q){
+  const wrap=document.getElementById('global-search-results');
+  if(!wrap)return;
+  clearTimeout(_searchTimer);
+  q=q.trim().toLowerCase();
+  if(!q){wrap.style.display='none';return;}
+  _searchTimer=setTimeout(()=>{
+    const results=[];
+    // Locaties
+    (S.locaties||[]).forEach(l=>{if(l.name&&l.name.toLowerCase().includes(q))results.push({icon:'📍',label:l.name,sub:l.type==='stockage'?'Stockage':'Kamplocatie',action:`goTo('planning')`});});
+    // Sportmateriaal
+    (_invSport||[]).forEach(it=>{if(it.name&&it.name.toLowerCase().includes(q))results.push({icon:'⚽',label:it.name,sub:'Sportmateriaal',action:`goTo('materiaal')`});});
+    // Thema's
+    (S.themas||[]).forEach(t=>{if(t.name&&t.name.toLowerCase().includes(q))results.push({icon:'🎨',label:t.name,sub:'Thema',action:`goTo('materiaal')`});});
+    // Thema-materiaal
+    (S.themas||[]).forEach(t=>(t.materiaal||t.mat||[]).forEach(m=>{if(m.name&&m.name.toLowerCase().includes(q))results.push({icon:'🎯',label:m.name,sub:'Thema: '+t.name,action:`goTo('materiaal')`});}));
+    // Gedeeld materiaal
+    (_invGedeeld||[]).forEach(m=>{if(m.name&&m.name.toLowerCase().includes(q))results.push({icon:'🔧',label:m.name,sub:'Gedeeld materiaal',action:`goTo('materiaal')`});});
+    // Transporten
+    (plannerTaken||[]).filter(t=>t.opmerking&&t.opmerking.toLowerCase().includes(q)).slice(0,5).forEach(t=>{results.push({icon:'🚚',label:t.opmerking||t.type,sub:(t.datum||'')+'  '+t.type,action:`goTo('transporten')`});});
+    // Periodes
+    (S.periodes||[]).forEach(p=>{if(p.naam&&p.naam.toLowerCase().includes(q))results.push({icon:'📅',label:p.naam,sub:'Vakantieperiode',action:`goTo('overzicht')`});});
+
+    if(!results.length){wrap.innerHTML='<div style="padding:10px 14px;font-size:12px;color:var(--text2)">Geen resultaten voor "'+q+'"</div>';wrap.style.display='block';return;}
+    wrap.innerHTML=results.slice(0,12).map((r,i)=>`<div onclick="${r.action};document.getElementById('global-search').value='';document.getElementById('global-search-results').style.display='none'" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:.5px solid var(--border)" onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''"><span style="font-size:16px;width:22px;text-align:center">${r.icon}</span><div><div style="font-size:13px;font-weight:500">${r.label}</div><div style="font-size:11px;color:var(--text2)">${r.sub}</div></div></div>`).join('');
+    wrap.style.display='block';
+  },150);
+}
+// Sluit zoekresultaten bij klik buiten
+document.addEventListener('click',function(e){const r=document.getElementById('global-search-results');if(r&&!r.contains(e.target)&&e.target.id!=='global-search')r.style.display='none';});
+
+// ── DONKERE MODUS ──
+function toggleDarkMode(){
+  const dark=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',dark?'light':'dark');
+  localStorage.setItem('sporty-theme',dark?'light':'dark');
+  document.getElementById('dark-toggle').textContent=dark?'🌙':'☀️';
+}
+// Initialiseer thema bij laden
+(function(){
+  const saved=localStorage.getItem('sporty-theme');
+  if(saved==='dark'){document.documentElement.setAttribute('data-theme','dark');}
+  // Toggle-knop icon bijwerken zodra DOM klaar is
+  document.addEventListener('DOMContentLoaded',function(){
+    const btn=document.getElementById('dark-toggle');
+    if(btn)btn.textContent=document.documentElement.getAttribute('data-theme')==='dark'?'☀️':'🌙';
+  });
+})();
 </script>
 <!-- MODAL: Dagrapport kiezen -->
 <div class="modal-bg" id="modal-dagrapport">
@@ -5894,16 +5337,6 @@ loadAll()
   </div>
 </div>
 
-<!-- MODAL: Set detail / planning -->
-<div class="modal-bg" id="modal-set-detail">
-  <div class="modal" style="width:640px;max-height:88vh;display:flex;flex-direction:column">
-    <div class="modal-title">
-      <span id="set-detail-titel">Set detail</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-set-detail')">&#x2715;</button>
-    </div>
-    <div style="flex:1;overflow-y:auto" id="set-detail-body"></div>
-  </div>
-</div>
 
 <!-- MODAL: Nieuw materiaalitem -->
 <div class="modal-bg" id="modal-nieuw-mat">
@@ -6070,23 +5503,6 @@ loadAll()
   </div>
 </div>
 
-<!-- MODAL: Locatie kiezen (herbruikbaar) -->
-<div class="modal-bg" id="modal-loc-kies">
-  <div class="modal" style="width:340px">
-    <div class="modal-title">
-      <span id="loc-kies-titel">Locatie kiezen</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-loc-kies')">&#x2715;</button>
-    </div>
-    <div class="fr"><div class="fg grow">
-      <label for="loc-kies-sel">Locatie</label>
-      <select class="sel" id="loc-kies-sel" style="width:100%"></select>
-    </div></div>
-    <div style="display:flex;gap:8px;margin-top:.75rem">
-      <button class="btn-b" style="flex:1" onclick="_locKiesConfirm()">&#10003; Bevestigen</button>
-      <button class="btn-o" onclick="closeModal('modal-loc-kies')">Annuleren</button>
-    </div>
-  </div>
-</div>
 
 <!-- MODAL: Week kiezen -->
 <div class="modal-bg" id="modal-week-kies">
@@ -6106,41 +5522,7 @@ loadAll()
   </div>
 </div>
 
-<!-- MODAL: Label / naam invoeren (herbruikbaar) -->
-<div class="modal-bg" id="modal-label-kies">
-  <div class="modal" style="width:340px">
-    <div class="modal-title">
-      <span id="label-kies-titel">Naam invoeren</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-label-kies')">&#x2715;</button>
-    </div>
-    <div class="fr"><div class="fg grow">
-      <label for="label-kies-inp" id="label-kies-lbl">Naam</label>
-      <input class="inp" type="text" id="label-kies-inp" placeholder="">
-    </div></div>
-    <div style="display:flex;gap:8px;margin-top:.75rem">
-      <button class="btn-b" style="flex:1" onclick="_labelKiesConfirm()">&#10003; Bevestigen</button>
-      <button class="btn-o" onclick="closeModal('modal-label-kies')">Annuleren</button>
-    </div>
-  </div>
-</div>
 
-<!-- MODAL: Totaal aanpassen -->
-<div class="modal-bg" id="modal-edit-tot">
-  <div class="modal" style="width:280px">
-    <div class="modal-title">
-      <span>Aantal aanpassen</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-edit-tot')">&#x2715;</button>
-    </div>
-    <div class="fr"><div class="fg sm">
-      <label for="edit-tot-qty">Stuks</label>
-      <input class="inp" type="number" id="edit-tot-qty" min="1" value="1">
-    </div></div>
-    <div style="display:flex;gap:8px;margin-top:.75rem">
-      <button class="btn-b" style="flex:1" onclick="_editTotConfirm()">&#10003; Opslaan</button>
-      <button class="btn-o" onclick="closeModal('modal-edit-tot')">Annuleren</button>
-    </div>
-  </div>
-</div>
 
 <!-- MODAL: Dagplanning afdrukken -->
 <div class="modal-bg" id="modal-dagplanning-kies">
@@ -6164,33 +5546,6 @@ loadAll()
   </div>
 </div>
 
-<!-- MODAL: Set verplaatsen -->
-<div class="modal-bg" id="modal-set-verplaats">
-  <div class="modal" style="width:400px">
-    <div class="modal-title">
-      <span id="set-verplaats-titel">Set verplaatsen</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-set-verplaats')">&#x2715;</button>
-    </div>
-    <div class="fr">
-      <div class="fg grow"><label for="sv-naar">Naar locatie</label>
-        <select class="sel" id="sv-naar" style="width:100%"></select>
-      </div>
-    </div>
-    <div class="fr">
-      <div class="fg md"><label for="sv-datum">Datum</label>
-        <input class="inp" type="date" id="sv-datum">
-      </div>
-      <div class="fg grow"><label for="sv-reden">Reden</label>
-        <input class="inp" type="text" id="sv-reden" placeholder="bv. Weeklevering 4">
-      </div>
-    </div>
-    <input type="hidden" id="sv-eenheid-id">
-    <div style="display:flex;gap:8px;margin-top:.75rem">
-      <button class="btn-g" style="flex:1" onclick="saveSetVerplaats()">&#128667; Verplaatsen</button>
-      <button class="btn-o" onclick="closeModal('modal-set-verplaats')">Annuleren</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
