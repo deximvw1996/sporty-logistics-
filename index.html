@@ -4056,8 +4056,11 @@ function _renderCatRow(item,stockLocs){
     ?`<span style="${item.alarm?'color:var(--red);font-weight:700':''}">${item.qty}</span>${item.minimum>0?`<br><span style="font-size:9px;color:var(--text3)">min ${item.minimum}</span>`:''}`
     :`×${item.qty}`;
   let stkCell;
-  if((item.type==='gedeeld'||item.type==='verbruik')&&item.stock&&item.stock.length){
-    stkCell=item.stock.map(s=>{
+  const visStock=(item.type==='gedeeld'||item.type==='verbruik')
+    ?(item.stock||[]).filter(s=>(s.qty||0)>0||(item.type==='verbruik'&&(s.minimum||0)>0))
+    :[];
+  if(visStock.length){
+    stkCell=visStock.map(s=>{
       const low=item.type==='verbruik'&&s.minimum>0&&s.qty<=s.minimum;
       return `${_escH(s.locatie_name)}:&nbsp;<b style="${low?'color:var(--red)':''}">${s.qty}</b>`;
     }).join('<br>');
@@ -4088,25 +4091,40 @@ function toggleCatExpand(uid){_catExpandId=_catExpandId===uid?null:uid;renderCat
 
 function _renderStockDetail(item){
   const isVerbruik=item.type==='verbruik';
-  const locs=(S.locaties||[]).slice().sort((a,b)=>{
+  const allLocs=(S.locaties||[]).slice().sort((a,b)=>{
     if(a.type!==b.type)return a.type==='stockage'?-1:1;
     return a.name.localeCompare(b.name,'nl');
   });
-  if(!locs.length)return `<tr><td colspan="7" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
+  if(!allLocs.length)return `<tr><td colspan="7" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
   const byLoc={};(item.stock||[]).forEach(s=>byLoc[s.locatie_id]=s);
   const pref=isVerbruik?'vs':'gs';
-  const rows=locs.map(l=>{
+  const locIco=l=>l.type==='stockage'?'📦':'⛺';
+  // Alleen locaties tonen waar het materiaal aanwezig is (of waar een minimum is ingesteld bij verbruik)
+  const isShown=l=>{const s=byLoc[l.id];if(!s)return false;return isVerbruik?((s.qty||0)>0||(s.minimum||0)>0):((s.qty||0)>0);};
+  const shown=allLocs.filter(isShown);
+  const rest=allLocs.filter(l=>!isShown(l));
+  const colCount=isVerbruik?4:3;
+  const rows=shown.map(l=>{
     const s=byLoc[l.id]||{qty:0,minimum:0};
     const low=isVerbruik&&s.minimum>0&&s.qty<=s.minimum;
     const saveFn=isVerbruik?`saveVerbruikStock(${item.raw_id},${l.id})`:`saveGedeeldStock(${item.raw_id},${l.id})`;
     return `<tr>
-      <td style="padding:3px 8px;font-size:12px">${l.type==='stockage'?'📦':'⛺'} ${_escH(l.name)}</td>
+      <td style="padding:3px 8px;font-size:12px">${locIco(l)} ${_escH(l.name)}</td>
       <td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="${pref}-q-${item.raw_id}-${l.id}" value="${s.qty}" style="width:70px${low?';color:var(--red)':''}"></td>
       ${isVerbruik?`<td style="padding:3px 4px"><input class="inp gb" type="number" min="0" step="1" id="vs-m-${item.raw_id}-${l.id}" value="${s.minimum}" style="width:70px"></td>`:''}
       <td style="padding:3px 8px"><button class="bi save" onclick="${saveFn}" title="Opslaan">&#x2713;</button></td>
     </tr>`;
   }).join('');
-  const verdeeld=locs.reduce((sum,l)=>sum+((byLoc[l.id]||{}).qty||0),0);
+  const emptyRow=shown.length?'':`<tr><td colspan="${colCount}" style="padding:4px 8px;font-size:11px;color:var(--text3)">Nog niet toegewezen aan een locatie — voeg er hieronder een toe.</td></tr>`;
+  const addRow=rest.length?`<tr><td colspan="${colCount}" style="padding:6px 8px">
+    <span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <select class="sel gb" id="${pref}-addloc-${item.raw_id}" style="height:28px;font-size:11px">${rest.map(l=>`<option value="${l.id}">${locIco(l)} ${_escH(l.name)}</option>`).join('')}</select>
+      <input class="inp gb" type="number" min="0" step="1" id="${pref}-addq-${item.raw_id}" value="1" style="width:56px" title="Aantal">
+      ${isVerbruik?`<input class="inp gb" type="number" min="0" step="1" id="vs-addm-${item.raw_id}" value="0" style="width:56px" title="Minimum">`:''}
+      <button class="btn-xs" onclick="addStockLoc(${_q(item.type)},${item.raw_id})">+ Locatie toevoegen</button>
+    </span>
+  </td></tr>`:'';
+  const verdeeld=allLocs.reduce((sum,l)=>sum+((byLoc[l.id]||{}).qty||0),0);
   const hdr=isVerbruik
     ?'📦 Voorraad &amp; minimum per locatie'
     :`📦 Aantal per locatie · <b>${verdeeld}</b> verdeeld van ${item.qty||0} totaal`;
@@ -4117,10 +4135,32 @@ function _renderStockDetail(item){
         <thead><tr style="font-size:10px;color:var(--text3);text-align:left">
           <th style="padding:2px 8px">Locatie</th><th style="padding:2px 4px">Aantal</th>${isVerbruik?'<th style="padding:2px 4px">Minimum</th>':''}<th></th>
         </tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${rows}${emptyRow}${addRow}</tbody>
       </table>
     </div>
   </td></tr>`;
+}
+
+async function addStockLoc(type,itemId){
+  const isVerbruik=type==='verbruik';
+  const pref=isVerbruik?'vs':'gs';
+  const locId=parseInt(document.getElementById(pref+'-addloc-'+itemId)?.value);
+  if(!locId){showToast('Kies een locatie','warn');return;}
+  const qty=Math.max(0,parseInt(document.getElementById(pref+'-addq-'+itemId)?.value)||0);
+  if(isVerbruik){
+    const minimum=Math.max(0,parseInt(document.getElementById('vs-addm-'+itemId)?.value)||0);
+    if(qty<=0&&minimum<=0){showToast('Voer een aantal of minimum in','warn');return;}
+    const r=await api('POST','/verbruik/'+itemId+'/stock',{locatie_id:locId,qty,minimum});
+    if(r&&r.error)return;
+    const fresh=await api('GET','/verbruik');if(Array.isArray(fresh))_invVerbruik=fresh;
+  } else {
+    if(qty<=0){showToast('Voer een aantal in','warn');return;}
+    const r=await api('POST','/gedeeld/'+itemId+'/stock',{locatie_id:locId,qty});
+    if(r&&r.error)return;
+    const fresh=await api('GET','/gedeeld');if(Array.isArray(fresh))_invGedeeld=fresh;
+  }
+  showToast('Locatie toegevoegd','success');
+  renderCatalogusLijst();
 }
 
 async function saveVerbruikStock(itemId,locId){
