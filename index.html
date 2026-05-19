@@ -2431,6 +2431,9 @@ function renderKalenderOD(){
   function buildODTabel(maand){
     const MND_NM=['','Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
     const DOW=['zo','ma','di','wo','do','vr','za'];
+    // Jaar afleiden van de actieve periode
+    const _p=_activePeriode();
+    const jaar=new Date(_p.start_datum+'T12:00:00').getFullYear();
     // All days of the month (including weekends for context, grayed out)
     const all=[];
     const d=new Date(jaar,maand-1,1);
@@ -2514,6 +2517,7 @@ function renderKalenderOV(){
 function updateOVNavLabel(){
   const el=document.getElementById('ov-nav-label');
   if(!el)return;
+  if(!ovDate)ovDate=new Date((_activePeriode()).start_datum+'T12:00:00');
   const MND=['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
   if(ovView==='maand'){el.textContent=MND[ovDate.getMonth()]+' '+ovDate.getFullYear();}
   else if(ovView==='week'){
@@ -2555,6 +2559,7 @@ function navOv(delta){
 function renderOVGrid(){
   const el=document.getElementById('ov-grid');
   if(!el)return;
+  if(!ovDate)ovDate=new Date((_activePeriode()).start_datum+'T12:00:00');
   if(ovView==='maand') el.innerHTML=buildOVMaand();
   else if(ovView==='week') el.innerHTML=buildOVWeek();
   else el.innerHTML=buildOVDag();
@@ -2733,7 +2738,7 @@ function renderGelotenList(){
   const gd=kalData?.gesloten_dagen||[];
   const D=['zo','ma','di','wo','do','vr','za'];
   const M=['','jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-  el.innerHTML=gd.length?gd.map(g=>{const d=new Date(g.datum+'T12:00:00');return `<div class="row"><span>&#128274;</span><div class="ri"><div class="rm">${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()+1]} 2026</div><div class="rs">${g.reden||'Geen reden'}</div></div><button class="bi" style="color:var(--red)" onclick="deleteGesloten(${g.id})">&#128465;</button></div>`;}).join(''):'<div class="empty">Geen vaste sluitingsdagen.</div>';
+  el.innerHTML=gd.length?gd.map(g=>{const d=new Date(g.datum+'T12:00:00');return `<div class="row"><span>&#128274;</span><div class="ri"><div class="rm">${D[d.getDay()]} ${d.getDate()} ${M[d.getMonth()+1]} ${d.getFullYear()}</div><div class="rs">${g.reden||'Geen reden'}</div></div><button class="bi" style="color:var(--red)" onclick="deleteGesloten(${g.id})">&#128465;</button></div>`;}).join(''):'<div class="empty">Geen vaste sluitingsdagen.</div>';
 }
 async function addGesloten(){
   const datum=document.getElementById('gs-datum').value;
