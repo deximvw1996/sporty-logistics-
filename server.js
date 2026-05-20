@@ -297,6 +297,17 @@ async function startServer() {
   });
   if (_teBackfillen.length) console.log(`  Migratie 14: ${_teBackfillen.length} ritten aangemaakt (backfill)`);
 
+  // Migration 15: themadagen
+  // type='kamp' (themakamp, default - 1+ thema's draaien hele week)
+  // type='themadag' (verschillend thema per weekdag)
+  // kampmoment_themas.dag: NULL=hele week (themakamp), 0-4=ma..vr (themadag)
+  // NB: UNIQUE(kampmoment_id, thema_id) blijft staan - een thema kan dus per
+  // kampmoment maar één keer voorkomen, ook in themadag-modus (acceptabel
+  // want themadag draait om afwisseling).
+  addColumnIfMissing('kampmomenten', 'type', "TEXT DEFAULT 'kamp'");
+  addColumnIfMissing('kampmoment_themas', 'dag', 'INTEGER');
+  try { db.run("UPDATE kampmomenten SET type='kamp' WHERE type IS NULL OR type=''"); } catch(e){}
+
   saveDb();
 
 
@@ -391,7 +402,7 @@ async function startServer() {
     const themas = kts.map(kt=>{
       const th = get('SELECT * FROM themas WHERE id=?',[kt.thema_id]);
       const mat = all('SELECT * FROM thema_materiaal WHERE thema_id=?',[kt.thema_id]);
-      return {...th, mat, kt_id: kt.id};
+      return {...th, mat, kt_id: kt.id, dag: kt.dag};
     });
     const {maandag:ws, periode} = periodeWeekMaandag(km.week, km.periode_id);
     const eind = new Date(periode.eind_datum+'T23:59:59');
@@ -415,10 +426,11 @@ async function startServer() {
   });
 
   app.post('/api/kampmomenten',(req,res)=>{
-    const{locatie_id,week,periode_id}=req.body;
+    const{locatie_id,week,periode_id,type}=req.body;
     const periodeIdToUse=periode_id||1;
+    const typeVal=(type==='themadag'?'themadag':'kamp');
     try {
-      const id=ins('INSERT INTO kampmomenten (locatie_id,week,periode_id) VALUES (?,?,?)',[locatie_id,week,periodeIdToUse]);
+      const id=ins('INSERT INTO kampmomenten (locatie_id,week,periode_id,type) VALUES (?,?,?,?)',[locatie_id,week,periodeIdToUse,typeVal]);
       const loc=get('SELECT * FROM locaties WHERE id=?',[locatie_id]);
       logAct('kampmoment','aangemaakt',`Week ${week} — ${loc?.name||'?'} (nieuw kampmoment)`,locatie_id,loc?.name);
       // Auto-open alle weekdagen voor deze locatie
@@ -438,10 +450,12 @@ async function startServer() {
   });
 
   app.put('/api/kampmomenten/:id',(req,res)=>{
-    const{week}=req.body;
+    const{week,type}=req.body;
     const old=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[req.params.id]);
-    run('UPDATE kampmomenten SET week=? WHERE id=?',[week,req.params.id]);
-    if(old) logAct('kampmoment','verplaatst',`${old.loc_naam||'?'}: week ${old.week} → week ${week}`,old.locatie_id,old.loc_naam);
+    if(week!==undefined) run('UPDATE kampmomenten SET week=? WHERE id=?',[week,req.params.id]);
+    if(type!==undefined && (type==='kamp'||type==='themadag')) run('UPDATE kampmomenten SET type=? WHERE id=?',[type,req.params.id]);
+    if(old && week!==undefined && week!==old.week) logAct('kampmoment','verplaatst',`${old.loc_naam||'?'}: week ${old.week} → week ${week}`,old.locatie_id,old.loc_naam);
+    if(old && type!==undefined && type!==(old.type||'kamp')) logAct('kampmoment','bewerkt',`${old.loc_naam||'?'} week ${old.week}: ${old.type||'kamp'} → ${type}`,old.locatie_id,old.loc_naam);
     res.json(getKampmoment(req.params.id));
   });
 
@@ -456,8 +470,9 @@ async function startServer() {
 
   // ── THEMAS AAN KAMPMOMENT KOPPELEN ──
   app.post('/api/kampmomenten/:id/themas',(req,res)=>{
-    const{thema_id}=req.body;
-    try{const id=ins('INSERT INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[req.params.id,thema_id]);res.json(getKampmoment(req.params.id));}
+    const{thema_id,dag}=req.body;
+    const dagVal=(dag===null||dag===undefined)?null:(Number.isInteger(dag)&&dag>=0&&dag<=4?dag:null);
+    try{ins('INSERT INTO kampmoment_themas (kampmoment_id,thema_id,dag) VALUES (?,?,?)',[req.params.id,thema_id,dagVal]);res.json(getKampmoment(req.params.id));}
     catch(e){res.status(400).json({error:'Thema al gekoppeld aan dit kampmoment.'});}
   });
   app.delete('/api/kampmomenten/:id/themas/:ktid',(req,res)=>{
@@ -665,6 +680,9 @@ async function startServer() {
   // ── TRANSPORT ──
   app.get('/api/transport-taken',(req,res)=>{const taken=all('SELECT * FROM transport_taken ORDER BY datum,tijd');const regels=all('SELECT * FROM transport_regels');res.json(taken.map(t=>({...t,regels:regels.filter(r=>r.taak_id===t.id)})));});
   app.post('/api/transport-genereer',(req,res)=>{
+    // v1: themadag-kampmomenten worden door deze generator overgeslagen voor
+    // basis/thema-materiaal. Hun transport gaat handmatig via de transport-planner.
+    // Sport-sets blijven wel werken (per locatie+week, niet per kampmoment-type).
     const kms=all('SELECT * FROM kampmomenten ORDER BY locatie_id, week');
     const locs=all('SELECT * FROM locaties');
     const themas=all('SELECT * FROM themas');
@@ -699,11 +717,14 @@ async function startServer() {
     const perLocatie={};
     kms.forEach(km=>{if(!perLocatie[km.locatie_id])perLocatie[km.locatie_id]=[];perLocatie[km.locatie_id].push(km);});
 
-    Object.entries(perLocatie).forEach(([locId,kmList])=>{
+    Object.entries(perLocatie).forEach(([locId,kmListAll])=>{
       const loc=locs.find(l=>l.id==locId);if(!loc)return;
       const locMat=(allLocMat.filter(m=>m.locatie_id==locId).length?allLocMat.filter(m=>m.locatie_id==locId):standaard);
 
-      kmList.sort((a,b)=>a.week-b.week).forEach((km,idx)=>{
+      // Filter themadag-kampmomenten weg vóór het itereren — anders breken
+      // de prevKm/nextKm contiguïteits-checks (de themadag staat tussen 2 themakampen).
+      const kmList=kmListAll.filter(k=>k.type!=='themadag').sort((a,b)=>a.week-b.week);
+      kmList.forEach((km,idx)=>{
         const openDagen=getOpenDagen(km);
         if(!openDagen.length)return;
         const kmThemas=kts.filter(kt=>kt.kampmoment_id===km.id);
@@ -776,7 +797,8 @@ async function startServer() {
     const allThemaIds=[...new Set(kts.map(kt=>kt.thema_id))];
     allThemaIds.forEach(thId=>{
       const kmsMetThema=kts.filter(kt=>kt.thema_id===thId)
-        .map(kt=>kms.find(km=>km.id===kt.kampmoment_id)).filter(Boolean)
+        .map(kt=>kms.find(km=>km.id===kt.kampmoment_id))
+        .filter(km=>km && km.type!=='themadag')
         .sort((a,b)=>a.week-b.week);
       for(let i=0;i<kmsMetThema.length-1;i++){
         const kmA=kmsMetThema[i],kmB=kmsMetThema[i+1];

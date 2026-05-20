@@ -880,9 +880,24 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="fg grow"><label for="km-loc">Locatie</label><select class="sel" id="km-loc" style="width:100%"></select></div>
     </div>
     <div id="km-preview" style="font-size:12px;color:var(--green-dk);background:var(--green-bg);padding:6px 10px;border-radius:var(--r);margin-bottom:12px;display:none"></div>
-    <div class="sl">Thema&apos;s die draaien op deze locatie deze week</div>
-    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Vink alle thema&apos;s aan die tegelijk op deze locatie draaien:</div>
-    <div id="km-thema-checkboxes" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;margin-bottom:12px"></div>
+    <div class="fr" style="margin-bottom:10px">
+      <div class="fg grow">
+        <div role="tablist" aria-label="Type kampmoment" style="display:flex;gap:0;border:.5px solid var(--border);border-radius:var(--r);overflow:hidden">
+          <button type="button" class="km-type-tab active" data-type="kamp" onclick="setKmType('kamp')" style="flex:1;height:34px;border:0;background:var(--green-bg);color:var(--green-dk);font-weight:600;cursor:pointer">&#128197; Themakamp</button>
+          <button type="button" class="km-type-tab" data-type="themadag" onclick="setKmType('themadag')" style="flex:1;height:34px;border:0;background:transparent;color:var(--text2);cursor:pointer">&#128467; Themadagen</button>
+        </div>
+      </div>
+    </div>
+    <div id="km-mode-kamp">
+      <div class="sl">Thema&apos;s die draaien op deze locatie deze week</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Vink alle thema&apos;s aan die tegelijk op deze locatie draaien:</div>
+      <div id="km-thema-checkboxes" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;margin-bottom:12px"></div>
+    </div>
+    <div id="km-mode-themadag" style="display:none">
+      <div class="sl">Thema per dag</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">&#201;&#233;n thema per weekdag. Lege dagen blijven open zonder thema.</div>
+      <div id="km-dag-selects" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+    </div>
     <div style="display:flex;gap:8px">
       <button class="btn-g" style="flex:1" onclick="saveKampmoment()">&#128190; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-km')">Annuleren</button>
@@ -1147,8 +1162,9 @@ async function renderWeekMateriaalOverzicht(){
     html += '<div class="card" style="margin-bottom:1rem">';
     html += '<div style="font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px">';
     html += '<span>&#127968;</span> '+locNaam+' — Week '+wk;
+    if(km.type==='themadag') html += ' <span class="pill p-amber" title="Themadag">&#128467; themadag</span>';
     html += '</div>';
-    
+
     // Standaard materiaal
     html += '<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:4px">Standaard materiaal</div>';
     if(S.standaard && S.standaard.length){
@@ -1157,11 +1173,16 @@ async function renderWeekMateriaalOverzicht(){
       });
     }
     html += '</div>';
-    
-    // Thema materiaal
+
+    // Thema materiaal — voor themadag: per dag (Ma..Vr) i.p.v. platte lijst
     if(themas.length){
-      themas.forEach(t=>{
-        html += '<div style="margin-bottom:6px"><div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:'+t.color+';display:inline-block"></span>'+t.name+'</div>';
+      const isTd = km.type==='themadag';
+      const themasList = isTd
+        ? _DOW_KORT.map((lbl,i)=>{const kt=(km.themas||[]).find(t=>t.dag===i);const th=kt?S.themas.find(s=>s.id===(kt.thema_id||kt.id)):null;return {lbl,th};}).filter(x=>x.th)
+        : themas.map(t=>({lbl:null,th:t}));
+      themasList.forEach(({lbl,th:t})=>{
+        const prefix = lbl?('<b>'+lbl+'</b> · '):'';
+        html += '<div style="margin-bottom:6px"><div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:'+t.color+';display:inline-block"></span>'+prefix+t.name+'</div>';
         const mat = t.materiaal || [];
         if(mat.length){
           mat.forEach(m=>{
@@ -1242,15 +1263,24 @@ async function checkConflicten(){
     });
   });
   
-  // Check 3: Kampmomenten zonder thema
+  // Check 3: Kampmomenten zonder thema (themakamp + themadag)
   S.kampmomenten.forEach(km=>{
     const loc = S.locaties.find(l=>l.id===km.locatie_id);
-    if(!km.themas || !km.themas.length){
-      conflicten.push({
-        type:'planning',
-        week:km.week,
-        msg:`Week ${km.week} ${loc?loc.name:''}: geen thema gekoppeld`
-      });
+    const ths = km.themas||[];
+    if(km.type==='themadag'){
+      const gevuld=ths.filter(t=>t.dag!=null).length;
+      if(gevuld===0){
+        conflicten.push({type:'planning',week:km.week,
+          msg:`Week ${km.week} ${loc?loc.name:''}: themadag zonder enig thema`});
+      } else if(gevuld<5){
+        conflicten.push({type:'planning',severity:'warn',week:km.week,
+          msg:`Themadag op ${loc?loc.name:''} week ${km.week}: ${gevuld}/5 dagen ingevuld`});
+      }
+    } else {
+      if(!ths.length){
+        conflicten.push({type:'planning',week:km.week,
+          msg:`Week ${km.week} ${loc?loc.name:''}: geen thema gekoppeld`});
+      }
     }
   });
   
@@ -1270,7 +1300,10 @@ async function checkConflicten(){
     html += '<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">WEEK '+week+'</div>';
     byWeek[week].forEach(c=>{
       const icon = c.type==='sport'?'&#9917;':c.type==='gedeeld'?'&#128295;':'&#128197;';
-      html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px;background:#FEF2F2;border-radius:var(--r);margin-bottom:4px;border:.5px solid #F09595">';
+      const isWarn = c.severity==='warn';
+      const bg = isWarn?'#FEF6E0':'#FEF2F2';
+      const bd = isWarn?'#EFC55A':'#F09595';
+      html += '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px;background:'+bg+';border-radius:var(--r);margin-bottom:4px;border:.5px solid '+bd+'">';
       html += '<span>'+icon+' &#9888;&#65039;</span><span style="font-size:12px">'+c.msg+'</span></div>';
     });
     html += '</div>';
@@ -1662,8 +1695,13 @@ async function renderOverzicht(){
   document.getElementById('ov-kampen').innerHTML=sorted.length?sorted.map(km=>{
     const wd=getWeekDagen(km.week);
     const dStr=wd.length?fDag(wd[0])+'\u2013'+fDag(wd[wd.length-1]):'';
-    const thTags=(km.themas||[]).map(t=>`<span class="thema-tag" style="background:${t.color}22;color:${t.color}">${t.name}</span>`).join('');
-    return `<div class="row" style="flex-wrap:wrap;gap:6px"><div class="ri" style="min-width:180px"><div class="rm">Week ${km.week} \u00B7 ${dStr} \u2014 ${km.locatie?.name||'?'}</div><div class="rs">${(km.open_dagen||[]).length} open dagen \u00B7 ${(km.themas||[]).length} thema's</div></div><div style="display:flex;flex-wrap:wrap;gap:3px">${thTags}</div></div>`;
+    const isTd=km.type==='themadag';
+    const thTags=isTd
+      ? ['Ma','Di','Wo','Do','Vr'].map((lbl,i)=>{const t=(km.themas||[]).find(x=>x.dag===i);return t?`<span class="thema-tag" style="background:${t.color}22;color:${t.color}"><b>${lbl}</b>\u00A0${t.name}</span>`:`<span class="thema-tag" style="background:#eee;color:#999;border:.5px dashed #ccc">${lbl}\u00A0\u2014</span>`;}).join('')
+      : (km.themas||[]).map(t=>`<span class="thema-tag" style="background:${t.color}22;color:${t.color}">${t.name}</span>`).join('');
+    const badge=isTd?` <span class="pill p-amber" style="font-size:9px">\u{1F5D3} themadag</span>`:'';
+    const cnt=isTd?((km.themas||[]).filter(t=>t.dag!=null).length+'/5 dagen'):((km.themas||[]).length+' thema\'s');
+    return `<div class="row" style="flex-wrap:wrap;gap:6px"><div class="ri" style="min-width:180px"><div class="rm">Week ${km.week} \u00B7 ${dStr} \u2014 ${km.locatie?.name||'?'}${badge}</div><div class="rs">${(km.open_dagen||[]).length} open dagen \u00B7 ${cnt}</div></div><div style="display:flex;flex-wrap:wrap;gap:3px">${thTags}</div></div>`;
   }).join(''):'<div class="empty">Nog geen kampmomenten gepland.</div>';
 }
 
@@ -2013,7 +2051,7 @@ function renderKalenderOD(){
         const isWE=day.getDay()===0||day.getDay()===6;
         const open=isOpen(loc.id,iso);
         const km=kampMap[iso]?.[loc.id];
-        const ths=km?.themas||[];
+        const ths=km?kampThemasForDag(km,iso):[];
         if(feest){
           h+=`<td style="background:#F1EFE8"><div class="od-cel feest" title="Feestdag" style="font-size:9px">&#128274;</div></td>`;
         } else if(isWE){
@@ -2121,7 +2159,7 @@ function buildKampInfo(iso,locs,kampMap,gSet,dm){
     const feest=gSet.has(iso);
     const isOpen=(dm[loc.id]&&dm[loc.id][iso]!==undefined)?dm[loc.id][iso]:true;
     const km=kampMap[iso]?.[loc.id];
-    const ths=km?.themas||[];
+    const ths=km?kampThemasForDag(km,iso):[];
     if(feest){res.push({type:'feest',loc});}
     else if(!isOpen){res.push({type:'dicht',loc});}
     else if(km&&ths.length){res.push({type:'kamp',loc,km,ths});}
@@ -2201,7 +2239,7 @@ function buildOVWeek(){
       const feest=gSet.has(iso);
       const isOpen=(dm[loc.id]&&dm[loc.id][iso]!==undefined)?dm[loc.id][iso]:true;
       const km=kampMap[iso]?.[loc.id];
-      const ths=km?.themas||[];
+      const ths=km?kampThemasForDag(km,iso):[];
       h+='<td>';
       if(feest){h+='<span class="ov-feest">&#128274;</span>';}
       else if(!isOpen){h+=`<span class="ov-gesloten" onclick="toggleKalDag(${loc.id},'${iso}')" style="cursor:pointer">Gesloten</span>`;}
@@ -2229,7 +2267,7 @@ function buildOVDag(){
   activeLocs.forEach(loc=>{
     const isOpen=(dm[loc.id]&&dm[loc.id][iso]!==undefined)?dm[loc.id][iso]:true;
     const km=kampMap[iso]?.[loc.id];
-    const ths=km?.themas||[];
+    const ths=km?kampThemasForDag(km,iso):[];
     const cls=feest?'':'dicht';
     const cardCls=feest?'':'(isOpen?(km?\'kamp\':\'\'): \'dicht\')';
     let type=feest?'feest':!isOpen?'dicht':km?'kamp':'open';
@@ -2609,6 +2647,19 @@ function getWeekDagen(w,periode){
   for(let i=0;i<5;i++){const d=new Date(ma);d.setDate(ma.getDate()+i);if(d<=eind)r.push(d);}
   return r;
 }
+// Return de thema's van een kampmoment die gelden op de gegeven iso-datum.
+// - themakamp (type !== 'themadag'): alle thema's (dag IS NULL op elk).
+// - themadag: enkel de thema met dag === weekdag-index van iso (ma=0..vr=4).
+// Buiten de week van km: lege array.
+function kampThemasForDag(km, iso){
+  if(!km) return [];
+  const all=km.themas||[];
+  if(km.type!=='themadag') return all;
+  const wd=getWeekDagen(km.week, km.periode);
+  const idx=wd.findIndex(d=>isoLocal(d)===iso);
+  if(idx<0) return [];
+  return all.filter(t=>t.dag===idx);
+}
 function _periodeMaxWeken(periode){
   const p=_activePeriode(periode);
   if(p.max_weken)return p.max_weken;
@@ -2624,6 +2675,39 @@ function fIso(iso){const d=new Date(iso+'T12:00:00');return DOW[d.getDay()]+' '+
 
 
 // KAMPEN PLANNEN
+// Helpers voor themadag-aware kampmoment-rendering
+const _DOW_KORT=['Ma','Di','Wo','Do','Vr'];
+function _kmThemaChipsHTML(km, withRemove){
+  const themas=km.themas||[];
+  if(km.type!=='themadag'){
+    return themas.map(th=>`<span class="thema-tag" style="background:${th.color}22;color:${th.color};border:.5px solid ${th.color}66">${th.name}${withRemove?` <button style="background:transparent;border:none;cursor:pointer;color:${th.color};font-size:11px;padding:0 0 0 2px" onclick="removeThemaFromKm(${km.id},${th.kt_id})" title="Verwijder uit kampmoment">&#x2715;</button>`:''}</span>`).join('');
+  }
+  // themadag: gegroepeerd per dag
+  return _DOW_KORT.map((lbl,i)=>{
+    const th=themas.find(t=>t.dag===i);
+    if(!th) return `<span class="thema-tag" style="background:#eee;color:#999;border:.5px dashed #ccc">${lbl}: &mdash;</span>`;
+    return `<span class="thema-tag" style="background:${th.color}22;color:${th.color};border:.5px solid ${th.color}66"><b>${lbl}</b> &middot; ${th.name}${withRemove?` <button style="background:transparent;border:none;cursor:pointer;color:${th.color};font-size:11px;padding:0 0 0 2px" onclick="removeThemaFromKm(${km.id},${th.kt_id})" title="Verwijder uit kampmoment">&#x2715;</button>`:''}</span>`;
+  }).join('');
+}
+function _kmThemaMatHTML(km){
+  const themas=km.themas||[];
+  if(km.type!=='themadag'){
+    return themas.map(th=>`<div class="mat-block" style="border-left-color:${th.color}"><div class="mat-block-title" style="color:${th.color}">${(th.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>${(th.mat||[]).length?(th.mat||[]).map(m=>`<div class="mat-row"><span class="mat-qty">&times;${m.qty}</span>${(m.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>`).join(''):'<div style="font-size:11px;color:var(--text2)">Geen thema-materiaal gedefinieerd.</div>'}</div>`).join('');
+  }
+  return _DOW_KORT.map((lbl,i)=>{
+    const th=themas.find(t=>t.dag===i);
+    if(!th) return `<div class="mat-block" style="border-left-color:#ccc"><div class="mat-block-title" style="color:#999">${lbl}: &mdash;</div></div>`;
+    return `<div class="mat-block" style="border-left-color:${th.color}"><div class="mat-block-title" style="color:${th.color}">${lbl}: ${(th.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>${(th.mat||[]).length?(th.mat||[]).map(m=>`<div class="mat-row"><span class="mat-qty">&times;${m.qty}</span>${(m.name||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>`).join(''):'<div style="font-size:11px;color:var(--text2)">Geen thema-materiaal gedefinieerd.</div>'}</div>`;
+  }).join('');
+}
+function _kmTypeBadge(km){
+  if(km.type==='themadag'){
+    const gevuld=(km.themas||[]).filter(t=>t.dag!=null).length;
+    const cls=gevuld===5?'p-green':gevuld>0?'p-amber':'p-red';
+    return `<span class="pill ${cls}" title="Themadag — één thema per dag">&#128467; themadag ${gevuld}/5</span>`;
+  }
+  return `<span class="pill p-blue">${(km.themas||[]).length} thema's</span>`;
+}
 function renderKampen(){
   const el=document.getElementById('km-list');
   if(!el){_refreshLocDetail();return;}
@@ -2641,9 +2725,11 @@ function renderKampen(){
       if(isFeest)return `<button class="dag-pill dag-feest" disabled title="Feestdag">🔒 ${DOW[d.getDay()]} ${d.getDate()}</button>`;
       return `<button class="dag-pill ${isOpen?'dag-open':'dag-dicht'}" onclick="toggleKalDag(${km.locatie_id},'${iso}')" title="${isOpen?'Open — klik om te sluiten':'Gesloten — klik om te openen'}">${DOW[d.getDay()]} ${d.getDate()}</button>`;
     }).join('');
-    const thTags=(km.themas||[]).map(th=>`<span class="thema-tag" style="background:${th.color}22;color:${th.color};border:.5px solid ${th.color}66">${th.name} <button style="background:transparent;border:none;cursor:pointer;color:${th.color};font-size:11px;padding:0 0 0 2px" onclick="removeThemaFromKm(${km.id},${th.kt_id})" title="Verwijder uit kampmoment">✕</button></span>`).join('');
+    const thTags=_kmThemaChipsHTML(km, km.type!=='themadag');
     const beschikbaar=S.themas.filter(t=>!(km.themas||[]).find(x=>x.id===t.id));
-    const addSel=beschikbaar.length?`<select class="sel" id="add-th-${km.id}" style="height:28px;font-size:11px"><option value="">+ Thema toevoegen…</option>${beschikbaar.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><button class="btn-xs" onclick="addThemaToKm(${km.id})">Toevoegen</button>`:'<span style="font-size:11px;color:var(--text2)">Alle thema\'s zijn al gekoppeld.</span>';
+    const addSel=km.type==='themadag'
+      ? '<span style="font-size:11px;color:var(--text2)">Gebruik &#x270F;&#xFE0F; om de dag-thema\'s te bewerken.</span>'
+      : (beschikbaar.length?`<select class="sel" id="add-th-${km.id}" style="height:28px;font-size:11px"><option value="">+ Thema toevoegen…</option>${beschikbaar.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select><button class="btn-xs" onclick="addThemaToKm(${km.id})">Toevoegen</button>`:'<span style="font-size:11px;color:var(--text2)">Alle thema\'s zijn al gekoppeld.</span>');
 
     const card=document.createElement('div');
     card.className='km-card';
@@ -2654,11 +2740,12 @@ function renderKampen(){
             <span style="font-size:14px;font-weight:700">Week ${km.week}</span>
             <span class="pill p-gray">${km.locatie?.name||'?'}</span>
             <span class="pill ${openDagen.length>=5?'p-green':openDagen.length>=3?'p-amber':'p-red'}">${openDagen.length} dag${openDagen.length!==1?'en':''} open</span>
-            <span class="pill p-blue">${(km.themas||[]).length} thema's</span>
+            ${_kmTypeBadge(km)}
           </div>
           <div style="font-size:11px;color:var(--text2)">${wd.length?fDag(wd[0])+' – '+fDag(wd[wd.length-1]):''} • ${km.locatie?.addr||''}</div>
         </div>
         <div style="display:flex;gap:5px;align-items:center">
+          <button class="bi" onclick="openBewerkKampmoment(${km.id});event.stopPropagation()" title="Bewerk kampmoment" style="font-size:13px">&#x270F;&#xFE0F;</button>
           <button class="bi" onclick="openTerugkomst(${km.id});event.stopPropagation()" title="Terugkomst verwerken" style="font-size:13px">&#128281;</button>
           <button class="bi" style="color:#A32D2D" onclick="deleteKampmoment(${km.id});event.stopPropagation()" title="Verwijder kampmoment">🗑️</button>
           <span id="km-chev-${km.id}" style="font-size:12px;color:var(--text2)">▼</span>
@@ -2676,7 +2763,7 @@ function renderKampen(){
         </div>
         <div>
           <div class="sl">Materiaaloverzicht voor dit kampmoment</div>
-          ${(km.themas||[]).map(th=>`<div class="mat-block" style="border-left-color:${th.color}"><div class="mat-block-title" style="color:${th.color}">${th.name}</div>${(th.mat||[]).length?(th.mat||[]).map(m=>`<div class="mat-row"><span class="mat-qty">\u00D7${m.qty}</span>${m.name}</div>`).join(''):'<div style="font-size:11px;color:var(--text2)">Geen thema-materiaal gedefinieerd.</div>'}</div>`).join('')}
+          ${_kmThemaMatHTML(km)}
            </div>
       </div>`;
     el.appendChild(card);
@@ -2699,7 +2786,47 @@ function updateKmWeekMax(){
   const inp=document.getElementById('km-week');
   if(inp){inp.max=max;inp.placeholder='1–'+max;}
 }
+let _kmEditId=null;
+let _kmType='kamp';
+function setKmType(t){
+  _kmType=(t==='themadag'?'themadag':'kamp');
+  document.getElementById('km-mode-kamp').style.display=_kmType==='kamp'?'':'none';
+  document.getElementById('km-mode-themadag').style.display=_kmType==='themadag'?'':'none';
+  document.querySelectorAll('.km-type-tab').forEach(b=>{
+    const a=b.dataset.type===_kmType;
+    b.classList.toggle('active',a);
+    b.style.background=a?'var(--green-bg)':'transparent';
+    b.style.color=a?'var(--green-dk)':'var(--text2)';
+    b.style.fontWeight=a?'600':'400';
+  });
+}
+function renderKmDagSelects(selPerDag){
+  const DOW=['Ma','Di','Wo','Do','Vr'];
+  const el=document.getElementById('km-dag-selects');
+  el.innerHTML=DOW.map((lbl,i)=>{
+    const cur=selPerDag[i]||'';
+    return `<div style="display:flex;align-items:center;gap:8px">
+      <span style="min-width:28px;font-weight:600;color:var(--text2)">${lbl}</span>
+      <select class="sel km-dag-sel" data-dag="${i}" style="flex:1" onchange="_refreshKmDagDisables()">
+        <option value="">— Geen thema —</option>
+        ${S.themas.map(th=>`<option value="${th.id}" ${cur==th.id?'selected':''}>${th.name}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+  _refreshKmDagDisables();
+}
+function _refreshKmDagDisables(){
+  const selects=[...document.querySelectorAll('.km-dag-sel')];
+  const picked=selects.map(s=>s.value).filter(Boolean);
+  selects.forEach(s=>{
+    [...s.options].forEach(o=>{
+      if(!o.value)return;
+      o.disabled=picked.includes(o.value)&&o.value!==s.value;
+    });
+  });
+}
 function openNieuwKampmoment(preLocId){
+  _kmEditId=null;
   document.getElementById('modal-km-title').textContent='Kampmoment toevoegen';
   _fillKmPeriodeSelect();
   updateKmWeekMax();
@@ -2707,7 +2834,38 @@ function openNieuwKampmoment(preLocId){
   document.getElementById('km-preview').style.display='none';
   document.getElementById('km-loc').innerHTML=S.locaties.filter(l=>l.type==='kamp').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
   if(preLocId)document.getElementById('km-loc').value=preLocId;
+  document.getElementById('km-loc').disabled=false;
+  document.getElementById('km-periode').disabled=false;
+  setKmType('kamp');
   renderKmCheckboxes([]);
+  renderKmDagSelects([null,null,null,null,null]);
+  openModal('modal-km');
+}
+function openBewerkKampmoment(kmId){
+  const km=(S.kampmomenten||[]).find(k=>k.id===kmId);
+  if(!km){showToast('Kampmoment niet gevonden','error');return;}
+  _kmEditId=kmId;
+  document.getElementById('modal-km-title').textContent='Kampmoment bewerken';
+  _fillKmPeriodeSelect();
+  document.getElementById('km-periode').value=km.periode_id||1;
+  updateKmWeekMax();
+  document.getElementById('km-week').value=km.week;
+  updateKmPreview();
+  document.getElementById('km-loc').innerHTML=S.locaties.filter(l=>l.type==='kamp').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  document.getElementById('km-loc').value=km.locatie_id;
+  document.getElementById('km-loc').disabled=true;
+  document.getElementById('km-periode').disabled=true;
+  const isTd=km.type==='themadag';
+  setKmType(isTd?'themadag':'kamp');
+  if(isTd){
+    const perDag=[null,null,null,null,null];
+    (km.themas||[]).forEach(th=>{if(th.dag!=null&&th.dag>=0&&th.dag<=4)perDag[th.dag]=th.id;});
+    renderKmDagSelects(perDag);
+    renderKmCheckboxes([]);
+  } else {
+    renderKmCheckboxes((km.themas||[]).map(t=>t.id));
+    renderKmDagSelects([null,null,null,null,null]);
+  }
   openModal('modal-km');
 }
 function updateKmPreview(){
@@ -2726,15 +2884,35 @@ async function saveKampmoment(){
   const week=parseInt(document.getElementById('km-week').value);
   const locatie_id=parseInt(document.getElementById('km-loc').value);
   const periode_id=parseInt(document.getElementById('km-periode')?.value)||S.activePeriode?.id||1;
+  const type=_kmType;
   if(!week||!locatie_id){alert('Vul week en locatie in.');return;}
-  const checked=[...document.querySelectorAll('#km-thema-checkboxes input:checked')].map(cb=>parseInt(cb.value));
-  const km=await api('POST','/kampmomenten',{week,locatie_id,periode_id});
+  let km;
+  if(_kmEditId){
+    km=await api('PUT','/kampmomenten/'+_kmEditId,{week,type});
+  } else {
+    km=await api('POST','/kampmomenten',{week,locatie_id,periode_id,type});
+  }
   if(km.error){alert(km.error);return;}
-  for(const tid of checked)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid});
+  // Resync kampmoment_themas: delete-all-then-add (max 5-7 items, goedkoop)
+  for(const th of (km.themas||[])){
+    await api('DELETE','/kampmomenten/'+km.id+'/themas/'+th.kt_id);
+  }
+  if(type==='kamp'){
+    const checked=[...document.querySelectorAll('#km-thema-checkboxes input:checked')].map(cb=>parseInt(cb.value));
+    for(const tid of checked)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid,dag:null});
+  } else {
+    const sels=[...document.querySelectorAll('.km-dag-sel')];
+    for(const s of sels){
+      const tid=parseInt(s.value);
+      const dag=parseInt(s.dataset.dag);
+      if(tid)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid,dag});
+    }
+  }
   S.kampmomenten=await api('GET','/kampmomenten');
   if(kalData)kalData=await api('GET','/kalender');
   closeModal('modal-km');
   renderKampen();
+  if(typeof _refreshLocDetail==='function')_refreshLocDetail();
   {const _kl=document.getElementById('km-list');if(_kl)_kl.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 async function deleteKampmoment(id){if(!confirm('Kampmoment verwijderen?'))return;await api('DELETE','/kampmomenten/'+id);S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);renderKampen();}
@@ -3352,20 +3530,23 @@ function _kampCardHTML(km){
     if(isFeest)return `<button class="dag-pill dag-feest" disabled title="Feestdag">🔒 ${DOW[d.getDay()]} ${d.getDate()}</button>`;
     return `<button class="dag-pill ${isOpen?'dag-open':'dag-dicht'}" onclick="toggleKalDag(${km.locatie_id},'${iso}')" title="${isOpen?'Open — klik om te sluiten':'Gesloten — klik om te openen'}">${DOW[d.getDay()]} ${d.getDate()}</button>`;
   }).join('');
-  const thTags=(km.themas||[]).map(th=>`<span class="thema-tag" style="background:${th.color}22;color:${th.color};border:.5px solid ${th.color}66">${_escH(th.name)} <button style="background:transparent;border:none;cursor:pointer;color:${th.color};font-size:11px;padding:0 0 0 2px" onclick="removeThemaFromKm(${km.id},${th.kt_id})" title="Verwijder uit kampmoment">✕</button></span>`).join('');
+  const thTags=_kmThemaChipsHTML(km, km.type!=='themadag');
   const beschikbaar=S.themas.filter(t=>!(km.themas||[]).find(x=>x.id===t.id));
-  const addSel=beschikbaar.length?`<select class="sel" id="add-th-${km.id}" style="height:28px;font-size:11px"><option value="">+ Thema toevoegen…</option>${beschikbaar.map(t=>`<option value="${t.id}">${_escH(t.name)}</option>`).join('')}</select><button class="btn-xs" onclick="addThemaToKm(${km.id})">Toevoegen</button>`:'<span style="font-size:11px;color:var(--text2)">Alle thema\'s zijn al gekoppeld.</span>';
+  const addSel=km.type==='themadag'
+    ? '<span style="font-size:11px;color:var(--text2)">Gebruik &#x270F;&#xFE0F; om de dag-thema\'s te bewerken.</span>'
+    : (beschikbaar.length?`<select class="sel" id="add-th-${km.id}" style="height:28px;font-size:11px"><option value="">+ Thema toevoegen…</option>${beschikbaar.map(t=>`<option value="${t.id}">${_escH(t.name)}</option>`).join('')}</select><button class="btn-xs" onclick="addThemaToKm(${km.id})">Toevoegen</button>`:'<span style="font-size:11px;color:var(--text2)">Alle thema\'s zijn al gekoppeld.</span>');
   return `<div class="km-card">
     <div class="km-hd" onclick="toggleKmBody(${km.id})">
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
           <span style="font-size:14px;font-weight:700">Week ${km.week}</span>
           <span class="pill ${openDagen.length>=5?'p-green':openDagen.length>=3?'p-amber':'p-red'}">${openDagen.length} dag${openDagen.length!==1?'en':''} open</span>
-          <span class="pill p-blue">${(km.themas||[]).length} thema's</span>
+          ${_kmTypeBadge(km)}
         </div>
         <div style="font-size:11px;color:var(--text2)">${wd.length?fDag(wd[0])+' – '+fDag(wd[wd.length-1]):''}</div>
       </div>
       <div style="display:flex;gap:5px;align-items:center">
+        <button class="bi" onclick="openBewerkKampmoment(${km.id});event.stopPropagation()" title="Bewerk kampmoment" style="font-size:13px">&#x270F;&#xFE0F;</button>
         <button class="bi" onclick="openTerugkomst(${km.id});event.stopPropagation()" title="Terugkomst verwerken" style="font-size:13px">🔙</button>
         <button class="bi" style="color:#A32D2D" onclick="deleteKampmoment(${km.id});event.stopPropagation()" title="Verwijder kampmoment">🗑️</button>
         <span id="km-chev-${km.id}" style="font-size:12px;color:var(--text2)">▼</span>
@@ -3383,7 +3564,7 @@ function _kampCardHTML(km){
       </div>
       <div>
         <div class="sl">Materiaaloverzicht voor dit kampmoment</div>
-        ${(km.themas||[]).map(th=>`<div class="mat-block" style="border-left-color:${th.color}"><div class="mat-block-title" style="color:${th.color}">${_escH(th.name)}</div>${(th.mat||[]).length?(th.mat||[]).map(m=>`<div class="mat-row"><span class="mat-qty">×${m.qty}</span>${_escH(m.name)}</div>`).join(''):'<div style="font-size:11px;color:var(--text2)">Geen thema-materiaal gedefinieerd.</div>'}</div>`).join('')}
+        ${_kmThemaMatHTML(km)}
       </div>
     </div>
   </div>`;
@@ -4324,6 +4505,9 @@ function openTerugkomst(kmId){
     document.getElementById('tk-sets-data').value='[]';
   } else {
     let html='';
+    if(km.type==='themadag'){
+      html+='<div style="font-size:11px;color:var(--amber-dk);background:var(--amber-bg);border:.5px solid var(--amber);border-radius:6px;padding:6px 10px;margin-bottom:8px">&#128467; Themadag &mdash; al het materiaal van de hele week komt terug.</div>';
+    }
     if(gepland.length||sportBlijftAantal>0){
       html+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;padding:8px 0 4px;letter-spacing:.5px">⚽ Sportmateriaal</div>';
       if(sportBlijftAantal>0){
