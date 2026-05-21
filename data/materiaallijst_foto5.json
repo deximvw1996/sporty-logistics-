@@ -1,0 +1,323 @@
+{
+  "_meta": {
+    "bron": "foto materiaallijst deel 5: Jumpen -> Laat je rollen",
+    "datum_extractie": "2026-05-21",
+    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE (zelfde) | KAMP/TD | DAGEN/extra",
+    "noot": "Vervolg van foto4. Sommige thema's hebben extra kolom met dagen (bv. 'ma tem do/vrijdag'). 'Laat je rollen' deelt materiaal met 'Carts and boards'.",
+    "betrouwbaarheid": "OCR uit foto - controleer codes/aantallen tegen origineel"
+  },
+  "themas": [
+    {
+      "naam": "Jumpen",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "noot": "extra kolom: ma t.e.m. do/vrijdag",
+      "materiaal": [
+        { "naam": "1 curver", "locatie": "C05" },
+        { "naam": "1 KL bak airtracks", "locatie": "M00" },
+        { "naam": "1 KL bak springdieren", "locatie": "N17/N18" },
+        { "naam": "1 klein springkasteel jungle + 1 blazer", "locatie": null },
+        { "naam": "1 groot springkasteel kasteel + 1 blazer", "locatie": null },
+        { "naam": "1 kleuterhindernisbaan + 1 blazer", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Jumpen - 4 dagen",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "noot": "extra kolom: ma t.e.m. wo/donderdag",
+      "materiaal": [
+        { "naam": "1 curver", "locatie": "C05" },
+        { "naam": "1 KL bak airtracks", "locatie": "M00" },
+        { "naam": "1 KL bak springdieren", "locatie": "N17/N18" },
+        { "naam": "1 klein springkasteel jungle + 1 blazer", "locatie": null },
+        { "naam": "1 groot springkasteel kasteel + 1 blazer", "locatie": null },
+        { "naam": "1 kleuterhindernisbaan + 1 blazer", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Jumpen TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 KL bak springdieren", "locatie": "N17 of N18" },
+        { "naam": "1 klein springkasteel + 1 blazers", "locatie": null },
+        { "naam": "1 groot springkasteel gijbaan hoog + 1 blazer", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Jumpen XL TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "2 springkasteel + 2 blazers", "locatie": "O18" }
+      ]
+    },
+    {
+      "naam": "Jumpsky sokken",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 zwarte curver", "locatie": "O18" }
+      ]
+    },
+    {
+      "naam": "Kanjam",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak", "locatie": "N33" },
+        { "naam": "1 KL bak", "locatie": "N34" },
+        { "naam": "(leeg)", "locatie": "N16" }
+      ]
+    },
+    {
+      "naam": "Katapulten",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "Winkelzak", "locatie": "F44" }
+      ]
+    },
+    {
+      "naam": "Keep calm and play games",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "kickertafel", "locatie": "kantoor" },
+        { "naam": "Nerf Battle (2 KL bakken)", "locatie": "M00" },
+        { "naam": "Lasershoot en obstakels (4 KL bakken)", "locatie": "N02" },
+        { "naam": "1 KL bak", "locatie": "N36" },
+        { "naam": "sjoelbak Keep calm", "locatie": "N39" },
+        { "naam": "XL tafelvoetbal", "locatie": "rozenweg" },
+        { "naam": "2 palen en 2 voeten", "locatie": null },
+        { "naam": "2 houten panelen met haakje", "locatie": "I43" }
+      ]
+    },
+    {
+      "naam": "Kleine dappere indiaan TD",
+      "type": "TD",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "G00" }
+      ]
+    },
+    {
+      "naam": "Kleuren en geuren",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "Kartonnen koker twistermat", "locatie": "G14" },
+        { "naam": "1 doorzichtige curverbak 2/2", "locatie": "G15" },
+        { "naam": "1 LS bak 1/2", "locatie": null },
+        { "naam": "1 witte rol tafeldoek", "locatie": null },
+        { "naam": "1 twister draaibord", "locatie": "D00" }
+      ]
+    },
+    {
+      "naam": "Klederen en kladderen",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "20 groene ikea bakjes", "locatie": "E00" },
+        { "naam": "houten plaat waterbaan", "locatie": "G23" },
+        { "naam": "1 blauwe curver 5/5", "locatie": "G24" },
+        { "naam": "1 blauwe curver 4/5", "locatie": "G25" },
+        { "naam": "1 LS bak 1/5", "locatie": "G27" },
+        { "naam": "1 LS bak 2/5", "locatie": "G29" },
+        { "naam": "1 LS bak 3/5", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Klim en Urbanstage",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "bak inline skates + beschermers", "locatie": "C32" }
+      ]
+    },
+    {
+      "naam": "Klimmen",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 zwarte curver", "locatie": "C37" }
+      ]
+    },
+    {
+      "naam": "Klimwereld",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I01" }
+      ]
+    },
+    {
+      "naam": "Knutfeldag TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 1/2", "locatie": "I01" },
+        { "naam": "1 groene curver 2/2", "locatie": "I02" }
+      ]
+    },
+    {
+      "naam": "Koekiemonsters",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "4 mayonnaise emmers", "locatie": "E41" },
+        { "naam": "1 LS bak 1/3", "locatie": "E43" },
+        { "naam": "1 LS bak 3/3", "locatie": "E45" },
+        { "naam": "2 oventjes", "locatie": null },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "doorschijnend bakje Koekjesfabriek TD 2/3", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Koekiemonstertjes TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "K37" },
+        { "naam": "1 LS bak Koekjesfabriek TD 3/3", "locatie": "K38" },
+        { "naam": "afwasbak", "locatie": "K39" },
+        { "naam": "2 oventjes", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Koekjesfabriek",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak 3/3", "locatie": "B47" },
+        { "naam": "1 LS bak 1/3", "locatie": "B49" },
+        { "naam": "2 oventjes", "locatie": "E45" },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "Kookbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Koekjesfabriek TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 1/3", "locatie": "K37" },
+        { "naam": "doorschijnend bakje 2/3", "locatie": "K39" },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "2 oventjes", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Koken is kinderspel",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "Rol wit tafellaken", "locatie": "Crea beneden" },
+        { "naam": "1 LS bak 1/3", "locatie": "F25" },
+        { "naam": "1 LS bak 2/3", "locatie": "F27" },
+        { "naam": "1 LS bak 3/3", "locatie": "F29" },
+        { "naam": "Lamineermachine A3 (3/4-daagse niet)", "locatie": "Kantoor" },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "2 oventjes", "locatie": null },
+        { "naam": "kookplaat", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Kookatelier TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "K48" },
+        { "naam": "kookbak", "locatie": null },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Kookbak",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "noot": "los/gedeeld kookbak-materiaal, meerdere bakken op verschillende codes",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "C03" },
+        { "naam": "1 LS bak", "locatie": "C07" },
+        { "naam": "1 LS bak", "locatie": "C09" },
+        { "naam": "1 LS bak", "locatie": "C13" },
+        { "naam": "1 LS bak", "locatie": "C15" },
+        { "naam": "1 LS bak", "locatie": "C17" },
+        { "naam": "1 LS bak", "locatie": "C19" }
+      ]
+    },
+    {
+      "naam": "Kookplaat",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "4 dubbele kookplaten", "locatie": "C25" }
+      ]
+    },
+    {
+      "naam": "Kranen en graafmachines TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "2 kartonnen dozen met zandkasteelbouwer", "locatie": "J25" },
+        { "naam": "2 kranen + 2 vrachtwagens", "locatie": "J27" },
+        { "naam": "1 groene curver 1/3", "locatie": "J28" },
+        { "naam": "1 groene curver 2/3", "locatie": "J29" },
+        { "naam": "1 houten bak 3/3", "locatie": "L31" },
+        { "naam": "2 plastieken schelpen", "locatie": null },
+        { "naam": "zand", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Kriebelbeestjes TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I25" }
+      ]
+    },
+    {
+      "naam": "Kriebeldiertjes",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak 1/3", "locatie": "H37" },
+        { "naam": "1 LS bak 2/3", "locatie": "H39" }
+      ]
+    },
+    {
+      "naam": "Kubb",
+      "type": "kamp",
+      "leeftijdsgroep": "12+",
+      "materiaal": [
+        { "naam": "1 zwarte curver", "locatie": "C47" }
+      ]
+    },
+    {
+      "naam": "Laat je rollen",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "noot": "deelt materiaal met 'Carts and boards' (zie foto1+foto2)",
+      "materiaal": [
+        { "naam": "4x BMX", "locatie": null },
+        { "naam": "2x Mountainbike", "locatie": null },
+        { "naam": "8x Hooverboards", "locatie": null },
+        { "naam": "4x groene quads", "locatie": null },
+        { "naam": "3 gekke fietsen", "locatie": null },
+        { "naam": "2x éénwieler", "locatie": null },
+        { "naam": "2x balance bike", "locatie": null },
+        { "naam": "4x Ezy roller", "locatie": null },
+        { "naam": "4x grote go-cart", "locatie": null },
+        { "naam": "2x kleine go-cart", "locatie": null },
+        { "naam": "4x grote steps", "locatie": null },
+        { "naam": "2x schansen", "locatie": null },
+        { "naam": "16 helmen", "locatie": null },
+        { "naam": "8x rolla bolla", "locatie": null },
+        { "naam": "2x trikes", "locatie": null },
+        { "naam": "4x space scooter", "locatie": null }
+      ]
+    }
+  ]
+}

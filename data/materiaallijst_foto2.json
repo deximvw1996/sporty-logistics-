@@ -1,0 +1,274 @@
+{
+  "_meta": {
+    "bron": "foto materiaallijst deel 2: Carts and boards (vervolg) -> Dagelijkse Sportykost",
+    "datum_extractie": "2026-05-21",
+    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE (zelfde) | KAMP/TD | DAGEN",
+    "noot": "Vervolg van foto1. 'Carts and boards' loopt door vanaf foto1. Magazijncodes letter+nummer; named: kantoor/Beneden/Rozenweg. KL=kleuters LS=lagere school KLS=beide 12+=leeftijd. TD=themadag.",
+    "betrouwbaarheid": "OCR uit foto - locatiecodes en aantallen kunnen kleine leesfouten bevatten, controleer tegen origineel"
+  },
+  "themas": [
+    {
+      "naam": "Carts and boards",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "noot": "vervolg van foto1 (zelfde thema)",
+      "materiaal": [
+        { "naam": "4x Ezy roller", "locatie": null },
+        { "naam": "4x grote go-cart", "locatie": null },
+        { "naam": "2x kleine go-cart", "locatie": null },
+        { "naam": "4x grote steps", "locatie": null },
+        { "naam": "2x schansen", "locatie": null },
+        { "naam": "16 helmen", "locatie": null },
+        { "naam": "8x rolla bolla", "locatie": null },
+        { "naam": "2x trikes", "locatie": null },
+        { "naam": "4x space scooter", "locatie": null },
+        { "naam": "2x streetcarvers", "locatie": null },
+        { "naam": "4x longboards", "locatie": null },
+        { "naam": "2x stuntstep", "locatie": null },
+        { "naam": "4x waveboards", "locatie": null },
+        { "naam": "8x grote skateboard", "locatie": null },
+        { "naam": "4x klein skateboard", "locatie": null },
+        { "naam": "20 pols-, knie- en elleboogbeschermers", "locatie": null },
+        { "naam": "30 paar inline skates", "locatie": null },
+        { "naam": "2x drift trike", "locatie": null },
+        { "naam": "2x skelter street", "locatie": null },
+        { "naam": "verkeerskoffer", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Circus Krokofant",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "G07" },
+        { "naam": "Circuskoffer", "locatie": "G09" },
+        { "naam": "10 springveren", "locatie": "N17+N18" },
+        { "naam": "Themadoek geel + frame", "locatie": null },
+        { "naam": "Grote blauwe circusbal", "locatie": null },
+        { "naam": "Schminkkoffer", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Circus krokofant TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 1/2", "locatie": "J22" },
+        { "naam": "1 LS bak 2/2", "locatie": "J23" },
+        { "naam": "Themadoek TD3", "locatie": "TD3" }
+      ]
+    },
+    {
+      "naam": "Cirkelvoetbal & Handvoetbal",
+      "type": "kamp",
+      "leeftijdsgroep": "12+",
+      "materiaal": [
+        { "naam": "1 rode curver", "locatie": "C41" }
+      ]
+    },
+    {
+      "naam": "CK: Piraten, alle hens aan dek",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 schatkist 4/4", "locatie": "L42" },
+        { "naam": "1 LS bak 3/4", "locatie": "L53" },
+        { "naam": "1 LS bak 2/4", "locatie": "L55" },
+        { "naam": "1 LS bak 1/4", "locatie": "L57" },
+        { "naam": "Decor: grote houten boot met metalen frame, kleine houten bootjes", "locatie": null },
+        { "naam": "vlaggenmasten", "locatie": null },
+        { "naam": "schminkkoffer", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Click TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "4 emmers", "locatie": "kantoor" }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes - Alles op wieltjes",
+      "type": "kamp",
+      "leeftijdsgroep": "KLS",
+      "materiaal": [
+        { "naam": "2 KL bakken clics + 1 bak wieltjes", "locatie": "F40" },
+        { "naam": "1 blauwe curver", "locatie": null },
+        { "naam": "Verkeerskoffer", "locatie": null },
+        { "naam": "17 rode kleuterfietsen (Winther)", "locatie": null },
+        { "naam": "4 loopfietsen", "locatie": null },
+        { "naam": "5 loopwagens", "locatie": null },
+        { "naam": "2 zitfietsen", "locatie": null },
+        { "naam": "3 easy rollers grize", "locatie": null },
+        { "naam": "opblaasbaar parcours + blazer", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes - Circus Krokofant",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "G07" },
+        { "naam": "Circuskoffer", "locatie": "G09" }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes - Out of the box bouwkamp",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "G33" },
+        { "naam": "1 LS bak behangpapier en stof", "locatie": "G51", "noot": "kamp KL + LS" },
+        { "naam": "1 LS bak 4/4 kiditech", "locatie": "G53" },
+        { "naam": "1 LS bak 3/4 kiditech", "locatie": "G55" },
+        { "naam": "1 LS bak 2/4 kiditech", "locatie": "G57" },
+        { "naam": "3 LS bakken houten blokken", "locatie": "G59 + 2 op kantoor" },
+        { "naam": "5 dozen duplo", "locatie": "kantoor" },
+        { "naam": "1 KL bak sterpuzzels", "locatie": "N15" },
+        { "naam": "1 KL bak met helmen", "locatie": "N22" },
+        { "naam": "Fantasy forts 1 KL bak + 1 LS bak", "locatie": "N25" },
+        { "naam": "KL bak kiditech 1/4", "locatie": "N28", "noot": "Kamp KLS" },
+        { "naam": "Makedo - rode curver", "locatie": "E02" },
+        { "naam": "Grote kartonnen dozen om huisjes mee te bouwen", "locatie": null },
+        { "naam": "Leonardo", "locatie": null },
+        { "naam": "allerlei kartonnen dozen", "locatie": null },
+        { "naam": "20 kruiwagens", "locatie": null },
+        { "naam": "kartonnen kubussen (via Ellen van Jelle)", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Coole Kadeekes tring vroem tuut",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak 1/2", "locatie": "H47" },
+        { "naam": "1 LS bak 2/2", "locatie": "H49" },
+        { "naam": "verkeerskoffer", "locatie": null },
+        { "naam": "ganzenbord", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes: beweegkriebels met Ypie",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "blauwe curver", "locatie": "F08" },
+        { "naam": "Ypie pak", "locatie": "kantoor" }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes: Dierenplezier",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 KL bak", "locatie": "N35" }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes: kunst in al z'n vormen",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "F61" }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes: mini play factory",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "ganzenbord", "locatie": "H00" },
+        { "naam": "kartonnen koker mikado", "locatie": "H00" },
+        { "naam": "Bordeaux themabak", "locatie": "H01" },
+        { "naam": "1 LS bak (Eendjes vangen)", "locatie": "H03" },
+        { "naam": "1 LS bak (loopklossen)", "locatie": "H05" },
+        { "naam": "7 bakken duplo", "locatie": "kantoor" },
+        { "naam": "3 bakken soft lego", "locatie": "kantoor" },
+        { "naam": "bak clics", "locatie": "kantoor" },
+        { "naam": "gele zak croquet", "locatie": "L31" },
+        { "naam": "2 KL bak sterpuzzels", "locatie": "N15" },
+        { "naam": "10 rollende diertjes", "locatie": "Rozenweg" },
+        { "naam": "8 rollerboards", "locatie": "Rozenweg" },
+        { "naam": "XL-games: 1 zwarte curver (twister)", "locatie": "Rozenweg" },
+        { "naam": "XL games vier op een rij (1 LS bak + 2 blauwe poten + rood frame + 2 kleine rode schuifstukken)", "locatie": "Rozenweg" },
+        { "naam": "XL games: 1 LS bak domino", "locatie": "Rozenweg" }
+      ]
+    },
+    {
+      "naam": "Coole kadeekes: Ontdek de wereld, begin bij Sporty",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "Kartonnen koker 6/6", "locatie": "G00" },
+        { "naam": "1 blauwe curver 3/6", "locatie": "G40" },
+        { "naam": "1 LS bak 1/6", "locatie": "G47" },
+        { "naam": "1 LS bak 2/6", "locatie": "G49" },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Coole Kadeekes: Out of the box bouwkamp",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "noot": "tweede/kortere variant; mogelijk duplicaat van eerdere Out of the box bouwkamp",
+      "materiaal": [
+        { "naam": "1 LS bak 4/4 kiditech", "locatie": "G53" },
+        { "naam": "1 LS bak 3/4 kiditech", "locatie": "G55" },
+        { "naam": "1 LS bak 2/4 kiditech", "locatie": "G57" },
+        { "naam": "1 KL bak kiditech 1/4", "locatie": "N28" }
+      ]
+    },
+    {
+      "naam": "Coole Kadeekes: Waterpret en bellen",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak 1/4", "locatie": "H11" },
+        { "naam": "1 LS bak 2/4", "locatie": "H13" },
+        { "naam": "1 LS bak 3/4", "locatie": "H15" },
+        { "naam": "1 LS bak 4/4", "locatie": "H17" },
+        { "naam": "4 emmers en extra dweilen", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Crazy Christmas Cooking",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 zwarte curverbak 2/2", "locatie": "D04" },
+        { "naam": "1 LS bak 1/2", "locatie": "D05" },
+        { "naam": "1 kookbak", "locatie": null },
+        { "naam": "2 kookvuurtjes", "locatie": null },
+        { "naam": "Oven", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Creakriebels TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "L25" }
+      ]
+    },
+    {
+      "naam": "Creatief met papier TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "C23" }
+      ]
+    },
+    {
+      "naam": "Dagelijkse Sportykost",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 friteuse", "locatie": "D39" },
+        { "naam": "1 LS bak 2/2", "locatie": "D39" },
+        { "naam": "1 LS bak 1/2", "locatie": "D45" },
+        { "naam": "kookbak", "locatie": null }
+      ]
+    }
+  ]
+}

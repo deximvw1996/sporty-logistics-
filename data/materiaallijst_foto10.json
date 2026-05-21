@@ -1,0 +1,307 @@
+{
+  "_meta": {
+    "bron": "foto materiaallijst deel 10 (laatste): Verrekijkerbrillen pakket 2 -> Ypie is vermist",
+    "datum_extractie": "2026-05-21",
+    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE (zelfde) | KAMP/TD | DAGEN",
+    "noot": "Einde van de alfabetische lijst. Groen gemarkeerde 'VRIJ'-rijen = lege/vrije opslagvakken (apart opgeslagen, geen thema's).",
+    "betrouwbaarheid": "OCR uit foto - controleer codes/aantallen tegen origineel"
+  },
+  "vrije_opslaglocaties": ["M07", "D43", "E31", "E32", "E59", "E60", "H43", "J01", "J41", "L14", "L15", "L16", "L17", "L18", "L19", "L37", "L38", "L39", "L40"],
+  "themas": [
+    {
+      "naam": "Verrekijkerbrillen pakket 2",
+      "type": "kamp",
+      "leeftijdsgroep": "10+",
+      "materiaal": [
+        { "naam": "stukken karton + 8 grote kartonnen dozen", "locatie": "B32" }
+      ]
+    },
+    {
+      "naam": "Voertuigen van A tot Z",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 blauwe curver", "locatie": "L00" },
+        { "naam": "1 LS bak 2/3", "locatie": "L02" },
+        { "naam": "1 LS bak 1/3", "locatie": "L07" },
+        { "naam": "4 transportplaten (planken met wieltjes)", "locatie": "L09" },
+        { "naam": "1 LS bak", "locatie": "L20" }
+      ]
+    },
+    {
+      "naam": "Voetbalacademie",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "D01" },
+        { "naam": "1 zwarte curver: 8 vlaggen", "locatie": "D12" },
+        { "naam": "2 KL bakken voetbal", "locatie": "kantoor" },
+        { "naam": "zak met 20 ballen", "locatie": "kantoor" },
+        { "naam": "map met fysieke testen", "locatie": null },
+        { "naam": "pannakooi", "locatie": null },
+        { "naam": "rebounder", "locatie": null },
+        { "naam": "levende tafelvoetbal", "locatie": null },
+        { "naam": "Voetgolf", "locatie": null },
+        { "naam": "bumperballen", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Volksspelen klein materiaal",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "noot": "los/gedeeld; N39 = grote Volksspelen-verzameling, C48 = rode curver klein materiaal",
+      "materiaal": [
+        { "naam": "Volksspelen (verzameling)", "locatie": "N39" },
+        { "naam": "1 rode curver", "locatie": "C48" }
+      ]
+    },
+    {
+      "naam": "Wacko Water week",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "opblaasbare waterstructuren: gijbaan", "locatie": null },
+        { "naam": "opblaasbare waterstructuren: groene rots", "locatie": null },
+        { "naam": "opblaasbare waterstructuren: oranje hond", "locatie": null },
+        { "naam": "opblaasbare waterstructuren: trampoline", "locatie": null },
+        { "naam": "2 opblaasbare waterballen", "locatie": null },
+        { "naam": "2x waterpolodoel", "locatie": null },
+        { "naam": "touwen voor attracties vast te maken", "locatie": null },
+        { "naam": "2x basketbal doel", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Wafels en pannenkoeken TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 3/3", "locatie": "K03" },
+        { "naam": "1 LS bak 1/3", "locatie": "K05" },
+        { "naam": "1 LS bak 2/3", "locatie": "K07" },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Watch & Go",
+      "type": "kamp",
+      "leeftijdsgroep": "12+",
+      "materiaal": [
+        { "naam": "1 curver", "locatie": "C50" }
+      ]
+    },
+    {
+      "naam": "Waterpret en bellen TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak 1/2", "locatie": "K17" },
+        { "naam": "1 LS bak 2/2", "locatie": "K19" }
+      ]
+    },
+    {
+      "naam": "We knallen er op los",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "blauwe curver", "locatie": "F43" },
+        { "naam": "1 rode curver", "locatie": "F44" },
+        { "naam": "Nerf Battle (2 KL bakken)", "locatie": "M00" },
+        { "naam": "20 houten balken", "locatie": null },
+        { "naam": "boogschieten (grote houten bak + doelen)", "locatie": null },
+        { "naam": "archery tag", "locatie": null },
+        { "naam": "opblaasstructuren", "locatie": null }
+      ]
+    },
+    {
+      "naam": "We slaan er op los TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak 1/2", "locatie": "J31" },
+        { "naam": "1 zwarte 2/2", "locatie": "J42" }
+      ]
+    },
+    {
+      "naam": "We slaan in het rond",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "mini badminton", "locatie": "G12" },
+        { "naam": "mini hockey", "locatie": "G12" },
+        { "naam": "1 zwarte curver bak", "locatie": "G13" },
+        { "naam": "mini tennis", "locatie": "kantoor" },
+        { "naam": "1 gele zak van croquet (mini play)", "locatie": "L31" }
+      ]
+    },
+    {
+      "naam": "We zijn wij (betekom)",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "mini springsokken", "locatie": "F39" }
+      ]
+    },
+    {
+      "naam": "Weg zijn wij (betekom)",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 zwarte curver sokken Jumpsky", "locatie": "O18" }
+      ]
+    },
+    {
+      "naam": "Welkom op de boerderij",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 KL koffer 2/3", "locatie": "H23" },
+        { "naam": "mandje met stro", "locatie": "H31" },
+        { "naam": "8 groene bakjes", "locatie": "H31" },
+        { "naam": "blauwe bak met 2 paar laarzen", "locatie": "H32" },
+        { "naam": "1 LS bak met verkleedkledij 3/3", "locatie": "H51" },
+        { "naam": "themadoek + frame", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Welkom op de boerderij TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I44" }
+      ]
+    },
+    {
+      "naam": "Wereldkeuken",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak 1/4", "locatie": "E33" },
+        { "naam": "1 LS bak 2/4", "locatie": "E35" },
+        { "naam": "1 LS bak 3/4", "locatie": "E37" },
+        { "naam": "1 LS bak 4/4", "locatie": "E40" },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "Frietketel", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Wereldkeuken TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "K58" },
+        { "naam": "kookbak", "locatie": null },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Wereldreizigers TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak 1/2", "locatie": "K27" },
+        { "naam": "1 LS bak 2/2", "locatie": "K29" }
+      ]
+    },
+    {
+      "naam": "Wie wordt Homo Universalis?",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak 1/3", "locatie": "L47" },
+        { "naam": "1 LS bak 2/3", "locatie": "L49" },
+        { "naam": "1 KL bak 3/3", "locatie": "N07" },
+        { "naam": "1 whiteboard", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Wij worden kleuterchefs TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "J12" },
+        { "naam": "2 oventjes", "locatie": null },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "kookbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Wij zijn bij de brandweer TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "I54" }
+      ]
+    },
+    {
+      "naam": "Wild van het woud",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 blauwe curver bak", "locatie": "F57" }
+      ]
+    },
+    {
+      "naam": "Winterwonderland TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 2/2", "locatie": "J46" },
+        { "naam": "1 LS bak 1/2", "locatie": "J47" }
+      ]
+    },
+    {
+      "naam": "Word verrast als gymnast",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "D25" },
+        { "naam": "1 blauwe curver 1/2", "locatie": "F20" },
+        { "naam": "16 bilbo's", "locatie": "kantoor" }
+      ]
+    },
+    {
+      "naam": "Woutje Astronautje",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "4 grote zwarte doeken", "locatie": "O03" },
+        { "naam": "4 grote zwarte doeken", "locatie": "B57/B59" },
+        { "naam": "1 LS bak 1/2", "locatie": "F01" },
+        { "naam": "1 LS bak 2/2", "locatie": "F03" },
+        { "naam": "oud tentframe met blauw dak", "locatie": null },
+        { "naam": "grote houten raket", "locatie": null },
+        { "naam": "4 zware voeten voor tentframe", "locatie": null }
+      ]
+    },
+    {
+      "naam": "You Fo",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 gele zak 1/2", "locatie": "C51" },
+        { "naam": "1 gele zak 2/2", "locatie": "C52" }
+      ]
+    },
+    {
+      "naam": "Ypie fietst",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 blauwe curver", "locatie": "F40" },
+        { "naam": "verkeerskoffer", "locatie": null },
+        { "naam": "17 rode fietsjes Winther", "locatie": null },
+        { "naam": "kleuterfietsjes (loop- en gewone)", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Ypie is vermist",
+      "type": "kamp",
+      "leeftijdsgroep": "KLS",
+      "materiaal": [
+        { "naam": "16 bilbo's", "locatie": "E29" },
+        { "naam": "1 LS bak 1/2", "locatie": "O26" },
+        { "naam": "1 LS bak 2/2", "locatie": "O26" }
+      ]
+    }
+  ]
+}

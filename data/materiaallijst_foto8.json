@@ -1,0 +1,339 @@
+{
+  "_meta": {
+    "bron": "foto materiaallijst deel 8: Plezier met papier (vervolg) -> Sporty mix XL",
+    "datum_extractie": "2026-05-21",
+    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE (zelfde) | KAMP/TD | DAGEN",
+    "noot": "'Sporty mix and match' deelt dezelfde Volksspelen-collectie (N39) als Play factory.",
+    "betrouwbaarheid": "OCR uit foto - controleer codes/aantallen tegen origineel"
+  },
+  "themas": [
+    {
+      "naam": "Plezier met papier",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "noot": "vervolg van foto7 (zelfde thema)",
+      "materiaal": [
+        { "naam": "1 LS bak 2/3", "locatie": "D41" },
+        { "naam": "1 LS bak 1/2", "locatie": "D51" }
+      ]
+    },
+    {
+      "naam": "Prinses voor één week",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak", "locatie": "N06" },
+        { "naam": "4 zwarte doeken", "locatie": "B57/B59" },
+        { "naam": "oud tentframe met blauw dak", "locatie": null },
+        { "naam": "groot houten kasteel (roze)", "locatie": null },
+        { "naam": "kookbak", "locatie": null },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "2 grote fietskartons voor kasteel", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Professor Kartoschemski TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "J35" }
+      ]
+    },
+    {
+      "naam": "Puzzelwereld",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak", "locatie": "N11" }
+      ]
+    },
+    {
+      "naam": "PVC buizen",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 kartonnen doos, 1 emmer", "locatie": "L51" }
+      ]
+    },
+    {
+      "naam": "Racen in de lucht, te water en op de grond",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak 1/3", "locatie": "D15" },
+        { "naam": "1 LS bak 2/3", "locatie": "O05" },
+        { "naam": "2 bakken zeepkisten 3/3", "locatie": null },
+        { "naam": "panlatten", "locatie": null },
+        { "naam": "Grote kartonnen platen (fietsenmaker)", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Ravot je rot TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "J19" }
+      ]
+    },
+    {
+      "naam": "Reis rond de wereld",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "Kartonnen koker 6/6", "locatie": "G00" },
+        { "naam": "1 blauwe curver 3/6 + 1 doorzichtige plastic bak 5/6", "locatie": "G40" },
+        { "naam": "1 blauwe curver 4/6", "locatie": "G42" },
+        { "naam": "1 LS bak 1/6", "locatie": "G47" },
+        { "naam": "1 LS bak 2/6", "locatie": "G49" },
+        { "naam": "4 palen + 4 voeten voor decor", "locatie": null },
+        { "naam": "Rol decor (vliegtuig)", "locatie": null },
+        { "naam": "4 djembés", "locatie": null },
+        { "naam": "6 gekleurde grote emmers + 10 houten trommelstokken", "locatie": null },
+        { "naam": "Djembé's", "locatie": "N33" }
+      ]
+    },
+    {
+      "naam": "Reis rond de wereld TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I09" }
+      ]
+    },
+    {
+      "naam": "Ridders en prinsessen",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "paartjes en larsen van Tijdreizigers 2/3", "locatie": "O00" },
+        { "naam": "1 LS bak 2/2", "locatie": "M06" },
+        { "naam": "1 KL bak 1/2", "locatie": "N05" },
+        { "naam": "bamboestokken", "locatie": null },
+        { "naam": "decor: 6 riddertenten + ridderburcht", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Ridders en prinsessen TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I08" }
+      ]
+    },
+    {
+      "naam": "Ride a bike",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "BMX en + helmen", "locatie": null },
+        { "naam": "gereedschapskiste (banden, plak...)", "locatie": null },
+        { "naam": "hindernissen BMX", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Schattenjacht",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "F05" },
+        { "naam": "houten schatkist", "locatie": "F07" }
+      ]
+    },
+    {
+      "naam": "Schattenjacht TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 schatkist", "locatie": "K21" },
+        { "naam": "1 groene curver", "locatie": "K23" }
+      ]
+    },
+    {
+      "naam": "Schip ahoi kapitein TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I28" },
+        { "naam": "Themadoek TD5", "locatie": "TD5" }
+      ]
+    },
+    {
+      "naam": "School voor hekserij en hokus pocus TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I15" },
+        { "naam": "Themadoek TD7", "locatie": "TD7" }
+      ]
+    },
+    {
+      "naam": "Scoebidoe TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I10" }
+      ]
+    },
+    {
+      "naam": "Shake it smooth TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 2/2", "locatie": "J11" },
+        { "naam": "1 LS bak 1/2", "locatie": "J13" },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Showtime TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "J16" },
+        { "naam": "Magic Speldoos (schap gezelschapsspelen)", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Stacklines + freerunning",
+      "type": "kamp",
+      "leeftijdsgroep": "12+",
+      "materiaal": [
+        { "naam": "1 rode curver", "locatie": "C44" }
+      ]
+    },
+    {
+      "naam": "Spelen in dromenland",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 wasmand met kussens", "locatie": "H25" },
+        { "naam": "zak kussenvulling", "locatie": "H27" },
+        { "naam": "Bommazak met kussens", "locatie": "H28" },
+        { "naam": "1 LS bak", "locatie": "H29" }
+      ]
+    },
+    {
+      "naam": "Spelenspektakel TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 KL bak", "locatie": "N12" }
+      ]
+    },
+    {
+      "naam": "Spikebal (4sets)",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "C59" }
+      ]
+    },
+    {
+      "naam": "Spikebal B",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "B33" }
+      ]
+    },
+    {
+      "naam": "Spionnen gezocht",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "D37" },
+        { "naam": "1 plastic doosje met fototoestellen", "locatie": "kantoor" },
+        { "naam": "1 plastic doos met tablets", "locatie": "kantoor" }
+      ]
+    },
+    {
+      "naam": "Spionnen gezocht TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 1/2", "locatie": "K04" },
+        { "naam": "1 groene curver 1/2", "locatie": "K13" }
+      ]
+    },
+    {
+      "naam": "Splash (XL)",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak 1001 ballen en bellen 2/4", "locatie": "H53" },
+        { "naam": "1 LS bak 1001 ballen en bellen 3/4", "locatie": "H55" },
+        { "naam": "1 LS bak 1001 ballen en bellen 4/4", "locatie": "H57" },
+        { "naam": "1 KL bak 2/2", "locatie": "N14" },
+        { "naam": "1 KL bak 1/2", "locatie": "N19" },
+        { "naam": "opblaasbare waterstructuren: groene rots", "locatie": null },
+        { "naam": "opblaasbare waterstructuren: oranje hond", "locatie": null },
+        { "naam": "2 opblaasbare waterballen", "locatie": null },
+        { "naam": "opblaasbare waterstructuren: trampoline", "locatie": null },
+        { "naam": "2 x waterpolodoel", "locatie": null },
+        { "naam": "opblaasbare waterstructuren: gijbaan", "locatie": null },
+        { "naam": "2 emmers", "locatie": null },
+        { "naam": "Kookbak", "locatie": null },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Sporten met een hoek af",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak baseball", "locatie": "F21" },
+        { "naam": "1 LS bak bumball", "locatie": "F33" },
+        { "naam": "doorzichtige curver met Mölky en jo jack", "locatie": "F58" },
+        { "naam": "1 LS bak", "locatie": "F59" },
+        { "naam": "1 zwarte curver: Fling it", "locatie": "E01" },
+        { "naam": "Bak paralympics TD", "locatie": "K43" },
+        { "naam": "bumperballen", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Sporty mix and match",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 Blauwe curver 5/6", "locatie": "F31" },
+        { "naam": "1 rode curver: klein materiaal volksspelen", "locatie": "C48" },
+        { "naam": "1 blauwe curver: Fins Kegelspel + JoJack", "locatie": "E13" },
+        { "naam": "1 blauwe curver: Fins Kegelspel", "locatie": "E17" },
+        { "naam": "1 zwarte curver: Kubb", "locatie": "E18" },
+        { "naam": "1 blauw/groen zak frisbee", "locatie": "E19" },
+        { "naam": "1 LS bak - bumball", "locatie": "E11" },
+        { "naam": "1 LS bak - atletiek", "locatie": "E23" },
+        { "naam": "1 zak - bounceball", "locatie": "E23" },
+        { "naam": "1 zwarte curver", "locatie": "E39" },
+        { "naam": "Hindernisbaan oud (in 2 stukken) + 2 blazers", "locatie": "Marko" },
+        { "naam": "Volksspelen: kikkerspel", "locatie": "N39" },
+        { "naam": "Volksspelen: bakschieten", "locatie": "N39" },
+        { "naam": "Volksspelen: tafelhockey", "locatie": "N39" },
+        { "naam": "Volksspelen: kaasspel", "locatie": "N39" },
+        { "naam": "Volksspelen: toptafel", "locatie": "N39" },
+        { "naam": "Volksspelen: mannetjesspel", "locatie": "N39" },
+        { "naam": "Volksspelen: trou madame", "locatie": "N39" },
+        { "naam": "Volksspelen: sjoelbak", "locatie": "N39" },
+        { "naam": "Volksspelen: rekker-trekker", "locatie": "N39" },
+        { "naam": "Volksspelen: Japans biljart", "locatie": "N39" },
+        { "naam": "1 KL bak clics + wieltjes", "locatie": null },
+        { "naam": "inline skates + bescherming", "locatie": null },
+        { "naam": "Kookbak", "locatie": null },
+        { "naam": "Oven", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Sporty mix XL",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "noot": "deelt rolmateriaal met Carts and boards / Laat je rollen; loopt door op foto9",
+      "materiaal": [
+        { "naam": "fotozoektocht + orientatieloop", "locatie": "D23" },
+        { "naam": "4x BMX", "locatie": null },
+        { "naam": "2x Mountainbike", "locatie": null },
+        { "naam": "8x Hooverboards", "locatie": null },
+        { "naam": "4x groene quads", "locatie": null }
+      ]
+    }
+  ]
+}

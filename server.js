@@ -308,6 +308,13 @@ async function startServer() {
   addColumnIfMissing('kampmoment_themas', 'dag', 'INTEGER');
   try { db.run("UPDATE kampmomenten SET type='kamp' WHERE type IS NULL OR type=''"); } catch(e){}
 
+  // Migration 16: leeftijdsgroep op themas (KL=kleuters / LS=lagere school /
+  // KLS=beide / 12+ / 10+) + stockage_code op thema_materiaal. stockage_code is
+  // de vrije papieren magazijncode (H26, kantoor, Beneden...) en bewaart die bij
+  // de planning-import zonder dat er een echte locaties-rij voor moet bestaan.
+  addColumnIfMissing('themas', 'leeftijdsgroep', "TEXT DEFAULT ''");
+  addColumnIfMissing('thema_materiaal', 'stockage_code', "TEXT DEFAULT ''");
+
   saveDb();
 
 
@@ -340,12 +347,105 @@ async function startServer() {
 
   // ── THEMAS ──
   app.get('/api/themas',(req,res)=>{const t=all('SELECT * FROM themas ORDER BY name');const m=all('SELECT * FROM thema_materiaal');res.json(t.map(x=>({...x,materiaal:m.filter(y=>y.thema_id===x.id)})));});
-  app.post('/api/themas',(req,res)=>{const{name,color,categorie}=req.body;if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});const id=ins('INSERT INTO themas (name,color,categorie) VALUES (?,?,?)',[name.trim(),color||'#1D9E75',categorie||'']);res.json({...get('SELECT * FROM themas WHERE id=?',[id]),materiaal:[]});});
-  app.put('/api/themas/:id',(req,res)=>{const{name,color,categorie}=req.body;if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});run('UPDATE themas SET name=?,color=?,categorie=? WHERE id=?',[name.trim(),color||'#1D9E75',categorie||'',req.params.id]);res.json(get('SELECT * FROM themas WHERE id=?',[req.params.id]));});
+  app.post('/api/themas',(req,res)=>{const{name,color,categorie,leeftijdsgroep}=req.body;if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});const id=ins('INSERT INTO themas (name,color,categorie,leeftijdsgroep) VALUES (?,?,?,?)',[name.trim(),color||'#1D9E75',categorie||'',leeftijdsgroep||'']);res.json({...get('SELECT * FROM themas WHERE id=?',[id]),materiaal:[]});});
+  app.put('/api/themas/:id',(req,res)=>{const cur=get('SELECT * FROM themas WHERE id=?',[req.params.id]);if(!cur)return res.status(404).json({error:'Thema niet gevonden'});const{name,color,categorie,leeftijdsgroep}=req.body;const nm=(name!==undefined&&name!==null)?name:cur.name;if(!nm||!nm.trim())return res.status(400).json({error:'Naam is verplicht'});run('UPDATE themas SET name=?,color=?,categorie=?,leeftijdsgroep=? WHERE id=?',[nm.trim(),color||cur.color||'#1D9E75',categorie!==undefined?categorie:(cur.categorie||''),leeftijdsgroep!==undefined?leeftijdsgroep:(cur.leeftijdsgroep||''),req.params.id]);res.json(get('SELECT * FROM themas WHERE id=?',[req.params.id]));});
   app.delete('/api/themas/:id',(req,res)=>{run('DELETE FROM thema_materiaal WHERE thema_id=?',[req.params.id]);run('DELETE FROM themas WHERE id=?',[req.params.id]);res.json({ok:true});});
-  app.post('/api/themas/:id/materiaal',(req,res)=>{const{name,qty,stockage_locatie_id}=req.body;const id=ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_locatie_id) VALUES (?,?,?,?)',[req.params.id,name,qty||1,stockage_locatie_id||null]);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[id]));});
-  app.put('/api/themas/:tid/materiaal/:mid',(req,res)=>{const{name,qty,stockage_locatie_id}=req.body;run('UPDATE thema_materiaal SET name=?,qty=?,stockage_locatie_id=? WHERE id=? AND thema_id=?',[name,qty,stockage_locatie_id||null,req.params.mid,req.params.tid]);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[req.params.mid]));});
+  app.post('/api/themas/:id/materiaal',(req,res)=>{const{name,qty,stockage_locatie_id,stockage_code}=req.body;const id=ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_locatie_id,stockage_code) VALUES (?,?,?,?,?)',[req.params.id,name,qty||1,stockage_locatie_id||null,stockage_code||'']);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[id]));});
+  app.put('/api/themas/:tid/materiaal/:mid',(req,res)=>{const{name,qty,stockage_locatie_id,stockage_code}=req.body;const cur=get('SELECT * FROM thema_materiaal WHERE id=?',[req.params.mid]);run('UPDATE thema_materiaal SET name=?,qty=?,stockage_locatie_id=?,stockage_code=? WHERE id=? AND thema_id=?',[name,qty,stockage_locatie_id||null,stockage_code!==undefined?stockage_code:(cur?cur.stockage_code||'':''),req.params.mid,req.params.tid]);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[req.params.mid]));});
   app.delete('/api/themas/:tid/materiaal/:mid',(req,res)=>{run('DELETE FROM thema_materiaal WHERE id=? AND thema_id=?',[req.params.mid,req.params.tid]);res.json({ok:true});});
+
+  // ── PLANNING-IMPORT (materiaallijst uit de foto's) ──
+  // Leest data/materiaallijst_foto1..10.json server-side, voegt thema's met
+  // exact dezelfde naam samen (ook die over 2 fotos lopen) en ontdubbelt
+  // materiaal op naam+locatie. Idempotent: bestaande thema's (zelfde naam,
+  // hoofdletterongevoelig) worden overgeslagen, dus herhaald importeren
+  // dupliceert niets. Kleur: kamp=groen, themadag=blauw. Magazijncode -> stockage_code.
+  function _laadImportThemas(){
+    const fsx=require('fs'); const px=require('path');
+    const dir=px.join(__dirname,'data');
+    const map=new Map(); const order=[];
+    for(let i=1;i<=10;i++){
+      const f=px.join(dir,'materiaallijst_foto'+i+'.json');
+      if(!fsx.existsSync(f)) continue;
+      let j; try{ j=JSON.parse(fsx.readFileSync(f,'utf8')); }catch(e){ continue; }
+      for(const t of (j.themas||[])){
+        const key=(t.naam||'').trim(); if(!key) continue;
+        if(!map.has(key)){ map.set(key,{naam:key,type:t.type||'kamp',leeftijdsgroep:t.leeftijdsgroep||'',materiaal:[]}); order.push(key); }
+        const dst=map.get(key);
+        if(!dst.leeftijdsgroep && t.leeftijdsgroep) dst.leeftijdsgroep=t.leeftijdsgroep;
+        for(const m of (t.materiaal||[])){
+          const dup=dst.materiaal.some(x=>x.naam===m.naam && (x.locatie||'')===(m.locatie||''));
+          if(!dup) dst.materiaal.push({naam:m.naam,locatie:m.locatie||''});
+        }
+      }
+    }
+    return order.map(k=>map.get(k));
+  }
+  app.get('/api/import-themas/preview',(req,res)=>{
+    try{
+      const lijst=_laadImportThemas();
+      const bestaand=new Set(all('SELECT name FROM themas').map(t=>(t.name||'').trim().toLowerCase()));
+      let nieuw=0, bestaat=0, items=0;
+      lijst.forEach(t=>{ if(bestaand.has(t.naam.toLowerCase())) bestaat++; else { nieuw++; items+=t.materiaal.length; } });
+      res.json({totaal:lijst.length, nieuw, bestaat, materiaalitems:items});
+    }catch(e){ res.status(500).json({error:e.message}); }
+  });
+  app.post('/api/import-themas',(req,res)=>{
+    try{
+      const lijst=_laadImportThemas();
+      const bestaand=new Set(all('SELECT name FROM themas').map(t=>(t.name||'').trim().toLowerCase()));
+      let aangemaakt=0, overgeslagen=0, items=0;
+      lijst.forEach(t=>{
+        if(bestaand.has(t.naam.toLowerCase())){ overgeslagen++; return; }
+        const color=(t.type==='themadag')?'#2563EB':'#1D9E75';
+        const tid=ins('INSERT INTO themas (name,color,categorie,leeftijdsgroep) VALUES (?,?,?,?)',[t.naam,color,'',t.leeftijdsgroep||'']);
+        t.materiaal.forEach(m=>{ ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_locatie_id,stockage_code) VALUES (?,?,?,?,?)',[tid,m.naam,1,null,m.locatie||'']); items++; });
+        bestaand.add(t.naam.toLowerCase());
+        aangemaakt++;
+      });
+      saveDb();
+      logAct('thema','import',`Planning-import: ${aangemaakt} thema's, ${items} materiaalitems (${overgeslagen} bestonden al)`,null,'');
+      res.json({ok:true, aangemaakt, overgeslagen, materiaalitems:items});
+    }catch(e){ res.status(500).json({error:e.message}); }
+  });
+  // Import uit een geupload bestand: body = {themas:[...]} (of een kale array).
+  // Accepteert zowel het foto-formaat (naam/locatie) als app-export (name/stockage_code).
+  function _mergeThemaLijst(raw){
+    const map=new Map(); const order=[];
+    for(const t of (raw||[])){
+      const key=((t.naam||t.name||'')+'').trim(); if(!key) continue;
+      if(!map.has(key)){ map.set(key,{naam:key,type:t.type||'kamp',leeftijdsgroep:t.leeftijdsgroep||'',materiaal:[]}); order.push(key); }
+      const dst=map.get(key);
+      if(!dst.leeftijdsgroep && t.leeftijdsgroep) dst.leeftijdsgroep=t.leeftijdsgroep;
+      for(const m of (t.materiaal||[])){
+        const mn=((m.naam||m.name||'')+'').trim(); if(!mn) continue;
+        const loc=((m.locatie||m.stockage_code||'')+'').trim();
+        if(!dst.materiaal.some(x=>x.naam===mn && x.locatie===loc)) dst.materiaal.push({naam:mn,locatie:loc});
+      }
+    }
+    return order.map(k=>map.get(k));
+  }
+  app.post('/api/import-themas/data',(req,res)=>{
+    try{
+      const body=req.body||{};
+      const raw=Array.isArray(body)?body:(body.themas||body.lijst||[]);
+      const lijst=_mergeThemaLijst(raw);
+      if(!lijst.length) return res.status(400).json({error:"Geen thema's in het bestand gevonden"});
+      const bestaand=new Set(all('SELECT name FROM themas').map(t=>(t.name||'').trim().toLowerCase()));
+      let aangemaakt=0, overgeslagen=0, items=0;
+      lijst.forEach(t=>{
+        if(bestaand.has(t.naam.toLowerCase())){ overgeslagen++; return; }
+        const color=(t.type==='themadag')?'#2563EB':'#1D9E75';
+        const tid=ins('INSERT INTO themas (name,color,categorie,leeftijdsgroep) VALUES (?,?,?,?)',[t.naam,color,'',t.leeftijdsgroep||'']);
+        t.materiaal.forEach(m=>{ ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_locatie_id,stockage_code) VALUES (?,?,?,?,?)',[tid,m.naam,1,null,m.locatie||'']); items++; });
+        bestaand.add(t.naam.toLowerCase());
+        aangemaakt++;
+      });
+      saveDb();
+      logAct('thema','import',`Bestand-import: ${aangemaakt} thema's, ${items} materiaalitems (${overgeslagen} bestonden al)`,null,'');
+      res.json({ok:true, aangemaakt, overgeslagen, materiaalitems:items});
+    }catch(e){ res.status(500).json({error:e.message}); }
+  });
 
   // ── STANDAARD MATERIAAL (globale template) ──
   app.get('/api/standaard',(req,res)=>res.json(all('SELECT * FROM standaard_materiaal ORDER BY cat,name')));

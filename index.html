@@ -480,6 +480,18 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <!-- Thema's -->
     <div id="mat-sub-themas">
       <div id="thema-list"></div>
+      <div class="card" style="margin-bottom:.875rem">
+        <div class="card-hd">&#128203; Planning importeren / exporteren</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="font-size:13px;color:var(--text2);flex:1;min-width:200px">Importeer thema's + materiaal uit de ingebouwde zomerplanning, of upload een eigen JSON-bestand (bv. één foto-lijst als test). Bestaande thema's worden overgeslagen, dus je kunt veilig opnieuw importeren. Met &laquo;Exporteer&raquo; download je de huidige thema's als JSON.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-g" onclick="openImportThemas()">&#128203; Ingebouwde planning</button>
+            <button class="btn-o" onclick="startImportBestand()">&#128194; Uit bestand</button>
+            <button class="btn-o" onclick="exporteerThemas()">&#128228; Exporteer</button>
+          </div>
+        </div>
+        <input type="file" id="import-themas-file" accept=".json,application/json" style="display:none" onchange="leesImportBestand(event)">
+      </div>
       <div class="card">
         <div class="card-hd">+ Nieuw thema aanmaken</div>
         <div class="fr">
@@ -502,6 +514,16 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           <div class="fg md"><label for="th-cat-sel-new">Categorie</label>
             <select class="sel th-cat-sel" id="th-cat-sel-new" style="min-width:140px">
               <option value="">Geen categorie</option>
+            </select>
+          </div>
+          <div class="fg md"><label for="th-leeftijd-new">Leeftijdsgroep</label>
+            <select class="sel" id="th-leeftijd-new" style="min-width:130px">
+              <option value="">&#8212; Geen &#8212;</option>
+              <option value="KL">KL (kleuters)</option>
+              <option value="LS">LS (lagere school)</option>
+              <option value="KLS">KLS (beide)</option>
+              <option value="12+">12+</option>
+              <option value="10+">10+</option>
             </select>
           </div>
           <button class="btn-g" onclick="addThema()">+ Aanmaken</button>
@@ -987,6 +1009,17 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div style="display:flex;gap:8px;margin-top:1rem">
       <button class="btn-g" style="flex:1" onclick="savePeriode()">&#128190; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-periode')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-import-themas">
+  <div class="modal" style="width:460px">
+    <div class="modal-title"><span>&#128203; Planning importeren</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-import-themas')">&#x2715;</button></div>
+    <div id="import-themas-body" style="font-size:14px;color:var(--text);line-height:1.5">Laden&hellip;</div>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      <button class="btn-g" style="flex:1" id="import-themas-go" onclick="doeImportThemas()" disabled>Importeren</button>
+      <button class="btn-o" onclick="closeModal('modal-import-themas')">Annuleren</button>
     </div>
   </div>
 </div>
@@ -2939,8 +2972,9 @@ function toggleThemaBody(id){
 async function saveThemaMat(themaId, matId){
   const name = document.getElementById('etm-n-'+matId)?.value.trim();
   const qty = parseInt(document.getElementById('etm-q-'+matId)?.value)||1;
+  const stockage_code = document.getElementById('etm-c-'+matId)?.value.trim()||'';
   if(!name){showToast('Naam is verplicht','warn');return;}
-  const r = await api('PUT','/themas/'+themaId+'/materiaal/'+matId,{name,qty});
+  const r = await api('PUT','/themas/'+themaId+'/materiaal/'+matId,{name,qty,stockage_code});
   if(r.error){showToast(r.error,'error');return;}
   S.themas = S.themas.map(t=>t.id===themaId?{...t,materiaal:(t.materiaal||[]).map(m=>m.id===matId?r:m)}:t);
   editingThemaMat = null;
@@ -3079,11 +3113,12 @@ function renderThemas(){
           <input type="text" class="inp gb" style="flex:2" id="es-n-${t.id}" value="${t.name}" onclick="event.stopPropagation()">
           <input type="color" id="es-c-${t.id}" value="${t.color}" style="width:36px;height:30px;padding:2px;border:.5px solid var(--border2);border-radius:var(--r);cursor:pointer" onclick="event.stopPropagation()" title="Kies kleur">
           <select class="sel gb th-cat-sel" id="es-cat-${t.id}" style="min-width:130px" onclick="event.stopPropagation()">${renderThemaCatSelect(t.categorie)}</select>
+          <select class="sel gb" id="es-lg-${t.id}" style="min-width:90px" onclick="event.stopPropagation()" title="Leeftijdsgroep">${renderLeeftijdSelect(t.leeftijdsgroep)}</select>
           <button class="bi save" onclick="event.stopPropagation();saveThema(${t.id})">✓</button>
           <button class="bi" onclick="event.stopPropagation();editingThema=null;renderThemas()">✕</button>`;
       } else {
         hd.innerHTML=`<span class="thema-swatch" style="background:${t.color}"></span>
-          <div class="ri"><div class="rm">${t.name}</div><div class="rs">${mat.length+koppel.length} materiaalitems${t.categorie?' · '+t.categorie:''}</div></div>
+          <div class="ri"><div class="rm">${t.name}${leeftijdBadge(t.leeftijdsgroep)}</div><div class="rs">${mat.length+koppel.length} materiaalitems${t.categorie?' · '+t.categorie:''}</div></div>
           <div class="ra">
             <button class="bi" onclick="event.stopPropagation();editingThema=${t.id};renderThemas()">✏️</button>
             <button class="bi" style="color:var(--red)" onclick="event.stopPropagation();deleteThema(${t.id})">🗑️</button>
@@ -3095,11 +3130,12 @@ function renderThemas(){
       mat.forEach(m=>{
         const row=document.createElement('div');row.className='mat-row';
         if(editingThemaMat===m.id){
-          row.innerHTML=`<input type="number" value="${m.qty}" min="1" id="etm-q-${m.id}" class="ai sm"><input type="text" value="${m.name}" id="etm-n-${m.id}" class="ai grow"><button class="bi save" onclick="saveThemaMat(${t.id},${m.id})">✓</button><button class="bi" onclick="editingThemaMat=null;renderThemas()">✕</button>`;
+          row.innerHTML=`<input type="number" value="${m.qty}" min="1" id="etm-q-${m.id}" class="ai sm"><input type="text" value="${m.name}" id="etm-n-${m.id}" class="ai grow"><input type="text" value="${m.stockage_code||''}" id="etm-c-${m.id}" class="ai sm" placeholder="📍 code" title="Magazijncode / locatie" style="max-width:96px"><button class="bi save" onclick="saveThemaMat(${t.id},${m.id})">✓</button><button class="bi" onclick="editingThemaMat=null;renderThemas()">✕</button>`;
         } else {
           const qty=document.createElement('span');qty.className='mat-qty';qty.textContent='×'+m.qty;
           const nm=document.createElement('span');nm.style.flex='1';nm.textContent=m.name;
           row.appendChild(qty);row.appendChild(nm);
+          if(m.stockage_code){const loc=document.createElement('span');loc.textContent='📍 '+m.stockage_code;loc.style.cssText='font-size:11px;color:var(--text2);background:var(--bg2);border:.5px solid var(--border);border-radius:6px;padding:1px 6px;margin-right:4px;white-space:nowrap';row.appendChild(loc);}
           const gMatch=(_invGedeeld||[]).find(g=>(g.name||'').trim().toLowerCase()===(m.name||'').trim().toLowerCase());
           if(gMatch){
             const linked=(gMatch.gebruik||[]).some(u=>u.thema_id===t.id);
@@ -3153,8 +3189,9 @@ async function addThema(){
   const name=document.getElementById('th-name').value.trim();
   const color=document.getElementById('th-color').value||'#1D9E75';
   const categorie=document.getElementById('th-cat-sel-new')?.value||'';
+  const leeftijdsgroep=document.getElementById('th-leeftijd-new')?.value||'';
   if(!name){showToast('Naam is verplicht','warn');document.getElementById('th-name').focus();return;}
-  const r=await api('POST','/themas',{name,color,categorie});
+  const r=await api('POST','/themas',{name,color,categorie,leeftijdsgroep});
   if(r.error)return;
   // Reload full thema list with materiaal from server
   S.themas=await api('GET','/themas');
@@ -3832,7 +3869,7 @@ function _buildCatItems(){
   });
   (S.themas||[]).forEach(th=>{
     (th.materiaal||th.mat||[]).forEach(m=>{
-      items.push({type:'thema',raw_id:m.id,thema_id:th.id,naam:m.name,sub:null,thema:th.name,thema_color:th.color||'#1D9E75',qty:m.qty,sets:null,stockage_locatie_id:m.stockage_locatie_id||null});
+      items.push({type:'thema',raw_id:m.id,thema_id:th.id,naam:m.name,sub:null,thema:th.name,thema_color:th.color||'#1D9E75',qty:m.qty,sets:null,stockage_locatie_id:m.stockage_locatie_id||null,stockage_code:m.stockage_code||''});
     });
   });
   // Locatiemateriaal per kamplocatie (als "standaard" type in catalogus)
@@ -4009,7 +4046,7 @@ function _renderCatRow(item,stockLocs){
     }).join('<br>');
   }else{
     const stk=item.stockage_locatie_id?stockLocs.find(l=>l.id==item.stockage_locatie_id):null;
-    stkCell=stk?`📦 ${_escH(stk.name)}`:'<span style="color:var(--text3)">—</span>';
+    stkCell=stk?`📦 ${_escH(stk.name)}`:(item.stockage_code?`📍 ${_escH(item.stockage_code)}`:'<span style="color:var(--text3)">—</span>');
   }
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
   const canExpand=item.type==='verbruik'||item.type==='gedeeld';
@@ -5411,8 +5448,9 @@ async function saveThema(id){
   const name=document.getElementById('es-n-'+id).value.trim();
   const color=document.getElementById('es-c-'+id).value;
   const categorie=document.getElementById('es-cat-'+id)?.value||'';
+  const leeftijdsgroep=document.getElementById('es-lg-'+id)?.value||'';
   if(!name){showToast('Naam is verplicht','warn');return;}
-  const r=await api('PUT','/themas/'+id,{name,color,categorie});
+  const r=await api('PUT','/themas/'+id,{name,color,categorie,leeftijdsgroep});
   if(r.error)return;
   S.themas=S.themas.map(t=>t.id===id?{...t,...r,materiaal:t.materiaal}:t);
   editingThema=null;
@@ -5423,6 +5461,89 @@ async function saveThema(id){
 function renderThemaCatSelect(selectedCat){
   return '<option value="">— Geen categorie —</option>'
     + S_thema_cats.map(c=>`<option value="${c.name}" ${c.name===selectedCat?'selected':''}>${c.name}</option>`).join('');
+}
+
+// Leeftijdsgroep: KL=kleuters, LS=lagere school, KLS=beide, 12+/10+ leeftijd.
+const _LEEFTIJD_OPTS=[['','— Geen —'],['KL','KL (kleuters)'],['LS','LS (lagere school)'],['KLS','KLS (beide)'],['12+','12+'],['10+','10+']];
+function renderLeeftijdSelect(sel){
+  return _LEEFTIJD_OPTS.map(o=>`<option value="${o[0]}" ${o[0]===(sel||'')?'selected':''}>${o[1]}</option>`).join('');
+}
+function leeftijdBadge(lg){
+  if(!lg) return '';
+  const map={'KL':'#D85A30','LS':'#1D9E75','KLS':'#378ADD','12+':'#7F77DD','10+':'#7F77DD'};
+  const c=map[lg]||'#888780';
+  return `<span style="display:inline-block;background:${c}22;color:${c};border:.5px solid ${c}66;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle">${lg}</span>`;
+}
+
+let _importThemasActie=null;  // functie die op 'Importeren' wordt uitgevoerd
+async function openImportThemas(){
+  openModal('modal-import-themas');
+  const body=document.getElementById('import-themas-body');
+  const go=document.getElementById('import-themas-go');
+  go.disabled=true; go.textContent='Importeren';
+  body.innerHTML='Laden&hellip;';
+  const p=await api('GET','/import-themas/preview');
+  if(p.error){body.innerHTML='<span style="color:#E24B4A">Fout: '+p.error+'</span>';return;}
+  body.innerHTML=`<p>De ingebouwde planning bevat <strong>${p.totaal}</strong> thema's.</p>
+    <ul style="margin:8px 0 8px 18px;padding:0">
+      <li><strong>${p.nieuw}</strong> nieuw &mdash; worden aangemaakt (${p.materiaalitems} materiaalitems)</li>
+      <li><strong>${p.bestaat}</strong> bestaan al &mdash; worden overgeslagen</li>
+    </ul>
+    ${p.nieuw>0?'<p style="font-size:12px;color:var(--text2)">Magazijncodes (H26, kantoor&hellip;) worden mee opgeslagen. Kleur: kamp = groen, themadag = blauw.</p>':'<p style="color:var(--text2)">Niets nieuw om te importeren.</p>'}`;
+  _importThemasActie=()=>api('POST','/import-themas',{});
+  go.disabled=(p.nieuw===0);
+}
+function startImportBestand(){ const inp=document.getElementById('import-themas-file'); if(inp){ inp.value=''; inp.click(); } }
+async function leesImportBestand(ev){
+  const file=ev.target.files&&ev.target.files[0]; if(!file) return;
+  let data; try{ data=JSON.parse(await file.text()); }catch(e){ showToast('Ongeldig JSON-bestand','error'); return; }
+  const lijst=Array.isArray(data)?data:(data.themas||[]);
+  if(!Array.isArray(lijst)||!lijst.length){ showToast("Geen thema's gevonden in dit bestand",'error'); return; }
+  openModal('modal-import-themas');
+  const body=document.getElementById('import-themas-body');
+  const go=document.getElementById('import-themas-go');
+  go.disabled=true; go.textContent='Importeren';
+  const bestaand=new Set((S.themas||[]).map(t=>(t.name||'').trim().toLowerCase()));
+  const seen=new Set(); let nieuw=0,bestaat=0,items=0;
+  lijst.forEach(t=>{ const key=((t.naam||t.name||'')+'').trim().toLowerCase(); if(!key||seen.has(key))return; seen.add(key); if(bestaand.has(key))bestaat++; else { nieuw++; items+=((t.materiaal||[]).length); } });
+  body.innerHTML=`<p>Bestand <strong>${file.name}</strong> bevat <strong>${seen.size}</strong> thema's.</p>
+    <ul style="margin:8px 0 8px 18px;padding:0">
+      <li><strong>${nieuw}</strong> nieuw &mdash; worden aangemaakt (${items} materiaalitems)</li>
+      <li><strong>${bestaat}</strong> bestaan al &mdash; worden overgeslagen</li>
+    </ul>
+    ${nieuw>0?'':'<p style="color:var(--text2)">Niets nieuw om te importeren.</p>'}`;
+  _importThemasActie=()=>api('POST','/import-themas/data',{themas:lijst});
+  go.disabled=(nieuw===0);
+}
+function exporteerThemas(){
+  const themas=(S.themas||[]).map(t=>({naam:t.name, leeftijdsgroep:t.leeftijdsgroep||'', color:t.color, materiaal:(t.materiaal||[]).map(m=>({naam:m.name, locatie:m.stockage_code||''}))}));
+  if(!themas.length){ showToast("Geen thema's om te exporteren",'warn'); return; }
+  const data={_meta:{bron:'export Sporty app', datum:new Date().toISOString().slice(0,10), aantal_themas:themas.length}, themas};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+  a.download='themas_'+new Date().toISOString().substring(0,10)+'.json';
+  a.click();
+  showToast(themas.length+" thema's geëxporteerd",'success');
+}
+async function doeImportThemas(){
+  const body=document.getElementById('import-themas-body');
+  const go=document.getElementById('import-themas-go');
+  if(!_importThemasActie) return;
+  go.disabled=true; go.textContent='Bezig&hellip;';
+  const r=await _importThemasActie();
+  go.textContent='Importeren';
+  if(r.error){body.innerHTML='<span style="color:#E24B4A">Fout: '+r.error+'</span>';return;}
+  S.themas=await api('GET','/themas');
+  S.themas=S.themas.map(t=>({...t,materiaal:t.materiaal||[]}));
+  renderThemas();
+  body.innerHTML=`<p style="color:#1D9E75;font-weight:700">&#10003; Klaar.</p>
+    <ul style="margin:8px 0 0 18px;padding:0">
+      <li>${r.aangemaakt} thema's aangemaakt</li>
+      <li>${r.materiaalitems} materiaalitems toegevoegd</li>
+      <li>${r.overgeslagen} bestonden al (overgeslagen)</li>
+    </ul>`;
+  showToast(`${r.aangemaakt} thema's geïmporteerd`,'success');
+  _importThemasActie=null;
 }
 
 async function addThemaCat(){

@@ -1,0 +1,310 @@
+{
+  "_meta": {
+    "bron": "foto materiaallijst deel 3: Dagelijkse Sportykost (vervolg) -> Escape Games",
+    "datum_extractie": "2026-05-21",
+    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE (zelfde) | KAMP/TD | DAGEN",
+    "noot": "Vervolg van foto2. Dagelijkse Sportykost loopt door. KL/LS/KLS/12+ leeftijd; TD=themadag.",
+    "betrouwbaarheid": "OCR uit foto - controleer codes/aantallen tegen origineel"
+  },
+  "themas": [
+    {
+      "naam": "Dagelijkse Sportykost",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "noot": "vervolg van foto2 (zelfde thema)",
+      "materiaal": [
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "kookvuurtjes", "locatie": null },
+        { "naam": "2 oventjes", "locatie": null }
+      ]
+    },
+    {
+      "naam": "De (w)onderwaterwereld",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 groene curver 1/3 + 2 groene emmers 2/3", "locatie": "H33" },
+        { "naam": "1 LS bak 3/3", "locatie": "H35" }
+      ]
+    },
+    {
+      "naam": "De 4 seizoenen TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 1/1", "locatie": "I29" }
+      ]
+    },
+    {
+      "naam": "De bakkerij",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 LS bak 1/2", "locatie": "E47" },
+        { "naam": "1 LS bak 2/2", "locatie": "E49" },
+        { "naam": "kookplaat", "locatie": null },
+        { "naam": "2 oventjes", "locatie": null },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "De bakkerij TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak 1/2", "locatie": "K45" },
+        { "naam": "1 groene curver 2/2", "locatie": "K47" },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "2 oventjes", "locatie": null }
+      ]
+    },
+    {
+      "naam": "De bal gaat aan het rollen TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver 3/3", "locatie": "K52" },
+        { "naam": "1 gele zak 1/3", "locatie": "K53" },
+        { "naam": "1 gele zak 2/3", "locatie": "K55" }
+      ]
+    },
+    {
+      "naam": "De Bouwbrigade",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "Houten blokken 1/3 - 2/3 - 3/3", "locatie": "F32 - F47" },
+        { "naam": "Teiloc - grijze curver", "locatie": "F48" },
+        { "naam": "Houten knikkerbaan - LS bak", "locatie": "F49" },
+        { "naam": "Eltech 2/2 (1 doorzichtige curver)", "locatie": "G21" },
+        { "naam": "Eltech 1/2 (1 LS bak)", "locatie": "G22" },
+        { "naam": "Bamboe - 7 dozen", "locatie": "L11 - L13" },
+        { "naam": "beige bak met lakens", "locatie": "L19" },
+        { "naam": "Fantasy Forts 1/2 - KL bak", "locatie": "N25" },
+        { "naam": "Fantasy Forts 2/2 - LS bak", "locatie": "N25" },
+        { "naam": "grijze curver bamboe en kapla", "locatie": "nog geen plaats" },
+        { "naam": "Leonardo", "locatie": null },
+        { "naam": "grote stukken karton", "locatie": null }
+      ]
+    },
+    {
+      "naam": "De bouwfabriek",
+      "type": "kamp",
+      "leeftijdsgroep": "KLS",
+      "materiaal": [
+        { "naam": "1 LS bak 4/4 kiditech", "locatie": "G53" },
+        { "naam": "1 LS bak 3/4 kiditech", "locatie": "G55" },
+        { "naam": "1 LS bak 2/4 kiditech", "locatie": "G57" },
+        { "naam": "1 LS bak houten blokken", "locatie": "G59" },
+        { "naam": "3 KL bakken soft lego", "locatie": "kantoor" },
+        { "naam": "2 LS bakken houten blokjes", "locatie": "kantoor" },
+        { "naam": "20 kruiwagens", "locatie": "kantoor" },
+        { "naam": "1 KL bak met 20 helmen", "locatie": "N22" },
+        { "naam": "1 KL bak kiditech 1/4", "locatie": "N28" },
+        { "naam": "pakket wescoblokken", "locatie": null },
+        { "naam": "Pakket Leonardo klein", "locatie": null }
+      ]
+    },
+    {
+      "naam": "De Techniekfabriek TD",
+      "type": "TD",
+      "leeftijdsgroep": "KLS",
+      "materiaal": [
+        { "naam": "1 groene curver 1/2", "locatie": "I48" },
+        { "naam": "1 LS bak 2/2", "locatie": "I49" }
+      ]
+    },
+    {
+      "naam": "De vloek van de farao",
+      "type": "kamp",
+      "leeftijdsgroep": "KLS",
+      "materiaal": [
+        { "naam": "Speelzand", "locatie": "C29" },
+        { "naam": "1 LS bak 1/2", "locatie": "C29" },
+        { "naam": "1 beige curverbak 2/2", "locatie": "D22" },
+        { "naam": "2 bakken soft lego", "locatie": "Kantoor" },
+        { "naam": "oven", "locatie": null },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "De Wondere Kabouterwereld",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 groene curver 1/1", "locatie": "L21" },
+        { "naam": "1 KL koffer 3/5", "locatie": "N01" },
+        { "naam": "1 KL koffer 1/5", "locatie": "N01" },
+        { "naam": "1 plastiek bak met houten blokjes 5/5", "locatie": "N01" },
+        { "naam": "1 KL bak 4/5", "locatie": "N01" },
+        { "naam": "1 KL bak 2/5", "locatie": "N01" },
+        { "naam": "kookbak", "locatie": null },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "decor: 4 paddenstoelen, hekjes, kleine kabouters, boog, grasmat", "locatie": null }
+      ]
+    },
+    {
+      "naam": "De Wondere Kabouterwereld TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I38" },
+        { "naam": "1 mayo pot met houten blokken", "locatie": "I38" }
+      ]
+    },
+    {
+      "naam": "Diep in de zee TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I11" }
+      ]
+    },
+    {
+      "naam": "Dierenplezier TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I32" }
+      ]
+    },
+    {
+      "naam": "Dino detectives",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "4 zwarte doeken", "locatie": "B57/B59" },
+        { "naam": "1 LS bak 3/4", "locatie": "H41" },
+        { "naam": "1 plaat triceratops", "locatie": "H41" },
+        { "naam": "1 plastiek bak voor ei + dino voetjes", "locatie": "H42" },
+        { "naam": "1 LS bak 2/4", "locatie": "H43" },
+        { "naam": "1 LS bak 1/4", "locatie": "H45" },
+        { "naam": "oud tent frame", "locatie": null },
+        { "naam": "1 zak zand", "locatie": null },
+        { "naam": "1 actionzak met eierdozen", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Dino's en draken TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I30" },
+        { "naam": "Themadoek TD9", "locatie": "TD9" }
+      ]
+    },
+    {
+      "naam": "DIY Festival",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "3 kartonnen panelen", "locatie": "Beneden" },
+        { "naam": "2 laptops", "locatie": "Kantoor" },
+        { "naam": "1 KL bak", "locatie": "M00" }
+      ]
+    },
+    {
+      "naam": "Doorzichtige bak foam pijlen grijs",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "noot": "gemarkeerd geel in origineel - mogelijk los/gedeeld item",
+      "materiaal": [
+        { "naam": "Doorzichtige bak foam pijlen grijs", "locatie": "L41" }
+      ]
+    },
+    {
+      "naam": "Druk er op los TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "K22" },
+        { "naam": "1 groene curver 1/2", "locatie": "K25" }
+      ]
+    },
+    {
+      "naam": "Een kamp met ballen",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "LS bak", "locatie": "D13" },
+        { "naam": "volleybalpakket", "locatie": "Kantoor" },
+        { "naam": "handbalpakket", "locatie": "Kantoor" },
+        { "naam": "basketbalpakket", "locatie": "Kantoor" },
+        { "naam": "rugbypakket", "locatie": "Kantoor" },
+        { "naam": "kinball pakket", "locatie": "Kantoor" },
+        { "naam": "wereldbalpakket", "locatie": "Kantoor" },
+        { "naam": "mini golf (4 zwarte zakken)", "locatie": "Rozenweg" },
+        { "naam": "Bumperballen", "locatie": "Rozenweg" },
+        { "naam": "Levende tafelvoetbal", "locatie": "Beneden" }
+      ]
+    },
+    {
+      "naam": "EK Voetbal",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 zwarte sportzak", "locatie": "D11" },
+        { "naam": "2 KL bakken 'voetbal'", "locatie": "kantoor" },
+        { "naam": "zak met 20 voetballen", "locatie": "kantoor" },
+        { "naam": "Panna kooi", "locatie": null },
+        { "naam": "Voetgolf", "locatie": null },
+        { "naam": "rebounder", "locatie": null },
+        { "naam": "Houten 'podium' 1-2-3", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Elektriciteit en wetenschap",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "witte bak met blauw deksel 2/7", "locatie": "D49" },
+        { "naam": "witte bak met blauw deksel 3/7", "locatie": "D50" },
+        { "naam": "1 LS bak 1/7", "locatie": "D53" },
+        { "naam": "1 LS bak 6/7", "locatie": "D55" },
+        { "naam": "1 LS bak 7/7", "locatie": "D57" },
+        { "naam": "witte bak met blauw deksel 5/7", "locatie": "D59" },
+        { "naam": "witte bak met groen deksel 4/7", "locatie": "D60" },
+        { "naam": "4 laptops", "locatie": "kantoor" }
+      ]
+    },
+    {
+      "naam": "Elektriciteit en wetenschap reservemateriaal",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 paarse curver", "locatie": "D47" },
+        { "naam": "1 blauwe curver", "locatie": "D48" }
+      ]
+    },
+    {
+      "naam": "Elektroshock TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "isomoplaten", "locatie": "D51" },
+        { "naam": "1 LS bak", "locatie": "O01" }
+      ]
+    },
+    {
+      "naam": "Er was eens",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak 1/3", "locatie": "G35" },
+        { "naam": "1 LS bak 2/3", "locatie": "G37" },
+        { "naam": "1 witte bak met blauw deksel 3/3", "locatie": "G39" },
+        { "naam": "themadoek (rood) + frame", "locatie": null },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "kookbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Escape Games",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "2 laptops", "locatie": "kantoor" }
+      ]
+    }
+  ]
+}

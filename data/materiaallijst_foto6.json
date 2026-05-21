@@ -1,0 +1,345 @@
+{
+  "_meta": {
+    "bron": "foto materiaallijst deel 6: Laat je rollen (vervolg) -> Olympische Spelen",
+    "datum_extractie": "2026-05-21",
+    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE (zelfde) | KAMP/TD | DAGEN",
+    "betrouwbaarheid": "OCR uit foto - controleer codes/aantallen tegen origineel"
+  },
+  "themas": [
+    {
+      "naam": "Laat je rollen",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "noot": "vervolg van foto5 (zelfde thema)",
+      "materiaal": [
+        { "naam": "2x streetcarvers", "locatie": null },
+        { "naam": "2x stuntstep", "locatie": null },
+        { "naam": "4x longboards", "locatie": null },
+        { "naam": "4x waveboards", "locatie": null },
+        { "naam": "8x grote skateboard", "locatie": null },
+        { "naam": "4x klein skateboard", "locatie": null },
+        { "naam": "20 pols-, knie- en elleboogbeschermers", "locatie": null },
+        { "naam": "30 paar inline skates", "locatie": null },
+        { "naam": "2x drift trike", "locatie": null },
+        { "naam": "2x skelter street", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Lasershoot exra",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak 1/1", "locatie": "M00" }
+      ]
+    },
+    {
+      "naam": "Lasershoot guns",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak 4/4", "locatie": "N02" }
+      ]
+    },
+    {
+      "naam": "Lasershoot obstakels",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak 1/4", "locatie": "N02" },
+        { "naam": "1 KL bak 2/4", "locatie": "N02" }
+      ]
+    },
+    {
+      "naam": "Lasershoot pomp en doppen",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak 3/4", "locatie": "N02" }
+      ]
+    },
+    {
+      "naam": "Later als ik groot ben",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak met verkleedkledij 2/2", "locatie": "G31" },
+        { "naam": "1 LS bak 1/2", "locatie": "G45" },
+        { "naam": "laminator A3", "locatie": "kantoor" },
+        { "naam": "8 kartonnen brievenbussen", "locatie": null },
+        { "naam": "verkeerskoffer", "locatie": null },
+        { "naam": "circuskoffer", "locatie": null },
+        { "naam": "schminkkoffer", "locatie": null },
+        { "naam": "kookbak", "locatie": null },
+        { "naam": "afwasbak", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Later als ik groot ben TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "8 kartonnen brievenbussen", "locatie": "K51" },
+        { "naam": "1 LS bak", "locatie": "K59" }
+      ]
+    },
+    {
+      "naam": "Legoweek",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "noot": "kolom: TD + Kamp LS",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "C09" },
+        { "naam": "7 zwarte bakken LEGO", "locatie": "kantoor" },
+        { "naam": "1 bak bouwplaten", "locatie": "kantoor" },
+        { "naam": "± 8 curverbakken: niet gesorteerd materiaal", "locatie": "kantoor" }
+      ]
+    },
+    {
+      "naam": "Let's escape TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver: The Bunny castle", "locatie": "J17" },
+        { "naam": "1 doorzichtige doos", "locatie": "J17" },
+        { "naam": "1 groene curver 2/2 - ontmantel de bom", "locatie": "J18" },
+        { "naam": "1 groene curver 1/2 - moord in de V.expres", "locatie": "J17" }
+      ]
+    },
+    {
+      "naam": "Letters en cijfers",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak 1/2", "locatie": "H19" },
+        { "naam": "1 KL bak 2/2", "locatie": "N26" }
+      ]
+    },
+    {
+      "naam": "Levende risk",
+      "type": "kamp",
+      "leeftijdsgroep": "12+",
+      "materiaal": [
+        { "naam": "1 rode curver", "locatie": "C43" }
+      ]
+    },
+    {
+      "naam": "Levende stratego",
+      "type": "kamp",
+      "leeftijdsgroep": "12+/LS",
+      "materiaal": [
+        { "naam": "1 rode curver", "locatie": "B56" },
+        { "naam": "1 rode curver", "locatie": "C46" }
+      ]
+    },
+    {
+      "naam": "Mastermind",
+      "type": "kamp",
+      "leeftijdsgroep": "12+",
+      "materiaal": [
+        { "naam": "1 rode curver", "locatie": "C49" }
+      ]
+    },
+    {
+      "naam": "Met Sporty op wereldreis",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KLS bak 1/2 + 1 LS bak 2/2 + bezemsteel", "locatie": "N09" },
+        { "naam": "kookvuur", "locatie": null },
+        { "naam": "oven", "locatie": null },
+        { "naam": "kookbak", "locatie": null },
+        { "naam": "afwasbak", "locatie": null },
+        { "naam": "groot blauw vat", "locatie": null },
+        { "naam": "autoband", "locatie": null },
+        { "naam": "grote houten bak", "locatie": null },
+        { "naam": "2 stukken boomstronk", "locatie": null },
+        { "naam": "frietketel", "locatie": null },
+        { "naam": "pak wc-papier", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Mindstorms en technologie",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KL bak", "locatie": "N13" },
+        { "naam": "8 laptops", "locatie": null },
+        { "naam": "Makey makey", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Mindstorms TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 KL bak", "locatie": "N13" },
+        { "naam": "8 laptops", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Mini atletiek TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "J33" }
+      ]
+    },
+    {
+      "naam": "Mini EK",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 zwarte sportzak", "locatie": "D11" },
+        { "naam": "zak met 20 kleutervoetballen", "locatie": "kantoor" },
+        { "naam": "2 KL bakken 'voetbal'", "locatie": "kantoor" },
+        { "naam": "Houten 'podium' 1-2-3", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Mini olympische spelen",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "mini golf (4 zwarte zakken)", "locatie": "N03 + N04" },
+        { "naam": "1 KL bak", "locatie": "N27" },
+        { "naam": "atletiekkoffer", "locatie": null },
+        { "naam": "Minitennis", "locatie": null },
+        { "naam": "minibasket", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Mini play factory",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 kartonnen koker mikado", "locatie": "H00" },
+        { "naam": "ganzenbord", "locatie": "H00" },
+        { "naam": "1 grote bordeaux themabak", "locatie": "H01" },
+        { "naam": "7 bakken duplo", "locatie": "kantoor" },
+        { "naam": "3 KL bakken soft lego", "locatie": "kantoor" },
+        { "naam": "1 KL bak clics", "locatie": "kantoor" },
+        { "naam": "1 gele zak - croquet", "locatie": "L31" },
+        { "naam": "XL games: 1 zwarte curver (twister)", "locatie": null },
+        { "naam": "XL games vier op een rij (1 LS bak + 2 blauwe poten + rood frame + 2 kleine rode schuifstukken)", "locatie": null },
+        { "naam": "XL games: 1 LS bak domino", "locatie": null },
+        { "naam": "1 LS bak (Eendjes vangen)", "locatie": "H03" },
+        { "naam": "1 LS bak (loopklossen)", "locatie": "H05" }
+      ]
+    },
+    {
+      "naam": "Mini Splash",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "2 buizen 3/5 en 4/5", "locatie": "E00" },
+        { "naam": "Zak zand 5/5", "locatie": "E00" },
+        { "naam": "1 LS bak 2/5", "locatie": "G17" },
+        { "naam": "1 LS bak 1/5", "locatie": "G19" },
+        { "naam": "Eendjes vangen", "locatie": "H03" }
+      ]
+    },
+    {
+      "naam": "Minidisco",
+      "type": "kamp",
+      "leeftijdsgroep": "KL",
+      "materiaal": [
+        { "naam": "1 LS bak", "locatie": "F23" }
+      ]
+    },
+    {
+      "naam": "Minidisco TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 groene curver", "locatie": "I16" }
+      ]
+    },
+    {
+      "naam": "Missie avontuur",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 map orientatieloop", "locatie": "D23" },
+        { "naam": "1 LS bak - trophy", "locatie": "D23" },
+        { "naam": "Lasershoot en obstakels (4 KL bakken)", "locatie": null },
+        { "naam": "Kruisboogschieten (grote houten bak + plastic doelen)", "locatie": null },
+        { "naam": "boogschieten (grote houten bak + doelen)", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Missie avontuur TD",
+      "type": "TD",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "1 lange houten bak boogschieten", "locatie": "Beneden" },
+        { "naam": "1 brede houten bak kruisbogen", "locatie": "Beneden" },
+        { "naam": "1 groene curver", "locatie": "K26" }
+      ]
+    },
+    {
+      "naam": "Modemakers",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 naaimachine", "locatie": "Kantoor" },
+        { "naam": "1 LS bak 1/4", "locatie": "L59" },
+        { "naam": "1 LS bak 2/4", "locatie": "M05" },
+        { "naam": "1 LS bak 3/4", "locatie": "M08" },
+        { "naam": "1 KL bak 4/4", "locatie": "O00" }
+      ]
+    },
+    {
+      "naam": "Mölkky",
+      "type": "kamp",
+      "leeftijdsgroep": "12+",
+      "materiaal": [
+        { "naam": "1 lagers schoolbak", "locatie": "B53" }
+      ]
+    },
+    {
+      "naam": "Multiballs met Ypie",
+      "type": "kamp",
+      "leeftijdsgroep": "KLS",
+      "materiaal": [
+        { "naam": "1 LS bak: zweefbal", "locatie": "B41" },
+        { "naam": "1 zwarte curver: mini tennis", "locatie": "B41" },
+        { "naam": "1 zwarte curver: mini rugby", "locatie": "B41" },
+        { "naam": "1 LS bak: kinball", "locatie": "B43" },
+        { "naam": "verkleedpak Ypie", "locatie": "kantoor" }
+      ]
+    },
+    {
+      "naam": "Nerf",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "materiaal": [
+        { "naam": "1 KLS bak 1/2", "locatie": "N37" },
+        { "naam": "1 KLS bak 2/2", "locatie": "N38" },
+        { "naam": "1 KL bak 1/2", "locatie": "M00" },
+        { "naam": "1 KL bak 2/2", "locatie": "M00" }
+      ]
+    },
+    {
+      "naam": "Now or never adventure",
+      "type": "kamp",
+      "leeftijdsgroep": null,
+      "materiaal": [
+        { "naam": "Kruisboogschieten (grote houten bak + plastic doelen)", "locatie": "Beneden" },
+        { "naam": "boogschieten (grote houten bak + doelen)", "locatie": "Beneden" },
+        { "naam": "1 LS bak - trophy", "locatie": "D23" },
+        { "naam": "archery tag", "locatie": null },
+        { "naam": "40 x gehuurde MTB", "locatie": null }
+      ]
+    },
+    {
+      "naam": "Olympische Spelen",
+      "type": "kamp",
+      "leeftijdsgroep": "LS",
+      "noot": "loopt door op foto7",
+      "materiaal": [
+        { "naam": "Lasershoot en obstakels (4 KL bakken)", "locatie": "F51" },
+        { "naam": "1 LS bak 1/3", "locatie": "F53" }
+      ]
+    }
+  ]
+}

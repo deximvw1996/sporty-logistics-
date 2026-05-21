@@ -2,8 +2,8 @@
   "_meta": {
     "bron": "foto materiaallijst (alfabetisch, deel 1: 1001 ballen → Carts and boards)",
     "datum_extractie": "2026-05-20",
-    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE2 | KAMP/TD | DAGEN",
-    "noot": "LOCATIE = magazijncode (rek/vak). KAMP/TD = KL (kleuters) / LS (lagere school) / KLS (beide) / TD (themadag). DAGEN = aantal keer dat thema draait over de 9 weken."
+    "kolommen": "LOCATIE | THEMA | MATERIAAL | LOCATIE (zelfde) | KAMP/TD | DAGEN",
+    "noot": "LOCATIE = magazijncode (rek/vak) — beide LOCATIE-kolommen zijn identiek (redundant voor leesbaarheid van beide kanten). KAMP/TD = KL (kleuters) / LS (lagere school) / KLS (beide) / TD (themadag). DAGEN = aantal keer dat thema draait over de 9 weken."
   },
   "themas": [
     {
