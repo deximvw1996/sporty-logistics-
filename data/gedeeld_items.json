@@ -1,0 +1,45 @@
+[
+  { "naam": "Afwasbak",            "totaal": 10, "cat": "keuken", "aliassen": ["afwasbak", "1 afwasbak"] },
+  { "naam": "Kookbak",             "totaal": 6,  "cat": "keuken", "aliassen": ["kookbak", "1 kookbak"] },
+  { "naam": "Ovens",               "totaal": 4,  "cat": "keuken", "aliassen": ["2 oventjes", "oven", "2 ovens"] },
+  { "naam": "Frietketel",          "totaal": 2,  "cat": "keuken", "aliassen": ["frietketel"] },
+  { "naam": "Kookplaat",           "totaal": 2,  "cat": "keuken", "aliassen": ["kookplaat"] },
+
+  { "naam": "Verkeerskoffer",      "totaal": 3,  "cat": "koffer", "aliassen": ["verkeerskoffer"] },
+  { "naam": "Schminkkoffer",       "totaal": 2,  "cat": "koffer", "aliassen": ["schminkkoffer"] },
+
+  { "naam": "Lasershoot",          "totaal": 1,  "cat": "sport",  "aliassen": ["lasershoot en obstakels (4 kl bakken)"] },
+  { "naam": "Obstakels",           "totaal": 30, "cat": "sport",  "aliassen": ["lasershoot en obstakels (4 kl bakken)"] },
+  { "naam": "Boogschieten",        "totaal": 3,  "cat": "sport",  "aliassen": ["boogschieten (grote houten bak + doelen)", "boogschiet (grote houten bak + doelen)"] },
+  { "naam": "Kruisboogschieten",   "totaal": 1,  "cat": "sport",  "aliassen": ["kruisboogschieten (grote houten bak + plastic doelen)"] },
+  { "naam": "Archery tag",         "totaal": 3,  "cat": "sport",  "aliassen": ["archery tag"] },
+  { "naam": "Rebounder",           "totaal": 1,  "cat": "sport",  "aliassen": ["rebounder"] },
+  { "naam": "Airtracks",           "totaal": 1,  "cat": "sport",  "aliassen": ["1 kl bak airtracks"] },
+  { "naam": "Helmen (20 per bak)", "totaal": 2,  "cat": "sport",  "aliassen": ["1 kl bak met 20 helmen"] },
+
+  { "naam": "Levende tafelvoetbal", "totaal": 1, "cat": "spel",   "aliassen": ["levende tafelvoetbal"] },
+  { "naam": "Voetgolf",            "totaal": 1,  "cat": "spel",   "aliassen": ["voetgolf"] },
+  { "naam": "Panna kooi",          "totaal": 1,  "cat": "spel",   "aliassen": ["panna kooi"] },
+  { "naam": "Ganzenbord",          "totaal": 1,  "cat": "spel",   "aliassen": ["ganzenbord"] },
+  { "naam": "Nerf Battle",         "totaal": 2,  "cat": "spel",   "aliassen": ["nerf battle (2 kl bakken)"] },
+  { "naam": "Bumperballen",        "totaal": 20, "cat": "spel",   "aliassen": ["bumperballen"] },
+  { "naam": "16 bilbo's",          "totaal": 1,  "cat": "spel",   "aliassen": ["16 bilbo's"] },
+  { "naam": "Leonardo",            "totaal": 1,  "cat": "spel",   "aliassen": ["leonardo"] },
+  { "naam": "Houten 'podium' 1-2-3", "totaal": 1, "cat": "spel",  "aliassen": ["houten 'podium' 1-2-3"] },
+  { "naam": "Houten knikkerbaan",  "totaal": 1,  "cat": "spel",   "aliassen": ["houten knikkerbaan - ls bak"] },
+
+  { "naam": "Volksspelen: bakschieten",    "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: bakschieten"] },
+  { "naam": "Volksspelen: kaasspel",       "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: kaasspel"] },
+  { "naam": "Volksspelen: kikkerspel",     "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: kikkerspel"] },
+  { "naam": "Volksspelen: mannetjesspel",  "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: mannetjesspel"] },
+  { "naam": "Volksspelen: sjoelbak",       "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: sjoelbak"] },
+  { "naam": "Volksspelen: tafelhockey",    "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: tafelhockey"] },
+  { "naam": "Volksspelen: toptafel",       "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: toptafel"] },
+  { "naam": "Volksspelen: trou madame",    "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: trou madame"] },
+  { "naam": "Volksspelen: rekker-trekker", "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: rekker-trekker"] },
+  { "naam": "Volksspelen: Japans biljart", "totaal": 1, "cat": "volksspelen", "aliassen": ["volksspelen: japans biljart"] },
+
+  { "naam": "Laptops",             "totaal": 8,  "cat": "tech",   "aliassen": ["2 laptops", "8 laptops"] },
+  { "naam": "Duplo (7 bakken)",    "totaal": 1,  "cat": "bouw",   "aliassen": ["7 bakken duplo"] },
+  { "naam": "Soft lego",           "totaal": 6,  "cat": "bouw",   "aliassen": ["3 kl bakken soft lego", "2 bakken soft lego"] }
+]

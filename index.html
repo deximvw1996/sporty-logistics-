@@ -94,6 +94,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:va
 .exp-hd{display:flex;align-items:center;gap:9px;padding:.75rem 1rem;cursor:pointer;background:var(--bg)}
 .exp-hd:hover{background:var(--bg2)}
 .exp-body{padding:.875rem 1rem;border-top:.5px solid var(--border)}
+/* Thema's als compacte Excel-tabel */
+#thema-list .exp-card{border:0;border-bottom:.5px solid var(--border);border-radius:0;margin-bottom:0;overflow:visible}
+#thema-list .exp-hd{padding:3px 10px;gap:8px}
+#thema-list .th-naam{flex:1;min-width:0;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#thema-list .th-leeftijd{width:64px;flex-shrink:0;text-align:center}
+#thema-list .th-items{width:48px;flex-shrink:0;text-align:right;font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums}
+#thema-list .th-acties{width:62px;flex-shrink:0;justify-content:flex-end}
+#thema-list .thema-swatch{width:9px;height:9px;margin-right:0}
+#thema-list .th-head{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
 .add-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
 .ai{font-size:12px;height:28px;border-radius:var(--r);border:.5px solid var(--border2);padding:4px 8px;background:var(--bg);color:var(--text);font-family:inherit}
 .ai:focus{outline:none;border-color:var(--green)}
@@ -491,6 +500,13 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           </div>
         </div>
         <input type="file" id="import-themas-file" accept=".json,application/json" style="display:none" onchange="leesImportBestand(event)">
+      </div>
+      <div class="card" style="margin-bottom:.875rem">
+        <div class="card-hd">&#128190; Backup van alle data</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div style="font-size:13px;color:var(--text2);flex:1;min-width:200px">Download een volledige backup van &aacute;lle gegevens (locaties, thema's, materiaal, gedeelde items, planning, transporten&hellip;) als &eacute;&eacute;n databasebestand. Bewaar dit veilig op je eigen computer.</div>
+          <button class="btn-g" onclick="downloadBackup()">&#128190; Download volledige backup</button>
+        </div>
       </div>
       <div class="card">
         <div class="card-hd">+ Nieuw thema aanmaken</div>
@@ -1009,6 +1025,16 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div style="display:flex;gap:8px;margin-top:1rem">
       <button class="btn-g" style="flex:1" onclick="savePeriode()">&#128190; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-periode')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-thema-detail">
+  <div class="modal" style="width:520px;max-width:94vw">
+    <div class="modal-title"><span id="thd-title">Thema</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-thema-detail')">&#x2715;</button></div>
+    <div id="thd-body" style="font-size:14px;color:var(--text);line-height:1.5;max-height:70vh;overflow:auto">&hellip;</div>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      <button class="btn-o" onclick="closeModal('modal-thema-detail')">Sluiten</button>
     </div>
   </div>
 </div>
@@ -2654,6 +2680,26 @@ function updateSpoedBadge(){
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openThemaPopup(themaId){
+  const t=(S.themas||[]).find(x=>x.id===themaId);
+  if(!t){showToast('Thema niet gevonden','warn');return;}
+  const mats=(t.materiaal||[]);
+  const ged=(_invGedeeld||[]).filter(g=>(g.gebruik||[]).some(u=>u.thema_id===themaId));
+  const matLis = mats.length
+    ? mats.map(m=>`<li>${_escH(m.name)}${m.qty>1?` <span style="color:var(--text3)">&times;${m.qty}</span>`:''}${m.stockage_code?` <span style="color:var(--text3)">&middot; &#128205;${_escH(m.stockage_code)}</span>`:''}</li>`).join('')
+    : '<li style="color:var(--text3)">Geen los materiaal</li>';
+  const gedLis = ged.length
+    ? ged.map(g=>{const u=(g.gebruik||[]).find(x=>x.thema_id===themaId);const q=u&&u.qty?u.qty:1;return `<li>&#128295; ${_escH(g.name)}${q>1?` <span style="color:var(--text3)">&times;${q}</span>`:''} <span style="color:var(--text3);font-size:11px">(gedeeld, ${g.totaal||1} totaal)</span></li>`;}).join('')
+    : '<li style="color:var(--text3)">Geen gedeeld materiaal</li>';
+  document.getElementById('thd-title').innerHTML = `<span class="thema-swatch" style="background:${t.color||'#888780'}"></span> ${_escH(t.name)}`;
+  document.getElementById('thd-body').innerHTML =
+    `${t.leeftijdsgroep?`<div style="margin-bottom:8px"><span class="pill" style="background:var(--bg2);border:.5px solid var(--border);color:var(--text2)">${_escH(t.leeftijdsgroep)}</span></div>`:''}
+     <h4 style="margin:6px 0 4px">Materiaal <span style="color:var(--text3);font-weight:400">(${mats.length})</span></h4>
+     <ul style="margin:0 0 12px;padding-left:18px">${matLis}</ul>
+     <h4 style="margin:6px 0 4px">Gedeeld materiaal <span style="color:var(--text3);font-weight:400">(${ged.length})</span></h4>
+     <ul style="margin:0;padding-left:18px">${gedLis}</ul>`;
+  openModal('modal-thema-detail');
+}
 
 function getLocMat(locId){const m=S.locMat[locId];return(m&&m.length)?m:S.standaard;}
 // Week helpers
@@ -3079,6 +3125,10 @@ function renderThemas(){
   }
   el.innerHTML='';
   if(!S.themas.length){el.innerHTML='<div class="empty">Nog geen themas aangemaakt.</div>';return;}
+  const _thHead=document.createElement('div');
+  _thHead.className='th-head';
+  _thHead.innerHTML=`<span style="width:9px;flex-shrink:0"></span><span style="flex:1;min-width:0">Thema</span><span style="width:64px;flex-shrink:0;text-align:center">Leeftijd</span><span style="width:48px;flex-shrink:0;text-align:right">Items</span><span style="width:62px;flex-shrink:0"></span>`;
+  el.appendChild(_thHead);
 
   // Group by categorie
   const groups={};
@@ -3118,8 +3168,10 @@ function renderThemas(){
           <button class="bi" onclick="event.stopPropagation();editingThema=null;renderThemas()">✕</button>`;
       } else {
         hd.innerHTML=`<span class="thema-swatch" style="background:${t.color}"></span>
-          <div class="ri"><div class="rm">${t.name}${leeftijdBadge(t.leeftijdsgroep)}</div><div class="rs">${mat.length+koppel.length} materiaalitems${t.categorie?' · '+t.categorie:''}</div></div>
-          <div class="ra">
+          <span class="th-naam">${t.name}</span>
+          <span class="th-leeftijd">${leeftijdBadge(t.leeftijdsgroep)}</span>
+          <span class="th-items" title="materiaalitems">${mat.length+koppel.length}</span>
+          <div class="ra th-acties">
             <button class="bi" onclick="event.stopPropagation();editingThema=${t.id};renderThemas()">✏️</button>
             <button class="bi" style="color:var(--red)" onclick="event.stopPropagation();deleteThema(${t.id})">🗑️</button>
           </div>`;
@@ -3916,7 +3968,7 @@ function renderCatalogusLijst(){
   if(statsEl){
     const tot=items.length,sh=filtered.length;
     const c=t=>items.filter(i=>i.type===t).length;
-    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${c('sport')} sport · 🎨 ${c('thema')} thema · 📋 ${c('standaard')} locatie · 🔧 ${c('gedeeld')} gedeeld · 🧻 ${c('verbruik')} verbruik`;
+    statsEl.textContent=`${sh}${sh<tot?' van '+tot:''} artikel${sh!==1?'en':''} — ⚽ ${c('sport')} sport · 🎨 ${c('thema')} thema-materiaal · 📋 ${c('standaard')} locatie · 🔧 ${c('gedeeld')} gedeeld · 🧻 ${c('verbruik')} verbruik`;
   }
 
   const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
@@ -3972,7 +4024,7 @@ function renderCatalogusLijst(){
       const g=groupKey(item);
       if(g!==lastG){
         const cnt=filtered.filter(x=>groupKey(x)===g).length;
-        rows+=`<tr class="mat-grp"><td colspan="7">${_escH(g)} <span style="opacity:.6">· ${cnt}</span></td></tr>`;
+        rows+=`<tr class="mat-grp"><td colspan="9">${_escH(g)} <span style="opacity:.6">· ${cnt}</span></td></tr>`;
         lastG=g;
       }
     }
@@ -3982,7 +4034,7 @@ function renderCatalogusLijst(){
     <thead><tr>
       <th style="width:30px;text-align:center"><input type="checkbox" id="cat-sel-all"${allChecked?' checked':''} onclick="catSelAllToggle()" title="Alles selecteren"></th>
       <th style="width:42px;text-align:center">Type</th><th>Naam</th><th>Context</th>
-      <th style="width:74px;text-align:right">Aantal</th><th style="width:118px">Opslag</th><th style="width:64px"></th>
+      <th style="width:74px;text-align:right">Aantal</th><th style="width:92px">Locatie</th><th style="width:84px">Opslag</th><th style="width:92px">Huidige</th><th style="width:64px"></th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
@@ -4004,7 +4056,7 @@ function _renderCatRow(item,stockLocs){
       :`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`;
     const stockageOpts='<option value="">— Automatisch —</option>'+stockLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${_escH(l.name)}</option>`).join('');
     const locatieOpts='<option value="">— Onbekend —</option>'+(S.locaties||[]).map(l=>`<option value="${l.id}"${item.locatie_id==l.id?' selected':''}>${l.type==='kamp'?'⛺':'📦'} ${_escH(l.name)}</option>`).join('');
-    return `<tr class="mat-edit"><td colspan="7">
+    return `<tr class="mat-edit"><td colspan="9">
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <span style="font-size:14px">${ico}</span>
         <input class="inp gb" type="text" id="ce-naam-${uid}" value="${_attrH(item.naam)}" style="flex:1;min-width:140px">
@@ -4018,14 +4070,14 @@ function _renderCatRow(item,stockLocs){
       </div>
     </td></tr>`;
   }
-  const _themaPill=(name,color)=>{const c=color||'#888780';return `<span class="pill" style="background:${c}22;color:${c};border:.5px solid ${c}55">${_escH(name)}</span>`;};
+  const _themaPill=(name,color,themaId)=>{const c=color||'#888780';const clk=themaId?` onclick="event.stopPropagation();openThemaPopup(${themaId})" title="Toon alles van dit thema" style="background:${c}22;color:${c};border:.5px solid ${c}55;cursor:pointer"`:` style="background:${c}22;color:${c};border:.5px solid ${c}55"`;return `<span class="pill"${clk}>${_escH(name)}</span>`;};
   const ctx=item.type==='thema'&&item.thema
-    ?_themaPill(item.thema,item.thema_color)
+    ?_themaPill(item.thema,item.thema_color,item.thema_id)
     :item.type==='standaard'
     ?`<span style="font-size:11px;color:var(--text2)">⛺ ${_escH(item.sub||'')}</span>`
     :item.type==='gedeeld'
     ?((item.gebruik&&item.gebruik.length)
-      ?`<span style="display:flex;flex-wrap:wrap;gap:3px">${item.gebruik.map(g=>{const th=(S.themas||[]).find(t=>t.id===g.thema_id);return _themaPill(g.thema_name||(th&&th.name)||'?',th&&th.color);}).join('')}</span>`
+      ?`<span style="display:flex;flex-wrap:wrap;gap:3px">${item.gebruik.map(g=>{const th=(S.themas||[]).find(t=>t.id===g.thema_id);return _themaPill(g.thema_name||(th&&th.name)||'?',th&&th.color,g.thema_id);}).join('')}</span>`
       :'<span style="font-size:11px;color:var(--text3)">— geen thema —</span>')
     :(item.sub&&item.sub!=='andere'&&item.sub!=='sport'&&item.sub!=='gedeeld'?`<span style="font-size:11px;color:var(--text3)">${_escH(item.sub)}</span>`:'<span style="color:var(--text3)">—</span>');
   const aantal=item.type==='sport'
@@ -4035,18 +4087,22 @@ function _renderCatRow(item,stockLocs){
     :item.type==='verbruik'
     ?`<span style="${item.alarm?'color:var(--red);font-weight:700':''}">${item.qty}</span>${item.minimum>0?`<br><span style="font-size:9px;color:var(--text3)">min ${item.minimum}</span>`:''}`
     :`×${item.qty}`;
-  let stkCell;
   const visStock=(item.type==='gedeeld'||item.type==='verbruik')
     ?(item.stock||[]).filter(s=>(s.qty||0)>0||(item.type==='verbruik'&&(s.minimum||0)>0))
     :[];
+  const _dash='<span style="color:var(--text3)">—</span>';
+  let locCell, opslagCell;
+  const huidigCell='<span style="color:var(--text3)" title="Komt later automatisch via transport">—</span>';
   if(visStock.length){
-    stkCell=visStock.map(s=>{
+    locCell=visStock.map(s=>{
       const low=item.type==='verbruik'&&s.minimum>0&&s.qty<=s.minimum;
       return `${_escH(s.locatie_name)}:&nbsp;<b style="${low?'color:var(--red)':''}">${s.qty}</b>`;
     }).join('<br>');
+    opslagCell=_dash;
   }else{
     const stk=item.stockage_locatie_id?stockLocs.find(l=>l.id==item.stockage_locatie_id):null;
-    stkCell=stk?`📦 ${_escH(stk.name)}`:(item.stockage_code?`📍 ${_escH(item.stockage_code)}`:'<span style="color:var(--text3)">—</span>');
+    locCell=stk?`📦 ${_escH(stk.name)}`:_dash;
+    opslagCell=item.stockage_code?`📍 ${_escH(item.stockage_code)}`:_dash;
   }
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;
   const canExpand=item.type==='verbruik'||item.type==='gedeeld';
@@ -4057,7 +4113,9 @@ function _renderCatRow(item,stockLocs){
     <td style="font-weight:600">${_escH(item.naam)}</td>
     <td>${ctx}</td>
     <td style="text-align:right;font-variant-numeric:tabular-nums">${aantal}</td>
-    <td style="font-size:11px;color:var(--text2)">${stkCell}</td>
+    <td style="font-size:11px;color:var(--text2)">${locCell}</td>
+    <td style="font-size:11px;color:var(--text2)">${opslagCell}</td>
+    <td style="font-size:11px;color:var(--text2)">${huidigCell}</td>
     <td style="text-align:right;white-space:nowrap">
       ${canExpand?`<button class="bi" onclick="toggleCatExpand(${_q(uid)})" title="Locaties tonen">${expanded?'▲':'▼'}</button>`:''}
       <button class="bi" onclick="_catEditId=${_q(uid)};renderCatalogusLijst()" title="Bewerken">&#x270F;&#xFE0F;</button>
@@ -4075,7 +4133,7 @@ function _renderStockDetail(item){
     if(a.type!==b.type)return a.type==='stockage'?-1:1;
     return a.name.localeCompare(b.name,'nl');
   });
-  if(!allLocs.length)return `<tr><td colspan="7" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
+  if(!allLocs.length)return `<tr><td colspan="9" style="padding:8px 12px;color:var(--text3);font-size:11px">Geen locaties om voorraad op in te stellen.</td></tr>`;
   const byLoc={};(item.stock||[]).forEach(s=>byLoc[s.locatie_id]=s);
   const pref=isVerbruik?'vs':'gs';
   const locIco=l=>l.type==='stockage'?'📦':'⛺';
@@ -4108,7 +4166,7 @@ function _renderStockDetail(item){
   const hdr=isVerbruik
     ?'📦 Voorraad &amp; minimum per locatie'
     :`📦 Aantal per locatie · <b>${verdeeld}</b> verdeeld van ${item.qty||0} totaal`;
-  return `<tr class="mat-detail"><td colspan="7" style="padding:0;background:var(--bg2)">
+  return `<tr class="mat-detail"><td colspan="9" style="padding:0;background:var(--bg2)">
     <div style="padding:8px 12px">
       <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">${hdr}</div>
       <table style="border-collapse:collapse">
@@ -5514,6 +5572,12 @@ async function leesImportBestand(ev){
     ${nieuw>0?'':'<p style="color:var(--text2)">Niets nieuw om te importeren.</p>'}`;
   _importThemasActie=()=>api('POST','/import-themas/data',{themas:lijst});
   go.disabled=(nieuw===0);
+}
+function downloadBackup(){
+  const a=document.createElement('a');
+  a.href='/api/backup-db';
+  document.body.appendChild(a); a.click(); a.remove();
+  showToast('Backup wordt gedownload…','success');
 }
 function exporteerThemas(){
   const themas=(S.themas||[]).map(t=>({naam:t.name, leeftijdsgroep:t.leeftijdsgroep||'', color:t.color, materiaal:(t.materiaal||[]).map(m=>({naam:m.name, locatie:m.stockage_code||''}))}));

@@ -5,6 +5,7 @@
       "name": "sporty",
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
+      "autoPort": true,
       "port": 3001
     }
   ]

@@ -1119,6 +1119,17 @@ async function startServer() {
     res.json(data);
   });
 
+  // Volledige backup: download de hele SQLite-database als bestand (alle data, gegarandeerd compleet)
+  app.get('/api/backup-db', (req, res) => {
+    try {
+      const data = Buffer.from(db.export());
+      const ts = new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,16);
+      res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + ts + '.db"');
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.send(data);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+  });
+
   // Reset: wis alle data voor import
   app.post('/api/import/reset', (req, res) => {
     try {
@@ -1379,6 +1390,95 @@ async function startServer() {
   app.delete('/api/gedeeld/:id/gebruik/:thema_id', (req,res) => {
     run('DELETE FROM gedeeld_gebruik WHERE item_id=? AND thema_id=?', [req.params.id, req.params.thema_id]);
     saveDb(); res.json({ok:true});
+  });
+
+  // ── CONVERSIE: losse thema-materialen -> gedeelde items ──
+  // Leest data/gedeeld_items.json: lijst van {naam, totaal, cat, aliassen}.
+  // Voor elk item: maak/vind het gedeeld_item, koppel elk thema dat een
+  // materiaalregel met een matchende (hoofdletterongevoelige) alias heeft,
+  // en verwijder daarna die losse thema_materiaal-regels.
+  // - Twee passes: eerst alles koppelen, dan pas verwijderen. Zo kan één
+  //   bronregel (bv. "Lasershoot en obstakels") naar meerdere gedeelde items
+  //   gekoppeld worden voordat ze weg is.
+  // - Idempotent: meermaals draaien is veilig (al gekoppelde regels zijn weg).
+  // - Dry-run: POST /api/gedeeld/converteer?dryrun=1  toont enkel wat er ZOU
+  //   gebeuren, zonder iets te wijzigen.
+  function _laadGedeeldConfig(){
+    const fsx=require('fs'); const px=require('path');
+    const f=px.join(__dirname,'data','gedeeld_items.json');
+    if(!fsx.existsSync(f)) return null;
+    try { return JSON.parse(fsx.readFileSync(f,'utf8')); } catch(e){ return null; }
+  }
+  app.post('/api/gedeeld/converteer',(req,res)=>{
+    try{
+      const config=_laadGedeeldConfig();
+      if(!config||!config.length) return res.status(400).json({error:'data/gedeeld_items.json ontbreekt of is leeg'});
+      const dryRun = req.query.dryrun==='1' || (req.body && req.body.dryRun===true);
+      const norm=s=>String(s==null?'':s).trim().toLowerCase();
+      const matRows=all('SELECT id,thema_id,name FROM thema_materiaal');
+      const teVerwijderen=new Set();
+      const rapport=[];
+      // Pass 1: items aanmaken/bijwerken + thema's koppelen (nog niet verwijderen)
+      for(const def of config){
+        const naam=(def.naam||'').trim(); if(!naam) continue;
+        const aliassen=new Set((def.aliassen && def.aliassen.length ? def.aliassen : [naam]).map(norm));
+        let item=get('SELECT * FROM gedeeld_items WHERE LOWER(name)=?',[norm(naam)]);
+        let aangemaakt=false, itemId=item?item.id:null;
+        if(!dryRun){
+          if(!item){
+            db.run('INSERT INTO gedeeld_items (name,cat,totaal,notities) VALUES (?,?,?,?)',[naam,def.cat||'gedeeld',def.totaal||1,'']);
+            itemId=get('SELECT last_insert_rowid() as id').id; aangemaakt=true;
+          } else if(def.totaal && item.totaal!==def.totaal){
+            db.run('UPDATE gedeeld_items SET totaal=? WHERE id=?',[def.totaal,item.id]);
+          }
+        } else { aangemaakt=!item; }
+        const matches=matRows.filter(m=>aliassen.has(norm(m.name)));
+        const themas=new Set();
+        for(const m of matches){ themas.add(m.thema_id); teVerwijderen.add(m.id); }
+        if(!dryRun && itemId){
+          for(const tid of themas){ db.run('INSERT OR REPLACE INTO gedeeld_gebruik (item_id,thema_id,qty) VALUES (?,?,1)',[itemId,tid]); }
+        }
+        rapport.push({item:naam, totaal:def.totaal||1, aangemaakt, themas_gekoppeld:themas.size, regels:matches.length});
+      }
+      // Pass 2: de losse thema_materiaal-regels verwijderen
+      let verwijderd=teVerwijderen.size;
+      if(!dryRun){
+        for(const id of teVerwijderen){ db.run('DELETE FROM thema_materiaal WHERE id=?',[id]); }
+        saveDb();
+        logAct('thema','gedeeld-conversie',`Conversie: ${rapport.length} gedeelde items, ${verwijderd} losse regels omgezet`,null,'');
+      }
+      res.json({ok:true, dryRun, gedeelde_items:rapport.length, regels_omgezet:verwijderd, detail:rapport});
+    }catch(e){ res.status(500).json({error:e.message}); }
+  });
+
+  // ── MIGRATIE: stockage_code splitsen in gebouw (Locatie) + code (Opslag) ──
+  // Regel (gekozen door gebruiker): "kantoor" -> Kantoor; "rozenweg" -> Rozenweg;
+  // elke andere (rek)code -> Rozenweg, met de code bewaard als Opslag-plek.
+  // Alleen thema_materiaal-regels die nog GEEN gebouw (stockage_locatie_id) hebben.
+  // ?dryrun=1 toont enkel wat er zou gebeuren.
+  app.post('/api/migratie/stockage',(req,res)=>{
+    try{
+      const dryRun = req.query.dryrun==='1' || (req.body && req.body.dryRun===true);
+      const stk = all("SELECT id,name FROM locaties WHERE type='stockage'");
+      const findLoc = naam => { const x=stk.find(l=>(l.name||'').trim().toLowerCase()===naam); return x?x.id:null; };
+      const kantoorId=findLoc('kantoor'), rozenwegId=findLoc('rozenweg');
+      if(!rozenwegId) return res.status(400).json({error:'Stockage-locatie "Rozenweg" niet gevonden'});
+      const rows = all('SELECT id,stockage_code,stockage_locatie_id FROM thema_materiaal');
+      let naarKantoor=0, naarRozenweg=0, overgeslagen=0;
+      for(const r of rows){
+        if(r.stockage_locatie_id){ overgeslagen++; continue; }
+        const code=(r.stockage_code||'').trim();
+        if(!code){ overgeslagen++; continue; }
+        const cl=code.toLowerCase();
+        let locId, newCode;
+        if(cl==='kantoor'){ locId=kantoorId||rozenwegId; newCode=''; naarKantoor++; }
+        else if(cl==='rozenweg'){ locId=rozenwegId; newCode=''; naarRozenweg++; }
+        else { locId=rozenwegId; newCode=code; naarRozenweg++; }
+        if(!dryRun) db.run('UPDATE thema_materiaal SET stockage_locatie_id=?,stockage_code=? WHERE id=?',[locId,newCode,r.id]);
+      }
+      if(!dryRun){ saveDb(); logAct('thema','stockage-migratie',`Stockage gesplitst: ${naarKantoor} naar Kantoor, ${naarRozenweg} naar Rozenweg`,null,''); }
+      res.json({ok:true, dryRun, naarKantoor, naarRozenweg, overgeslagen});
+    }catch(e){ res.status(500).json({error:e.message}); }
   });
 
   // ── SPOEDTRANSPORT ──
