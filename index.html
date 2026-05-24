@@ -1155,6 +1155,9 @@ function showWeekMatOverzicht(){
     // Open automatisch op de eerste week met een kampmoment
     const kmsInPeriode=S.kampmomenten.filter(k=>!S.activePeriode||k.periode_id===S.activePeriode.id);
     if(kmsInPeriode.length)sel.value=String(Math.min(...kmsInPeriode.map(k=>k.week)));
+    // Tijdmachine aan? Volg de week van de peildatum.
+    const _sim=_simDate?weekVoorDatum(_appNow()):null;
+    if(_sim&&_sim.week>=1&&_sim.week<=maxWk)sel.value=String(_sim.week);
   }
   renderWeekMateriaalOverzicht();
 }
@@ -1803,19 +1806,36 @@ async function renderOverzicht(){
     });
   }
 
-  // Kampmomenten samenvatting
-  const sorted=[...S.kampmomenten].sort((a,b)=>a.week-b.week);
-  document.getElementById('ov-kampen').innerHTML=sorted.length?sorted.map(km=>{
+  // Kampmomenten samenvatting (+ tijdmachine: markeer wie open is op de peildatum)
+  const sim=_simDate?weekVoorDatum(_appNow()):null;
+  const _isOpen=km=>!!sim&&km.week===sim.week&&(!km.periode_id||!sim.periode.id||km.periode_id===sim.periode.id);
+  const sorted=[...S.kampmomenten].sort((a,b)=>{
+    const oa=_isOpen(a)?0:1, ob=_isOpen(b)?0:1;
+    return oa-ob || a.week-b.week;
+  });
+  let simBanner='';
+  if(_simDate){
+    const dlbl=_appNow().toLocaleDateString('nl-BE',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    if(sim){
+      const openCnt=S.kampmomenten.filter(_isOpen).length;
+      simBanner=`<div class="row" style="background:var(--amber-bg);border:.5px solid var(--amber);border-radius:var(--r);margin-bottom:8px"><span style="font-size:16px">\u{1F4C5}</span><div class="ri"><div class="rm">Peildatum: ${dlbl}</div><div class="rs">${sim.weekend?'Weekend \u00B7 ':''}Week ${sim.week} van ${_escH(sim.periode.naam||'')} \u2014 ${openCnt} kamp${openCnt===1?'':'en'} ${sim.weekend?'die week':'open'}</div></div></div>`;
+    } else {
+      simBanner=`<div class="row" style="background:var(--bg2);border:.5px solid var(--border);border-radius:var(--r);margin-bottom:8px"><span style="font-size:16px">\u{1F4C5}</span><div class="ri"><div class="rm">Peildatum: ${dlbl}</div><div class="rs">Buiten de vakantieperiodes \u2014 geen kampen actief</div></div></div>`;
+    }
+  }
+  document.getElementById('ov-kampen').innerHTML=simBanner+(sorted.length?sorted.map(km=>{
     const wd=getWeekDagen(km.week);
     const dStr=wd.length?fDag(wd[0])+'\u2013'+fDag(wd[wd.length-1]):'';
     const isTd=km.type==='themadag';
+    const open=_isOpen(km);
     const thTags=isTd
       ? ['Ma','Di','Wo','Do','Vr'].map((lbl,i)=>{const t=(km.themas||[]).find(x=>x.dag===i);return t?`<span class="thema-tag" style="background:${t.color}22;color:${t.color}"><b>${lbl}</b>\u00A0${t.name}</span>`:`<span class="thema-tag" style="background:#eee;color:#999;border:.5px dashed #ccc">${lbl}\u00A0\u2014</span>`;}).join('')
       : (km.themas||[]).map(t=>`<span class="thema-tag" style="background:${t.color}22;color:${t.color}">${t.name}</span>`).join('');
     const badge=isTd?` <span class="pill p-amber" style="font-size:9px">\u{1F5D3} themadag</span>`:'';
+    const openBadge=open?` <span class="pill" style="background:var(--green);color:#fff;font-size:9px">\u25CF OPEN</span>`:'';
     const cnt=isTd?((km.themas||[]).filter(t=>t.dag!=null).length+'/5 dagen'):((km.themas||[]).length+' thema\'s');
-    return `<div class="row" style="flex-wrap:wrap;gap:6px"><div class="ri" style="min-width:180px"><div class="rm">Week ${km.week} \u00B7 ${dStr} \u2014 ${km.locatie?.name||'?'}${badge}</div><div class="rs">${(km.open_dagen||[]).length} open dagen \u00B7 ${cnt}</div></div><div style="display:flex;flex-wrap:wrap;gap:3px">${thTags}</div></div>`;
-  }).join(''):'<div class="empty">Nog geen kampmomenten gepland.</div>';
+    return `<div class="row" style="flex-wrap:wrap;gap:6px${open?';background:var(--green-bg);border-color:var(--green)':''}"><div class="ri" style="min-width:180px"><div class="rm">Week ${km.week} \u00B7 ${dStr} \u2014 ${km.locatie?.name||'?'}${openBadge}${badge}</div><div class="rs">${(km.open_dagen||[]).length} open dagen \u00B7 ${cnt}</div></div><div style="display:flex;flex-wrap:wrap;gap:3px">${thTags}</div></div>`;
+  }).join(''):'<div class="empty">Nog geen kampmomenten gepland.</div>');
 }
 
 function renderPlanning(){
@@ -1915,8 +1935,9 @@ async function renderTransportenOV(){
         dh.style.cssText='font-size:11px;font-weight:600;color:var(--amber-dk);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
         dh.innerHTML='&#128229; Nog op te stellen — niet ingepland';
       } else {
+        const _past=_simDate&&t.datum<isoLocal(_appNow());
         dh.style.cssText='font-size:11px;font-weight:600;color:var(--text2);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
-        dh.textContent=fIso(t.datum);
+        dh.innerHTML=fIso(t.datum)+(_simDate?(_past?' <span style="color:var(--green-dk);font-weight:700">&#10003; gebeurd</span>':' <span style="color:var(--amber-dk)">&#183; nog gepland</span>'):'');
       }
       el.appendChild(dh);
     }
@@ -2745,9 +2766,28 @@ function openThemaPopup(themaId){
   const gedLis = ged.length
     ? ged.map(g=>{const u=(g.gebruik||[]).find(x=>x.thema_id===themaId);const q=u&&u.qty?u.qty:1;return `<li>&#128295; ${_escH(g.name)}${q>1?` <span style="color:var(--text3)">&times;${q}</span>`:''} <span style="color:var(--text3);font-size:11px">(gedeeld, ${g.totaal||1} totaal)</span></li>`;}).join('')
     : '<li style="color:var(--text3)">Geen gedeeld materiaal</li>';
+  // Waar/wanneer is dit thema ingepland? (kampmomenten gegroepeerd per periode)
+  const _perNaam=pid=>{const p=(S.periodes||[]).find(x=>x.id===pid);return p?p.naam:((S.activePeriode&&S.activePeriode.naam)||'');};
+  const ingepland=(S.kampmomenten||[]).filter(km=>(km.themas||[]).some(x=>x.id===themaId));
+  const byPer={};
+  ingepland.forEach(km=>{const pn=_perNaam(km.periode_id)||'Overige';(byPer[pn]=byPer[pn]||[]).push(km);});
+  const planHtml=ingepland.length
+    ? Object.keys(byPer).sort().map(pn=>{
+        const lis=byPer[pn].sort((a,b)=>a.week-b.week).map(km=>{
+          const wd=getWeekDagen(km.week);
+          const dStr=wd.length?fDag(wd[0])+'–'+fDag(wd[wd.length-1]):'';
+          let dag='';
+          if(km.type==='themadag'){const te=(km.themas||[]).find(x=>x.id===themaId);if(te&&te.dag!=null)dag=' · '+['ma','di','wo','do','vr'][te.dag];}
+          return `<li><b>Week ${km.week}</b> <span style="color:var(--text3)">${dStr}${dag}</span> &mdash; ${_escH(km.locatie?.name||'?')}</li>`;
+        }).join('');
+        return `<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em">${_escH(pn)}</div><ul style="margin:2px 0 0;padding-left:18px">${lis}</ul></div>`;
+      }).join('')
+    : '<div style="color:var(--text3)">Nog niet ingepland in een kamp.</div>';
   document.getElementById('thd-title').innerHTML = `<span class="thema-swatch" style="background:${t.color||'#888780'}"></span> ${_escH(t.name)}`;
   document.getElementById('thd-body').innerHTML =
     `${t.leeftijdsgroep?`<div style="margin-bottom:8px"><span class="pill" style="background:var(--bg2);border:.5px solid var(--border);color:var(--text2)">${_escH(t.leeftijdsgroep)}</span></div>`:''}
+     <h4 style="margin:6px 0 4px">\u{1F4CD} Ingepland <span style="color:var(--text3);font-weight:400">(${ingepland.length})</span></h4>
+     <div style="margin:0 0 12px">${planHtml}</div>
      <h4 style="margin:6px 0 4px">Materiaal <span style="color:var(--text3);font-weight:400">(${mats.length})</span></h4>
      <ul style="margin:0 0 12px;padding-left:18px">${matLis}</ul>
      <h4 style="margin:6px 0 4px">Gedeeld materiaal <span style="color:var(--text3);font-weight:400">(${ged.length})</span></h4>
@@ -2798,6 +2838,25 @@ function _periodeMaxWeken(periode){
   if(p.max_weken)return p.max_weken;
   const diffMs=new Date(p.eind_datum+'T12:00:00')-new Date(p.start_datum+'T12:00:00');
   return Math.max(1,Math.ceil((diffMs/86400000+1)/7));
+}
+// Tijdmachine: welke vakantieperiode hoort bij een datum? (null = buiten alle periodes)
+function _periodeVoorDatum(d){
+  const ps=(S.periodes&&S.periodes.length)?S.periodes:[_activePeriode()];
+  for(const p of ps){
+    if(!p.start_datum||!p.eind_datum)continue;
+    const s=new Date(p.start_datum+'T00:00:00'), e=new Date(p.eind_datum+'T23:59:59');
+    if(d>=s&&d<=e)return p;
+  }
+  return null;
+}
+// Tijdmachine: {periode, week, weekend} voor een datum, of null buiten elke periode.
+function weekVoorDatum(d){
+  const p=_periodeVoorDatum(d); if(!p)return null;
+  const start=new Date(p.start_datum+'T00:00:00');
+  const wk=Math.floor(Math.floor((d-start)/86400000)/7)+1;
+  const maxWk=_periodeMaxWeken(p);
+  if(wk<1||wk>maxWk)return null;
+  return {periode:p, week:wk, weekend:(d.getDay()===0||d.getDay()===6)};
 }
 const MND=['','jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 const DOW=['zo','ma','di','wo','do','vr','za'];
@@ -3240,6 +3299,7 @@ function renderThemas(){
           <span class="th-leeftijd">${leeftijdBadge(t.leeftijdsgroep)}</span>
           <span class="th-items" title="materiaalitems">${mat.length+koppel.length}</span>
           <div class="ra th-acties">
+            <button class="bi" onclick="event.stopPropagation();openThemaPopup(${t.id})" title="Waar &amp; wanneer ingepland?">📍</button>
             <button class="bi" onclick="event.stopPropagation();editingThema=${t.id};renderThemas()">✏️</button>
             <button class="bi" style="color:var(--red)" onclick="event.stopPropagation();deleteThema(${t.id})">🗑️</button>
           </div>`;
