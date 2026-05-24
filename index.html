@@ -249,6 +249,16 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 .pager .btn-o{height:30px;min-width:36px;padding:0 10px;}
 .pager select{height:30px;}
 .mat-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+/* Rooster (locaties × weken) */
+.rooster-table{border-collapse:collapse;width:auto}
+.rooster-table th{background:var(--bg2);padding:5px 6px;text-align:center;font-size:11px;font-weight:600;color:var(--text2);border:.5px solid var(--border);position:sticky;top:0;z-index:2;white-space:nowrap}
+.rooster-table th.loc-col{text-align:left;position:sticky;left:0;z-index:3;min-width:150px}
+.rooster-table td{border:.5px solid var(--border);vertical-align:top}
+.rooster-table td.loc-name{text-align:left;padding:5px 8px;font-weight:500;font-size:12px;white-space:nowrap;position:sticky;left:0;background:var(--bg);z-index:1}
+.rooster-cell{text-align:center;padding:3px;cursor:pointer;min-width:96px;font-size:11px}
+.rooster-cell.leeg{color:var(--text3);font-size:15px}
+.rooster-cell:hover{background:var(--green-bg)}
+.rooster-cell.vol:hover{outline:1.5px solid var(--green)}
 .qr-print-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;}
 .sport-foto{width:100%;max-height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px;cursor:pointer;}
 .tk-regel{padding:8px 0;border-bottom:.5px solid var(--border);}
@@ -407,6 +417,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="ov-view-btn" onclick="showWeekMatOverzicht()">&#128203; Week materiaal</button>
       <button class="ov-view-btn" onclick="showConflicten()">&#9888;&#65039; Conflicten</button>
       <button class="ov-view-btn" onclick="showPeriodesBeheer()">&#128197; Periodes</button>
+      <button class="ov-view-btn" onclick="showRooster()">&#128467;&#65039; Rooster</button>
     </div>
 
     <div id="ov-main">
@@ -466,6 +477,15 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div id="conflict-list"></div>
     </div>
 
+    <div id="rooster-ov" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="btn-o" onclick="showOvMain()" style="font-size:12px">&#8592; Overzicht</button>
+        <strong>&#128467;&#65039; Rooster &mdash; locaties &times; weken</strong>
+        <span style="font-size:11px;color:var(--text2)">Klik een cel om een kampmoment toe te voegen of te bewerken.</span>
+        <button class="btn-o" id="rooster-compact-btn" onclick="toggleRoosterCompact()" style="font-size:12px;margin-left:auto">&#128065;&#65039; Toon namen</button>
+      </div>
+      <div id="rooster-content"></div>
+    </div>
     <div id="periodes-ov" style="display:none">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
         <button class="btn-o" onclick="showOvMain()" style="font-size:12px">&#8592; Overzicht</button>
@@ -1140,7 +1160,59 @@ function showOvMain(){
   const wm=document.getElementById('week-mat-ov');if(wm)wm.style.display='none';
   const co=document.getElementById('conflict-ov');if(co)co.style.display='none';
   const po=document.getElementById('periodes-ov');if(po)po.style.display='none';
+  const ro=document.getElementById('rooster-ov');if(ro)ro.style.display='none';
   document.querySelectorAll('#sec-overzicht .ov-view-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+}
+let _roosterCompact=true;
+function toggleRoosterCompact(){
+  _roosterCompact=!_roosterCompact;
+  const b=document.getElementById('rooster-compact-btn');
+  if(b)b.textContent=_roosterCompact?'👁️ Toon namen':'🔢 Compact';
+  renderRooster();
+}
+function showRooster(){
+  document.getElementById('ov-main').style.display='none';
+  document.getElementById('week-mat-ov').style.display='none';
+  document.getElementById('conflict-ov').style.display='none';
+  document.getElementById('periodes-ov').style.display='none';
+  document.getElementById('rooster-ov').style.display='block';
+  document.querySelectorAll('#sec-overzicht .ov-view-btn').forEach((b,i)=>b.classList.toggle('active',i===4));
+  renderRooster();
+}
+function renderRooster(){
+  const el=document.getElementById('rooster-content'); if(!el)return;
+  const p=_activePeriode();
+  const maxWk=_periodeMaxWeken(p);
+  const locs=(S.locaties||[]).filter(l=>l.type==='kamp').sort((a,b)=>a.name.localeCompare(b.name,'nl'));
+  if(!locs.length){ el.innerHTML='<div class="empty">Nog geen kamplocaties.</div>'; return; }
+  const kmBy={};
+  (S.kampmomenten||[]).forEach(km=>{ if(p.id&&km.periode_id&&km.periode_id!==p.id)return; kmBy[km.locatie_id+'_'+km.week]=km; });
+  let head='<th class="loc-col">Locatie</th>';
+  for(let w=1;w<=maxWk;w++){ const wd=getWeekDagen(w,p); const lbl=wd.length?fDag(wd[0]):''; head+=`<th>Week ${w}<div style="font-size:9px;font-weight:400;color:var(--text3)">${lbl}</div></th>`; }
+  let body='';
+  locs.forEach(l=>{
+    let row=`<td class="loc-name">${_escH(l.name)}</td>`;
+    for(let w=1;w<=maxWk;w++){
+      const km=kmBy[l.id+'_'+w];
+      if(km){
+        const ths=(km.themas||[]);
+        const namen=ths.map(t=>t.name).join(', ');
+        let inner;
+        if(_roosterCompact){
+          inner = ths.length
+            ? `<span class="thema-tag" style="background:${ths[0].color}22;color:${ths[0].color};max-width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle">${_escH(ths[0].name)}</span>${ths.length>1?` <span style="font-size:10px;color:var(--text2);font-weight:600">+${ths.length-1}</span>`:''}`
+            : '<span style="color:var(--text3);font-size:10px">geen thema</span>';
+        } else {
+          inner = ths.length?ths.map(t=>`<span class="thema-tag" style="background:${t.color}22;color:${t.color};display:block;margin:1px 0;white-space:normal">${_escH(t.name)}</span>`).join(''):'<span style="color:var(--text3);font-size:10px">geen thema</span>';
+        }
+        row+=`<td class="rooster-cell vol" onclick="openBewerkKampmoment(${km.id})" title="${_attrH(namen||'Bewerk kampmoment')}">${inner}</td>`;
+      } else {
+        row+=`<td class="rooster-cell leeg" onclick="openNieuwKampmoment(${l.id},${w})" title="Kampmoment toevoegen (week ${w})">+</td>`;
+      }
+    }
+    body+=`<tr>${row}</tr>`;
+  });
+  el.innerHTML=`<div style="overflow-x:auto"><table class="rooster-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 
@@ -1148,6 +1220,8 @@ function showWeekMatOverzicht(){
   document.getElementById('ov-main').style.display='none';
   document.getElementById('week-mat-ov').style.display='block';
   document.getElementById('conflict-ov').style.display='none';
+  document.getElementById('rooster-ov').style.display='none';
+  document.getElementById('periodes-ov').style.display='none';
   // Vul week-opties op basis van actieve periode
   const sel=document.getElementById('week-mat-sel');
   if(sel){
@@ -1168,6 +1242,7 @@ function showConflicten(){
   document.getElementById('conflict-ov').style.display='block';
   document.getElementById('week-mat-ov').style.display='none';
   document.getElementById('periodes-ov').style.display='none';
+  document.getElementById('rooster-ov').style.display='none';
   checkConflicten();
 }
 
@@ -1176,6 +1251,7 @@ function showPeriodesBeheer(){
   document.getElementById('conflict-ov').style.display='none';
   document.getElementById('week-mat-ov').style.display='none';
   document.getElementById('periodes-ov').style.display='block';
+  document.getElementById('rooster-ov').style.display='none';
   document.querySelectorAll('#sec-overzicht .ov-view-btn').forEach((b,i)=>b.classList.toggle('active',i===3));
   renderPeriodesList();
 }
@@ -2784,16 +2860,46 @@ function openThemaPopup(themaId){
         return `<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em">${_escH(pn)}</div><ul style="margin:2px 0 0;padding-left:18px">${lis}</ul></div>`;
       }).join('')
     : '<div style="color:var(--text3)">Nog niet ingepland in een kamp.</div>';
+  // "Plan dit thema" — locatie + week kiezen
+  const _kampLocs=(S.locaties||[]).filter(l=>l.type==='kamp').sort((a,b)=>a.name.localeCompare(b.name,'nl'));
+  const _locOpts=_kampLocs.map(l=>`<option value="${l.id}">${_escH(l.name)}</option>`).join('');
+  const _maxWk=_periodeMaxWeken(_activePeriode());
   document.getElementById('thd-title').innerHTML = `<span class="thema-swatch" style="background:${t.color||'#888780'}"></span> ${_escH(t.name)}`;
   document.getElementById('thd-body').innerHTML =
     `${t.leeftijdsgroep?`<div style="margin-bottom:8px"><span class="pill" style="background:var(--bg2);border:.5px solid var(--border);color:var(--text2)">${_escH(t.leeftijdsgroep)}</span></div>`:''}
      <h4 style="margin:6px 0 4px">\u{1F4CD} Ingepland <span style="color:var(--text3);font-weight:400">(${ingepland.length})</span></h4>
      <div style="margin:0 0 12px">${planHtml}</div>
+     <h4 style="margin:6px 0 4px">\u{1F4CC} Plan dit thema</h4>
+     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px">
+       <select class="sel" id="thd-plan-loc" style="flex:1;min-width:150px;height:32px">${_locOpts}</select>
+       <input class="inp" type="number" id="thd-plan-week" min="1" max="${_maxWk}" placeholder="week" style="width:74px;height:32px">
+       <button class="btn-g" onclick="planThemaHier(${themaId})" style="height:32px">+ Plannen</button>
+     </div>
      <h4 style="margin:6px 0 4px">Materiaal <span style="color:var(--text3);font-weight:400">(${mats.length})</span></h4>
      <ul style="margin:0 0 12px;padding-left:18px">${matLis}</ul>
      <h4 style="margin:6px 0 4px">Gedeeld materiaal <span style="color:var(--text3);font-weight:400">(${ged.length})</span></h4>
      <ul style="margin:0;padding-left:18px">${gedLis}</ul>`;
   openModal('modal-thema-detail');
+}
+async function planThemaHier(themaId){
+  const locId=parseInt(document.getElementById('thd-plan-loc').value);
+  const week=parseInt(document.getElementById('thd-plan-week').value);
+  if(!locId||!week){showToast('Kies een locatie en week','warn');return;}
+  const p=_activePeriode();
+  let km=(S.kampmomenten||[]).find(k=>k.locatie_id===locId&&k.week===week&&(!k.periode_id||!p.id||k.periode_id===p.id));
+  if(km&&(km.themas||[]).some(t=>t.id===themaId)){showToast('Dit thema staat hier al ingepland','info');return;}
+  if(!km){
+    km=await api('POST','/kampmomenten',{week,locatie_id:locId,periode_id:p.id||1,type:'kamp'});
+    if(!km||km.error){showToast((km&&km.error)||'Kon kampmoment niet aanmaken','error');return;}
+  }
+  const r=await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:themaId,dag:null});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  S.kampmomenten=await api('GET','/kampmomenten');
+  if(document.getElementById('rooster-ov')&&document.getElementById('rooster-ov').style.display!=='none')renderRooster();
+  if(typeof renderKampen==='function')renderKampen();
+  const loc=(S.locaties||[]).find(l=>l.id===locId);
+  showToast('Ingepland: week '+week+(loc?' · '+loc.name:''),'success');
+  openThemaPopup(themaId);
 }
 
 function getLocMat(locId){return(S.locMat[locId]||[]).filter(m=>!m.verborgen);}
@@ -3018,12 +3124,12 @@ function _refreshKmDagDisables(){
     });
   });
 }
-function openNieuwKampmoment(preLocId){
+function openNieuwKampmoment(preLocId, preWeek){
   _kmEditId=null;
   document.getElementById('modal-km-title').textContent='Kampmoment toevoegen';
   _fillKmPeriodeSelect();
   updateKmWeekMax();
-  document.getElementById('km-week').value='';
+  document.getElementById('km-week').value=preWeek||'';
   document.getElementById('km-preview').style.display='none';
   document.getElementById('km-loc').innerHTML=S.locaties.filter(l=>l.type==='kamp').map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
   if(preLocId)document.getElementById('km-loc').value=preLocId;
@@ -3032,6 +3138,7 @@ function openNieuwKampmoment(preLocId){
   setKmType('kamp');
   renderKmCheckboxes([]);
   renderKmDagSelects([null,null,null,null,null]);
+  updateKmPreview();
   openModal('modal-km');
 }
 function openBewerkKampmoment(kmId){
@@ -3105,10 +3212,11 @@ async function saveKampmoment(){
   if(kalData)kalData=await api('GET','/kalender');
   closeModal('modal-km');
   renderKampen();
+  if(document.getElementById('rooster-ov')&&document.getElementById('rooster-ov').style.display!=='none')renderRooster();
   if(typeof _refreshLocDetail==='function')_refreshLocDetail();
   {const _kl=document.getElementById('km-list');if(_kl)_kl.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
-async function deleteKampmoment(id){if(!confirm('Kampmoment verwijderen?'))return;await api('DELETE','/kampmomenten/'+id);S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);renderKampen();}
+async function deleteKampmoment(id){if(!confirm('Kampmoment verwijderen?'))return;await api('DELETE','/kampmomenten/'+id);S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);renderKampen();if(document.getElementById('rooster-ov')&&document.getElementById('rooster-ov').style.display!=='none')renderRooster();}
 async function addThemaToKm(kmId){const thema_id=parseInt(document.getElementById('add-th-'+kmId).value);if(!thema_id)return;const r=await api('POST','/kampmomenten/'+kmId+'/themas',{thema_id});if(r.error){showToast(r.error,'error');return;}S.kampmomenten=S.kampmomenten.map(k=>k.id===kmId?r:k);renderKampen();}
 async function removeThemaFromKm(kmId,ktId){const r=await api('DELETE','/kampmomenten/'+kmId+'/themas/'+ktId);S.kampmomenten=S.kampmomenten.map(k=>k.id===kmId?r:k);renderKampen();}
 
