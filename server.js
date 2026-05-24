@@ -1150,6 +1150,11 @@ async function startServer() {
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
+  // Diagnose: waar staat de database echt? (volume vs tijdelijk)
+  app.get('/api/dbinfo', (req, res) => {
+    let themas=0; try{ themas=get('SELECT count(*) as n FROM themas').n; }catch(e){}
+    res.json({ db_path: DB_PATH, data_dir: DATA_DIR, railway_volume_env: process.env.RAILWAY_VOLUME_MOUNT_PATH || null, dirname: __dirname, themas });
+  });
   // Reset: wis alle data voor import
   app.post('/api/import/reset', (req, res) => {
     try {
