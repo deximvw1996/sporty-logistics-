@@ -345,6 +345,34 @@ async function startServer() {
     if(loc) logAct('locatie','verwijderd',`Locatie "${loc.name}" verwijderd`,null,loc.name);
     res.json({ok:true});
   });
+  // Geocodeer adressen -> lat/lng via OpenStreetMap Nominatim (gratis, geen sleutel).
+  // Standaard enkel locaties zonder coordinaten; ?force=1 hergeocodeert alles.
+  app.post('/api/locaties/geocode', async (req,res)=>{
+    const force = req.query.force==='1' || req.body?.force===true;
+    const todo = all(force
+      ? "SELECT * FROM locaties WHERE addr IS NOT NULL AND TRIM(addr)<>''"
+      : "SELECT * FROM locaties WHERE addr IS NOT NULL AND TRIM(addr)<>'' AND (lat IS NULL OR lng IS NULL)");
+    const sleep = ms => new Promise(r=>setTimeout(r,ms));
+    const gedaan=[], mislukt=[];
+    for(const loc of todo){
+      try{
+        let q = String(loc.addr).trim();
+        if(!/belgi|belgium/i.test(q)) q += ', België';
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=be&q=' + encodeURIComponent(q);
+        const resp = await fetch(url, { headers: { 'User-Agent': 'sporty-logistics/1.0 (logistiek app)', 'Accept-Language': 'nl' } });
+        const arr = await resp.json();
+        if(Array.isArray(arr) && arr.length){
+          const lat = parseFloat(arr[0].lat), lng = parseFloat(arr[0].lon);
+          run('UPDATE locaties SET lat=?,lng=? WHERE id=?',[lat,lng,loc.id]);
+          gedaan.push({ id:loc.id, name:loc.name, lat, lng });
+        } else {
+          mislukt.push({ id:loc.id, name:loc.name, reden:'geen resultaat' });
+        }
+      }catch(e){ mislukt.push({ id:loc.id, name:loc.name, reden:e.message }); }
+      await sleep(1100); // Nominatim policy: max 1 verzoek/seconde
+    }
+    res.json({ gevraagd:todo.length, gelukt:gedaan.length, mislukt:mislukt.length, details:{ gedaan, mislukt } });
+  });
 
   // ── THEMAS ──
   app.get('/api/themas',(req,res)=>{const t=all('SELECT * FROM themas ORDER BY name');const m=all('SELECT * FROM thema_materiaal');res.json(t.map(x=>({...x,materiaal:m.filter(y=>y.thema_id===x.id)})));});

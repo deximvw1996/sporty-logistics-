@@ -232,6 +232,23 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 #kaart-map{height:420px;border-radius:var(--rl);border:.5px solid var(--border);overflow:hidden;}
 .loc-kaart-pin{background:var(--green-dk);color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25);}
 .loc-kaart-pin.stockage{background:#E65100;}
+.loc-kaart-num{background:var(--green);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4);}
+.loc-kaart-num.sm{width:20px;height:20px;font-size:11px;display:inline-flex;margin-right:6px;vertical-align:middle;flex:0 0 auto;}
+/* Locaties-tab: lijst en detail scrollen apart op desktop (detail blijft bovenaan) */
+@media(min-width:760px){
+  #sec-planning .loc-split{height:calc(100vh - 150px);}
+  #sec-planning .loc-col-list{display:flex;flex-direction:column;height:100%;}
+  #sec-planning #loc-tab-list{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding-right:6px;}
+  #sec-planning .loc-col-detail{height:100%;overflow-y:auto;overflow-x:hidden;padding-right:6px;}
+}
+/* Paginering (catalogus + thema's) */
+.pager{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 2px;font-size:12px;color:var(--text2);}
+.pager .pager-nav{display:flex;align-items:center;gap:6px;}
+.pager .pager-pg{min-width:58px;text-align:center;font-variant-numeric:tabular-nums;}
+.pager .pager-per{display:flex;align-items:center;gap:5px;}
+.pager .btn-o{height:30px;min-width:36px;padding:0 10px;}
+.pager select{height:30px;}
+.mat-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .qr-print-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;}
 .sport-foto{width:100%;max-height:110px;object-fit:cover;border-radius:6px;margin-bottom:8px;cursor:pointer;}
 .tk-regel{padding:8px 0;border-bottom:.5px solid var(--border);}
@@ -375,6 +392,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <button class="nb" onclick="goTo('transport-plan')">&#128197; Planning</button>
     <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
     <button class="nb" onclick="goTo('planning')">&#128205; Locaties</button>
+    <button class="nb" onclick="goTo('kaart')">&#128506;&#65039; Kaart</button>
   </div>
 
   <div class="content">
@@ -463,17 +481,41 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   ═══════════════════════════════════════════════════════ -->
 
   <div class="sec" id="sec-planning">
-    <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
-      <div style="flex:1 1 220px;max-width:300px;min-width:190px">
+    <div class="loc-split" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+      <div class="loc-col-list" style="flex:1 1 220px;max-width:300px;min-width:190px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
           <strong style="font-size:13px">&#128205; Locaties</strong>
           <button class="btn-xs" onclick="openNieuweLocatie()">+ Nieuw</button>
         </div>
         <div id="loc-tab-list"><div class="loading">Laden&hellip;</div></div>
       </div>
-      <div style="flex:3 1 420px;min-width:280px">
+      <div class="loc-col-detail" style="flex:3 1 420px;min-width:280px">
         <div id="loc-tab-detail"><div class="empty">Selecteer een locatie links.</div></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB: KAART
+  ═══════════════════════════════════════════════════════ -->
+  <div class="sec" id="sec-kaart">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:.7rem">
+      <strong style="font-size:14px">&#128506;&#65039; Kaart</strong>
+      <input class="inp" id="kaart-zoek" placeholder="&#128269; Zoek locatie&hellip;" style="width:170px;height:30px" oninput="renderKaartMarkers()">
+      <select class="sel" id="kaart-type" style="height:30px;width:auto" onchange="renderKaartMarkers()">
+        <option value="">Alle types</option>
+        <option value="kamp">&#9978; Enkel kampen</option>
+        <option value="stockage">&#128230; Enkel stockage</option>
+      </select>
+      <select class="sel" id="kaart-rit" style="height:30px;width:auto" onchange="renderKaartMarkers()">
+        <option value="">Geen transport (alle locaties)</option>
+      </select>
+      <button class="btn-o btn-xs" onclick="geocodeLocatiesBulk()" title="Ontbrekende kaartposities ophalen">&#128205; Co&ouml;rdinaten ophalen</button>
+    </div>
+    <div id="kaart-info" style="font-size:12px;color:var(--text2);margin-bottom:.5rem"></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+      <div id="kaart-map" style="flex:3 1 460px;min-width:280px"></div>
+      <div id="kaart-zij" style="flex:1 1 230px;min-width:200px;max-height:420px;overflow:auto"></div>
     </div>
   </div>
 
@@ -489,6 +531,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
     <!-- Thema's -->
     <div id="mat-sub-themas">
+      <div id="thema-pager"></div>
       <div id="thema-list"></div>
       <div class="card" style="margin-bottom:.875rem">
         <div class="card-hd">&#128203; Planning importeren / exporteren</div>
@@ -618,8 +661,8 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
       <!-- Zoek + filter + groeperen -->
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:.625rem">
-        <input class="inp" type="search" id="cat-search" placeholder="&#128269; Zoeken op naam, thema&#8230;" oninput="renderCatalogusLijst()" style="flex:1;min-width:160px">
-        <div style="display:flex;gap:3px;flex-shrink:0">
+        <input class="inp" type="search" id="cat-search" placeholder="&#128269; Zoeken op naam, thema&#8230;" oninput="catFilterChange()" style="flex:1;min-width:160px">
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
           <button class="fb active" id="cat-f-alle" onclick="setCatFilter('alle',this)">Alle</button>
           <button class="fb" id="cat-f-sport" onclick="setCatFilter('sport',this)">&#9917; Sport</button>
           <button class="fb" id="cat-f-thema" onclick="setCatFilter('thema',this)">&#127912; Thema</button>
@@ -628,20 +671,21 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           <button class="fb" id="cat-f-verbruik" onclick="setCatFilter('verbruik',this)">&#129529; Verbruik</button>
         </div>
         <label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;flex-shrink:0">Groeperen
-          <select class="sel" id="cat-group" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px">
+          <select class="sel" id="cat-group" onchange="catFilterChange()" style="height:32px;font-size:12px">
             <option value="geen">Geen</option>
             <option value="type">Type</option>
             <option value="thema">Thema</option>
             <option value="opslag">Opslaglocatie</option>
           </select>
         </label>
-        <select class="sel" id="cat-sort" onchange="renderCatalogusLijst()" style="height:32px;font-size:12px;flex-shrink:0">
+        <select class="sel" id="cat-sort" onchange="catFilterChange()" style="height:32px;font-size:12px;flex-shrink:0">
           <option value="naam-asc">&#8593; Naam A&#8594;Z</option>
           <option value="naam-desc">&#8595; Naam Z&#8594;A</option>
           <option value="aantal-desc">&#8595; Meeste stuks</option>
         </select>
       </div>
       <div id="cat-stats" style="font-size:11px;color:var(--text2);margin-bottom:.5rem;padding:0 2px"></div>
+      <div id="cat-pager"></div>
       <div id="cat-list"></div>
     </div>
   </div><!-- /sec-materiaal -->
@@ -1633,7 +1677,7 @@ function setSimDate(v){
 }
 
 // ── 4-TAB ROUTING ──
-const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten'];
+const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart'];
 
 
 function goTo(id){
@@ -1646,7 +1690,8 @@ function goTo(id){
       id==='overzicht',
       id==='transport-plan'||id==='transporten'||id==='transport-noden',
       id==='materiaal',
-      id==='planning'
+      id==='planning',
+      id==='kaart'
     ][i]||false;
     b.classList.toggle('active',active);
   });
@@ -1657,6 +1702,7 @@ function goTo(id){
     'transport-noden':renderNoden,
     'transport-plan':renderTransportPlan,
     transporten:renderTransportenOV,
+    kaart:renderKaart,
   };
   try {
     const p = renderMap[id]?.();
@@ -2399,7 +2445,7 @@ async function addGesloten(){
   const reden=document.getElementById('gs-reden').value.trim();
   if(!datum)return;
   const r=await api('POST','/gesloten',{datum,reden});
-  if(r.error){alert(r.error);return;}
+  if(r.error){showToast(r.error,'error');return;}
   if(!kalData.gesloten_dagen)kalData.gesloten_dagen=[];
   kalData.gesloten_dagen.push(r);
   kalData.gesloten_dagen.sort((a,b)=>a.datum.localeCompare(b.datum));
@@ -2610,7 +2656,7 @@ async function saveShift(){
   const eind_tijd=document.getElementById('sh-eind').value;
   const type=document.getElementById('sh-type').value;
   const opmerking=document.getElementById('sh-opmerking').value.trim();
-  if(!datum){alert('Vul een datum in.');return;}
+  if(!datum){showToast('Vul een datum in.','warn');return;}
   if(editingShiftId){
     const r=await api('PUT','/ploeg/'+editingShiftId,{chauffeur_id,datum,start_tijd,eind_tijd,type,opmerking});
     ploegShifts=ploegShifts.map(sh=>sh.id===editingShiftId?r:sh);
@@ -2972,14 +3018,14 @@ async function saveKampmoment(){
   const locatie_id=parseInt(document.getElementById('km-loc').value);
   const periode_id=parseInt(document.getElementById('km-periode')?.value)||S.activePeriode?.id||1;
   const type=_kmType;
-  if(!week||!locatie_id){alert('Vul week en locatie in.');return;}
+  if(!week||!locatie_id){showToast('Vul week en locatie in.','warn');return;}
   let km;
   if(_kmEditId){
     km=await api('PUT','/kampmomenten/'+_kmEditId,{week,type});
   } else {
     km=await api('POST','/kampmomenten',{week,locatie_id,periode_id,type});
   }
-  if(km.error){alert(km.error);return;}
+  if(km.error){showToast(km.error,'error');return;}
   // Resync kampmoment_themas: delete-all-then-add (max 5-7 items, goedkoop)
   for(const th of (km.themas||[])){
     await api('DELETE','/kampmomenten/'+km.id+'/themas/'+th.kt_id);
@@ -3003,7 +3049,7 @@ async function saveKampmoment(){
   {const _kl=document.getElementById('km-list');if(_kl)_kl.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 async function deleteKampmoment(id){if(!confirm('Kampmoment verwijderen?'))return;await api('DELETE','/kampmomenten/'+id);S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);renderKampen();}
-async function addThemaToKm(kmId){const thema_id=parseInt(document.getElementById('add-th-'+kmId).value);if(!thema_id)return;const r=await api('POST','/kampmomenten/'+kmId+'/themas',{thema_id});if(r.error){alert(r.error);return;}S.kampmomenten=S.kampmomenten.map(k=>k.id===kmId?r:k);renderKampen();}
+async function addThemaToKm(kmId){const thema_id=parseInt(document.getElementById('add-th-'+kmId).value);if(!thema_id)return;const r=await api('POST','/kampmomenten/'+kmId+'/themas',{thema_id});if(r.error){showToast(r.error,'error');return;}S.kampmomenten=S.kampmomenten.map(k=>k.id===kmId?r:k);renderKampen();}
 async function removeThemaFromKm(kmId,ktId){const r=await api('DELETE','/kampmomenten/'+kmId+'/themas/'+ktId);S.kampmomenten=S.kampmomenten.map(k=>k.id===kmId?r:k);renderKampen();}
 
 // KALENDER
@@ -3132,6 +3178,7 @@ function renderThemas(){
     api('GET','/gedeeld').then(r=>{if(Array.isArray(r))_invGedeeld=r;renderThemas();});
   }
   el.innerHTML='';
+  const _tp=document.getElementById('thema-pager');if(_tp)_tp.innerHTML='';
   if(!S.themas.length){el.innerHTML='<div class="empty">Nog geen themas aangemaakt.</div>';return;}
   const _thHead=document.createElement('div');
   _thHead.className='th-head';
@@ -3151,15 +3198,28 @@ function renderThemas(){
     if(!a&&b)return 1;if(a&&!b)return -1;return a.localeCompare(b);
   });
 
-  sortedCats.forEach(cat=>{
-    // Category header
-    if(cat){
-      const hdr=document.createElement('div');
-      hdr.style.cssText='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin-bottom:6px';
-      hdr.textContent=cat;
-      el.appendChild(hdr);
+  // Vlakke lijst in weergavevolgorde -> pagineren (10/20/50/100 per pagina)
+  const _ordered=[];
+  sortedCats.forEach(cat=>groups[cat].forEach(t=>_ordered.push({cat,t})));
+  const _tot=_ordered.length, _per=_themaPerPage;
+  const _totPg=Math.max(1,Math.ceil(_tot/_per));
+  if(_themaPage>_totPg)_themaPage=_totPg; if(_themaPage<1)_themaPage=1;
+  const _startIdx=(_themaPage-1)*_per;
+  const _pageItems=_ordered.slice(_startIdx,_startIdx+_per);
+  const _thPager=document.getElementById('thema-pager');
+  if(_thPager)_thPager.innerHTML=_pagerBar('thema',_themaPage,_per,_tot);
+
+  let _lastCat=null;
+  _pageItems.forEach(({cat,t})=>{
+    if(cat!==_lastCat){
+      if(cat){
+        const hdr=document.createElement('div');
+        hdr.style.cssText='font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;padding:10px 2px 4px;border-bottom:.5px solid var(--border);margin-bottom:6px';
+        hdr.textContent=cat;
+        el.appendChild(hdr);
+      }
+      _lastCat=cat;
     }
-    groups[cat].forEach(t=>{
       const card=document.createElement('div');card.className='exp-card';
       const mat=t.materiaal||[];
       const koppel=(_invGedeeld||[]).map(g=>{const u=(g.gebruik||[]).find(x=>x.thema_id===t.id);return u?{g,qty:u.qty}:null;}).filter(Boolean);
@@ -3242,7 +3302,6 @@ function renderThemas(){
       body.appendChild(addRow);
       card.appendChild(hd);card.appendChild(body);
       el.appendChild(card);
-    });
   });
 }
 async function addThema(){
@@ -3851,6 +3910,31 @@ let _catExpandId=null;
 let _invVerbruik=[];
 let _catSel=new Set();
 let _catLastFiltered=[];
+let _catPage=1, _catPerPage=50;
+let _themaPage=1, _themaPerPage=50;
+// Herbruikbare pagineringsbalk. prefix='cat' of 'thema' (verwacht <prefix>GoPage / <prefix>SetPerPage).
+function _pagerBar(prefix,page,perPage,total){
+  if(!total) return '';
+  const totalPages=Math.max(1,Math.ceil(total/perPage));
+  if(page>totalPages)page=totalPages; if(page<1)page=1;
+  const from=(page-1)*perPage+1, to=Math.min(total,page*perPage);
+  const opts=[10,20,50,100].map(n=>`<option value="${n}"${perPage===n?' selected':''}>${n}</option>`).join('');
+  return `<div class="pager">
+    <span>${from}–${to} van ${total}</span>
+    <span style="flex:1"></span>
+    <label class="pager-per">Per pagina <select class="sel" onchange="${prefix}SetPerPage(this.value)">${opts}</select></label>
+    <div class="pager-nav">
+      <button class="btn-o" ${page<=1?'disabled':''} onclick="${prefix}GoPage(${page-1})" title="Vorige">‹</button>
+      <span class="pager-pg">${page} / ${totalPages}</span>
+      <button class="btn-o" ${page>=totalPages?'disabled':''} onclick="${prefix}GoPage(${page+1})" title="Volgende">›</button>
+    </div>
+  </div>`;
+}
+function catGoPage(p){_catPage=Math.max(1,p|0);renderCatalogusLijst();}
+function catSetPerPage(n){_catPerPage=parseInt(n)||50;_catPage=1;renderCatalogusLijst();}
+function catFilterChange(){_catPage=1;renderCatalogusLijst();}
+function themaGoPage(p){_themaPage=Math.max(1,p|0);renderThemas();}
+function themaSetPerPage(n){_themaPerPage=parseInt(n)||50;_themaPage=1;renderThemas();}
 const _catCatsByType={
   sport:[['sport','⚽ Sport'],['zwembad','🏊 Zwembad'],['outdoor','🏕️ Outdoor'],['andere','📦 Andere']],
   gedeeld:[['opblaas','🎈 Opblaas'],['keuken','🍳 Keuken'],['gedeeld','📦 Andere']],
@@ -3969,6 +4053,7 @@ async function addCatalogusItem(){
 
 function setCatFilter(filter,btn){
   _catFilter=filter;
+  _catPage=1;
   document.querySelectorAll('#mat-sub-catalogus .fb').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderCatalogusLijst();
@@ -4056,7 +4141,7 @@ function renderCatalogusLijst(){
     </div>`;
   }
 
-  if(!filtered.length){el.innerHTML=bulkBar+'<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';_catLastFiltered=[];return;}
+  if(!filtered.length){el.innerHTML=bulkBar+'<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';_catLastFiltered=[];const _pe=document.getElementById('cat-pager');if(_pe)_pe.innerHTML='';return;}
 
   const stockName=id=>id?(stockLocs.find(l=>l.id==id)?.name||null):null;
   const groupKey=item=>{
@@ -4078,8 +4163,17 @@ function renderCatalogusLijst(){
   _catLastFiltered=filtered.map(i=>i.type+'-'+i.raw_id);
   const allChecked=_catLastFiltered.length>0&&_catLastFiltered.every(u=>_catSel.has(u));
 
+  // Paginering: teken enkel de huidige pagina
+  const _per=_catPerPage, _tot=filtered.length;
+  const _totPg=Math.max(1,Math.ceil(_tot/_per));
+  if(_catPage>_totPg)_catPage=_totPg; if(_catPage<1)_catPage=1;
+  const _start=(_catPage-1)*_per;
+  const pageItems=filtered.slice(_start,_start+_per);
+  const pagerEl=document.getElementById('cat-pager');
+  if(pagerEl)pagerEl.innerHTML=_pagerBar('cat',_catPage,_per,_tot);
+
   let rows='',lastG=null;
-  filtered.forEach(item=>{
+  pageItems.forEach(item=>{
     if(group!=='geen'){
       const g=groupKey(item);
       if(g!==lastG){
@@ -4090,14 +4184,14 @@ function renderCatalogusLijst(){
     }
     rows+=_renderCatRow(item,stockLocs);
   });
-  el.innerHTML=bulkBar+`<table class="mat-table">
+  el.innerHTML=bulkBar+`<div class="mat-table-wrap"><table class="mat-table">
     <thead><tr>
       <th style="width:30px;text-align:center"><input type="checkbox" id="cat-sel-all"${allChecked?' checked':''} onclick="catSelAllToggle()" title="Alles selecteren"></th>
       <th style="width:42px;text-align:center">Type</th><th>Naam</th><th>Context</th>
       <th style="width:74px;text-align:right">Aantal</th><th style="width:92px">Locatie</th><th style="width:84px">Opslag</th><th style="width:92px">Huidige</th><th style="width:64px"></th>
     </tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 const _verbruikCatLbl={keuken:'🍳 Keuken',slaap:'🛏️ Slaap',sport:'⚽ Sport',audio:'🔊 Audio',ehbo:'🏥 EHBO',admin:'📋 Admin',andere:'📦 Andere'};
@@ -4710,55 +4804,128 @@ async function saveTerugkomst(){
   closeModal('modal-terugkomst');
 }
 
-// ── KAART VIEW ──
-let _kaartMap=null;
+// ── KAART ──
+let _kaartMap=null, _kaartLaag=null, _kaartRoute=null, _kaartRitten=[];
 
-function setLocView(view,btn){
-  document.getElementById('loc-view-lijst-section').style.display=view==='lijst'?'':'none';
-  document.getElementById('loc-view-kaart-section').style.display=view==='kaart'?'':'none';
-  document.querySelectorAll('#plan-sub-locaties .ov-view-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  if(view==='kaart') renderKaart();
+function _kaartDatum(d){
+  if(!d) return '';
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d);
+  return m? m[3]+'/'+m[2]+'/'+m[1] : d;
 }
 
-function renderKaart(){
-  const withCoords=S.locaties.filter(l=>l.lat&&l.lng);
-  const geen=document.getElementById('kaart-geen');
-  const mapDiv=document.getElementById('kaart-map');
-  if(!withCoords.length){
-    mapDiv.style.display='none';
-    if(geen)geen.style.display='';
-    return;
+async function renderKaart(){
+  if(!S.locaties||!S.locaties.length){ const r=await api('GET','/locaties'); if(Array.isArray(r))S.locaties=r; }
+  try{ const r=await api('GET','/ritten'); _kaartRitten=Array.isArray(r)?r:[]; }catch(e){ _kaartRitten=[]; }
+  const sel=document.getElementById('kaart-rit');
+  if(sel){
+    const huidig=sel.value;
+    sel.innerHTML='<option value="">Geen transport (alle locaties)</option>'+
+      _kaartRitten.map(r=>{
+        const n=(r.taken||[]).length;
+        const lbl=_kaartDatum(r.datum)+(r.chauffeur?' · '+r.chauffeur:'')+' ('+n+(n===1?' taak':' taken')+')';
+        return '<option value="'+r.id+'">'+_escH(lbl)+'</option>';
+      }).join('');
+    sel.value=huidig;
   }
-  mapDiv.style.display='';
-  if(geen)geen.style.display='none';
+  if(!_kaartMap){
+    _kaartMap=L.map('kaart-map').setView([50.879,4.700],10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19
+    }).addTo(_kaartMap);
+    _kaartLaag=L.layerGroup().addTo(_kaartMap);
+  }
+  setTimeout(()=>{ if(_kaartMap)_kaartMap.invalidateSize(); },60);
+  renderKaartMarkers();
+}
 
-  if(_kaartMap){_kaartMap.remove();_kaartMap=null;}
-  const center=[withCoords.reduce((s,l)=>s+l.lat,0)/withCoords.length,
-                withCoords.reduce((s,l)=>s+l.lng,0)/withCoords.length];
-  _kaartMap=L.map('kaart-map').setView(center,10);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom:19
-  }).addTo(_kaartMap);
+function renderKaartMarkers(){
+  if(!_kaartMap||!_kaartLaag)return;
+  _kaartLaag.clearLayers();
+  if(_kaartRoute){ _kaartMap.removeLayer(_kaartRoute); _kaartRoute=null; }
+  const metCoord=(S.locaties||[]).filter(l=>l.lat&&l.lng);
+  const zonder=(S.locaties||[]).filter(l=>!l.lat||!l.lng);
+  const ritId=document.getElementById('kaart-rit')?.value||'';
+  const zoek=(document.getElementById('kaart-zoek')?.value||'').toLowerCase().trim();
+  const type=document.getElementById('kaart-type')?.value||'';
+  const info=document.getElementById('kaart-info');
+  const zij=document.getElementById('kaart-zij');
 
-  withCoords.forEach(l=>{
-    const isStock=l.type==='stockage';
-    const icon=L.divIcon({
-      className:'',
-      html:'<div class="loc-kaart-pin'+(isStock?' stockage':'')+'">'+l.name+'</div>',
-      iconAnchor:[0,0]
+  if(ritId){
+    // Transport-modus: enkel de locaties van deze rit, in volgorde, met route
+    const rit=_kaartRitten.find(r=>String(r.id)===String(ritId));
+    const stops=[];
+    (rit?.taken||[]).forEach(t=>{
+      [['Ophalen',t.van_locatie_id],['Leveren',t.naar_locatie_id]].forEach(pair=>{
+        const rol=pair[0], lid=pair[1];
+        if(!lid)return;
+        const loc=metCoord.find(l=>l.id===lid);
+        const locAny=(S.locaties||[]).find(l=>l.id===lid);
+        stops.push({loc:loc||null, naam:locAny?locAny.name:'Onbekende locatie', rol});
+      });
     });
-    const popup='<b>'+(isStock?'📦':'⛺')+' '+l.name+'</b>'
-      +(l.addr?'<br><small>'+l.addr+'</small>':'')
-      +(l.contact_naam?'<br>'+l.contact_naam:'')
-      +(l.contact_tel?'<br><a href="tel:'+l.contact_tel+'">'+l.contact_tel+'</a>':'');
-    L.marker([l.lat,l.lng],{icon}).addTo(_kaartMap).bindPopup(popup);
-  });
+    const pts=[]; let n=0;
+    stops.forEach(s=>{
+      if(!s.loc)return;
+      n++;
+      const icon=L.divIcon({className:'',html:'<div class="loc-kaart-num">'+n+'</div>',iconSize:[26,26],iconAnchor:[13,13]});
+      L.marker([s.loc.lat,s.loc.lng],{icon}).addTo(_kaartLaag)
+        .bindPopup('<b>'+n+'. '+_escH(s.loc.name)+'</b><br><small>'+s.rol+(s.loc.addr?' · '+_escH(s.loc.addr):'')+'</small>');
+      pts.push([s.loc.lat,s.loc.lng]);
+    });
+    if(pts.length>1){ _kaartRoute=L.polyline(pts,{color:'#1D9E75',weight:3,opacity:.65,dashArray:'7 7'}).addTo(_kaartMap); }
+    if(pts.length){ _kaartMap.fitBounds(pts,{padding:[45,45],maxZoom:14}); }
+    if(info)info.innerHTML='Transport <b>'+_escH(_kaartDatum(rit?rit.datum:''))+'</b>'+(rit&&rit.chauffeur?' · '+_escH(rit.chauffeur):'')+' &mdash; '+stops.length+' stop'+(stops.length===1?'':'s');
+    if(zij){
+      let i=0;
+      zij.innerHTML='<div style="font-weight:600;font-size:12px;margin-bottom:6px">Stops in volgorde</div>'+
+        (stops.length? stops.map(s=>{
+          const num=s.loc?'<span class="loc-kaart-num sm">'+(++i)+'</span>':'<span class="loc-kaart-num sm" style="background:var(--text3)">!</span>';
+          const waarsch=!s.loc?' <span style="color:var(--red)">geen positie</span>':'';
+          return '<div class="row" style="margin-bottom:4px;font-size:12px;align-items:center">'+num+'<div class="ri"><div class="rm">'+_escH(s.naam)+'</div><div class="rs">'+s.rol+waarsch+'</div></div></div>';
+        }).join('') : '<div class="empty" style="font-size:12px">Dit transport heeft nog geen locaties.</div>');
+    }
+  } else {
+    // Alle-locaties-modus met filters (type + zoeknaam)
+    const getoond=metCoord.filter(l=>(!type||l.type===type)&&(!zoek||l.name.toLowerCase().includes(zoek)||(l.addr||'').toLowerCase().includes(zoek)));
+    const pts=[];
+    getoond.forEach(l=>{
+      const isStock=l.type==='stockage';
+      const icon=L.divIcon({className:'',html:'<div class="loc-kaart-pin'+(isStock?' stockage':'')+'">'+_escH(l.name)+'</div>',iconAnchor:[0,0]});
+      const popup='<b>'+(isStock?'📦':'⛺')+' '+_escH(l.name)+'</b>'
+        +(l.addr?'<br><small>'+_escH(l.addr)+'</small>':'')
+        +(l.contact_naam?'<br>'+_escH(l.contact_naam):'')
+        +(l.contact_tel?'<br><a href="tel:'+_attrH(l.contact_tel)+'">'+_escH(l.contact_tel)+'</a>':'');
+      L.marker([l.lat,l.lng],{icon}).addTo(_kaartLaag).bindPopup(popup);
+      pts.push([l.lat,l.lng]);
+    });
+    if(pts.length>1){ _kaartMap.fitBounds(pts,{padding:[35,35],maxZoom:14}); }
+    else if(pts.length===1){ _kaartMap.setView(pts[0],13); }
+    let infoTxt=getoond.length+' van '+metCoord.length+' locaties getoond';
+    if(zonder.length) infoTxt+=' · <span style="color:var(--amber-dk)">'+zonder.length+' zonder kaartpositie</span>';
+    if(info)info.innerHTML=infoTxt;
+    if(zij){
+      zij.innerHTML='<div style="font-weight:600;font-size:12px;margin-bottom:6px">Locaties ('+getoond.length+')</div>'+
+        (getoond.length? getoond.map(l=>'<div class="row" style="margin-bottom:4px;cursor:pointer;font-size:12px" onclick="_kaartZoom('+l.id+')"><span>'+(l.type==='stockage'?'📦':'⛺')+'</span><div class="ri"><div class="rm">'+_escH(l.name)+'</div><div class="rs">'+_escH(l.addr||'')+'</div></div></div>').join('') : '<div class="empty" style="font-size:12px">Geen locaties gevonden.</div>')
+        +(zonder.length? '<div style="margin-top:10px;font-weight:600;font-size:12px;color:var(--amber-dk)">Zonder positie ('+zonder.length+')</div>'+zonder.map(l=>'<div class="rs" style="font-size:11px;padding:2px 0">'+(l.type==='stockage'?'📦':'⛺')+' '+_escH(l.name)+'</div>').join(''):'');
+    }
+  }
+}
 
-  if(withCoords.length>1){
-    const bounds=L.latLngBounds(withCoords.map(l=>[l.lat,l.lng]));
-    _kaartMap.fitBounds(bounds,{padding:[30,30]});
+function _kaartZoom(id){
+  const l=(S.locaties||[]).find(x=>x.id===id);
+  if(l&&l.lat&&l.lng&&_kaartMap)_kaartMap.setView([l.lat,l.lng],15);
+}
+
+async function geocodeLocatiesBulk(){
+  const zonder=(S.locaties||[]).filter(l=>(!l.lat||!l.lng)&&l.addr&&l.addr.trim());
+  if(!zonder.length){ showToast('Alle locaties met een adres hebben al een kaartpositie.','info'); return; }
+  if(!confirm('Kaartpositie ophalen voor '+zonder.length+' locatie(s)? Dit kan ~'+Math.ceil(zonder.length*1.2)+' seconden duren.'))return;
+  showToast('📍 Coördinaten ophalen… even geduld','info');
+  const r=await api('POST','/locaties/geocode');
+  if(r&&!r.error){
+    const verse=await api('GET','/locaties'); if(Array.isArray(verse))S.locaties=verse;
+    showToast('Klaar: '+(r.gelukt||0)+' gevonden'+(r.mislukt?', '+r.mislukt+' niet gevonden':''), r.mislukt?'warn':'success');
+    renderKaart();
   }
 }
 
@@ -5322,7 +5489,7 @@ function renderChauffeursBeheer(){
 async function addChauf(){
   const name=document.getElementById('pl-chauf-name').value.trim();if(!name)return;
   const r=await api('POST','/chauffeurs',{name});
-  if(r.error){alert(r.error);return;}
+  if(r.error){showToast(r.error,'error');return;}
   S_chauffeurs.push(r);S_chauffeurs.sort((a,b)=>a.name.localeCompare(b.name));
   document.getElementById('pl-chauf-name').value='';
   renderChauffeursBeheer();
