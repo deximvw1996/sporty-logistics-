@@ -211,6 +211,7 @@ async function startServer() {
     CREATE TABLE IF NOT EXISTS verplaatsingen (id INTEGER PRIMARY KEY AUTOINCREMENT, eenheid_id INTEGER NOT NULL, van_locatie_id INTEGER, naar_locatie_id INTEGER NOT NULL, qty INTEGER DEFAULT 1, reden TEXT DEFAULT '', datum TEXT DEFAULT '');
     CREATE TABLE IF NOT EXISTS transport_taken (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT DEFAULT 'levering', datum TEXT DEFAULT '', tijd TEXT DEFAULT '09:00', van_locatie_id INTEGER, naar_locatie_id INTEGER, opmerking TEXT DEFAULT '', wie TEXT DEFAULT '', kampmoment_id INTEGER, status TEXT DEFAULT 'gepland', created_at TEXT DEFAULT '');
     CREATE TABLE IF NOT EXISTS locatie_materiaal (id INTEGER PRIMARY KEY AUTOINCREMENT, locatie_id INTEGER NOT NULL, name TEXT NOT NULL, qty INTEGER DEFAULT 1, cat TEXT DEFAULT 'andere', FOREIGN KEY(locatie_id) REFERENCES locaties(id) ON DELETE CASCADE);
+    CREATE TABLE IF NOT EXISTS kamp_basis_afwijking (id INTEGER PRIMARY KEY AUTOINCREMENT, locatie_id INTEGER NOT NULL, standaard_id INTEGER NOT NULL, verborgen INTEGER DEFAULT 0, qty INTEGER, UNIQUE(locatie_id, standaard_id), FOREIGN KEY(locatie_id) REFERENCES locaties(id) ON DELETE CASCADE, FOREIGN KEY(standaard_id) REFERENCES standaard_materiaal(id) ON DELETE CASCADE);
     CREATE TABLE IF NOT EXISTS chauffeurs (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE);
     CREATE TABLE IF NOT EXISTS ploeg_shifts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -453,8 +454,27 @@ async function startServer() {
   app.put('/api/standaard/:id',(req,res)=>{const{name,qty,cat,stockage_locatie_id}=req.body;run('UPDATE standaard_materiaal SET name=?,qty=?,cat=?,stockage_locatie_id=? WHERE id=?',[name,qty,cat,stockage_locatie_id||null,req.params.id]);res.json(get('SELECT * FROM standaard_materiaal WHERE id=?',[req.params.id]));});
   app.delete('/api/standaard/:id',(req,res)=>{run('DELETE FROM standaard_materiaal WHERE id=?',[req.params.id]);res.json({ok:true});});
 
-  // ── LOCATIE MATERIAAL (basismateriaal per locatie) ──
-  app.get('/api/locaties/:id/materiaal',(req,res)=>res.json(all('SELECT * FROM locatie_materiaal WHERE locatie_id=? ORDER BY cat,name',[req.params.id])));
+  // ── LOCATIE MATERIAAL: basis (standaard, geldt voor elk kamp) + per-kamp afwijkingen + extra's ──
+  // Effectieve lijst = basisitems (verborgen eruit, met evt. qty-override) + kamp-eigen extra's.
+  function effectiefMateriaal(locatie_id){
+    const basis = all('SELECT * FROM standaard_materiaal ORDER BY cat,name');
+    const afw = {}; all('SELECT * FROM kamp_basis_afwijking WHERE locatie_id=?',[locatie_id]).forEach(a=>afw[a.standaard_id]=a);
+    const out = basis.map(b=>{ const a=afw[b.id]; return {bron:'basis', standaard_id:b.id, name:b.name, cat:b.cat||'andere', qty:(a&&a.qty!=null)?a.qty:b.qty, qty_basis:b.qty, verborgen:(a&&a.verborgen)?1:0}; });
+    all('SELECT * FROM locatie_materiaal WHERE locatie_id=? ORDER BY cat,name',[locatie_id]).forEach(e=>out.push({bron:'extra', id:e.id, name:e.name, cat:e.cat||'andere', qty:e.qty, verborgen:0}));
+    return out;
+  }
+  // Volledige lijst incl. verborgen basisitems (gemarkeerd) zodat de editor alles toont; voor weergave filter je verborgen eruit.
+  app.get('/api/locaties/:id/materiaal',(req,res)=>res.json(effectiefMateriaal(req.params.id)));
+  // Per-kamp afwijking op een basisitem: verbergen en/of aantal overschrijven (qty=null => terug naar basis-aantal).
+  app.post('/api/locaties/:id/basis/:sid',(req,res)=>{
+    const {verborgen, qty} = req.body;
+    const cur = get('SELECT * FROM kamp_basis_afwijking WHERE locatie_id=? AND standaard_id=?',[req.params.id, req.params.sid]);
+    const v = (verborgen===undefined||verborgen===null) ? (cur?cur.verborgen:0) : (verborgen?1:0);
+    const q = (qty===undefined) ? (cur?cur.qty:null) : (qty===null?null:Math.max(1,parseInt(qty)||1));
+    if(cur){ run('UPDATE kamp_basis_afwijking SET verborgen=?, qty=? WHERE id=?',[v,q,cur.id]); }
+    else { ins('INSERT INTO kamp_basis_afwijking (locatie_id,standaard_id,verborgen,qty) VALUES (?,?,?,?)',[req.params.id,req.params.sid,v,q]); }
+    res.json({ok:true, verborgen:v, qty:q});
+  });
   app.post('/api/locaties/:id/materiaal',(req,res)=>{
     const{name,qty,cat}=req.body;
     const id=ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[req.params.id,name,qty||1,cat||'andere']);
@@ -506,7 +526,7 @@ async function startServer() {
     });
     const {maandag:ws, periode} = periodeWeekMaandag(km.week, km.periode_id);
     const eind = new Date(periode.eind_datum+'T23:59:59');
-    const locMat=all('SELECT * FROM locatie_materiaal WHERE locatie_id=?',[km.locatie_id]);
+    const locMat=effectiefMateriaal(km.locatie_id).filter(m=>!m.verborgen);
     const openDagen=[];
     const gelotenSet=new Set(all('SELECT datum FROM gesloten_dagen').map(g=>g.datum));
     for(let i=0;i<5;i++){

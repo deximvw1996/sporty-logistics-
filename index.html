@@ -484,6 +484,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;">
       <button class="kal-subtab active" onclick="setMatSubtab('catalogus',this)">&#128230; Materiaal</button>
       <button class="kal-subtab" onclick="setMatSubtab('themas',this)">&#127912; Thema&apos;s</button>
+      <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128203; Standaard</button>
     </div>
 
     <!-- Thema's -->
@@ -557,6 +558,12 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
 
     <!-- Catalogus: alle materialen in één overzicht -->
+    <!-- Standaard / Basis -->
+    <div id="mat-sub-standaard" style="display:none">
+      <div id="std-loc-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:.75rem"></div>
+      <div id="std-loc-content"></div>
+    </div>
+
     <div id="mat-sub-catalogus" style="display:none">
 
       <!-- Toevoegen -->
@@ -1686,13 +1693,14 @@ function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  ['themas','catalogus'].forEach(t=>{
+  ['themas','catalogus','standaard'].forEach(t=>{
     const el=document.getElementById('mat-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
   if(tab==='themas'){renderThemas();renderThemaCatBeheer();// refresh cat selects
 document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.innerHTML=renderThemaCatSelect(cur);});}
   else if(tab==='catalogus'){renderCatalogus();}
+  else if(tab==='standaard'){renderStandaard();}
 }
 
 // ── TAB RENDER FUNCTIONS ──
@@ -2337,7 +2345,7 @@ function buildOVDag(){
     else if(type==='kamp'){
       h+=`<div style="font-size:11px;color:var(--green-dk);margin-bottom:4px">&#9989; Open</div>`;
       ths.forEach(t=>{h+=`<span class="ov-kamp-chip" style="background:${t.color}22;color:${t.color};border:.5px solid ${t.color}55">${t.name}</span>`;});
-      const locMat=S.locMat[loc.id]||[];
+      const locMat=getLocMat(loc.id);
       if(locMat.length){h+=`<div style="font-size:10px;color:var(--text2);margin-top:8px;font-weight:600">Basismateriaal:</div>`;locMat.slice(0,4).forEach(m=>{h+=`<div style="font-size:10px;color:var(--text2)">\u00D7${m.qty} ${m.name}</div>`;});if(locMat.length>4)h+=`<div style="font-size:10px;color:var(--text3)">+${locMat.length-4} meer</div>`;}
     } else {
       h+=`<div style="font-size:11px;color:var(--text2)">Open — geen kamp gepland</div>`;
@@ -2701,7 +2709,7 @@ function openThemaPopup(themaId){
   openModal('modal-thema-detail');
 }
 
-function getLocMat(locId){const m=S.locMat[locId];return(m&&m.length)?m:S.standaard;}
+function getLocMat(locId){return(S.locMat[locId]||[]).filter(m=>!m.verborgen);}
 // Week helpers
 
 function fillChaufDatalist(){
@@ -3263,49 +3271,104 @@ async function deleteThMat(thId,mId){await api('DELETE','/themas/'+thId+'/materi
 let _stdLocId=null;
 let _editStdMat=null;
 
+async function _ensureCatalogusGeladen(){
+  if(!_invGedeeld||!_invGedeeld.length){try{_invGedeeld=await api('GET','/gedeeld');}catch(e){}}
+  if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
+  if(!_invVerbruik||!_invVerbruik.length){try{_invVerbruik=await api('GET','/verbruik');}catch(e){}}
+}
+function _catalogusNamen(){
+  let items=[]; try{ items=_buildCatItems(); }catch(e){ items=[]; }
+  const set=new Set(); items.forEach(i=>{ if(i&&i.naam) set.add(String(i.naam).trim()); });
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b,'nl'));
+}
+function _basisDatalist(){ return '<datalist id="basis-namen">'+_catalogusNamen().map(n=>`<option value="${_attrH(n)}">`).join('')+'</datalist>'; }
 async function renderStandaard(){
-  const kampLocs=S.locaties.filter(l=>l.type==='kamp');
   const tabsEl=document.getElementById('std-loc-tabs');
   const contentEl=document.getElementById('std-loc-content');
   if(!tabsEl||!contentEl)return;
-
-  if(!kampLocs.length){
-    tabsEl.innerHTML='';
-    contentEl.innerHTML='<div class="empty">Geen kamplocaties aangemaakt. Voeg eerst locaties toe in Planning.</div>';
-    return;
-  }
-
-  if(!_stdLocId||!kampLocs.find(l=>l.id===_stdLocId)) _stdLocId=kampLocs[0].id;
-
-  if(!S.locMat[_stdLocId]){
-    S.locMat[_stdLocId]=await api('GET','/locaties/'+_stdLocId+'/materiaal');
-  }
-
-  tabsEl.innerHTML=kampLocs.map(l=>
-    `<button class="kal-subtab${l.id===_stdLocId?' active':''}" onclick="_stdLocId=${l.id};_editStdMat=null;renderStandaard()">&#9978; ${l.name}</button>`
-  ).join('');
-
+  if(!S.standaard||!S.standaard.length){ try{ S.standaard=await api('GET','/standaard'); }catch(e){ S.standaard=S.standaard||[]; } }
+  await _ensureCatalogusGeladen();
+  const kampLocs=S.locaties.filter(l=>l.type==='kamp');
+  if(_stdLocId!=='basis' && !kampLocs.find(l=>l.id===_stdLocId)) _stdLocId='basis';
+  tabsEl.innerHTML=`<button class="kal-subtab${_stdLocId==='basis'?' active':''}" onclick="_stdLocId='basis';_editStdMat=null;renderStandaard()">&#128203; Basis (alle kampen)</button>`
+    + kampLocs.map(l=>`<button class="kal-subtab${l.id===_stdLocId?' active':''}" onclick="_stdLocId=${l.id};_editStdMat=null;renderStandaard()">&#9978; ${_escH(l.name)}</button>`).join('');
+  if(_stdLocId==='basis'){ contentEl.innerHTML=_renderBasisEditor(); return; }
   const loc=kampLocs.find(l=>l.id===_stdLocId);
   if(!loc){contentEl.innerHTML='';return;}
-  const mat=S.locMat[loc.id]||[];
+  if(!S.locMat[loc.id]){ S.locMat[loc.id]=await api('GET','/locaties/'+loc.id+'/materiaal'); }
+  contentEl.innerHTML=_renderKampMateriaal(loc);
+}
 
-  let h=`<div class="card"><div class="card-hd">&#9978; ${loc.name} <span style="font-weight:400;font-size:11px;color:var(--text2)">${mat.length} item${mat.length!==1?'s':''}</span></div>`;
-
-  if(mat.length){
-    mat.forEach(m=>{
-      if(_editStdMat===m.id){
-        h+=`<div class="row editing"><input class="inp gb" type="number" id="esm-q-${m.id}" value="${m.qty}" min="1" style="width:62px"><input class="inp gb" type="text" id="esm-n-${m.id}" value="${m.name.replace(/"/g,'&quot;')}" style="flex:1"><button class="bi save" onclick="saveStdMat(${loc.id},${m.id})">&#x2713;</button><button class="bi" onclick="_editStdMat=null;renderStandaard()">&#x2715;</button></div>`;
+function _renderBasisEditor(){
+  const items=S.standaard||[];
+  let h=`<div class="card"><div class="card-hd">&#128203; Basismateriaal &mdash; geldt voor &eacute;lk kamp <span style="font-weight:400;font-size:11px;color:var(--text2)">${items.length} item${items.length!==1?'s':''}</span></div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Wat je hier zet, krijgt elk kamp automatisch. Per kamp kun je daarna afwijken (weglaten of aantal aanpassen).</div>`;
+  if(items.length){
+    items.forEach(m=>{
+      if(_editStdMat==='b'+m.id){
+        h+=`<div class="row editing"><input class="inp gb" type="number" id="bm-q-${m.id}" value="${m.qty}" min="1" style="width:62px"><input class="inp gb" type="text" id="bm-n-${m.id}" value="${_attrH(m.name)}" style="flex:1"><button class="bi save" onclick="saveBasisItem(${m.id})">&#x2713;</button><button class="bi" onclick="_editStdMat=null;renderStandaard()">&#x2715;</button></div>`;
       } else {
-        h+=`<div class="row"><span class="mat-qty">&#215;${m.qty}</span><div class="ri"><div class="rm">${m.name}</div></div><div class="ra"><button class="bi" onclick="_editStdMat=${m.id};renderStandaard()">&#x270F;&#xFE0F;</button><button class="bi" style="color:var(--red)" onclick="deleteStdMat(${loc.id},${m.id})">&#128465;</button></div></div>`;
+        h+=`<div class="row"><span class="mat-qty">&#215;${m.qty}</span><div class="ri"><div class="rm">${_escH(m.name)}</div></div><div class="ra"><button class="bi" onclick="_editStdMat='b${m.id}';renderStandaard()">&#x270F;&#xFE0F;</button><button class="bi" style="color:var(--red)" onclick="deleteBasisItem(${m.id})">&#128465;</button></div></div>`;
       }
     });
-  } else {
-    h+='<div class="empty" style="margin-bottom:4px">Nog geen materiaal voor deze locatie.</div>';
-  }
+  } else { h+='<div class="empty" style="margin-bottom:4px">Nog geen basismateriaal.</div>'; }
+  h+=`<div class="divider"></div><div class="fr"><div class="fg grow"><label for="bm-new-n">Materiaal (uit je materiaallijst)</label><input class="inp" type="text" id="bm-new-n" list="basis-namen" placeholder="Kies uit de lijst of typ&#8230;" onkeydown="if(event.key==='Enter')addBasisItem()">${_basisDatalist()}</div><div class="fg sm"><label for="bm-new-q">Aantal</label><input class="inp" type="number" id="bm-new-q" value="1" min="1"></div><button class="btn-g" onclick="addBasisItem()" style="align-self:flex-end">&#43; Toevoegen</button></div></div>`;
+  return h;
+}
 
-  h+=`<div class="divider"></div><div class="fr"><div class="fg grow"><label for="stdm-n">Naam</label><input class="inp" type="text" id="stdm-n" placeholder="bv. EHBO kist, muziekbox&#8230;" onkeydown="if(event.key==='Enter')addStdMat(${loc.id})"></div><div class="fg sm"><label for="stdm-q">Aantal</label><input class="inp" type="number" id="stdm-q" value="1" min="1"></div><button class="btn-g" onclick="addStdMat(${loc.id})" style="align-self:flex-end">&#43; Toevoegen</button></div></div>`;
+function _renderKampMateriaal(loc){
+  const mat=S.locMat[loc.id]||[];
+  const basis=mat.filter(m=>m.bron==='basis');
+  const extra=mat.filter(m=>m.bron==='extra');
+  const actief=basis.filter(m=>!m.verborgen).length+extra.length;
+  let h=`<div class="card"><div class="card-hd">&#9978; ${_escH(loc.name)} <span style="font-weight:400;font-size:11px;color:var(--text2)">${actief} item${actief!==1?'s':''} actief</span></div>`;
+  h+=`<div class="sl" style="margin:2px 0 6px">&#128203; Basis <span style="font-weight:400;color:var(--text3)">&mdash; geldt voor elk kamp; pas hier af voor dit kamp</span></div>`;
+  if(basis.length){
+    basis.forEach(m=>{
+      const sid=m.standaard_id; const over=m.qty!==m.qty_basis;
+      if(m.verborgen){
+        h+=`<div class="row" style="opacity:.55"><span class="mat-qty" style="text-decoration:line-through">&#215;${m.qty}</span><div class="ri"><div class="rm" style="text-decoration:line-through">${_escH(m.name)}</div></div><div class="ra"><span style="font-size:10px;color:var(--text3)">weggelaten</span><button class="bi" title="Terug opnemen" onclick="toggleBasisVerborgen(${loc.id},${sid},false)">&#8617;</button></div></div>`;
+      } else {
+        h+=`<div class="row"><input class="inp gb" type="number" value="${m.qty}" min="1" style="width:54px" title="Aantal voor dit kamp" onchange="saveBasisQty(${loc.id},${sid},this.value)"><div class="ri"><div class="rm">${_escH(m.name)}${over?` <span style="font-size:9px;color:#BA7517">basis: ${m.qty_basis}</span>`:''}</div></div><div class="ra">${over?`<button class="bi" title="Terug naar basis-aantal" onclick="saveBasisQty(${loc.id},${sid},null)">&#8635;</button>`:''}<button class="bi" style="color:var(--red)" title="Weglaten bij dit kamp" onclick="toggleBasisVerborgen(${loc.id},${sid},true)">&#10005;</button></div></div>`;
+      }
+    });
+  } else { h+='<div class="empty" style="margin:0 0 6px">Nog geen basismateriaal &mdash; voeg toe in de "Basis"-tab.</div>'; }
+  h+=`<div class="divider"></div><div class="sl" style="margin:2px 0 6px">&#43; Extra voor dit kamp</div>`;
+  if(extra.length){
+    extra.forEach(m=>{
+      if(_editStdMat===m.id){
+        h+=`<div class="row editing"><input class="inp gb" type="number" id="esm-q-${m.id}" value="${m.qty}" min="1" style="width:62px"><input class="inp gb" type="text" id="esm-n-${m.id}" value="${_attrH(m.name)}" style="flex:1"><button class="bi save" onclick="saveStdMat(${loc.id},${m.id})">&#x2713;</button><button class="bi" onclick="_editStdMat=null;renderStandaard()">&#x2715;</button></div>`;
+      } else {
+        h+=`<div class="row"><span class="mat-qty">&#215;${m.qty}</span><div class="ri"><div class="rm">${_escH(m.name)}</div></div><div class="ra"><button class="bi" onclick="_editStdMat=${m.id};renderStandaard()">&#x270F;&#xFE0F;</button><button class="bi" style="color:var(--red)" onclick="deleteStdMat(${loc.id},${m.id})">&#128465;</button></div></div>`;
+      }
+    });
+  } else { h+='<div class="empty" style="margin:0 0 4px">Geen extra materiaal voor dit kamp.</div>'; }
+  h+=`<div class="fr"><div class="fg grow"><label for="stdm-n">Extra (uit je materiaallijst)</label><input class="inp" type="text" id="stdm-n" list="basis-namen" placeholder="Kies uit de lijst of typ&#8230;" onkeydown="if(event.key==='Enter')addStdMat(${loc.id})">${_basisDatalist()}</div><div class="fg sm"><label for="stdm-q">Aantal</label><input class="inp" type="number" id="stdm-q" value="1" min="1"></div><button class="btn-g" onclick="addStdMat(${loc.id})" style="align-self:flex-end">&#43; Extra</button></div></div>`;
+  return h;
+}
 
-  contentEl.innerHTML=h;
+async function addBasisItem(){
+  const naam=(document.getElementById('bm-new-n')?.value||'').trim(); if(!naam){showToast('Naam is verplicht','warn');return;}
+  const qty=Math.max(1,parseInt(document.getElementById('bm-new-q')?.value)||1);
+  const r=await api('POST','/standaard',{name:naam,qty,cat:'andere'}); if(r.error)return;
+  S.standaard=await api('GET','/standaard'); S.locMat={}; renderStandaard(); showToast(naam+' toegevoegd aan de basis','success');
+}
+async function saveBasisItem(id){
+  const naam=(document.getElementById('bm-n-'+id)?.value||'').trim(); if(!naam){showToast('Naam is verplicht','warn');return;}
+  const qty=Math.max(1,parseInt(document.getElementById('bm-q-'+id)?.value)||1);
+  const r=await api('PUT','/standaard/'+id,{name:naam,qty,cat:'andere'}); if(r.error)return;
+  S.standaard=await api('GET','/standaard'); S.locMat={}; _editStdMat=null; renderStandaard(); showToast('Basis bijgewerkt','success');
+}
+async function deleteBasisItem(id){
+  if(!confirm('Dit basisitem bij ELK kamp verwijderen?'))return;
+  await api('DELETE','/standaard/'+id); S.standaard=await api('GET','/standaard'); S.locMat={}; renderStandaard();
+}
+async function toggleBasisVerborgen(locId,sid,verborgen){
+  await api('POST','/locaties/'+locId+'/basis/'+sid,{verborgen}); S.locMat[locId]=await api('GET','/locaties/'+locId+'/materiaal'); renderStandaard();
+}
+async function saveBasisQty(locId,sid,qty){
+  const q=(qty===null||qty===''||qty===undefined)?null:Math.max(1,parseInt(qty)||1);
+  await api('POST','/locaties/'+locId+'/basis/'+sid,{qty:q}); S.locMat[locId]=await api('GET','/locaties/'+locId+'/materiaal'); renderStandaard();
 }
 
 async function addStdMat(locId){
@@ -3314,10 +3377,7 @@ async function addStdMat(locId){
   const qty=Math.max(1,parseInt(document.getElementById('stdm-q')?.value)||1);
   const r=await api('POST','/locaties/'+locId+'/materiaal',{name:naam,qty,cat:'andere'});
   if(r.error)return;
-  S.locMat[locId]=S.locMat[locId]||[];
-  S.locMat[locId].push(r);
-  document.getElementById('stdm-n').value='';
-  document.getElementById('stdm-q').value='1';
+  S.locMat[locId]=await api('GET','/locaties/'+locId+'/materiaal');
   renderStandaard();
   showToast(naam+' toegevoegd','success');
 }
@@ -3328,7 +3388,7 @@ async function saveStdMat(locId,id){
   const qty=Math.max(1,parseInt(document.getElementById('esm-q-'+id)?.value)||1);
   const r=await api('PUT','/locatie-materiaal/'+id,{name:naam,qty,cat:'andere'});
   if(r.error)return;
-  S.locMat[locId]=(S.locMat[locId]||[]).map(m=>m.id===id?r:m);
+  S.locMat[locId]=await api('GET','/locaties/'+locId+'/materiaal');
   _editStdMat=null;
   renderStandaard();
   showToast('Opgeslagen','success');
@@ -3336,7 +3396,7 @@ async function saveStdMat(locId,id){
 
 async function deleteStdMat(locId,id){
   await api('DELETE','/locatie-materiaal/'+id);
-  S.locMat[locId]=(S.locMat[locId]||[]).filter(m=>m.id!==id);
+  S.locMat[locId]=await api('GET','/locaties/'+locId+'/materiaal');
   renderStandaard();
 }
 
@@ -3428,7 +3488,7 @@ function renderLocMatSection(){
   if(!kampLocs.length){el.innerHTML='<div class="empty">Geen kamplocaties.</div>';return;}
   el.innerHTML='';
   kampLocs.forEach(l=>{
-    const mat=S.locMat[l.id]||[];
+    const mat=getLocMat(l.id);
     const card=document.createElement('div');card.className='exp-card';
     const hd=document.createElement('div');hd.className='exp-hd';hd.onclick=()=>toggleLocMatBody(l.id);
     hd.innerHTML='<span>&#9978;</span>'
@@ -3926,7 +3986,7 @@ function _buildCatItems(){
   });
   // Locatiemateriaal per kamplocatie (als "standaard" type in catalogus)
   (S.locaties||[]).filter(l=>l.type==='kamp').forEach(loc=>{
-    (S.locMat[loc.id]||[]).forEach(m=>{
+    getLocMat(loc.id).forEach(m=>{
       items.push({type:'standaard',raw_id:m.id,naam:m.name,sub:loc.name,thema:null,thema_id:null,thema_color:null,qty:m.qty,sets:null,stockage_locatie_id:null,loc_id:loc.id});
     });
   });
