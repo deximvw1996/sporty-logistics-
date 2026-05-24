@@ -129,7 +129,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:va
 .lo-body{border-top:.5px solid var(--border);padding:.875rem 1rem}
 .item-line{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:var(--r);margin-bottom:4px;border:.5px solid var(--border)}
 .item-line:hover{background:var(--bg2)}
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;align-items:center;justify-content:center}
 .modal-bg.open{display:flex}
 .modal{background:var(--bg);border-radius:var(--rl);padding:1.25rem;width:520px;max-width:95vw;max-height:88vh;overflow-y:auto;border:.5px solid var(--border)}
 .modal-title{font-size:15px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
@@ -531,6 +531,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
     <!-- Thema's -->
     <div id="mat-sub-themas">
+      <div id="thema-bulk" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bg2);padding:8px 12px;border-radius:var(--r);margin-bottom:.6rem"></div>
       <div id="thema-pager"></div>
       <div id="thema-list"></div>
       <div class="card" style="margin-bottom:.875rem">
@@ -3241,7 +3242,7 @@ function renderThemas(){
   if(!S.themas.length){el.innerHTML='<div class="empty">Nog geen themas aangemaakt.</div>';return;}
   const _thHead=document.createElement('div');
   _thHead.className='th-head';
-  _thHead.innerHTML=`<span style="width:9px;flex-shrink:0"></span><span style="flex:1;min-width:0">Thema</span><span style="width:64px;flex-shrink:0;text-align:center">Leeftijd</span><span style="width:48px;flex-shrink:0;text-align:right">Items</span><span style="width:62px;flex-shrink:0"></span>`;
+  _thHead.innerHTML=`<input type="checkbox" id="th-sel-all" onchange="themaSelAllPage(this)" title="Selecteer alles op deze pagina" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;margin:0"><span style="flex:1;min-width:0">Thema</span><span style="width:64px;flex-shrink:0;text-align:center">Leeftijd</span><span style="width:48px;flex-shrink:0;text-align:right">Items</span><span style="width:62px;flex-shrink:0"></span>`;
   el.appendChild(_thHead);
 
   // Group by categorie
@@ -3265,6 +3266,8 @@ function renderThemas(){
   if(_themaPage>_totPg)_themaPage=_totPg; if(_themaPage<1)_themaPage=1;
   const _startIdx=(_themaPage-1)*_per;
   const _pageItems=_ordered.slice(_startIdx,_startIdx+_per);
+  _themaPageIds=_pageItems.map(o=>o.t.id);
+  const _validIds=new Set(S.themas.map(t=>t.id)); [..._themaSel].forEach(id=>{if(!_validIds.has(id))_themaSel.delete(id);});
   const _thPager=document.getElementById('thema-pager');
   if(_thPager)_thPager.innerHTML=_pagerBar('thema',_themaPage,_per,_tot);
 
@@ -3279,7 +3282,7 @@ function renderThemas(){
       }
       _lastCat=cat;
     }
-      const card=document.createElement('div');card.className='exp-card';
+      const card=document.createElement('div');card.className='exp-card';if(_themaSel.has(t.id))card.style.outline='2px solid var(--green)';
       const mat=t.materiaal||[];
       const koppel=(_invGedeeld||[]).map(g=>{const u=(g.gebruik||[]).find(x=>x.thema_id===t.id);return u?{g,qty:u.qty}:null;}).filter(Boolean);
       const hd=document.createElement('div');hd.className='exp-hd';
@@ -3294,7 +3297,8 @@ function renderThemas(){
           <button class="bi save" onclick="event.stopPropagation();saveThema(${t.id})">✓</button>
           <button class="bi" onclick="event.stopPropagation();editingThema=null;renderThemas()">✕</button>`;
       } else {
-        hd.innerHTML=`<span class="thema-swatch" style="background:${t.color}"></span>
+        hd.innerHTML=`<input type="checkbox" class="th-sel-cb" ${_themaSel.has(t.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleThemaSel(${t.id},this)" title="Selecteer" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
+          <span class="thema-swatch" style="background:${t.color}"></span>
           <span class="th-naam">${t.name}</span>
           <span class="th-leeftijd">${leeftijdBadge(t.leeftijdsgroep)}</span>
           <span class="th-items" title="materiaalitems">${mat.length+koppel.length}</span>
@@ -3363,6 +3367,8 @@ function renderThemas(){
       card.appendChild(hd);card.appendChild(body);
       el.appendChild(card);
   });
+  const _sa=document.getElementById('th-sel-all'); if(_sa)_sa.checked=_themaPageIds.length>0&&_themaPageIds.every(id=>_themaSel.has(id));
+  _renderThemaBulkBar();
 }
 async function addThema(){
   const name=document.getElementById('th-name').value.trim();
@@ -3972,6 +3978,7 @@ let _catSel=new Set();
 let _catLastFiltered=[];
 let _catPage=1, _catPerPage=50;
 let _themaPage=1, _themaPerPage=50;
+let _themaSel=new Set(), _themaPageIds=[];
 // Herbruikbare pagineringsbalk. prefix='cat' of 'thema' (verwacht <prefix>GoPage / <prefix>SetPerPage).
 function _pagerBar(prefix,page,perPage,total){
   if(!total) return '';
@@ -3995,6 +4002,64 @@ function catSetPerPage(n){_catPerPage=parseInt(n)||50;_catPage=1;renderCatalogus
 function catFilterChange(){_catPage=1;renderCatalogusLijst();}
 function themaGoPage(p){_themaPage=Math.max(1,p|0);renderThemas();}
 function themaSetPerPage(n){_themaPerPage=parseInt(n)||50;_themaPage=1;renderThemas();}
+// ── Thema's: meerdere tegelijk selecteren & aanpassen ──
+function toggleThemaSel(id,cb){
+  if(cb.checked)_themaSel.add(id); else _themaSel.delete(id);
+  const card=cb.closest('.exp-card'); if(card)card.style.outline=cb.checked?'2px solid var(--green)':'';
+  const sa=document.getElementById('th-sel-all'); if(sa)sa.checked=_themaPageIds.length>0&&_themaPageIds.every(x=>_themaSel.has(x));
+  _renderThemaBulkBar();
+}
+function themaSelAllPage(cb){
+  if(cb.checked)_themaPageIds.forEach(id=>_themaSel.add(id)); else _themaPageIds.forEach(id=>_themaSel.delete(id));
+  renderThemas();
+}
+function clearThemaSel(){ _themaSel.clear(); renderThemas(); }
+function _renderThemaBulkBar(){
+  const bar=document.getElementById('thema-bulk'); if(!bar)return;
+  const n=_themaSel.size;
+  if(!n){ bar.style.display='none'; bar.innerHTML=''; return; }
+  bar.style.display='flex';
+  bar.innerHTML=`<span style="font-size:12px;color:var(--text2)"><b>${n}</b> geselecteerd</span>
+    <div style="flex:1;min-width:8px"></div>
+    <select class="sel" id="thbulk-cat" style="height:30px;font-size:12px"><option value="__">🏷️ Categorie zetten…</option>${renderThemaCatSelect('')}</select>
+    <button class="btn-o" onclick="themaBulkCat()">Toepassen</button>
+    <select class="sel" id="thbulk-lg" style="height:30px;font-size:12px"><option value="__">👶 Leeftijd zetten…</option>${renderLeeftijdSelect('')}</select>
+    <button class="btn-o" onclick="themaBulkLeeftijd()">Toepassen</button>
+    <button class="btn-del-sm" onclick="themaBulkDelete()">🗑 Verwijder (${n})</button>
+    <button class="btn-o" onclick="clearThemaSel()">Wissen</button>`;
+}
+async function _themaBulkApply(field,val,lbl){
+  const ids=[..._themaSel];
+  if(!ids.length)return;
+  let ok=0;
+  for(const id of ids){ const r=await api('PUT','/themas/'+id,{[field]:val}); if(r&&!r.error)ok++; }
+  S.themas=await api('GET','/themas'); S.themas=S.themas.map(t=>({...t,materiaal:t.materiaal||[]}));
+  _themaSel.clear();
+  renderThemas(); if(typeof renderThemaCatBeheer==='function')renderThemaCatBeheer();
+  showToast(ok+" thema's: "+lbl,'success');
+}
+function themaBulkCat(){
+  const v=document.getElementById('thbulk-cat').value;
+  if(v==='__'){showToast('Kies eerst een categorie','warn');return;}
+  _themaBulkApply('categorie',v, v?('categorie → '+v):'categorie gewist');
+}
+function themaBulkLeeftijd(){
+  const v=document.getElementById('thbulk-lg').value;
+  if(v==='__'){showToast('Kies eerst een leeftijdsgroep','warn');return;}
+  _themaBulkApply('leeftijdsgroep',v, v?('leeftijd → '+v):'leeftijd gewist');
+}
+async function themaBulkDelete(){
+  const ids=[..._themaSel];
+  if(!ids.length)return;
+  if(!confirm(ids.length+" thema's verwijderen? Dit kan niet ongedaan worden gemaakt."))return;
+  let ok=0;
+  for(const id of ids){ const r=await api('DELETE','/themas/'+id); if(r&&!r.error)ok++; }
+  S.themas=await api('GET','/themas'); S.themas=S.themas.map(t=>({...t,materiaal:t.materiaal||[]}));
+  S.kampmomenten=await api('GET','/kampmomenten');
+  _themaSel.clear();
+  renderThemas(); if(typeof renderThemaCatBeheer==='function')renderThemaCatBeheer();
+  showToast(ok+" thema's verwijderd",'success');
+}
 const _catCatsByType={
   sport:[['sport','⚽ Sport'],['zwembad','🏊 Zwembad'],['outdoor','🏕️ Outdoor'],['andere','📦 Andere']],
   gedeeld:[['opblaas','🎈 Opblaas'],['keuken','🍳 Keuken'],['gedeeld','📦 Andere']],
