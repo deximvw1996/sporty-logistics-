@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#2563eb">
+<link rel="manifest" href="/manifest.json">
 <title>Sporty vzw &mdash; Logistiek</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -403,6 +405,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
     <button class="nb" onclick="goTo('planning')">&#128205; Locaties</button>
     <button class="nb" onclick="goTo('kaart')">&#128506;&#65039; Kaart</button>
+    <button class="nb" onclick="goTo('seizoensoverzicht')">&#128197; Seizoen</button>
   </div>
 
   <div class="content">
@@ -830,6 +833,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="btn-o" onclick="clearPlannerFilters()">&#x2715; Wis</button>
     </div>
 
+    <div id="pl-conflicten-strip"></div>
     <div id="pl-backlog-strip"></div>
 
     <div id="pl-kalender-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:1.25rem"></div>
@@ -905,6 +909,17 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="btn-del-sm" onclick="deleteSelectedTransporten()">&#128465; Verwijder geselecteerde</button>
     </div>
     <div id="tp-ov-list"></div>
+
+    <!-- Voertuigbezetting per week -->
+    <details style="margin-top:1.25rem">
+      <summary style="font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;padding:4px 0">🚐 Voertuigbezetting per week</summary>
+      <div id="vb-container" style="margin-top:.75rem"></div>
+    </details>
+
+    <!-- Seizoensoverzicht link -->
+    <div style="margin-top:1rem;padding:.75rem;background:var(--bg2);border-radius:var(--r);font-size:12px">
+      <a href="#" onclick="goTo('seizoensoverzicht');return false" style="color:var(--blue);text-decoration:none;font-weight:600">📅 Bekijk het volledige seizoensoverzicht →</a>
+    </div>
 
     <!-- Spoed toevoegen modal trigger hidden form -->
     <div id="spoed-form-inline" style="display:none" class="card" style="border-color:#F09595">
@@ -1113,8 +1128,9 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <select class="sel" id="rit-nood-add" style="flex:1;height:32px;font-size:12px"></select>
       <button class="btn-xs" onclick="addNoodAanRit()">+ Uit backlog</button>
     </div>
-    <div style="display:flex;gap:8px;margin-top:1rem">
+    <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap">
       <button class="btn-g" style="flex:1" onclick="saveRit()">&#128190; Opslaan</button>
+      <button class="btn-b" onclick="kopieerRitLink()" id="btn-rit-link" style="display:none">&#128279; Chauffeur-link</button>
       <button class="btn-o" onclick="annuleerRit()">Sluiten</button>
       <button class="btn-del-sm" onclick="deleteRit()">&#128465; Rit verwijderen</button>
     </div>
@@ -1795,7 +1811,7 @@ function setSimDate(v){
 }
 
 // ── 4-TAB ROUTING ──
-const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart'];
+const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart','seizoensoverzicht'];
 
 
 function goTo(id){
@@ -1809,7 +1825,8 @@ function goTo(id){
       id==='transport-plan'||id==='transporten'||id==='transport-noden',
       id==='materiaal',
       id==='planning',
-      id==='kaart'
+      id==='kaart',
+      id==='seizoensoverzicht'
     ][i]||false;
     b.classList.toggle('active',active);
   });
@@ -1821,6 +1838,7 @@ function goTo(id){
     'transport-plan':renderTransportPlan,
     transporten:renderTransportenOV,
     kaart:renderKaart,
+    seizoensoverzicht:renderSeizoensoverzicht,
   };
   try {
     const p = renderMap[id]?.();
@@ -2138,6 +2156,7 @@ async function renderTransportenOV(){
   });
   updatePlannerMetrics();
   updateTpBulkBar();
+  renderVoertuigBezetting();
 }
 
 function setTpFilter(f,btn){
@@ -3128,9 +3147,19 @@ async function slaaNakijkOp(){
   const stock_updates=itemIds.map(id=>({item_id:id,qty_stock:parseFloat(document.getElementById('nak-stock-'+id)?.value)||0}));
   const r=await api('POST','/bakken/'+bakId+'/nakijk',{wie,notitie,resultaat:'ok',stock_updates});
   if(r&&r.error){showToast(r.error,'error');return;}
+  // Foto uploaden indien geselecteerd
+  const fotoInput=document.getElementById('nak-foto-input');
+  if(fotoInput&&fotoInput.files&&fotoInput.files[0]){
+    try{
+      const file=fotoInput.files[0];
+      const b64=await new Promise(res=>{const rd=new FileReader();rd.onload=e=>res(e.target.result);rd.readAsDataURL(file);});
+      const desc=document.getElementById('nak-foto-desc')?.value||'';
+      await api('POST','/bakken/'+bakId+'/foto',{wie,beschrijving:desc,foto_data:b64});
+      showToast('Foto opgeslagen','success');
+    }catch(e){showToast('Foto opslaan mislukt','warn');}
+  }
   showToast('Nakijk opgeslagen','success');
   closeModal('modal-bak-nakijk');
-  // Refresh thema bakken if popup is open
   const thd=document.getElementById('thd-bakken-lijst');
   if(thd&&_bakBeheerThema)laadThemaBakken(_bakBeheerThema);
 }
@@ -5577,6 +5606,7 @@ async function _herlaadPlanner(){
   renderPlannerKalender();
   updatePlannerMetrics();
   renderBacklogStrip();
+  controleerConflicten();
   if(document.getElementById('sec-transporten')?.classList.contains('active'))renderTransportenOV();
   if(document.getElementById('sec-transport-noden')?.classList.contains('active'))renderNodenLijst();
 }
@@ -6015,6 +6045,9 @@ function openRitModal(id){
   document.getElementById('rit-status').value=rit.status||'gepland';
   document.getElementById('rit-opmerking').value=rit.opmerking||'';
   renderRitLeden();
+  // Toon chauffeur-link knop bij bestaande rit
+  const btnLink=document.getElementById('btn-rit-link');
+  if(btnLink) btnLink.style.display='inline-flex';
   openModal('modal-rit');
 }
 function renderRitLeden(){
@@ -7326,6 +7359,11 @@ function toggleDarkMode(){
     </div>
     <div style="padding:8px 14px 2px;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em">Verbruiksartikelen</div>
     <div id="nak-items" style="flex:1;overflow-y:auto;padding:0 10px 8px"></div>
+    <div style="padding:8px 14px 4px;border-top:.5px solid var(--border2)">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">📷 Foto toevoegen (optioneel)</div>
+      <input type="file" id="nak-foto-input" accept="image/*" capture="environment" style="font-size:13px;width:100%;margin-bottom:6px">
+      <input class="inp" id="nak-foto-desc" placeholder="Beschrijving foto…" style="width:100%;height:36px;font-size:13px">
+    </div>
     <div style="display:flex;gap:8px;padding:10px 14px;border-top:.5px solid var(--border);background:var(--bg)">
       <button class="btn-o" style="height:48px;font-size:15px;padding:0 18px" onclick="closeModal('modal-bak-nakijk')">Annuleer</button>
       <button class="btn-g" style="flex:1;height:48px;font-size:15px;font-weight:600" onclick="slaaNakijkOp()">✅ Nakijk opslaan</button>
@@ -7558,6 +7596,129 @@ function toggleDarkMode(){
   </div>
 </div>
 
+<!-- SEIZOENSOVERZICHT -->
+<div class="sec" id="sec-seizoensoverzicht">
+  <div style="display:flex;gap:5px;margin-bottom:1rem;flex-wrap:wrap">
+    <button class="kal-subtab active" onclick="goTo('seizoensoverzicht')">📅 Seizoensoverzicht</button>
+    <button class="kal-subtab" onclick="goTo('planning')">🗓️ Planning</button>
+  </div>
+  <h3 style="margin:0 0 .75rem;font-size:15px;font-weight:700">📅 Seizoensoverzicht — alle locaties per week</h3>
+  <div id="szo-grid" style="overflow-x:auto;font-size:12px"></div>
+</div>
 
+<script>
+// ── CHAUFFEUR-LINK ──
+async function kopieerRitLink(){
+  if(!editingRitId){showToast('Sla de rit eerst op','warn');return;}
+  const r=await api('POST','/ritten/'+editingRitId+'/token');
+  if(!r||r.error){showToast('Fout bij genereren link','error');return;}
+  const url=window.location.origin+r.url;
+  try{await navigator.clipboard.writeText(url);}catch(e){}
+  showToast('Link gekopieerd! Opent ook in nieuw tabblad.','success');
+  window.open(url,'_blank');
+}
+
+// ── CONFLICTENDETECTOR ──
+async function controleerConflicten(){
+  const el=document.getElementById('pl-conflicten-strip');
+  if(!el)return;
+  try{
+    const cs=await api('GET','/conflicten');
+    if(!Array.isArray(cs)||!cs.length){el.innerHTML='';return;}
+    const high=cs.filter(c=>c.ernst==='hoog');
+    const rest=cs.filter(c=>c.ernst!=='hoog');
+    el.innerHTML='<div style="padding:10px 12px;background:var(--red-bg,#fff1f1);border:.5px solid #F09595;border-radius:var(--rl);margin-bottom:.75rem">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--red,#c0392b);margin-bottom:6px">⚠️ Planningsconflicten ('+cs.length+')</div>'
+      +cs.map(c=>{
+        const kleur=c.ernst==='hoog'?'var(--red,#c0392b)':c.ernst==='midden'?'#b45309':'var(--text2)';
+        const ico=c.ernst==='hoog'?'🔴':c.ernst==='midden'?'🟠':'🟡';
+        return '<div style="font-size:11px;color:'+kleur+';margin-bottom:3px">'+ico+' '+_escH(c.bericht)+'</div>';
+      }).join('')
+      +'</div>';
+  }catch(e){/* stil falen */}
+}
+
+// ── RETOUR STATUS ──
+async function setRetourStatus(ktId,themaId){
+  const opties=['','nakijken','beschikbaar','weg'];
+  const labels=['— Geen status —','⚠️ Nakijken nodig','✅ Beschikbaar voor hergebruik','❌ Weg/verloren'];
+  const huidig=opties.indexOf(arguments[2]||'');
+  const keuze=prompt('Retour-status voor dit thema:\n\n'+labels.map((l,i)=>(i===huidig?'► ':'')+i+'. '+l).join('\n')+'\n\nVoer nummer in (0-3):');
+  if(keuze===null)return;
+  const idx=parseInt(keuze);
+  if(isNaN(idx)||idx<0||idx>3)return;
+  await api('PUT','/kampmoment-themas/'+ktId+'/retour',{retour_status:opties[idx]});
+  showToast('Retour-status bijgewerkt','success');
+  // Herlaad S.kampmomenten voor visuele update
+  S.kampmomenten=await api('GET','/kampmomenten');
+}
+
+// ── SEIZOENSOVERZICHT ──
+async function renderSeizoensoverzicht(){
+  const el=document.getElementById('szo-grid');
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--text3);font-size:12px">Laden…</div>';
+  const data=await api('GET','/seizoensoverzicht');
+  if(!data||data.error){el.innerHTML='<p style="color:var(--text3)">Kon gegevens niet laden.</p>';return;}
+  const {maxWeek,grid}=data;
+  if(!grid||!grid.length){el.innerHTML='<p style="color:var(--text3)">Geen kampmomenten gevonden. Plan eerst locaties in.</p>';return;}
+  const wkHdrs=Array.from({length:maxWeek},(_,i)=>
+    `<th style="min-width:72px;padding:5px 3px;font-size:10px;font-weight:700;color:var(--text2);text-align:center;border-bottom:.5px solid var(--border)">Wk ${i+1}</th>`
+  ).join('');
+  const rows=grid.map(({loc,weken})=>{
+    const cells=weken.map(w=>{
+      if(!w)return '<td style="background:var(--bg2);border:.5px solid var(--border)"></td>';
+      const ths=w.themas||[];
+      const bg=ths.length>0?(ths[0].color||'#2563eb')+'22':'#dcfce722';
+      const thNm=ths.map(t=>`<div style="font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${_escH(t.thema_nm||'')}</div>`).join('');
+      return `<td style="background:${bg};border:.5px solid var(--border);padding:4px 3px;cursor:pointer;vertical-align:top"
+        onclick="goTo('planning');plannerWk=${w.week};renderPlannerKalender()">
+        <div style="font-size:9px;font-weight:700;color:#16a34a">●</div>${thNm}</td>`;
+    }).join('');
+    return `<tr>
+      <td style="padding:5px 10px;font-size:11px;font-weight:600;white-space:nowrap;border-bottom:.5px solid var(--border);border-right:.5px solid var(--border);position:sticky;left:0;background:var(--bg);z-index:1">${_escH(loc)}</td>
+      ${cells}</tr>`;
+  }).join('');
+  el.innerHTML=`<div style="font-size:11px;color:var(--text3);margin-bottom:.5rem">Klik op een cel om naar de weekplanning te springen.</div>
+    <table style="border-collapse:collapse;min-width:100%;font-size:12px">
+      <thead><tr>
+        <th style="padding:5px 10px;text-align:left;position:sticky;left:0;background:var(--bg);z-index:2;border-bottom:.5px solid var(--border);border-right:.5px solid var(--border)">Locatie</th>
+        ${wkHdrs}
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ── VOERTUIGBEZETTING ──
+async function renderVoertuigBezetting(){
+  const el=document.getElementById('vb-container');
+  if(!el)return;
+  const data=await api('GET','/voertuig-bezetting');
+  if(!Array.isArray(data)||!data.length){el.innerHTML='<div style="color:var(--text3);font-size:12px">Geen ritten gepland.</div>';return;}
+  el.innerHTML=data.map(wk=>{
+    const bars=(wk.ritten||[]).map(r=>{
+      const vt=_voertuigTypes.find(v=>v.naam===r.voertuig);
+      const cap=vt?vt.capaciteit_bakken:0;
+      const stops=r.tak_count||0;
+      const pct=cap>0?Math.min(100,Math.round(stops/cap*100)):0;
+      const kleur=cap>0?(stops>cap?'var(--red)':stops>cap*.8?'var(--amber)':'var(--green)'):'var(--blue)';
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:11px">
+        <span style="width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">${r.datum}</span>
+        <span style="font-size:10px;color:var(--text3);min-width:70px">${_escH(r.voertuig||'Geen')}</span>
+        <div style="flex:1;background:var(--bg2);border-radius:3px;height:14px;overflow:hidden">
+          <div style="height:100%;background:${kleur};border-radius:3px;width:${pct||8}%"></div>
+        </div>
+        <span style="color:var(--text3);font-size:10px;white-space:nowrap">${stops} stop${stops!==1?'s':''}</span>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:1rem">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px">${_escH(wk.label)}</div>
+      ${bars}
+    </div>`;
+  }).join('');
+}
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
 </body>
 </html>
