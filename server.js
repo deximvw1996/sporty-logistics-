@@ -345,6 +345,20 @@ async function startServer() {
   addColumnIfMissing('transport_ritten', 'klaarzet_op', "TEXT DEFAULT ''");
   addColumnIfMissing('transport_taken', 'week', 'INTEGER');
   addColumnIfMissing('kampmoment_themas', 'leeftijdsgroep', "TEXT DEFAULT ''");
+  // Voertuigtypes met capaciteit
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS voertuig_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    naam TEXT NOT NULL UNIQUE,
+    capaciteit_bakken INTEGER DEFAULT 0,
+    capaciteit_label TEXT DEFAULT ''
+  )`);
+  // Seed standaardvoertuigen als ze nog niet bestaan
+  if(!get('SELECT id FROM voertuig_types WHERE naam=?',['Camionette'])){
+    ins('INSERT INTO voertuig_types (naam,capaciteit_bakken,capaciteit_label) VALUES (?,?,?)',['Camionette',20,'20 bakken']);
+  }
+  if(!get('SELECT id FROM voertuig_types WHERE naam=?',['Camion'])){
+    ins('INSERT INTO voertuig_types (naam,capaciteit_bakken,capaciteit_label) VALUES (?,?,?)',['Camion',40,'40 bakken']);
+  }
   // Thema bakken (dozen die meereizen) + hun inhoud
   createTableIfMissing(`CREATE TABLE IF NOT EXISTS thema_bakken (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1125,11 +1139,23 @@ async function startServer() {
   app.delete('/api/transport-regels/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE id=?',[req.params.id]);res.json({ok:true});});
 
   // ── TRANSPORT RITTEN ──
+  function _bakkenVoorTaak(taak){
+    // Tel het totaal aantal bakken voor een transport_taken op basis van gekoppelde thema's
+    if(!taak.kampmoment_id) return 0;
+    const kts=all('SELECT thema_id FROM kampmoment_themas WHERE kampmoment_id=?',[taak.kampmoment_id]);
+    let tot=0;
+    kts.forEach(kt=>{
+      tot+=get('SELECT COUNT(*) as n FROM thema_bakken WHERE thema_id=?',[kt.thema_id])?.n||0;
+    });
+    return tot;
+  }
   function _ritMetTaken(rit){
     if(!rit) return null;
     const taken=all('SELECT * FROM transport_taken WHERE rit_id=? ORDER BY tijd',[rit.id]);
     const regels=all('SELECT * FROM transport_regels');
-    return {...rit, taken: taken.map(t=>({...t, regels: regels.filter(r=>r.taak_id===t.id)}))};
+    const takenMet=taken.map(t=>({...t, regels: regels.filter(r=>r.taak_id===t.id)}));
+    const bakken_totaal=takenMet.reduce((s,t)=>s+_bakkenVoorTaak(t),0);
+    return {...rit, taken: takenMet, bakken_totaal};
   }
   app.get('/api/ritten',(req,res)=>{
     const ritten=all('SELECT * FROM transport_ritten ORDER BY datum');
@@ -1175,6 +1201,26 @@ async function startServer() {
     run('DELETE FROM transport_ritten WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
+  // ── VOERTUIGTYPES ──
+  app.get('/api/voertuig-types',(req,res)=>res.json(all('SELECT * FROM voertuig_types ORDER BY capaciteit_bakken')));
+  app.post('/api/voertuig-types',(req,res)=>{
+    const{naam,capaciteit_bakken,capaciteit_label}=req.body;
+    if(!naam)return res.status(400).json({error:'Naam is verplicht'});
+    const id=ins('INSERT OR IGNORE INTO voertuig_types (naam,capaciteit_bakken,capaciteit_label) VALUES (?,?,?)',
+      [naam,capaciteit_bakken||0,capaciteit_label||naam]);
+    res.json(get('SELECT * FROM voertuig_types WHERE naam=?',[naam]));
+  });
+  app.put('/api/voertuig-types/:id',(req,res)=>{
+    const{naam,capaciteit_bakken,capaciteit_label}=req.body;
+    const vt=get('SELECT * FROM voertuig_types WHERE id=?',[req.params.id]);
+    if(!vt)return res.status(404).json({error:'Niet gevonden'});
+    run('UPDATE voertuig_types SET naam=?,capaciteit_bakken=?,capaciteit_label=? WHERE id=?',
+      [naam||vt.naam,capaciteit_bakken!=null?capaciteit_bakken:vt.capaciteit_bakken,
+       capaciteit_label||vt.capaciteit_label,req.params.id]);
+    res.json(get('SELECT * FROM voertuig_types WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/voertuig-types/:id',(req,res)=>{run('DELETE FROM voertuig_types WHERE id=?',[req.params.id]);res.json({ok:true});});
+
   // ── THEMA BAKKEN ──
   function _bakkenVanThema(thema_id){
     const bakken=all('SELECT * FROM thema_bakken WHERE thema_id=? ORDER BY volgorde,id',[thema_id]);
@@ -1386,6 +1432,7 @@ async function startServer() {
       locatie_kleuren: all('SELECT * FROM locatie_kleuren'),
       thema_bakken: all('SELECT * FROM thema_bakken'),
       bak_items: all('SELECT * FROM bak_items'),
+      voertuig_types: all('SELECT * FROM voertuig_types'),
     };
     res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
     res.setHeader('Content-Type', 'application/json');

@@ -547,6 +547,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab active" onclick="setMatSubtab('catalogus',this)">&#128230; Materiaal</button>
       <button class="kal-subtab" onclick="setMatSubtab('themas',this)">&#127912; Thema&apos;s</button>
       <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128203; Standaard</button>
+      <button class="kal-subtab" onclick="setMatSubtab('voertuigen',this)">&#128656; Voertuigen</button>
     </div>
 
     <!-- Thema's -->
@@ -626,6 +627,10 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div id="mat-sub-standaard" style="display:none">
       <div id="std-loc-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:.75rem"></div>
       <div id="std-loc-content"></div>
+    </div>
+
+    <div id="mat-sub-voertuigen" style="display:none">
+      <div id="voertuigen-lijst"></div>
     </div>
 
     <div id="mat-sub-catalogus" style="display:none">
@@ -1063,7 +1068,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div class="fr">
       <div class="fg md"><label for="rit-datum">Datum</label><input class="inp" type="date" id="rit-datum"></div>
       <div class="fg grow"><label for="rit-chauffeur">Chauffeur</label><input class="inp" type="text" id="rit-chauffeur" list="chauf-datalist" placeholder="Naam of kies&hellip;" autocomplete="off"><datalist id="chauf-datalist"></datalist></div>
-      <div class="fg md"><label for="rit-voertuig">Voertuig</label><input class="inp" type="text" id="rit-voertuig" placeholder="bv. Jumpy"></div>
+      <div class="fg md"><label for="rit-voertuig">Voertuig</label><select class="sel" id="rit-voertuig" style="height:36px"><option value="">— Kies voertuig —</option></select></div>
       <div class="fg md"><label for="rit-status">Status</label><select class="sel" id="rit-status">
         <option value="gepland">Gepland</option><option value="bevestigd">Bevestigd</option><option value="gedaan">Gedaan</option>
       </select></div>
@@ -1820,7 +1825,7 @@ function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  ['themas','catalogus','standaard'].forEach(t=>{
+  ['themas','catalogus','standaard','voertuigen'].forEach(t=>{
     const el=document.getElementById('mat-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
@@ -1828,6 +1833,57 @@ function setMatSubtab(tab,btn){
 document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.innerHTML=renderThemaCatSelect(cur);});}
   else if(tab==='catalogus'){renderCatalogus();}
   else if(tab==='standaard'){renderStandaard();}
+  else if(tab==='voertuigen'){renderVoertuigen();}
+}
+async function renderVoertuigen(){
+  const el=document.getElementById('voertuigen-lijst');
+  if(!el)return;
+  const vts=await api('GET','/voertuig-types');
+  if(!Array.isArray(vts)){el.innerHTML='<p style="color:var(--text3)">Fout bij laden.</p>';return;}
+  _voertuigTypes=vts;
+  el.innerHTML='<div style="max-width:560px">'
+    +'<div style="font-size:13px;font-weight:600;margin-bottom:12px">🚐 Voertuigtypes & capaciteit</div>'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:14px">Stel per voertuigtype in hoeveel bakken er passen. Dit wordt gebruikt om de lading per rit te bewaken.</div>'
+    +vts.map(v=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg2);border:.5px solid var(--border);border-radius:6px;margin-bottom:6px;flex-wrap:wrap">
+        <span style="font-size:16px">🚐</span>
+        <span style="font-weight:600;flex:1;min-width:100px">${_escH(v.naam)}</span>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">
+          Max bakken:
+          <input type="number" min="0" max="200" value="${v.capaciteit_bakken}"
+            style="width:70px;height:28px;font-size:12px;border:.5px solid var(--border);border-radius:4px;padding:2px 6px"
+            onchange="updateVoertuigCap(${v.id},this.value,'${_escH(v.naam)}')">
+        </label>
+        <button class="btn-xs" onclick="verwijderVoertuig(${v.id})" style="color:var(--red);font-size:10px">🗑️</button>
+      </div>`).join('')
+    +'<div style="margin-top:14px;padding-top:12px;border-top:.5px solid var(--border)">'
+    +'<div style="font-size:12px;font-weight:600;margin-bottom:8px">+ Nieuw voertuigtype</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +'<input class="inp" id="vt-nieuw-naam" placeholder="Naam (bv. Remorque)" style="flex:2;min-width:120px;height:30px;font-size:12px">'
+    +'<input class="inp" type="number" id="vt-nieuw-cap" min="0" value="20" placeholder="Max bakken" style="width:90px;height:30px;font-size:12px">'
+    +'<button class="btn-g" style="height:30px;font-size:12px" onclick="voegVoertuigToe()">+ Toevoegen</button>'
+    +'</div></div>'
+    +'</div>';
+}
+async function updateVoertuigCap(id,val,naam){
+  await api('PUT','/voertuig-types/'+id,{naam,capaciteit_bakken:parseInt(val)||0});
+  const vts=await api('GET','/voertuig-types');
+  if(Array.isArray(vts))_voertuigTypes=vts;
+  showToast('Capaciteit bijgewerkt','success');
+}
+async function verwijderVoertuig(id){
+  if(!confirm('Voertuigtype verwijderen?'))return;
+  await api('DELETE','/voertuig-types/'+id);
+  renderVoertuigen();
+}
+async function voegVoertuigToe(){
+  const naam=document.getElementById('vt-nieuw-naam').value.trim();
+  const cap=parseInt(document.getElementById('vt-nieuw-cap').value)||0;
+  if(!naam){showToast('Geef een naam op','warn');return;}
+  await api('POST','/voertuig-types',{naam,capaciteit_bakken:cap,capaciteit_label:naam});
+  document.getElementById('vt-nieuw-naam').value='';
+  renderVoertuigen();
+  showToast(naam+' toegevoegd','success');
 }
 
 // ── TAB RENDER FUNCTIONS ──
@@ -5449,6 +5505,7 @@ let filterLocatie='';   // locatie_id string of ''
 let filterChauf='';     // naam string of ''
 let filterStatus='';    // 'gepland'|'bevestigd'|'gedaan'|''
 let plannerRitten=[];   // [{...rit, taken:[...]}] — geplande ritten
+let _voertuigTypes=[];  // [{id,naam,capaciteit_bakken}]
 let noden=[];           // transport_taken zonder rit (rit_id null) — backlog
 let _dragRitId=null;    // rit die versleept wordt tussen dagen
 let _dragNoodId=null;   // nood die uit de backlog versleept wordt
@@ -5476,6 +5533,7 @@ async function _herlaadPlanner(){
   plannerTaken=await api('GET','/transport-taken');
   plannerRitten=await api('GET','/ritten');
   noden=plannerTaken.filter(t=>!t.rit_id);
+  if(!_voertuigTypes.length){const vt=await api('GET','/voertuig-types');if(Array.isArray(vt))_voertuigTypes=vt;}
   renderPlannerKalender();
   updatePlannerMetrics();
   renderBacklogStrip();
@@ -5674,12 +5732,29 @@ function _ritCardEl(rit,wide){
     '<div style="font-size:'+fs2+';color:var(--text2);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'
     +(_tpTypIco[t.type]||'📦')+' '+(t.tijd?t.tijd+' ':'')+_escH(t.opmerking||_ritRoute(t)||t.type)+'</div>').join('');
   const meer=n>max?'<div style="font-size:'+fs2+';color:var(--text3)">+'+(n-max)+' meer</div>':'';
+  // Capaciteitsindicator
+  const bakTot=rit.bakken_totaal||0;
+  const vType=rit.voertuig?_voertuigTypes.find(v=>v.naam===rit.voertuig):null;
+  const cap=vType?vType.capaciteit_bakken:0;
+  const capPct=cap>0?Math.min(100,Math.round(bakTot/cap*100)):0;
+  const capKleur=cap>0?(bakTot>cap?'var(--red)':bakTot>cap*0.8?'var(--amber)':'var(--green)'):'var(--text3)';
+  const capHtml=cap>0
+    ?'<div style="margin-top:4px" title="'+bakTot+' / '+cap+' bakken">'
+      +'<div style="display:flex;justify-content:space-between;font-size:9px;color:'+capKleur+';margin-bottom:2px">'
+      +'<span>📦 '+bakTot+' / '+cap+' bakken</span>'
+      +(bakTot>cap?'<span style="font-weight:700">⚠️ TE VOL</span>':'')
+      +'</div>'
+      +'<div style="height:4px;background:var(--bg2);border-radius:2px;overflow:hidden">'
+      +'<div style="height:100%;width:'+capPct+'%;background:'+capKleur+';border-radius:2px;transition:width .3s"></div>'
+      +'</div></div>'
+    :(bakTot>0?'<div style="font-size:9px;color:var(--text3);margin-top:2px">📦 '+bakTot+' bakken — geen voertuig gekozen</div>':'');
   card.innerHTML='<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
     +'<span style="font-size:'+fs+'">🚚</span>'
-    +'<span style="font-size:'+fs+';font-weight:700;color:var(--text);flex:1;overflow:hidden;'+(wide?'':'white-space:nowrap;text-overflow:ellipsis')+'">'+n+'× rit'+(rit.chauffeur?' · 👤 '+_escH(rit.chauffeur):'')+'</span>'
+    +'<span style="font-size:'+fs+';font-weight:700;color:var(--text);flex:1;overflow:hidden;'+(wide?'':'white-space:nowrap;text-overflow:ellipsis')+'">'+n+'× rit'+(rit.chauffeur?' · 👤 '+_escH(rit.chauffeur):'')+(rit.voertuig?' · 🚐 '+_escH(rit.voertuig):'')+'</span>'
     +'<span style="font-size:'+fs2+'">'+stDot+'</span>'
     +'</div>'
     +(ledenHtml||'<div style="font-size:'+fs2+';color:var(--text3)">leeg</div>')+meer
+    +capHtml
     +(rit.opmerking?'<div style="font-size:'+fs2+';color:var(--text3);font-style:italic">'+_escH(rit.opmerking)+'</div>':'');
   card.onclick=()=>openRitModal(rit.id);
   // Klaarzetten-knop rechtsonder op de kaart
@@ -5890,7 +5965,13 @@ function openRitModal(id){
   document.getElementById('modal-rit-title').textContent='Rit — '+fIso(rit.datum);
   document.getElementById('rit-datum').value=rit.datum||'';
   document.getElementById('rit-chauffeur').value=rit.chauffeur||'';
-  document.getElementById('rit-voertuig').value=rit.voertuig||'';
+  // Voertuig dropdown vullen
+  const vSel=document.getElementById('rit-voertuig');
+  vSel.innerHTML='<option value="">— Kies voertuig —</option>'
+    +_voertuigTypes.map(v=>`<option value="${_escH(v.naam)}">${_escH(v.naam)} (max ${v.capaciteit_bakken} bakken)</option>`).join('')
+    +'<option value="__anders">Andere (vrij invullen)...</option>';
+  vSel.value=rit.voertuig||'';
+  if(vSel.value==='' && rit.voertuig) vSel.value='__anders'; // onbekend voertuig
   document.getElementById('rit-status').value=rit.status||'gepland';
   document.getElementById('rit-opmerking').value=rit.opmerking||'';
   renderRitLeden();
@@ -5949,7 +6030,7 @@ async function saveRit(){
   const r=await api('PUT','/ritten/'+editingRitId,{
     datum,
     chauffeur:document.getElementById('rit-chauffeur').value.trim(),
-    voertuig:document.getElementById('rit-voertuig').value.trim(),
+    voertuig:(()=>{const v=document.getElementById('rit-voertuig').value;return v==='__anders'?(prompt('Voertuig naam:')||''):v;})(),
     status:document.getElementById('rit-status').value,
     opmerking:document.getElementById('rit-opmerking').value.trim()
   });
