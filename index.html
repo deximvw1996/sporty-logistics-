@@ -2876,11 +2876,167 @@ function openThemaPopup(themaId){
        <input class="inp" type="number" id="thd-plan-week" min="1" max="${_maxWk}" placeholder="week" style="width:74px;height:32px">
        <button class="btn-g" onclick="planThemaHier(${themaId})" style="height:32px">+ Plannen</button>
      </div>
+     <div id="thd-bakken-sectie">
+       <h4 style="margin:6px 0 4px">📦 Bakken <span style="color:var(--text3);font-weight:400" id="thd-bakken-teller"></span> <button class="btn-xs btn-g" onclick="voegBakToe(${themaId})" style="font-size:10px;margin-left:6px">+ Bak</button></h4>
+       <div id="thd-bakken-lijst" style="margin:0 0 12px">Laden...</div>
+     </div>
      <h4 style="margin:6px 0 4px">Materiaal <span style="color:var(--text3);font-weight:400">(${mats.length})</span></h4>
      <ul style="margin:0 0 12px;padding-left:18px">${matLis}</ul>
      <h4 style="margin:6px 0 4px">Gedeeld materiaal <span style="color:var(--text3);font-weight:400">(${ged.length})</span></h4>
      <ul style="margin:0;padding-left:18px">${gedLis}</ul>`;
   openModal('modal-thema-detail');
+  laadThemaBakken(themaId);
+}
+async function laadThemaBakken(themaId){
+  const el=document.getElementById('thd-bakken-lijst');
+  if(!el)return;
+  el.innerHTML='<span style="color:var(--text3);font-size:12px">Laden...</span>';
+  const bakken=await api('GET','/themas/'+themaId+'/bakken');
+  if(!bakken||bakken.error){el.innerHTML='<span style="color:var(--text3);font-size:12px">Fout bij laden bakken.</span>';return;}
+  const tel=document.getElementById('thd-bakken-teller');
+  if(tel)tel.textContent='('+bakken.length+')';
+  if(!bakken.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:4px 0">Geen bakken aangemaakt. Voeg een bak toe om de inhoud te beheren.</div>';return;}
+  el.innerHTML=bakken.map(b=>{
+    const vaste=b.items.filter(i=>!i.verbruik);
+    const verbruik=b.items.filter(i=>i.verbruik);
+    const laagStock=verbruik.filter(i=>i.qty_minimum>0&&i.qty_stock<=i.qty_minimum);
+    const laagHtml=laagStock.length?'<span title="Lage voorraad" style="color:var(--red);font-size:13px">⚠️</span>':'';
+    const lgLog=b.log&&b.log.length?'<span style="color:var(--text3);font-size:10px;margin-left:4px">Nakijk: '+b.log[0].tijdstip.substring(0,10)+'</span>':'';
+    return `<div style="background:var(--bg2);border:.5px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap">
+        <div style="font-size:12px;font-weight:600">${_escH(b.code?b.code+' — ':'')}${_escH(b.label)}${b.leeftijdsgroep?` <span style="color:var(--text3)">[${_escH(b.leeftijdsgroep)}]</span>`:''} ${laagHtml}${lgLog}</div>
+        <div style="display:flex;gap:4px">
+          <button class="btn-xs" onclick="openBakNakijk(${b.id},'${_escH(b.label)}')" style="font-size:10px">🔍 Nakijken</button>
+          <button class="btn-xs" onclick="openBakBeheer(${b.id},${themaId})" style="font-size:10px">✏️ Beheer</button>
+          <button class="btn-xs" onclick="verwijderBak(${b.id},${themaId})" style="font-size:10px;color:var(--red)">🗑️</button>
+        </div>
+      </div>
+      ${vaste.length?`<div style="margin-top:6px;font-size:11px"><b>Vaste inhoud:</b> ${vaste.map(i=>`${_escH(i.naam)}${i.qty!=1?' ×'+i.qty:''}`).join(', ')}</div>`:''}
+      ${verbruik.length?`<div style="margin-top:4px;font-size:11px"><b>Verbruiksartikelen:</b> ${verbruik.map(i=>{const ok=i.qty_minimum<=0||i.qty_stock>i.qty_minimum;return `<span style="${ok?'':'color:var(--red)'}">${_escH(i.naam)} (voorraad: ${i.qty_stock} ${_escH(i.eenheid)}${i.qty_minimum>0?', min: '+i.qty_minimum:''})</span>`;}).join(', ')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+async function voegBakToe(themaId){
+  const label=prompt('Label van de bak (bv. "Themabak 1/2"):');
+  if(!label)return;
+  const code=prompt('Code / locatie in het magazijn (bv. N08, laat leeg als onbekend):');
+  const lg=prompt('Leeftijdsgroep (KL / LS / KLS, laat leeg voor beide):');
+  const b=await api('POST','/themas/'+themaId+'/bakken',{label,code:code||'',leeftijdsgroep:lg||''});
+  if(b&&b.error){showToast(b.error,'error');return;}
+  showToast('Bak aangemaakt','success');
+  laadThemaBakken(themaId);
+}
+async function verwijderBak(bakId,themaId){
+  if(!confirm('Wil je deze bak en alle inhoud verwijderen?'))return;
+  await api('DELETE','/bakken/'+bakId);
+  showToast('Bak verwijderd','success');
+  laadThemaBakken(themaId);
+}
+let _bakBeheerThema=null;
+async function openBakBeheer(bakId,themaId){
+  _bakBeheerThema=themaId;
+  const bakken=await api('GET','/themas/'+themaId+'/bakken');
+  const b=(bakken||[]).find(x=>x.id===bakId);
+  if(!b){showToast('Bak niet gevonden','error');return;}
+  const m=document.getElementById('modal-bak-beheer');
+  if(!m)return;
+  document.getElementById('bbb-titel').textContent=(b.code?b.code+' — ':'')+b.label;
+  document.getElementById('bbb-bak-id').value=bakId;
+  _renderBakItems(b.items,bakId,themaId);
+  openModal('modal-bak-beheer');
+}
+function _renderBakItems(items,bakId,themaId){
+  const el=document.getElementById('bbb-items');
+  if(!el)return;
+  if(!items.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:4px 0">Nog geen items. Voeg een item toe.</div>';return;}
+  el.innerHTML=items.map(i=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:.5px solid var(--border);font-size:12px;flex-wrap:wrap">
+      <span style="flex:1;min-width:100px">${i.verbruik?'🔄':'📌'} ${_escH(i.naam)}</span>
+      ${i.verbruik?`<span style="color:var(--text3)">per gebruik: ${i.qty_per_gebruik} ${_escH(i.eenheid)} | stock: <input type="number" value="${i.qty_stock}" min="0" step="0.5" style="width:52px;height:24px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 3px" onchange="updateItemStock(${i.id},this.value,${bakId},${themaId})"> | min: ${i.qty_minimum}</span>`:'<span style="color:var(--text3)">×'+i.qty+'</span>'}
+      <button class="btn-xs" onclick="verwijderBakItem(${i.id},${bakId},${themaId})" style="font-size:10px;color:var(--red)">✕</button>
+    </div>`).join('');
+}
+async function updateItemStock(itemId,val,bakId,themaId){
+  await api('PUT','/bak-items/'+itemId,{qty_stock:parseFloat(val)||0});
+  const bakken=await api('GET','/themas/'+themaId+'/bakken');
+  const b=(bakken||[]).find(x=>x.id===bakId);
+  if(b)_renderBakItems(b.items,bakId,themaId);
+  laadThemaBakken(themaId);
+}
+async function voegBakItemToe(bakId,themaId,verbruik){
+  const pfx=verbruik?'bbb-verb-':'bbb-vast-';
+  const naam=document.getElementById(pfx+'naam').value.trim();
+  if(!naam){showToast('Geef een naam op','warn');return;}
+  const qty=parseFloat(document.getElementById(pfx+'qty').value)||1;
+  const eenheid=verbruik?(document.getElementById('bbb-verb-eenheid')?.value||'stuks'):'stuks';
+  const minimum=verbruik?(parseFloat(document.getElementById('bbb-verb-min').value)||0):0;
+  await api('POST','/bakken/'+bakId+'/items',{naam,qty,verbruik,qty_per_gebruik:qty,eenheid,qty_minimum:minimum});
+  document.getElementById(pfx+'naam').value='';
+  document.getElementById(pfx+'qty').value='1';
+  if(verbruik&&document.getElementById('bbb-verb-min'))document.getElementById('bbb-verb-min').value='0';
+  const bakken=await api('GET','/themas/'+themaId+'/bakken');
+  const b=(bakken||[]).find(x=>x.id===bakId);
+  if(b)_renderBakItems(b.items,bakId,themaId);
+  laadThemaBakken(themaId);
+}
+async function verwijderBakItem(itemId,bakId,themaId){
+  await api('DELETE','/bak-items/'+itemId);
+  const bakken=await api('GET','/themas/'+themaId+'/bakken');
+  const b=(bakken||[]).find(x=>x.id===bakId);
+  if(b)_renderBakItems(b.items,bakId,themaId);
+  laadThemaBakken(themaId);
+}
+let _nakijkBakId=null;
+async function openBakNakijk(bakId,label){
+  _nakijkBakId=bakId;
+  document.getElementById('nak-titel').textContent='Nakijken: '+label;
+  document.getElementById('nak-wie').value='';
+  document.getElementById('nak-notitie').value='';
+  // Load items for this bak
+  const all=await api('GET','/themas/0/bakken').catch(()=>null);
+  // We'll load via the global thema bakken — instead, we'll hit the server differently
+  // Get bak items by rendering the form based on stored data
+  await _renderNakijkItems(bakId);
+  openModal('modal-bak-nakijk');
+}
+async function _renderNakijkItems(bakId){
+  const el=document.getElementById('nak-items');if(!el)return;
+  el.innerHTML='<span style="color:var(--text3)">Laden...</span>';
+  // Fetch all bakken from the thema - we need a direct bak endpoint
+  // Use the bak-items list from the thema bakken already loaded
+  // Get the thema id from the open popup - read from the button context
+  // Workaround: store thema_id on the bak element
+  // Actually let's just fetch via the thema endpoint using the cached S.themas
+  // Better: add a GET /api/bakken/:id endpoint
+  const r=await fetch('/api/bakken/'+bakId+'/items-detail').catch(()=>null);
+  if(!r||!r.ok){el.innerHTML='<span style="color:var(--text3)">Gebruik "Beheer" om voorraad aan te passen.</span>';return;}
+  const items=await r.json();
+  const verbruik=items.filter(i=>i.verbruik);
+  if(!verbruik.length){el.innerHTML='<div style="color:var(--text3);font-size:12px">Geen verbruiksartikelen in deze bak.</div>';return;}
+  el.innerHTML=verbruik.map(i=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid var(--border);font-size:12px;flex-wrap:wrap">
+      <span style="flex:1">${_escH(i.naam)}</span>
+      <span style="color:var(--text3)">nodig: ${i.qty_per_gebruik} ${_escH(i.eenheid)}</span>
+      <label>Nieuwe stock: <input type="number" id="nak-stock-${i.id}" value="${i.qty_stock}" min="0" step="0.5" style="width:60px;height:24px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px"></label>
+      ${i.qty_minimum>0?`<span style="${i.qty_stock<=i.qty_minimum?'color:var(--red);font-weight:600':'color:var(--text3)'}">min: ${i.qty_minimum}</span>`:''}
+    </div>`).join('');
+  el.setAttribute('data-bak-id',bakId);
+  el.setAttribute('data-items',JSON.stringify(verbruik.map(i=>i.id)));
+}
+async function slaaNakijkOp(){
+  const bakId=_nakijkBakId;if(!bakId)return;
+  const wie=document.getElementById('nak-wie').value.trim();
+  const notitie=document.getElementById('nak-notitie').value.trim();
+  const el=document.getElementById('nak-items');
+  const itemIds=JSON.parse(el.getAttribute('data-items')||'[]');
+  const stock_updates=itemIds.map(id=>({item_id:id,qty_stock:parseFloat(document.getElementById('nak-stock-'+id)?.value)||0}));
+  const r=await api('POST','/bakken/'+bakId+'/nakijk',{wie,notitie,resultaat:'ok',stock_updates});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  showToast('Nakijk opgeslagen','success');
+  closeModal('modal-bak-nakijk');
+  // Refresh thema bakken if popup is open
+  const thd=document.getElementById('thd-bakken-lijst');
+  if(thd&&_bakBeheerThema)laadThemaBakken(_bakBeheerThema);
 }
 async function planThemaHier(themaId){
   const locId=parseInt(document.getElementById('thd-plan-loc').value);
@@ -3003,8 +3159,9 @@ function _kmThemaMatHTML(km){
 function _kmTypeBadge(km){
   if(km.type==='themadag'){
     const gevuld=(km.themas||[]).filter(t=>t.dag!=null).length;
-    const cls=gevuld===5?'p-green':gevuld>0?'p-amber':'p-red';
-    return `<span class="pill ${cls}" title="Themadag — één thema per dag">&#128467; themadag ${gevuld}/5</span>`;
+    const dagenMet=(new Set((km.themas||[]).filter(t=>t.dag!=null).map(t=>t.dag))).size;
+    const cls=dagenMet===5?'p-green':dagenMet>0?'p-amber':'p-red';
+    return `<span class="pill ${cls}" title="Themadag — ${gevuld} thema-slots over ${dagenMet} dagen">&#128467; themadag ${gevuld}/${dagenMet*2 || 10}</span>`;
   }
   return `<span class="pill p-blue">${(km.themas||[]).length} thema's</span>`;
 }
@@ -3100,16 +3257,27 @@ function setKmType(t){
     b.style.fontWeight=a?'600':'400';
   });
 }
-function renderKmDagSelects(selPerDag){
+function renderKmDagSelects(perDagKL,perDagLS){
+  // perDagKL/perDagLS: array[5] of thema_id (or null) per dag
+  perDagKL=perDagKL||[null,null,null,null,null];
+  perDagLS=perDagLS||[null,null,null,null,null];
   const DOW=['Ma','Di','Wo','Do','Vr'];
   const el=document.getElementById('km-dag-selects');
-  el.innerHTML=DOW.map((lbl,i)=>{
-    const cur=selPerDag[i]||'';
-    return `<div style="display:flex;align-items:center;gap:8px">
-      <span style="min-width:28px;font-weight:600;color:var(--text2)">${lbl}</span>
-      <select class="sel km-dag-sel" data-dag="${i}" style="flex:1" onchange="_refreshKmDagDisables()">
-        <option value="">— Geen thema —</option>
-        ${S.themas.map(th=>`<option value="${th.id}" ${cur==th.id?'selected':''}>${th.name}</option>`).join('')}
+  const klThemas=(S.themas||[]).filter(t=>!t.leeftijdsgroep||t.leeftijdsgroep==='KL'||t.leeftijdsgroep==='KLS');
+  const lsThemas=(S.themas||[]).filter(t=>!t.leeftijdsgroep||t.leeftijdsgroep==='LS'||t.leeftijdsgroep==='KLS');
+  el.innerHTML='<div style="font-size:10px;font-weight:700;color:var(--text3);display:grid;grid-template-columns:28px 1fr 1fr;gap:8px;margin-bottom:4px"><span></span><span>🐣 Kleuters</span><span>🏫 Lagere school</span></div>'
+  +DOW.map((lbl,i)=>{
+    const curKL=perDagKL[i]||'';
+    const curLS=perDagLS[i]||'';
+    return `<div style="display:grid;grid-template-columns:28px 1fr 1fr;align-items:center;gap:8px">
+      <span style="font-weight:600;color:var(--text2)">${lbl}</span>
+      <select class="sel km-dag-sel km-dag-sel-kl" data-dag="${i}" data-groep="KL" style="flex:1" onchange="_refreshKmDagDisables()">
+        <option value="">— Geen —</option>
+        ${klThemas.map(th=>`<option value="${th.id}" ${curKL==th.id?'selected':''}>${_escH(th.name)}</option>`).join('')}
+      </select>
+      <select class="sel km-dag-sel km-dag-sel-ls" data-dag="${i}" data-groep="LS" style="flex:1" onchange="_refreshKmDagDisables()">
+        <option value="">— Geen —</option>
+        ${lsThemas.map(th=>`<option value="${th.id}" ${curLS==th.id?'selected':''}>${_escH(th.name)}</option>`).join('')}
       </select>
     </div>`;
   }).join('');
@@ -3138,7 +3306,7 @@ function openNieuwKampmoment(preLocId, preWeek){
   document.getElementById('km-periode').disabled=false;
   setKmType('kamp');
   renderKmCheckboxes([]);
-  renderKmDagSelects([null,null,null,null,null]);
+  renderKmDagSelects([null,null,null,null,null],[null,null,null,null,null]);
   updateKmPreview();
   openModal('modal-km');
 }
@@ -3159,13 +3327,18 @@ function openBewerkKampmoment(kmId){
   const isTd=km.type==='themadag';
   setKmType(isTd?'themadag':'kamp');
   if(isTd){
-    const perDag=[null,null,null,null,null];
-    (km.themas||[]).forEach(th=>{if(th.dag!=null&&th.dag>=0&&th.dag<=4)perDag[th.dag]=th.id;});
-    renderKmDagSelects(perDag);
+    const perDagKL=[null,null,null,null,null];
+    const perDagLS=[null,null,null,null,null];
+    (km.themas||[]).forEach(th=>{if(th.dag!=null&&th.dag>=0&&th.dag<=4){
+      const lg=th.leeftijdsgroep||((S.themas||[]).find(x=>x.id===th.id)?.leeftijdsgroep||'');
+      if(lg==='LS')perDagLS[th.dag]=th.id;
+      else perDagKL[th.dag]=th.id;
+    }});
+    renderKmDagSelects(perDagKL,perDagLS);
     renderKmCheckboxes([]);
   } else {
     renderKmCheckboxes((km.themas||[]).map(t=>t.id));
-    renderKmDagSelects([null,null,null,null,null]);
+    renderKmDagSelects([null,null,null,null,null],[null,null,null,null,null]);
   }
   openModal('modal-km');
 }
@@ -3206,7 +3379,8 @@ async function saveKampmoment(){
     for(const s of sels){
       const tid=parseInt(s.value);
       const dag=parseInt(s.dataset.dag);
-      if(tid)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid,dag});
+      const leeftijdsgroep=s.dataset.groep||'';
+      if(tid)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid,dag,leeftijdsgroep});
     }
   }
   S.kampmomenten=await api('GET','/kampmomenten');
@@ -5519,21 +5693,80 @@ function _ritCardEl(rit,wide){
   return card;
 }
 
+let _backlogToonAlleWeken=false;
 function renderBacklogStrip(){
   const el=document.getElementById('pl-backlog-strip');
   if(!el)return;
   if(!noden.length){el.innerHTML='';return;}
-  const chips=noden.map(t=>{
+
+  // Bepaal week van elk backlog-item: via .week veld, kampmoment, of regex uit opmerking
+  function _nodWeek(t){
+    if(t.week)return t.week;
+    if(t.kampmoment_id){const km=(S.kampmomenten||[]).find(k=>k.id===t.kampmoment_id);if(km)return km.week;}
+    const m=(t.opmerking||'').match(/week\s*(\d+)/i);return m?parseInt(m[1]):null;
+  }
+  // Groepeer per week
+  const byWeek={};const geenWeek=[];
+  noden.forEach(t=>{const w=_nodWeek(t);if(w){(byWeek[w]=byWeek[w]||[]).push(t);}else geenWeek.push(t);});
+  const weken=Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
+
+  // Filter: standaard enkel huidige week tonen
+  const zichtbareWeken=_backlogToonAlleWeken?weken:weken.filter(w=>w===plannerWk);
+  const verborgen=_backlogToonAlleWeken?0:weken.filter(w=>w!==plannerWk).reduce((s,w)=>s+(byWeek[w]||[]).length,0);
+
+  function _chip(t){
     const lbl=_escH(t.opmerking||_ritRoute(t)||t.type);
     return '<span draggable="true" ondragstart="_dragNoodId='+t.id+';event.dataTransfer.effectAllowed=\'move\'" ondragend="_dragNoodId=null" '
       +'style="display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:.5px solid var(--border2);border-radius:999px;padding:3px 4px 3px 9px;font-size:11px;cursor:grab">'
       +'📦 '+lbl
       +' <button onclick="planNood('+t.id+')" title="Inplannen" style="background:var(--green-bg);border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px">📅</button>'
       +'</span>';
-  }).join('');
-  el.innerHTML='<div style="padding:8px 10px;background:var(--amber-bg);border:.5px solid var(--amber);border-radius:var(--rl);margin-bottom:.75rem">'
-    +'<div style="font-size:11px;font-weight:600;color:var(--amber-dk);margin-bottom:6px">📥 Op te stellen ('+noden.length+') — sleep op een dag of klik 📅</div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+chips+'</div></div>';
+  }
+
+  let html='<div style="padding:8px 10px;background:var(--amber-bg);border:.5px solid var(--amber);border-radius:var(--rl);margin-bottom:.75rem">';
+  html+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+    +'<span style="font-size:11px;font-weight:600;color:var(--amber-dk)">📥 Op te stellen ('+noden.length+') — sleep op een dag of klik 📅</span>'
+    +(verborgen>0?'<button class="btn-xs" onclick="_backlogToonAlleWeken=true;renderBacklogStrip()" style="font-size:10px">+'+(verborgen)+' andere weken tonen</button>':'')
+    +(_backlogToonAlleWeken&&weken.length>1?'<button class="btn-xs" onclick="_backlogToonAlleWeken=false;renderBacklogStrip()" style="font-size:10px">🔽 Enkel week '+plannerWk+'</button>':'')
+    +(zichtbareWeken.length?'<button class="btn-xs btn-g" onclick="planWeekAlsRit('+plannerWk+')" style="font-size:10px">🚚 Plan week '+plannerWk+' als rit</button>':'')
+    +'</div>';
+
+  // Per zichtbare week
+  zichtbareWeken.forEach(w=>{
+    const items=byWeek[w]||[];
+    html+='<div style="margin-bottom:6px">'
+      +'<div style="font-size:10px;font-weight:700;color:var(--amber-dk);margin-bottom:4px">WEEK '+w+' ('+items.length+')</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+items.map(_chip).join('')+'</div>'
+      +'</div>';
+  });
+  if(geenWeek.length&&_backlogToonAlleWeken){
+    html+='<div style="margin-bottom:4px"><div style="font-size:10px;font-weight:700;color:var(--amber-dk);margin-bottom:4px">GEEN WEEK</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+geenWeek.map(_chip).join('')+'</div></div>';
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+async function planWeekAlsRit(week){
+  // Maak één rit aan voor alle backlog-items van deze week
+  const items=noden.filter(t=>{
+    if(t.week===week)return true;
+    if(t.kampmoment_id){const km=(S.kampmomenten||[]).find(k=>k.id===t.kampmoment_id);if(km&&km.week===week)return true;}
+    const m=(t.opmerking||'').match(/week\s*(\d+)/i);return m&&parseInt(m[1])===week;
+  });
+  if(!items.length){showToast('Geen backlog voor week '+week,'warn');return;}
+  // Bepaal datum: maandag van die week
+  const p=S.activePeriode||((S.periodes||[])[0]);
+  if(!p){showToast('Geen periode gevonden','warn');return;}
+  const start=new Date(p.start_datum+'T12:00:00');
+  start.setDate(start.getDate()+(week-1)*7);
+  // Vrijdag ervoor = startleveringsdatum
+  const vrijdag=new Date(start);vrijdag.setDate(start.getDate()-3);
+  const datum=isoLocal(vrijdag);
+  const rit=await api('POST','/ritten',{datum,opmerking:'Week '+week+' — automatisch',taak_ids:items.map(t=>t.id)});
+  if(rit&&rit.error){showToast(rit.error,'error');return;}
+  await _herlaadPlanner();
+  showToast(items.length+' transporten ingepland in rit voor week '+week,'success');
 }
 
 function renderPlannerKalender(){
@@ -6790,6 +7023,59 @@ function toggleDarkMode(){
     <div style="display:flex;gap:8px;margin-top:.875rem;padding-top:.75rem;border-top:.5px solid var(--border)">
       <button class="btn-g" style="flex:1" onclick="saveKleurenborden()">💾 Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-kleurenborden')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Bak beheer -->
+<div class="modal-bg" id="modal-bak-beheer">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title"><span id="bbb-titel">Bak</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-bak-beheer')">&#x2715;</button></div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto">
+      <input type="hidden" id="bbb-bak-id">
+      <h4 style="margin:0 0 6px;font-size:13px">Items in deze bak</h4>
+      <div id="bbb-items" style="margin-bottom:12px"></div>
+      <div style="background:var(--bg2);border:.5px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px">📌 Vast item toevoegen</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input class="inp" id="bbb-vast-naam" placeholder="Naam item" style="flex:2;min-width:120px;height:30px;font-size:12px">
+          <input class="inp" type="number" id="bbb-vast-qty" value="1" min="1" placeholder="qty" style="width:60px;height:30px;font-size:12px">
+          <button class="btn-g" style="height:30px;font-size:12px" onclick="voegBakItemToe(document.getElementById('bbb-bak-id').value,_bakBeheerThema,false)">+ Vast</button>
+        </div>
+      </div>
+      <div style="background:var(--amber-bg);border:.5px solid var(--amber);border-radius:6px;padding:10px">
+        <div style="font-size:11px;font-weight:600;color:var(--amber-dk);margin-bottom:8px">🔄 Verbruiksartikel toevoegen</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <input class="inp" id="bbb-verb-naam" placeholder="Naam (bv. Aquarelpapier)" style="flex:2;min-width:120px;height:30px;font-size:12px">
+          <input class="inp" type="number" id="bbb-verb-qty" value="1" min="0.5" step="0.5" placeholder="nodig/gebruik" style="width:80px;height:30px;font-size:12px">
+          <select class="sel" id="bbb-verb-eenheid" style="height:30px;font-size:12px">
+            <option>stuks</option><option>vel</option><option>pak</option><option>fles</option><option>rol</option><option>doos</option>
+          </select>
+          <input class="inp" type="number" id="bbb-verb-min" value="0" min="0" placeholder="min. stock" style="width:80px;height:30px;font-size:12px" title="Minimale voorraad voor alarm">
+          <button class="btn-o" style="height:30px;font-size:12px" onclick="voegBakItemToe(document.getElementById('bbb-bak-id').value,_bakBeheerThema,true)">+ Verbruik</button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px">Verbruiksartikelen moeten elke keer aangevuld worden. Vul "nodig per gebruik" en minimumvoorraad in.</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn-o" onclick="closeModal('modal-bak-beheer')">Sluiten</button></div>
+  </div>
+</div>
+
+<!-- MODAL: Bak nakijken -->
+<div class="modal-bg" id="modal-bak-nakijk">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-title"><span id="nak-titel">Nakijken</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-bak-nakijk')">&#x2715;</button></div>
+    <div class="modal-body" style="max-height:65vh;overflow-y:auto">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <input class="inp" id="nak-wie" placeholder="Nagekeken door" style="flex:1;min-width:120px;height:30px;font-size:12px">
+        <input class="inp" id="nak-notitie" placeholder="Notitie (optioneel)" style="flex:2;min-width:150px;height:30px;font-size:12px">
+      </div>
+      <h4 style="margin:0 0 6px;font-size:12px;color:var(--text2)">Verbruiksartikelen — stel nieuwe voorraad in</h4>
+      <div id="nak-items" style="margin-bottom:10px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-o" onclick="closeModal('modal-bak-nakijk')">Annuleer</button>
+      <button class="btn-g" onclick="slaaNakijkOp()">✅ Nakijk opslaan</button>
     </div>
   </div>
 </div>

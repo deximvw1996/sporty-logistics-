@@ -338,11 +338,45 @@ async function startServer() {
   addColumnIfMissing('locaties', 'lng', 'REAL');
   addColumnIfMissing('locaties', 'stockage_rol', "TEXT DEFAULT 'beide'");
 
-  // Migration 18: voertuig op ritten, verhuis_checks (persistente klaarzet-checklist), kleurenborden
+  // Migration 18: voertuig op ritten, verhuis_checks, kleurenborden, week op transport_taken, thema bakken
   addColumnIfMissing('transport_ritten', 'voertuig', "TEXT DEFAULT ''");
   addColumnIfMissing('transport_ritten', 'klaarzet_status', "TEXT DEFAULT ''");
   addColumnIfMissing('transport_ritten', 'klaarzet_door', "TEXT DEFAULT ''");
   addColumnIfMissing('transport_ritten', 'klaarzet_op', "TEXT DEFAULT ''");
+  addColumnIfMissing('transport_taken', 'week', 'INTEGER');
+  addColumnIfMissing('kampmoment_themas', 'leeftijdsgroep', "TEXT DEFAULT ''");
+  // Thema bakken (dozen die meereizen) + hun inhoud
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS thema_bakken (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thema_id INTEGER NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    code TEXT DEFAULT '',
+    leeftijdsgroep TEXT DEFAULT '',
+    volgorde INTEGER DEFAULT 0,
+    FOREIGN KEY(thema_id) REFERENCES themas(id) ON DELETE CASCADE
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS bak_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bak_id INTEGER NOT NULL,
+    naam TEXT NOT NULL,
+    qty REAL DEFAULT 1,
+    verbruik INTEGER DEFAULT 0,
+    qty_per_gebruik REAL DEFAULT 1,
+    eenheid TEXT DEFAULT 'stuks',
+    qty_stock REAL DEFAULT 0,
+    qty_minimum REAL DEFAULT 0,
+    notitie TEXT DEFAULT '',
+    FOREIGN KEY(bak_id) REFERENCES thema_bakken(id) ON DELETE CASCADE
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS bak_nakijk_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bak_id INTEGER NOT NULL,
+    tijdstip TEXT NOT NULL,
+    wie TEXT DEFAULT '',
+    resultaat TEXT DEFAULT 'ok',
+    notitie TEXT DEFAULT '',
+    FOREIGN KEY(bak_id) REFERENCES thema_bakken(id) ON DELETE CASCADE
+  )`);
   createTableIfMissing(`CREATE TABLE IF NOT EXISTS verhuis_checks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     rit_id INTEGER NOT NULL,
@@ -668,9 +702,9 @@ async function startServer() {
 
   // ── THEMAS AAN KAMPMOMENT KOPPELEN ──
   app.post('/api/kampmomenten/:id/themas',(req,res)=>{
-    const{thema_id,dag}=req.body;
+    const{thema_id,dag,leeftijdsgroep}=req.body;
     const dagVal=(dag===null||dag===undefined)?null:(Number.isInteger(dag)&&dag>=0&&dag<=4?dag:null);
-    try{ins('INSERT INTO kampmoment_themas (kampmoment_id,thema_id,dag) VALUES (?,?,?)',[req.params.id,thema_id,dagVal]);res.json(getKampmoment(req.params.id));}
+    try{ins('INSERT INTO kampmoment_themas (kampmoment_id,thema_id,dag,leeftijdsgroep) VALUES (?,?,?,?)',[req.params.id,thema_id,dagVal,leeftijdsgroep||'']);res.json(getKampmoment(req.params.id));}
     catch(e){res.status(400).json({error:'Thema al gekoppeld aan dit kampmoment.'});}
   });
   app.delete('/api/kampmomenten/:id/themas/:ktid',(req,res)=>{
@@ -948,11 +982,11 @@ async function startServer() {
           const prevD=prevWorkday(openDagen[0]);
           Object.entries(byStockage(basisRegels)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
-            voorstellen.push({type:'levering',kampmoment_id:km.id,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'08:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering basis week '+km.week+' — '+loc.name+(sLoc?' (van '+sLoc.name+')':'')});
+            voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'08:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering basis week '+km.week+' — '+loc.name+(sLoc?' (van '+sLoc.name+')':'')});
           });
           Object.entries(byStockage(themaMatRegels)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
-            voorstellen.push({type:'levering',kampmoment_id:km.id,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', van '+sLoc.name:'')+')'});
+            voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', van '+sLoc.name:'')+')'});
           });
         } else {
           // Opvolgende week: thema-wissel per stockage-groep
@@ -968,10 +1002,10 @@ async function startServer() {
             const prevOpen=getOpenDagen(prevKm);
             const wisseldatum=prevOpen.length?nextWorkday(prevOpen[prevOpen.length-1]):prevWorkday(openDagen[0]);
             Object.entries(byStockage(ophaalMat)).forEach(([sid,mat])=>{
-              voorstellen.push({type:'ophaling',kampmoment_id:km.id,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:wisseldatum,tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Thema-wissel ophaling week '+km.week+' — '+loc.name});
+              voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:wisseldatum,tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Thema-wissel ophaling week '+km.week+' — '+loc.name});
             });
             Object.entries(byStockage(leverMat)).forEach(([sid,mat])=>{
-              voorstellen.push({type:'levering',kampmoment_id:km.id,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:wisseldatum,tijd:'11:00',open_dagen:openDagen,materiaal:mat,opmerking:'Thema-wissel levering week '+km.week+' — '+loc.name});
+              voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:wisseldatum,tijd:'11:00',open_dagen:openDagen,materiaal:mat,opmerking:'Thema-wissel levering week '+km.week+' — '+loc.name});
             });
           }
         }
@@ -981,11 +1015,11 @@ async function startServer() {
           const nextD=nextWorkday(openDagen[openDagen.length-1]);
           Object.entries(byStockage(basisRegels)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
-            voorstellen.push({type:'ophaling',kampmoment_id:km.id,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling basis week '+km.week+' — '+loc.name+(sLoc?' (naar '+sLoc.name+')':'')});
+            voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling basis week '+km.week+' — '+loc.name+(sLoc?' (naar '+sLoc.name+')':'')});
           });
           Object.entries(byStockage(themaMatRegels)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
-            voorstellen.push({type:'ophaling',kampmoment_id:km.id,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', naar '+sLoc.name:'')+')'});
+            voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', naar '+sLoc.name:'')+')'});
           });
         }
       });
@@ -1011,7 +1045,7 @@ async function startServer() {
         const th=themas.find(t=>t.id===thId);
         const thMat=thema_mat.filter(m=>m.thema_id===thId).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema'}));
         if(!thMat.length)continue;
-        voorstellen.push({type:'levering',kampmoment_id:kmB.id,locatie:locB.name,locatie_id:locB.id,van_locatie_id:locA.id,datum:nextWorkday(openA[openA.length-1]),tijd:'10:00',materiaal:thMat,opmerking:'Thema-transfer: '+(th?.name||'?')+' van '+locA.name+' → '+locB.name});
+        voorstellen.push({type:'levering',kampmoment_id:kmB.id,week:kmB.week,locatie:locB.name,locatie_id:locB.id,van_locatie_id:locA.id,datum:nextWorkday(openA[openA.length-1]),tijd:'10:00',materiaal:thMat,opmerking:'Thema-transfer: '+(th?.name||'?')+' van '+locA.name+' → '+locB.name});
       }
     });
 
@@ -1063,7 +1097,7 @@ async function startServer() {
     voorstellen.sort((a,b)=>a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd));
     res.json(voorstellen);
   });
-  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere']));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
+  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere']));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)run('DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
   app.put('/api/transport-taken/:id/status',(req,res)=>{
@@ -1141,6 +1175,69 @@ async function startServer() {
     run('DELETE FROM transport_ritten WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
+  // ── THEMA BAKKEN ──
+  function _bakkenVanThema(thema_id){
+    const bakken=all('SELECT * FROM thema_bakken WHERE thema_id=? ORDER BY volgorde,id',[thema_id]);
+    return bakken.map(b=>({...b,items:all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[b.id]),log:all('SELECT * FROM bak_nakijk_log WHERE bak_id=? ORDER BY tijdstip DESC LIMIT 5',[b.id])}));
+  }
+  app.get('/api/themas/:id/bakken',(req,res)=>res.json(_bakkenVanThema(req.params.id)));
+  app.post('/api/themas/:id/bakken',(req,res)=>{
+    const{label,code,leeftijdsgroep,volgorde}=req.body;
+    const id=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
+      [req.params.id,label||'',code||'',leeftijdsgroep||'',volgorde||0]);
+    res.json({...get('SELECT * FROM thema_bakken WHERE id=?',[id]),items:[],log:[]});
+  });
+  app.put('/api/bakken/:id',(req,res)=>{
+    const{label,code,leeftijdsgroep,volgorde}=req.body;
+    run('UPDATE thema_bakken SET label=?,code=?,leeftijdsgroep=?,volgorde=? WHERE id=?',
+      [label||'',code||'',leeftijdsgroep||'',volgorde||0,req.params.id]);
+    res.json(get('SELECT * FROM thema_bakken WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/bakken/:id',(req,res)=>{
+    run('DELETE FROM bak_items WHERE bak_id=?',[req.params.id]);
+    run('DELETE FROM bak_nakijk_log WHERE bak_id=?',[req.params.id]);
+    run('DELETE FROM thema_bakken WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
+  // Bak-items CRUD
+  app.post('/api/bakken/:id/items',(req,res)=>{
+    const{naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie}=req.body;
+    const id=ins('INSERT INTO bak_items (bak_id,naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie) VALUES (?,?,?,?,?,?,?,?,?)',
+      [req.params.id,naam,qty||1,verbruik?1:0,qty_per_gebruik||1,eenheid||'stuks',qty_stock||0,qty_minimum||0,notitie||'']);
+    res.json(get('SELECT * FROM bak_items WHERE id=?',[id]));
+  });
+  app.put('/api/bak-items/:id',(req,res)=>{
+    const{naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie}=req.body;
+    const cur=get('SELECT * FROM bak_items WHERE id=?',[req.params.id]);
+    if(!cur)return res.status(404).json({error:'Item niet gevonden'});
+    run('UPDATE bak_items SET naam=?,qty=?,verbruik=?,qty_per_gebruik=?,eenheid=?,qty_stock=?,qty_minimum=?,notitie=? WHERE id=?',
+      [naam??cur.naam,qty??cur.qty,verbruik!==undefined?(verbruik?1:0):cur.verbruik,
+       qty_per_gebruik??cur.qty_per_gebruik,eenheid??cur.eenheid,
+       qty_stock??cur.qty_stock,qty_minimum??cur.qty_minimum,notitie??cur.notitie,req.params.id]);
+    res.json(get('SELECT * FROM bak_items WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/bak-items/:id',(req,res)=>{run('DELETE FROM bak_items WHERE id=?',[req.params.id]);res.json({ok:true});});
+  app.get('/api/bakken/:id/items-detail',(req,res)=>{
+    const b=get('SELECT * FROM thema_bakken WHERE id=?',[req.params.id]);
+    if(!b)return res.status(404).json({error:'Bak niet gevonden'});
+    res.json(all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[req.params.id]));
+  });
+  // Nakijk log
+  app.post('/api/bakken/:id/nakijk',(req,res)=>{
+    const{wie,resultaat,notitie,stock_updates}=req.body;
+    const tid=ins('INSERT INTO bak_nakijk_log (bak_id,tijdstip,wie,resultaat,notitie) VALUES (?,?,?,?,?)',
+      [req.params.id,now(),wie||'',resultaat||'ok',notitie||'']);
+    // Stock updates: [{item_id, qty_stock}]
+    if(Array.isArray(stock_updates)){
+      stock_updates.forEach(u=>{
+        if(u.item_id!=null&&u.qty_stock!=null)
+          run('UPDATE bak_items SET qty_stock=? WHERE id=? AND bak_id=?',[u.qty_stock,u.item_id,req.params.id]);
+      });
+    }
+    saveDb();
+    res.json({ok:true,log_id:tid,bakken:_bakkenVanThema(get('SELECT thema_id FROM thema_bakken WHERE id=?',[req.params.id])?.thema_id)});
+  });
+
   // ── VERHUIS CHECKS (persistente klaarzet-checklist per rit) ──
   app.get('/api/ritten/:id/checks',(req,res)=>{
     const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY item_soort,sort_order,id',[req.params.id]);
@@ -1287,6 +1384,8 @@ async function startServer() {
       ploeg_shifts: all('SELECT * FROM ploeg_shifts'),
       verhuis_checks: all('SELECT * FROM verhuis_checks'),
       locatie_kleuren: all('SELECT * FROM locatie_kleuren'),
+      thema_bakken: all('SELECT * FROM thema_bakken'),
+      bak_items: all('SELECT * FROM bak_items'),
     };
     res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
     res.setHeader('Content-Type', 'application/json');
