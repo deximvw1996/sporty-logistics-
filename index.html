@@ -1063,6 +1063,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div class="fr">
       <div class="fg md"><label for="rit-datum">Datum</label><input class="inp" type="date" id="rit-datum"></div>
       <div class="fg grow"><label for="rit-chauffeur">Chauffeur</label><input class="inp" type="text" id="rit-chauffeur" list="chauf-datalist" placeholder="Naam of kies&hellip;" autocomplete="off"><datalist id="chauf-datalist"></datalist></div>
+      <div class="fg md"><label for="rit-voertuig">Voertuig</label><input class="inp" type="text" id="rit-voertuig" placeholder="bv. Jumpy"></div>
       <div class="fg md"><label for="rit-status">Status</label><select class="sel" id="rit-status">
         <option value="gepland">Gepland</option><option value="bevestigd">Bevestigd</option><option value="gedaan">Gedaan</option>
       </select></div>
@@ -4067,6 +4068,29 @@ async function renderLocatieDetail(){
       <div id="lm-body-${l.id}">${_locMatRowsHTML(l.id)}</div>
     </div>`;
   }
+  // Kleurenborden (alleen kamplocatie)
+  if(isKamp){
+    const weken=(S.kampmomenten||[]).filter(k=>k.locatie_id===l.id).map(k=>k.week).sort((a,b)=>a-b);
+    if(weken.length){
+      let kbData=[];
+      try{kbData=(await api('GET','/kleurenborden')).filter(kb=>kb.locatie_id===l.id);}catch(e){}
+      h+=`<div class="card" style="margin-top:.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+          <div class="card-hd" style="margin:0">🎨 Kleurenborden per week</div>
+          <button class="btn-xs" onclick="openKleurenborden(${l.id},'${_escH(l.name)}')">✏️ Beheren</button>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px">Welke kleurenborden gaan mee bij de startlevering naar deze locatie?</div>
+        ${weken.map(w=>{
+          const kl=kbData.filter(k=>k.week===w);
+          return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="font-size:11px;font-weight:600;color:var(--text2);min-width:54px">Week ${w}</span>
+            ${kl.length?kl.map(k=>`<span style="background:${_kleurBg(k.kleur)};color:${_kleurFg(k.kleur)};border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600;border:.5px solid rgba(0,0,0,.12)">● ${_escH(k.kleur)} ×${k.aantal}</span>`).join('')
+              :'<span style="font-size:11px;color:var(--text3)">Nog niet ingesteld</span>'}
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+  }
   // Log
   h+=`<div class="card" style="margin-top:.75rem">
     <div class="card-hd">📜 Activiteitenlog</div>
@@ -5484,6 +5508,14 @@ function _ritCardEl(rit,wide){
     +(ledenHtml||'<div style="font-size:'+fs2+';color:var(--text3)">leeg</div>')+meer
     +(rit.opmerking?'<div style="font-size:'+fs2+';color:var(--text3);font-style:italic">'+_escH(rit.opmerking)+'</div>':'');
   card.onclick=()=>openRitModal(rit.id);
+  // Klaarzetten-knop rechtsonder op de kaart
+  const kzBtn=document.createElement('button');
+  kzBtn.className='btn-xs';
+  kzBtn.title='Rit klaarzetten';
+  kzBtn.textContent='📦 Klaarzetten';
+  kzBtn.style.cssText='margin-top:5px;font-size:10px;'+(rit.klaarzet_status==='klaar'?'background:var(--green-bg);color:var(--green-dk);border-color:#5DCAA5':'');
+  kzBtn.onclick=ev=>{ev.stopPropagation();openRitKlaarzetten(rit.id);};
+  card.appendChild(kzBtn);
   return card;
 }
 
@@ -5625,6 +5657,7 @@ function openRitModal(id){
   document.getElementById('modal-rit-title').textContent='Rit — '+fIso(rit.datum);
   document.getElementById('rit-datum').value=rit.datum||'';
   document.getElementById('rit-chauffeur').value=rit.chauffeur||'';
+  document.getElementById('rit-voertuig').value=rit.voertuig||'';
   document.getElementById('rit-status').value=rit.status||'gepland';
   document.getElementById('rit-opmerking').value=rit.opmerking||'';
   renderRitLeden();
@@ -5683,6 +5716,7 @@ async function saveRit(){
   const r=await api('PUT','/ritten/'+editingRitId,{
     datum,
     chauffeur:document.getElementById('rit-chauffeur').value.trim(),
+    voertuig:document.getElementById('rit-voertuig').value.trim(),
     status:document.getElementById('rit-status').value,
     opmerking:document.getElementById('rit-opmerking').value.trim()
   });
@@ -6307,6 +6341,177 @@ function printChecklist() {
 }
 
 // ── INVENTARIS PER LOCATIE ──
+// ── KLEURENBORDEN ──
+const _KLEUREN=['ROOD','GEEL','BLAUW','GROEN','ORANJE','PAARS','GRIJS','ZWART','WIT','ROZE'];
+const _KLEUR_CSS={ROOD:'#E24B4A',GEEL:'#F5C842',BLAUW:'#378ADD',GROEN:'#1D9E75',ORANJE:'#EF9F27',PAARS:'#8B5CF6',GRIJS:'#9CA3AF',ZWART:'#1a1a18',WIT:'#f5f5f3',ROZE:'#F472B6'};
+function _kleurBg(k){return _KLEUR_CSS[k]||'var(--bg3)';}
+function _kleurFg(k){return (k==='WIT'||k==='GEEL'||k==='GRIJS')?'#1a1a18':'#fff';}
+
+let _kbLocId=null, _kbLocNaam='', _kbWeek=null, _kbData={}, _kbWeken=[];
+
+async function openKleurenborden(locId,locNaam){
+  _kbLocId=locId; _kbLocNaam=locNaam||'?';
+  document.getElementById('kb-titel').textContent='🎨 Kleurenborden — '+_escH(_kbLocNaam);
+  _kbWeken=(S.kampmomenten||[]).filter(k=>k.locatie_id===locId).map(k=>k.week).sort((a,b)=>a-b);
+  if(!_kbWeken.length){showToast('Geen kampmomenten voor deze locatie','warn');return;}
+  const all=await api('GET','/kleurenborden');
+  _kbData={};
+  _kbWeken.forEach(w=>{_kbData[w]={};});
+  (all||[]).filter(kb=>kb.locatie_id===locId).forEach(kb=>{
+    if(!_kbData[kb.week])_kbData[kb.week]={};
+    _kbData[kb.week][kb.kleur]=kb.aantal||1;
+  });
+  _kbWeek=_kbWeken[0];
+  _renderKbTabs();
+  _renderKbBody();
+  openModal('modal-kleurenborden');
+}
+
+function _renderKbTabs(){
+  const el=document.getElementById('kb-week-tabs');
+  el.innerHTML=_kbWeken.map(w=>`<button class="btn-xs ${w===_kbWeek?'btn-g':''}" onclick="_kbWeek=${w};_renderKbTabs();_renderKbBody()">Week ${w}</button>`).join('');
+}
+
+function _renderKbBody(){
+  const kleuren=_kbData[_kbWeek]||{};
+  const el=document.getElementById('kb-body');
+  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
+    +_KLEUREN.map(k=>{
+      const n=kleuren[k]||0;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;border:.5px solid var(--border);background:${n>0?_kleurBg(k)+'1A':'var(--bg)'}">
+        <span style="width:14px;height:14px;border-radius:3px;background:${_kleurBg(k)};border:.5px solid rgba(0,0,0,.2);flex-shrink:0"></span>
+        <span style="flex:1;font-size:13px;font-weight:500">${k}</span>
+        <input type="number" min="0" max="20" value="${n}" id="kb-inp-${k}"
+          style="width:52px;height:28px;text-align:center;font-size:13px;border:.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text)"
+          oninput="_kbData[${_kbWeek}]=_kbData[${_kbWeek}]||{};_kbData[${_kbWeek}]['${k}']=parseInt(this.value)||0">
+      </div>`;
+    }).join('')
+    +'</div>';
+}
+
+async function saveKleurenborden(){
+  if(!_kbLocId||!_kbWeek)return;
+  const kleuren=Object.entries(_kbData[_kbWeek]||{})
+    .filter(([,n])=>n>0)
+    .map(([kleur,aantal])=>({kleur,aantal}));
+  const r=await api('POST','/kleurenborden/bulk',{locatie_id:_kbLocId,week:_kbWeek,kleuren});
+  if(r&&r.ok){
+    showToast('Kleurenborden week '+_kbWeek+' opgeslagen','success');
+    renderLocatieDetail();
+  }
+}
+
+// ── RIT KLAARZETTEN — persistente verhuizer-checklist per rit ──
+let _kzRitId=null, _kzChecks=[];
+
+async function openRitKlaarzetten(ritId){
+  _kzRitId=ritId;
+  const rit=plannerRitten.find(r=>r.id===ritId);
+  document.getElementById('kz-titel').textContent='📦 Klaarzetten — '+(rit?fIso(rit.datum)+' '+(rit.chauffeur?'('+rit.chauffeur+')':''):'');
+  document.getElementById('kz-naam').value='';
+  const data=await api('GET','/ritten/'+ritId+'/checks');
+  if(!data||data.error){showToast('Kon checklist niet laden','error');return;}
+  if(!data.checks||!data.checks.length){
+    const init=await api('POST','/ritten/'+ritId+'/checks/init');
+    if(init&&init.error){
+      showToast('Geen materiaalregels gevonden. Voeg eerst transport-regels toe aan de rit.','warn');
+      return;
+    }
+    _kzChecks=init.checks||[];
+  } else {
+    _kzChecks=data.checks;
+  }
+  const kz=data.klaarzet||{};
+  const banner=document.getElementById('kz-status-banner');
+  if(kz.klaarzet_status==='klaar'){
+    banner.innerHTML='<div style="background:var(--green-bg);color:var(--green-dk);padding:8px 12px;border-radius:var(--r);margin-bottom:10px;font-size:12px">✅ Klaargelegd door <strong>'+_escH(kz.klaarzet_door)+'</strong> op '+_escH(kz.klaarzet_op)+'</div>';
+    document.getElementById('kz-naam').value=kz.klaarzet_door||'';
+  } else {
+    banner.innerHTML='';
+  }
+  _renderKzItems();
+  openModal('modal-klaarzetten');
+}
+
+function _renderKzItems(){
+  const totaal=_kzChecks.length;
+  const ok=_kzChecks.filter(c=>c.status==='ok').length;
+  const ontbreekt=_kzChecks.filter(c=>c.status==='ontbreekt').length;
+  const deels=_kzChecks.filter(c=>c.status==='deels').length;
+  const wacht=_kzChecks.filter(c=>c.status==='wacht').length;
+  const pct=totaal?Math.round((ok/totaal)*100):0;
+  document.getElementById('kz-progress').innerHTML=
+    '<div style="background:var(--bg3);border-radius:var(--r);padding:8px 12px;font-size:12px;display:flex;gap:14px;align-items:center">'
+    +'<div style="flex:1;background:var(--bg2);border-radius:999px;height:6px;overflow:hidden"><div style="height:100%;background:var(--green);width:'+pct+'%;transition:width .3s"></div></div>'
+    +'<span style="font-weight:600;color:var(--green-dk)">✅ '+ok+'/'+totaal+'</span>'
+    +(ontbreekt?'<span style="color:var(--red)">❌ '+ontbreekt+' ontbr.</span>':'')
+    +(deels?'<span style="color:var(--amber-dk)">⚠️ '+deels+' deels</span>':'')
+    +(wacht?'<span style="color:var(--text3)">⬜ '+wacht+'</span>':'')
+    +'</div>';
+
+  const soortOrder=['basis','thema','sport','andere'];
+  const soortLabel={basis:'📦 Basismateriaal',thema:'🎯 Thema-materiaal',sport:'🏐 Sportmateriaal',andere:'📋 Overige'};
+  const perSoort={};
+  _kzChecks.forEach(c=>{const s=c.item_soort||'andere';if(!perSoort[s])perSoort[s]=[];perSoort[s].push(c);});
+  const soorten=soortOrder.filter(s=>perSoort[s]).concat(Object.keys(perSoort).filter(s=>!soortOrder.includes(s)&&perSoort[s]));
+
+  const el=document.getElementById('kz-items');
+  el.innerHTML=soorten.map(soort=>{
+    const items=perSoort[soort];
+    return '<div style="margin-bottom:1rem">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">'+soortLabel[soort]+'</div>'
+      +items.map(c=>{
+        const bg=c.status==='ok'?'background:var(--green-bg);border-color:#5DCAA5':c.status==='ontbreekt'?'background:var(--red-bg);border-color:#F09595':c.status==='deels'?'background:var(--amber-bg);border-color:#F4C875':'';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;margin-bottom:3px;border:.5px solid var(--border);'+bg+'" id="kz-row-'+c.id+'">'
+          +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_escH(c.item_naam)+'</div>'
+          +(c.notitie?'<div style="font-size:11px;color:var(--text2);font-style:italic">'+_escH(c.notitie)+'</div>':'')
+          +'</div>'
+          +'<span style="font-size:11px;color:var(--text2);white-space:nowrap">×'+c.qty+'</span>'
+          +'<div style="display:flex;gap:3px">'
+          +'<button class="btn-xs'+(c.status==='ok'?' btn-g':'')+'" onclick="setKzStatus('+c.id+',\'ok\')" title="Aanwezig">✅</button>'
+          +'<button class="btn-xs" style="'+(c.status==='deels'?'background:var(--amber);color:#fff;border-color:var(--amber)':'')+'" onclick="setKzStatus('+c.id+',\'deels\')" title="Deels aanwezig">⚠️</button>'
+          +'<button class="btn-xs'+(c.status==='ontbreekt'?' btn-r':'')+'" onclick="setKzStatus('+c.id+',\'ontbreekt\')" title="Ontbreekt">❌</button>'
+          +'</div>'
+          +'<input type="text" value="'+_escH(c.notitie||'')+'" placeholder="Notitie..." '
+          +'style="height:28px;font-size:11px;width:130px;border:.5px solid var(--border2);border-radius:4px;padding:0 6px;background:var(--bg);color:var(--text)" '
+          +'onchange="setKzNotitie('+c.id+',this.value)">'
+          +'</div>';
+      }).join('')
+      +'</div>';
+  }).join('');
+}
+
+async function setKzStatus(checkId,status){
+  const naam=document.getElementById('kz-naam').value.trim();
+  const r=await api('PUT','/checks/'+checkId,{status,aangevinkt_door:naam});
+  if(r&&r.id){const idx=_kzChecks.findIndex(c=>c.id===checkId);if(idx>=0)_kzChecks[idx]=r;_renderKzItems();}
+}
+async function setKzNotitie(checkId,notitie){
+  const r=await api('PUT','/checks/'+checkId,{notitie});
+  if(r&&r.id){const idx=_kzChecks.findIndex(c=>c.id===checkId);if(idx>=0)_kzChecks[idx]=r;}
+}
+async function herlaadKzChecks(){
+  if(!_kzRitId)return;
+  if(!confirm('Checklist opnieuw opbouwen vanuit de huidige materiaalregels? Bestaande vinkjes gaan verloren.'))return;
+  const init=await api('POST','/ritten/'+_kzRitId+'/checks/init');
+  if(init&&init.error){showToast(init.error,'warn');return;}
+  _kzChecks=init.checks||[];
+  _renderKzItems();
+  showToast('Checklist herlaad ('+_kzChecks.length+' items)','success');
+}
+async function markeerRitKlaar(){
+  const naam=document.getElementById('kz-naam').value.trim();
+  if(!naam){showToast('Vul je naam in','warn');return;}
+  const r=await api('POST','/ritten/'+_kzRitId+'/klaarzet',{naam});
+  if(r&&r.ok){
+    showToast('Rit gemarkeerd als klaargelegd door '+naam,'success');
+    document.getElementById('kz-status-banner').innerHTML=
+      '<div style="background:var(--green-bg);color:var(--green-dk);padding:8px 12px;border-radius:var(--r);margin-bottom:10px;font-size:12px">✅ Klaargelegd door <strong>'+_escH(naam)+'</strong> op '+_escH(r.klaarzet_op)+'</div>';
+    await _herfetchRitten();
+  }
+}
+
 async function openInventaris(locId, locNaam) {
   const overzicht = await api('GET', '/overzicht');
   const loc = overzicht.find(l => l.id === locId);
@@ -6545,6 +6750,46 @@ function toggleDarkMode(){
     <div style="display:flex;gap:8px;margin-top:.875rem;padding-top:.75rem;border-top:.5px solid var(--border)">
       <button class="btn-g" onclick="printChecklist()">🖨 Afdrukken</button>
       <button class="btn-o" onclick="closeModal('modal-checklist')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Rit klaarzetten (persistente digitale verhuizer-checklist) -->
+<div class="modal-bg" id="modal-klaarzetten">
+  <div class="modal" style="width:640px;max-height:90vh;display:flex;flex-direction:column">
+    <div class="modal-title">
+      <span id="kz-titel">Rit klaarzetten</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-klaarzetten')">✕</button>
+    </div>
+    <div id="kz-status-banner"></div>
+    <div class="fr" style="margin-bottom:10px">
+      <div class="fg grow"><label for="kz-naam">Klaargezet door</label><input class="inp" type="text" id="kz-naam" placeholder="Jouw naam..." autocomplete="off" style="width:100%"></div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn-xs" onclick="herlaadKzChecks()" title="Herlaad vanuit materiaalregels">🔄 Herlaad</button>
+      </div>
+    </div>
+    <div id="kz-progress" style="margin-bottom:10px"></div>
+    <div id="kz-items" style="flex:1;overflow-y:auto;padding-right:4px"></div>
+    <div style="display:flex;gap:8px;margin-top:.875rem;padding-top:.75rem;border-top:.5px solid var(--border)">
+      <button class="btn-g" style="flex:1" onclick="markeerRitKlaar()">✅ Markeer als klaargelegd</button>
+      <button class="btn-o" onclick="closeModal('modal-klaarzetten')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Kleurenborden beheer -->
+<div class="modal-bg" id="modal-kleurenborden">
+  <div class="modal" style="width:520px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-title">
+      <span id="kb-titel">🎨 Kleurenborden</span>
+      <button class="modal-close" onclick="closeModal('modal-kleurenborden')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Stel per week in welke kleurenborden naar deze locatie gaan. Vul het aantal in per kleur (0 = niet meenemen).</div>
+    <div id="kb-week-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="kb-body" style="flex:1;overflow-y:auto"></div>
+    <div style="display:flex;gap:8px;margin-top:.875rem;padding-top:.75rem;border-top:.5px solid var(--border)">
+      <button class="btn-g" style="flex:1" onclick="saveKleurenborden()">💾 Opslaan</button>
+      <button class="btn-o" onclick="closeModal('modal-kleurenborden')">Sluiten</button>
     </div>
   </div>
 </div>

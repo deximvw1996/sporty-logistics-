@@ -338,6 +338,34 @@ async function startServer() {
   addColumnIfMissing('locaties', 'lng', 'REAL');
   addColumnIfMissing('locaties', 'stockage_rol', "TEXT DEFAULT 'beide'");
 
+  // Migration 18: voertuig op ritten, verhuis_checks (persistente klaarzet-checklist), kleurenborden
+  addColumnIfMissing('transport_ritten', 'voertuig', "TEXT DEFAULT ''");
+  addColumnIfMissing('transport_ritten', 'klaarzet_status', "TEXT DEFAULT ''");
+  addColumnIfMissing('transport_ritten', 'klaarzet_door', "TEXT DEFAULT ''");
+  addColumnIfMissing('transport_ritten', 'klaarzet_op', "TEXT DEFAULT ''");
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS verhuis_checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rit_id INTEGER NOT NULL,
+    item_naam TEXT NOT NULL,
+    item_soort TEXT DEFAULT 'andere',
+    qty INTEGER DEFAULT 1,
+    status TEXT DEFAULT 'wacht',
+    notitie TEXT DEFAULT '',
+    aangevinkt_door TEXT DEFAULT '',
+    aangevinkt_op TEXT DEFAULT '',
+    sort_order INTEGER DEFAULT 0,
+    FOREIGN KEY(rit_id) REFERENCES transport_ritten(id) ON DELETE CASCADE
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS locatie_kleuren (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    locatie_id INTEGER NOT NULL,
+    week INTEGER NOT NULL,
+    kleur TEXT NOT NULL,
+    aantal INTEGER DEFAULT 1,
+    UNIQUE(locatie_id, week, kleur),
+    FOREIGN KEY(locatie_id) REFERENCES locaties(id) ON DELETE CASCADE
+  )`);
+
   saveDb();
 
 
@@ -1084,16 +1112,16 @@ async function startServer() {
     res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[id])));
   });
   app.put('/api/ritten/:id',(req,res)=>{
-    const {datum,chauffeur,opmerking,status}=req.body;
+    const {datum,chauffeur,opmerking,status,voertuig}=req.body;
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
-    run('UPDATE transport_ritten SET datum=?,chauffeur=?,opmerking=?,status=? WHERE id=?',
+    run('UPDATE transport_ritten SET datum=?,chauffeur=?,opmerking=?,status=?,voertuig=? WHERE id=?',
       [datum||rit.datum,
        chauffeur!==undefined?chauffeur:rit.chauffeur,
        opmerking!==undefined?opmerking:rit.opmerking,
        status||rit.status,
+       voertuig!==undefined?voertuig:(rit.voertuig||''),
        req.params.id]);
-    // Sync gedenormaliseerde velden naar de leden-taken
     if(datum&&datum!==rit.datum) run('UPDATE transport_taken SET datum=? WHERE rit_id=?',[datum,req.params.id]);
     if(chauffeur!==undefined&&chauffeur!==rit.chauffeur) run('UPDATE transport_taken SET wie=? WHERE rit_id=?',[chauffeur,req.params.id]);
     res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id])));
@@ -1113,6 +1141,80 @@ async function startServer() {
     run('DELETE FROM transport_ritten WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
+  // ── VERHUIS CHECKS (persistente klaarzet-checklist per rit) ──
+  app.get('/api/ritten/:id/checks',(req,res)=>{
+    const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY item_soort,sort_order,id',[req.params.id]);
+    const rit=get('SELECT klaarzet_status,klaarzet_door,klaarzet_op,voertuig FROM transport_ritten WHERE id=?',[req.params.id]);
+    res.json({checks,klaarzet:rit||{}});
+  });
+  // Initialiseer checks vanuit de transport_regels van de rit
+  app.post('/api/ritten/:id/checks/init',(req,res)=>{
+    const rit_id=parseInt(req.params.id);
+    const rit=get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]);
+    if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
+    const taken=all('SELECT * FROM transport_taken WHERE rit_id=?',[rit_id]);
+    const alle_regels=[];
+    taken.forEach(t=>{
+      all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]).forEach(r=>alle_regels.push({...r,_taak_opmerking:t.opmerking,_taak_type:t.type}));
+    });
+    if(!alle_regels.length)return res.status(400).json({error:'Geen materiaalregels gevonden in deze rit'});
+    run('DELETE FROM verhuis_checks WHERE rit_id=?',[rit_id]);
+    alle_regels.forEach((r,i)=>{
+      ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order) VALUES (?,?,?,?,?,?)',
+        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i]);
+    });
+    const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY item_soort,sort_order',[rit_id]);
+    res.json({ok:true,aangemaakt:checks.length,checks});
+  });
+  // Update één check (status, notitie, naam)
+  app.put('/api/checks/:id',(req,res)=>{
+    const cur=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.id]);
+    if(!cur)return res.status(404).json({error:'Check niet gevonden'});
+    const status=req.body.status!==undefined?req.body.status:cur.status;
+    const notitie=req.body.notitie!==undefined?req.body.notitie:cur.notitie;
+    const door=req.body.aangevinkt_door!==undefined?req.body.aangevinkt_door:cur.aangevinkt_door;
+    const op=(status!==cur.status)?now():cur.aangevinkt_op;
+    run('UPDATE verhuis_checks SET status=?,notitie=?,aangevinkt_door=?,aangevinkt_op=? WHERE id=?',[status,notitie,door,op,req.params.id]);
+    res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.id]));
+  });
+  // Markeer rit als klaargezet
+  app.post('/api/ritten/:id/klaarzet',(req,res)=>{
+    const{naam}=req.body;
+    if(!naam)return res.status(400).json({error:'Naam is verplicht'});
+    const tijdstip=now();
+    run('UPDATE transport_ritten SET klaarzet_status=?,klaarzet_door=?,klaarzet_op=? WHERE id=?',['klaar',naam,tijdstip,req.params.id]);
+    res.json({ok:true,klaarzet_door:naam,klaarzet_op:tijdstip});
+  });
+
+  // ── KLEURENBORDEN PER LOCATIE EN WEEK ──
+  app.get('/api/kleurenborden',(req,res)=>{
+    res.json(all('SELECT kb.*,l.name as locatie_naam FROM locatie_kleuren kb LEFT JOIN locaties l ON l.id=kb.locatie_id ORDER BY kb.locatie_id,kb.week,kb.kleur'));
+  });
+  app.post('/api/kleurenborden',(req,res)=>{
+    const{locatie_id,week,kleur,aantal}=req.body;
+    if(!locatie_id||!week||!kleur)return res.status(400).json({error:'locatie_id, week en kleur zijn verplicht'});
+    try{const id=ins('INSERT INTO locatie_kleuren (locatie_id,week,kleur,aantal) VALUES (?,?,?,?)',[locatie_id,week,(kleur+'').toUpperCase(),aantal||1]);res.json(get('SELECT * FROM locatie_kleuren WHERE id=?',[id]));}
+    catch(e){res.status(400).json({error:'Combinatie bestaat al'});}
+  });
+  app.put('/api/kleurenborden/:id',(req,res)=>{
+    run('UPDATE locatie_kleuren SET aantal=? WHERE id=?',[req.body.aantal||1,req.params.id]);
+    res.json(get('SELECT * FROM locatie_kleuren WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/kleurenborden/:id',(req,res)=>{
+    run('DELETE FROM locatie_kleuren WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
+  // Bulk upsert: vervang de hele set voor locatie × week in één call
+  app.post('/api/kleurenborden/bulk',(req,res)=>{
+    const{locatie_id,week,kleuren}=req.body;
+    if(!locatie_id||!week||!Array.isArray(kleuren))return res.status(400).json({error:'locatie_id, week en kleuren[] zijn verplicht'});
+    run('DELETE FROM locatie_kleuren WHERE locatie_id=? AND week=?',[locatie_id,week]);
+    kleuren.filter(k=>k.kleur&&k.aantal>0).forEach(k=>{
+      ins('INSERT INTO locatie_kleuren (locatie_id,week,kleur,aantal) VALUES (?,?,?,?)',[locatie_id,week,(k.kleur+'').toUpperCase(),k.aantal]);
+    });
+    res.json({ok:true,opgeslagen:kleuren.length});
+  });
+
   // Koppel een taak aan een rit (getal), of ontkoppel → nood (null)
   app.put('/api/transport-taken/:id/rit',(req,res)=>{
     const {rit_id}=req.body;
@@ -1183,6 +1285,8 @@ async function startServer() {
       transport_ritten: all('SELECT * FROM transport_ritten'),
       chauffeurs: all('SELECT * FROM chauffeurs'),
       ploeg_shifts: all('SELECT * FROM ploeg_shifts'),
+      verhuis_checks: all('SELECT * FROM verhuis_checks'),
+      locatie_kleuren: all('SELECT * FROM locatie_kleuren'),
     };
     res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
     res.setHeader('Content-Type', 'application/json');
