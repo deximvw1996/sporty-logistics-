@@ -316,6 +316,28 @@ async function startServer() {
   addColumnIfMissing('themas', 'leeftijdsgroep', "TEXT DEFAULT ''");
   addColumnIfMissing('thema_materiaal', 'stockage_code', "TEXT DEFAULT ''");
 
+  // Migration 17: vangnet voor kolommen die op een VERSE/lege DB ontbreken.
+  // Sommige addColumnIfMissing-migraties hierboven (mig. 2, 3, 5, 8, 9) draaien
+  // VOORDAT hun tabel via het grote CREATE TABLE IF NOT EXISTS-blok bestaat. Op een
+  // verse DB (user_version=0) wordt de kolom dan stil overgeslagen ("tabel bestaat
+  // nog niet") en daarna maakt het CREATE-blok de tabel zonder die kolom. Gevolg:
+  // /api/import-themas crasht op de ontbrekende kolom stockage_locatie_id, en
+  // sort_order/notities/categorie ontbreken blijvend (mig. 2/3 zijn version-gated,
+  // dus ze worden nooit opnieuw geprobeerd). Door ze hier — NA het CREATE-blok en
+  // ongegate — opnieuw te asserten krijgen zowel verse als reeds bestaande DB's
+  // alle kolommen. Idempotent: op een DB die ze al heeft is dit een no-op.
+  addColumnIfMissing('thema_materiaal', 'sort_order', 'INTEGER DEFAULT 0');
+  addColumnIfMissing('thema_materiaal', 'stockage_locatie_id', 'INTEGER');
+  addColumnIfMissing('standaard_materiaal', 'sort_order', 'INTEGER DEFAULT 0');
+  addColumnIfMissing('standaard_materiaal', 'stockage_locatie_id', 'INTEGER');
+  addColumnIfMissing('locatie_materiaal', 'sort_order', 'INTEGER DEFAULT 0');
+  addColumnIfMissing('materiaal_items', 'minimum', 'REAL DEFAULT 0');
+  addColumnIfMissing('kampmomenten', 'notities', "TEXT DEFAULT ''");
+  addColumnIfMissing('transport_taken', 'categorie', "TEXT DEFAULT ''");
+  addColumnIfMissing('locaties', 'lat', 'REAL');
+  addColumnIfMissing('locaties', 'lng', 'REAL');
+  addColumnIfMissing('locaties', 'stockage_rol', "TEXT DEFAULT 'beide'");
+
   saveDb();
 
 
