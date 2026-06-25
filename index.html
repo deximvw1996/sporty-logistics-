@@ -721,22 +721,54 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-transport-noden">
     <div style="display:flex;gap:5px;margin-bottom:1rem">
-      <button class="kal-subtab active" onclick="goTo('transport-noden')">&#128229; Op te stellen</button>
+      <button class="kal-subtab active" onclick="goTo('transport-noden')">&#128229; Transport Beheer</button>
       <button class="kal-subtab" onclick="goTo('transport-plan')">&#9889; Plannen</button>
       <button class="kal-subtab" onclick="goTo('transporten')">&#128202; Alle transporten</button>
     </div>
-    <div style="font-size:12px;color:var(--text2);padding:8px 12px;background:var(--bg2);border-radius:var(--rl);margin-bottom:.875rem">
-      &#8505; Stel hier op <strong>wat</strong> er vervoerd moet worden. Datum en chauffeur plan je later in bij <strong>Plannen</strong>.
+
+    <!-- Filter + actiebalk -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem;align-items:center">
+      <button class="btn-g" onclick="genereerNoden()" title="Genereer transport-voorstellen op basis van kampen">&#9889; Genereer voorstel</button>
+      <button class="btn-b" onclick="openNieuweNood()">+ Nieuw transport</button>
+      <span style="flex:1"></span>
+      <select class="sel" id="tb-filter-status" style="height:30px;font-size:12px" onchange="renderTransportBeheer()">
+        <option value="">Alle statussen</option>
+        <option value="backlog">📥 Backlog (niet ingepland)</option>
+        <option value="ingepland">📅 Ingepland in rit</option>
+      </select>
+      <select class="sel" id="tb-filter-week" style="height:30px;font-size:12px" onchange="renderTransportBeheer()">
+        <option value="">Alle weken</option>
+      </select>
+      <input class="inp" id="tb-zoek" placeholder="Zoeken…" style="height:30px;font-size:12px;width:140px" oninput="renderTransportBeheer()">
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-      <button class="btn-g" onclick="genereerNoden()">&#9889; Voorstel genereren</button>
-      <button class="btn-b" onclick="openNieuweNood()">+ Nood toevoegen</button>
+
+    <!-- Bulk-actiebalk (verschijnt als items geselecteerd zijn) -->
+    <div id="tb-bulk-bar" style="display:none;position:sticky;top:0;z-index:10;background:var(--green-bg);border:.5px solid var(--green);border-radius:var(--rl);padding:8px 12px;margin-bottom:.75rem;display:none;align-items:center;gap:8px;flex-wrap:wrap">
+      <span id="tb-bulk-tel" style="font-size:12px;font-weight:600;color:var(--green-dk)">0 geselecteerd</span>
+      <button class="btn-xs btn-g" onclick="bulkActie('backlog')">&#8617; Terugzetten naar backlog</button>
+      <button class="btn-xs btn-g" onclick="bulkActie('nieuwe-rit')">&#128666; Nieuwe rit aanmaken</button>
+      <select class="sel" id="tb-bulk-rit-sel" style="height:26px;font-size:11px;max-width:220px">
+        <option value="">— Voeg toe aan bestaande rit —</option>
+      </select>
+      <button class="btn-xs btn-g" onclick="bulkActie('bestaande-rit')">+ Toevoegen</button>
+      <button class="btn-xs" onclick="bulkActie('delete')" style="color:var(--red);margin-left:auto">&#128465; Verwijder</button>
+      <button class="btn-xs" onclick="_tbDeselectAll()">&#x2715; Deselecteer</button>
     </div>
+
+    <!-- Gegenereerde voorstellen -->
     <div id="noden-voorstellen" style="display:none">
-      <div class="card" style="border-color:#5DCAA5">
-        <div class="card-hd" style="color:var(--green-dk)">&#9889; Gegenereerde voorstellen &mdash; voeg toe aan de backlog</div>
+      <div class="card" style="border-color:#5DCAA5;margin-bottom:.75rem">
+        <div class="card-hd" style="color:var(--green-dk)">&#9889; Gegenereerde voorstellen &mdash; klik op + Backlog om toe te voegen</div>
         <div id="noden-voorstellen-lijst"></div>
       </div>
+    </div>
+
+    <!-- Transport lijst -->
+    <div id="tb-select-bar" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--text2)">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="tb-sel-all" onchange="_tbToggleAll(this.checked)"> Alles selecteren
+      </label>
+      <span id="tb-teller" style="color:var(--text3)"></span>
     </div>
     <div id="noden-lijst"></div>
   </div>
@@ -6093,32 +6125,156 @@ async function cycleStatus(e,id){
   await _herverversTransportSchermen();
 }
 // \u2500\u2500 NODEN (laag 1: opstellen) \u2500\u2500
+let _tbSel=new Set(); // geselecteerde transport_taken ids
+
 async function renderNoden(){
   plannerTaken=await api('GET','/transport-taken');
   noden=plannerTaken.filter(t=>!t.rit_id);
+  if(!plannerRitten.length)plannerRitten=await api('GET','/ritten');
+  if(!_voertuigTypes.length){const vt=await api('GET','/voertuig-types');if(Array.isArray(vt))_voertuigTypes=vt;}
   await _zorgMatData();
-  renderNodenLijst();
+  _vulTbWekFilter();
+  renderTransportBeheer();
 }
-function renderNodenLijst(){
+function _vulTbWekFilter(){
+  const sel=document.getElementById('tb-filter-week');
+  if(!sel)return;
+  const weken=new Set();
+  plannerTaken.forEach(t=>{
+    const w=t.week||(t.kampmoment_id&&(S.kampmomenten||[]).find(k=>k.id===t.kampmoment_id)?.week)||(t.opmerking||'').match(/week\s*(\d+)/i)?.[1];
+    if(w)weken.add(parseInt(w));
+  });
+  const cur=sel.value;
+  sel.innerHTML='<option value="">Alle weken</option>'+[...weken].sort((a,b)=>a-b).map(w=>`<option value="${w}"${cur==w?'selected':''}>Week ${w}</option>`).join('');
+}
+function renderTransportBeheer(){
   const el=document.getElementById('noden-lijst');
   if(!el)return;
-  if(!noden.length){
-    el.innerHTML='<div class="empty">Nog geen transport-noden. Voeg er een toe of genereer een voorstel.</div>';
+
+  const filterStatus=document.getElementById('tb-filter-status')?.value||'';
+  const filterWeek=document.getElementById('tb-filter-week')?.value;
+  const zoek=(document.getElementById('tb-zoek')?.value||'').toLowerCase().trim();
+
+  function _nodWeek(t){
+    if(t.week)return t.week;
+    if(t.kampmoment_id){const km=(S.kampmomenten||[]).find(k=>k.id===t.kampmoment_id);if(km)return km.week;}
+    const m=(t.opmerking||'').match(/week\s*(\d+)/i);return m?parseInt(m[1]):null;
+  }
+
+  let items=[...plannerTaken];
+  if(filterStatus==='backlog') items=items.filter(t=>!t.rit_id);
+  if(filterStatus==='ingepland') items=items.filter(t=>!!t.rit_id);
+  if(filterWeek) items=items.filter(t=>_nodWeek(t)==parseInt(filterWeek));
+  if(zoek) items=items.filter(t=>(t.opmerking||'').toLowerCase().includes(zoek)||(t.type||'').toLowerCase().includes(zoek)||_ritRoute(t).toLowerCase().includes(zoek));
+
+  // Teller
+  const telEl=document.getElementById('tb-teller');
+  if(telEl)telEl.textContent=items.length+' transporten'+(plannerTaken.length!==items.length?' (gefilterd van '+plannerTaken.length+')':'');
+
+  if(!items.length){
+    el.innerHTML='<div class="empty">Geen transporten gevonden. Genereer een voorstel of voeg er een toe.</div>';
+    _updateBulkBar();
     return;
   }
-  el.innerHTML=noden.map(t=>{
-    const route=_ritRoute(t);
-    const matN=(t.regels||[]).length;
-    return `<div class="tp-taak" style="border-left:3px solid var(--amber);margin-bottom:.5rem">`
-      +`<div class="tp-hd">`
-      +`<span style="font-size:16px">${_tpTypIco[t.type]||'\u{1F4E6}'}</span>`
-      +`<div style="flex:1"><div style="font-size:13px;font-weight:500">${_escH(t.opmerking||t.type)}</div>`
-      +`<div style="font-size:11px;color:var(--text2)">${_escH(route||'\u2014')}${matN?' \u00B7 '+matN+' materiaalitem'+(matN!==1?'s':''):''}</div></div>`
-      +`<button class="btn-g" style="height:28px;font-size:11px" onclick="planNood(${t.id})">\u{1F4C5} Plan in</button>`
-      +`<button class="bi" title="Bewerken" onclick="openEditTp(${t.id})">\u270F\uFE0F</button>`
-      +`<button class="bi" style="color:var(--red)" title="Verwijderen" onclick="verwijderNood(${t.id})">\u{1F5D1}\uFE0F</button>`
-      +`</div></div>`;
+
+  // Groepeer per week
+  const byWeek={};const geenWeek=[];
+  items.forEach(t=>{const w=_nodWeek(t);if(w)(byWeek[w]=byWeek[w]||[]).push(t);else geenWeek.push(t);});
+  const weken=Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
+  const groepen=[...weken.map(w=>({label:'Week '+w,items:byWeek[w]}))];
+  if(geenWeek.length)groepen.push({label:'Zonder week',items:geenWeek});
+
+  el.innerHTML=groepen.map(g=>{
+    const rows=g.items.map(t=>{
+      const rit=t.rit_id?plannerRitten.find(r=>r.id===t.rit_id):null;
+      const route=_ritRoute(t);
+      const matN=(t.regels||[]).length;
+      const isSel=_tbSel.has(t.id);
+      const statusBadge=rit
+        ?`<span style="font-size:10px;background:var(--green-bg);color:var(--green-dk);border-radius:4px;padding:1px 5px;white-space:nowrap">\uD83D\uDCC5 ${rit.datum||'rit #'+rit.id}${rit.chauffeur?' \u00B7 '+_escH(rit.chauffeur):''}</span>`
+        :`<span style="font-size:10px;background:var(--amber-bg);color:var(--amber-dk);border-radius:4px;padding:1px 5px">\uD83D\uDCE5 Backlog</span>`;
+      return `<div class="tp-taak" style="border-left:3px solid ${rit?'var(--green)':'var(--amber)'};margin-bottom:4px;${isSel?'background:var(--green-bg)':''}">`
+        +`<div class="tp-hd" style="gap:6px">`
+        +`<input type="checkbox" class="tb-cb" data-id="${t.id}" ${isSel?'checked':''} onchange="_tbToggleCb(${t.id},this.checked)" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">`
+        +`<span style="font-size:15px">${_tpTypIco[t.type]||'\uD83D\uDCE6'}</span>`
+        +`<div style="flex:1;min-width:0">`
+        +`<div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escH(t.opmerking||t.type)}</div>`
+        +`<div style="font-size:11px;color:var(--text2);display:flex;gap:6px;flex-wrap:wrap;margin-top:1px">`
+        +`<span>${_escH(route||'\u2014')}</span>`
+        +(matN?`<span>\u00B7 ${matN} item${matN!==1?'s':''}</span>`:'')
+        +`${statusBadge}`
+        +`</div></div>`
+        +`<div style="display:flex;gap:3px;flex-shrink:0">`
+        +(rit?`<button class="btn-xs" title="Terugzetten naar backlog" onclick="enkeleOntkoppel(${t.id})" style="font-size:10px">\u21A9\uFE0F</button>`
+             :`<button class="btn-xs btn-g" title="Inplannen" onclick="planNood(${t.id})" style="font-size:10px">\uD83D\uDCC5</button>`)
+        +`<button class="bi" title="Bewerken" onclick="openEditTp(${t.id})">\u270F\uFE0F</button>`
+        +`<button class="bi" style="color:var(--red)" title="Verwijderen" onclick="verwijderNood(${t.id})">\uD83D\uDDD1\uFE0F</button>`
+        +`</div></div></div>`;
+    }).join('');
+    return `<div style="margin-bottom:1rem">`
+      +`<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${_escH(g.label)} <span style="font-weight:400;color:var(--text3)">(${g.items.length})</span></div>`
+      +rows+`</div>`;
   }).join('');
+
+  _updateBulkBar();
+}
+function renderNodenLijst(){renderTransportBeheer();}
+function _tbToggleCb(id,checked){if(checked)_tbSel.add(id);else _tbSel.delete(id);_updateBulkBar();}
+function _tbToggleAll(checked){
+  document.querySelectorAll('.tb-cb').forEach(cb=>{
+    const id=parseInt(cb.getAttribute('data-id'));
+    cb.checked=checked;
+    if(checked)_tbSel.add(id);else _tbSel.delete(id);
+  });
+  _updateBulkBar();
+}
+function _tbDeselectAll(){document.getElementById('tb-sel-all').checked=false;_tbSel.clear();renderTransportBeheer();}
+function _updateBulkBar(){
+  const bar=document.getElementById('tb-bulk-bar');
+  if(!bar)return;
+  const n=_tbSel.size;
+  bar.style.display=n>0?'flex':'none';
+  const tel=document.getElementById('tb-bulk-tel');
+  if(tel)tel.textContent=n+' geselecteerd';
+  // Vul rit-dropdown
+  const ritSel=document.getElementById('tb-bulk-rit-sel');
+  if(ritSel){
+    ritSel.innerHTML='<option value="">\u2014 Voeg toe aan bestaande rit \u2014</option>'
+      +(plannerRitten||[]).sort((a,b)=>a.datum.localeCompare(b.datum)).map(r=>`<option value="${r.id}">${r.datum} ${r.chauffeur?'\u00B7 '+_escH(r.chauffeur):''} (${(r.taken||[]).length} items)</option>`).join('');
+  }
+}
+async function enkeleOntkoppel(id){
+  await api('POST','/transport-taken/bulk-ontkoppel',{ids:[id]});
+  await renderNoden();
+  if(typeof _herlaadPlanner==='function')_herlaadPlanner();
+  showToast('Teruggezet naar backlog','success');
+}
+async function bulkActie(type){
+  const ids=[..._tbSel];
+  if(!ids.length){showToast('Selecteer eerst transporten','warn');return;}
+  if(type==='backlog'){
+    await api('POST','/transport-taken/bulk-ontkoppel',{ids});
+    showToast(ids.length+' transporten teruggezet naar backlog','success');
+  } else if(type==='delete'){
+    if(!confirm('Wil je '+ids.length+' transporten permanent verwijderen?'))return;
+    await api('POST','/transport-taken/bulk-delete',{ids});
+    showToast(ids.length+' transporten verwijderd','success');
+  } else if(type==='nieuwe-rit'){
+    const p=S.activePeriode||((S.periodes||[])[0]);
+    const datum=p?isoLocal(new Date(p.start_datum+'T12:00:00')):isoLocal(_appNow());
+    const rit=await api('POST','/ritten',{datum,opmerking:'Bulk rit',taak_ids:ids});
+    if(rit&&rit.error){showToast(rit.error,'error');return;}
+    showToast(ids.length+' transporten in nieuwe rit','success');
+    if(typeof openRitModal==='function')openRitModal(rit.id);
+  } else if(type==='bestaande-rit'){
+    const ritId=parseInt(document.getElementById('tb-bulk-rit-sel')?.value);
+    if(!ritId){showToast('Kies een rit','warn');return;}
+    await api('POST','/transport-taken/bulk-move',{ids,rit_id:ritId});
+    showToast(ids.length+' transporten toegevoegd aan rit','success');
+  }
+  _tbSel.clear();
+  await renderNoden();
+  if(typeof _herlaadPlanner==='function')_herlaadPlanner();
 }
 async function verwijderNood(id){
   if(!confirm('Deze nood verwijderen?'))return;

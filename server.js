@@ -1111,6 +1111,32 @@ async function startServer() {
     voorstellen.sort((a,b)=>a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd));
     res.json(voorstellen);
   });
+  // Bulk: ontkoppel van rit (zet rit_id=NULL)
+  app.post('/api/transport-taken/bulk-ontkoppel',(req,res)=>{
+    const{ids}=req.body;
+    if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
+    ids.forEach(id=>run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=? AND COALESCE((SELECT spoed_kind FROM transport_taken WHERE id=?),'') != 1",[id,id]));
+    saveDb();res.json({ok:true,count:ids.length});
+  });
+  // Bulk: verplaats naar andere rit
+  app.post('/api/transport-taken/bulk-move',(req,res)=>{
+    const{ids,rit_id}=req.body;
+    if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
+    const rit=rit_id?get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]):null;
+    if(rit_id&&!rit)return res.status(404).json({error:'Rit niet gevonden'});
+    ids.forEach(id=>{
+      run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',
+        [rit_id||null,rit?rit.datum:'',rit?rit.chauffeur:'',id]);
+    });
+    saveDb();res.json({ok:true,count:ids.length});
+  });
+  // Bulk: verwijder
+  app.post('/api/transport-taken/bulk-delete',(req,res)=>{
+    const{ids}=req.body;
+    if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
+    ids.forEach(id=>{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);run('DELETE FROM transport_taken WHERE id=?',[id]);});
+    saveDb();res.json({ok:true});
+  });
   app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere']));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)run('DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
