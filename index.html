@@ -504,17 +504,26 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   ═══════════════════════════════════════════════════════ -->
 
   <div class="sec" id="sec-planning">
-    <div class="loc-split" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
-      <div class="loc-col-list" style="flex:1 1 220px;max-width:300px;min-width:190px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
-          <strong style="font-size:13px">&#128205; Locaties</strong>
-          <button class="btn-xs" onclick="openNieuweLocatie()">+ Nieuw</button>
+    <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem">
+      <button class="kal-subtab active" id="plan-sub-locaties" onclick="setPlanSubtab('locaties',this)">&#128205; Locaties &amp; Kampen</button>
+      <button class="kal-subtab" id="plan-sub-sport" onclick="setPlanSubtab('sport',this)">&#9917; Sportpakketten</button>
+    </div>
+    <div id="plan-sub-locaties-content">
+      <div class="loc-split" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+        <div class="loc-col-list" style="flex:1 1 220px;max-width:300px;min-width:190px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+            <strong style="font-size:13px">&#128205; Locaties</strong>
+            <button class="btn-xs" onclick="openNieuweLocatie()">+ Nieuw</button>
+          </div>
+          <div id="loc-tab-list"><div class="loading">Laden&hellip;</div></div>
         </div>
-        <div id="loc-tab-list"><div class="loading">Laden&hellip;</div></div>
+        <div class="loc-col-detail" style="flex:3 1 420px;min-width:280px">
+          <div id="loc-tab-detail"><div class="empty">Selecteer een locatie links.</div></div>
+        </div>
       </div>
-      <div class="loc-col-detail" style="flex:3 1 420px;min-width:280px">
-        <div id="loc-tab-detail"><div class="empty">Selecteer een locatie links.</div></div>
-      </div>
+    </div>
+    <div id="plan-sub-sport-content" style="display:none">
+      <div id="sport-planning-grid"><div class="loading">Laden&hellip;</div></div>
     </div>
   </div>
 
@@ -2041,9 +2050,73 @@ async function renderOverzicht(){
   }).join(''):'<div class="empty">Nog geen kampmomenten gepland.</div>');
 }
 
+let _planSubtab='locaties';
+function setPlanSubtab(tab,btn){
+  _planSubtab=tab;
+  document.querySelectorAll('#sec-planning .kal-subtab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('plan-sub-locaties-content').style.display=tab==='locaties'?'':'none';
+  document.getElementById('plan-sub-sport-content').style.display=tab==='sport'?'':'none';
+  if(tab==='sport') renderSportPlanningGrid();
+}
 async function renderPlanning(){
   if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
-  renderLocatiesTab();
+  if(_planSubtab==='sport') renderSportPlanningGrid();
+  else renderLocatiesTab();
+}
+async function renderSportPlanningGrid(){
+  const el=document.getElementById('sport-planning-grid');
+  if(!el) return;
+  if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
+  // Verzamel alle weken uit kampmomenten
+  const kamplocs=(S.kampmomenten||[]).filter(k=>!k.locatie?.parent_id);
+  const weken=[...new Set(kamplocs.map(k=>k.week))].sort((a,b)=>a-b);
+  const locs=(S.locaties||[]).filter(l=>l.type==='kamp'&&!l.parent_id);
+  // sport_planning: alle sets per week per locatie
+  const planMap={}; // `${set_id}-${week}` → locatie_id
+  (S.kampmomenten||[]).forEach(km=>{(km.sport_sets||[]).forEach(ss=>{planMap[ss.set_id+'-'+km.week]=km.locatie_id;});});
+  // Bouw grid: rijen = items, kolommen = weken
+  const allSets=(_invSport||[]).flatMap(item=>(item.sets||[]).map(s=>({...s,item_naam:item.name})));
+  if(!allSets.length){el.innerHTML='<div class="empty">Nog geen sportpakketten in de catalogus.</div>';return;}
+  if(!weken.length){el.innerHTML='<div class="empty">Nog geen kampmomenten aangemaakt.</div>';return;}
+  // Groepeer sets per item_naam
+  const byItem={};
+  allSets.forEach(s=>{if(!byItem[s.item_naam])byItem[s.item_naam]=[];byItem[s.item_naam].push(s);});
+  const kampLocs=locs.filter(l=>kamplocs.find(k=>k.locatie_id===l.id));
+  let html=`<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;min-width:600px">
+    <thead><tr style="background:var(--bg2)">
+      <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);position:sticky;left:0;background:var(--bg2);min-width:160px">Sportpakket</th>
+      <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:80px">Set</th>
+      ${weken.map(w=>`<th style="padding:6px 10px;text-align:center;border-bottom:1px solid var(--border);min-width:110px">Week ${w}</th>`).join('')}
+    </tr></thead><tbody>`;
+  Object.entries(byItem).forEach(([naam,sets],gi)=>{
+    sets.forEach((s,si)=>{
+      html+=`<tr style="border-bottom:.5px solid var(--border)${gi%2===0?';background:var(--bg)':';background:var(--bg2)'}">
+        ${si===0?`<td rowspan="${sets.length}" style="padding:6px 10px;font-weight:600;border-right:.5px solid var(--border);position:sticky;left:0;background:${gi%2===0?'var(--bg)':'var(--bg2)'};">${_escH(naam)}</td>`:''}
+        <td style="padding:4px 8px;border-right:.5px solid var(--border);color:var(--text2)">${_escH(s.label)}</td>`;
+      weken.forEach(w=>{
+        const locId=planMap[s.id+'-'+w];
+        const km=kamplocs.find(k=>k.week===w&&k.locatie_id===locId);
+        const locNaam=locId?(S.locaties.find(l=>l.id===locId)?.name||'?'):'';
+        // Dropdown met lege optie + alle kamplocaties van die week
+        const weekLocs=kamplocs.filter(k=>k.week===w);
+        const opts=`<option value="">—</option>`+weekLocs.map(k=>`<option value="${k.locatie_id}"${k.locatie_id===locId?' selected':''}>${_escH(k.locatie?.name||'?')}</option>`).join('');
+        html+=`<td style="padding:3px 6px;text-align:center">
+          <select class="sel" style="height:24px;font-size:11px;max-width:110px" onchange="setSportPlan(${s.id},${w},this.value)">${opts}</select>
+        </td>`;
+      });
+      html+='</tr>';
+    });
+  });
+  html+='</tbody></table></div>';
+  el.innerHTML=html;
+}
+async function setSportPlan(setId,week,locatieIdStr){
+  const locId=locatieIdStr===''?null:parseInt(locatieIdStr);
+  await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:locId});
+  // Herlaad kampmomenten zodat de grid actueel blijft
+  S.kampmomenten=await api('GET','/kampmomenten');
+  renderSportPlanningGrid();
 }
 
 function renderMateriaal(){
