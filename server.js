@@ -1257,6 +1257,22 @@ async function startServer() {
     run('DELETE FROM transport_ritten WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
+  // ── VOORRAAD NAKIJKEN ──
+  app.get('/api/voorraad/nakijken',(req,res)=>{
+    const items=all(`
+      SELECT bi.*,
+        tb.label AS bak_label, tb.code AS bak_code, tb.leeftijdsgroep AS bak_lg,
+        t.id AS thema_id, t.name AS thema_naam, t.color AS thema_color,
+        (SELECT tijdstip FROM bak_nakijk_log WHERE bak_id=bi.bak_id ORDER BY tijdstip DESC LIMIT 1) AS laatste_nakijk
+      FROM bak_items bi
+      JOIN thema_bakken tb ON bi.bak_id=tb.id
+      JOIN themas t ON tb.thema_id=t.id
+      WHERE bi.verbruik=1
+      ORDER BY t.name, tb.volgorde, tb.id, bi.id
+    `);
+    res.json(items);
+  });
+
   // ── VOERTUIGTYPES ──
   app.get('/api/voertuig-types',(req,res)=>res.json(all('SELECT * FROM voertuig_types ORDER BY capaciteit_bakken')));
   app.post('/api/voertuig-types',(req,res)=>{
