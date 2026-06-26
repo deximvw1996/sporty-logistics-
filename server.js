@@ -1063,6 +1063,37 @@ async function startServer() {
     if(_vsLinked>0)console.log(`  Migratie 31: ${_vsLinked} verbruik_stock gekoppeld aan item_types`);
   }
 
+  // Migration 32: themas en materiaallijsten seeden vanuit data/themas-seed.json
+  {
+    const _seedPath=path.join(__dirname,'data','themas-seed.json');
+    if(fs.existsSync(_seedPath)){
+      let _tSeed=[];
+      try{_tSeed=JSON.parse(fs.readFileSync(_seedPath,'utf8'));}catch(e){console.error('  Migratie 32: seed JSON onleesbaar:',e.message);}
+      const _itMap2={};
+      all('SELECT id,naam FROM item_types').forEach(t=>{_itMap2[t.naam.toLowerCase()]=t.id;});
+      let _tAdded=0,_tSkipped=0,_biAdded=0;
+      for(const t of _tSeed){
+        const bestaand=get('SELECT id FROM themas WHERE name=?',[t.naam]);
+        if(bestaand){_tSkipped++;continue;}
+        const tId=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
+          [t.naam,t.color||'#3498DB',t.leeftijdsgroep||'',t.thema_type||'eigen']);
+        const bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
+          [tId,'Materiaallijst','',t.leeftijdsgroep||'',0]);
+        if(Array.isArray(t.items)){
+          t.items.forEach((itNaam,idx)=>{
+            const typeId=_itMap2[itNaam.toLowerCase()]||null;
+            ins('INSERT INTO bak_items (thema_bak_id,naam,aantal,eenheid,item_type_id,volgorde) VALUES (?,?,?,?,?,?)',
+              [bakId,itNaam,1,'stuk',typeId,idx]);
+            _biAdded++;
+          });
+        }
+        _tAdded++;
+      }
+      if(_tAdded>0||_biAdded>0)
+        console.log(`  Migratie 32: ${_tAdded} themas gezaaid (${_tSkipped} al aanwezig), ${_biAdded} items ingevoegd`);
+    }
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
