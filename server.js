@@ -545,6 +545,23 @@ async function startServer() {
     console.log(`  Migratie 21: ${_kmAan} kampmomenten aangemaakt, data gereset`);
   }
 
+  // Migration 22: Verkeerspark Heverlee = Woudlucht (zelfde locatie, 2 namen)
+  // Hernoem Verkeerspark → Woudlucht, verplaats kampmomenten van dubbel id, verwijder dubbel
+  const _vp=get("SELECT id FROM locaties WHERE name='Verkeerspark Heverlee'");
+  const _wl=get("SELECT id FROM locaties WHERE name='Woudlucht' AND (parent_id IS NULL OR parent_id=0)");
+  if(_vp&&_wl){
+    // Verplaats kampmomenten van Woudlucht (nieuw) naar Verkeerspark (id heeft coördinaten)
+    run('UPDATE kampmomenten SET locatie_id=? WHERE locatie_id=?',[_vp.id,_wl.id]);
+    // Hernoem Verkeerspark → Woudlucht
+    run("UPDATE locaties SET name='Woudlucht' WHERE id=?",[_vp.id]);
+    // Verwijder het lege Woudlucht duplicaat
+    run('DELETE FROM locaties WHERE id=?',[_wl.id]);
+    console.log('  Migratie 22: Verkeerspark hernoemd naar Woudlucht, dubbel verwijderd');
+  } else if(_vp){
+    run("UPDATE locaties SET name='Woudlucht' WHERE id=?",[_vp.id]);
+    console.log('  Migratie 22: Verkeerspark hernoemd naar Woudlucht');
+  }
+
   saveDb();
 
 

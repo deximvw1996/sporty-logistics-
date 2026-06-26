@@ -4147,14 +4147,23 @@ function renderLocatiesTab(){
   const listEl=document.getElementById('loc-tab-list');
   if(!listEl)return;
   if(!S.locMat)S.locMat={};
-  const locs=S.locaties||[];
+  // Sub-locaties (parent_id) niet in de hoofdlijst
+  const locs=(S.locaties||[]).filter(l=>!l.parent_id);
   if(_locTabSel!=='new'&&!locs.find(l=>l.id===_locTabSel)) _locTabSel=locs.length?locs[0].id:null;
   listEl.innerHTML=locs.map(l=>{
     const sel=l.id===_locTabSel;
     const hasC=l.lat&&l.lng;
+    // Open weken uit kampmomenten
+    const wekenLoc=(S.kampmomenten||[]).filter(k=>k.locatie_id===l.id).map(k=>k.week).sort((a,b)=>a-b);
+    const wekenStr=wekenLoc.length?'<span style="font-size:10px;color:var(--text2)">Wk '+wekenLoc.join(', ')+'</span>':'';
+    const subs=(S.locaties||[]).filter(s=>s.parent_id==l.id);
+    const subChips=subs.length?subs.map(s=>`<span style="font-size:9px;background:var(--bg3,#eee);border-radius:3px;padding:0 4px;color:var(--text3)">↳${_escH(s.name)}</span>`).join(' '):'';
     return `<div class="row" style="cursor:pointer;margin-bottom:4px;${sel?'border-color:var(--green);background:var(--green-bg)':''}" onclick="selectLocTab(${l.id})">
       <span>${l.type==='stockage'?'📦':'⛺'}</span>
-      <div class="ri"><div class="rm">${_escH(l.name)}</div><div class="rs">${l.type==='stockage'?'Stockage':'Kamplocatie'}${hasC?' · 📍':''}</div></div>
+      <div class="ri">
+        <div class="rm">${_escH(l.name)}${hasC?' <span style="font-size:9px;color:var(--green-dk)">📍</span>':''}</div>
+        <div class="rs" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">${l.type==='stockage'?'Stockage':'Kamp'}${wekenStr}${subChips}</div>
+      </div>
     </div>`;
   }).join('')||'<div class="empty">Nog geen locaties.</div>';
   renderLocatieDetail();
@@ -4348,6 +4357,14 @@ async function renderLocatieDetail(){
         <div class="rs" style="margin-top:3px">${_escH(l.addr||'Geen adres')} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span></div>
         ${l.contact_naam||l.contact_tel?`<div class="loc-contact" style="margin-top:5px">${l.contact_naam?'<span>👤 '+_escH(l.contact_naam)+'</span>':''}${l.contact_tel?'<a href="tel:'+_attrH(l.contact_tel)+'">📱 '+_escH(l.contact_tel)+'</a>':''}</div>`:''}
         ${l.notities?`<div style="font-size:11px;color:var(--text3);margin-top:3px">📝 ${_escH(l.notities)}</div>`:''}
+        ${(()=>{
+          const wk=(S.kampmomenten||[]).filter(k=>k.locatie_id===l.id).map(k=>k.week).sort((a,b)=>a-b);
+          const subs=(S.locaties||[]).filter(s=>s.parent_id==l.id);
+          let out='';
+          if(wk.length) out+=`<div style="margin-top:5px;font-size:11px;color:var(--text2)">📅 Open: week ${wk.join(', ')}</div>`;
+          if(subs.length) out+=`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">${subs.map(s=>`<span style="font-size:11px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;color:var(--text2)">↳ ${_escH(s.name)}</span>`).join('')}</div>`;
+          return out;
+        })()}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
         <button class="bi" onclick="editingLoc=${l.id};renderLocatieDetail()" title="Bewerk">✏️</button>
