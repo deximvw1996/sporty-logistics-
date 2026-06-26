@@ -5117,6 +5117,13 @@ const _catCatsByType={
   standaard:[['basis','📋 Basis'],['keuken','🍳 Keuken'],['slaap','🛏️ Slaap'],['sport','⚽ Sport'],['audio','🔊 Audio'],['andere','📦 Andere']]
 };
 
+function _stockFullName(stockLocs,id){
+  if(!id)return null;
+  const loc=(stockLocs||[]).find(l=>l.id==id);
+  if(!loc)return null;
+  if(loc.parent_id){const par=(stockLocs||[]).find(l=>l.id==loc.parent_id);return(par?par.name+' › ':'')+loc.name;}
+  return loc.name;
+}
 async function renderCatalogus(){
   if(!_invSport||!_invSport.length){
     const r=await api('GET','/sport');
@@ -5310,13 +5317,7 @@ function renderCatalogusLijst(){
     return h;
   }
   // Helper: toon naam inclusief parent (bv. "Kantoor › Sport")
-  function _stockFullName(id){
-    if(!id) return null;
-    const loc=stockLocs.find(l=>l.id==id);
-    if(!loc) return null;
-    if(loc.parent_id){const par=stockLocs.find(l=>l.id==loc.parent_id);return (par?par.name+' › ':'')+loc.name;}
-    return loc.name;
-  }
+  function _stockFullNameLocal(id){return _stockFullName(stockLocs,id);}
   // Bulk-selectie: stale uids opruimen + bulk-balk opbouwen
   const validUids=new Set(items.map(i=>i.type+'-'+i.raw_id));
   [..._catSel].forEach(u=>{if(!validUids.has(u))_catSel.delete(u);});
@@ -5343,7 +5344,7 @@ function renderCatalogusLijst(){
 
   if(!filtered.length){el.innerHTML=bulkBar+'<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';_catLastFiltered=[];const _pe=document.getElementById('cat-pager');if(_pe)_pe.innerHTML='';return;}
 
-  const stockName=id=>_stockFullName(id);
+  const stockName=id=>_stockFullName(stockLocs,id);
   const groupKey=item=>{
     if(group==='type')return (_catTypeIco[item.type]||'')+' '+(_catTypeLbl[item.type]||'?');
     if(group==='thema')return item.thema||'— Geen thema —';
@@ -5455,7 +5456,7 @@ function _renderCatRow(item,stockLocs){
     }).join('<br>');
     opslagCell=_dash;
   }else{
-    const stkName=_stockFullName(item.stockage_locatie_id);
+    const stkName=_stockFullName(stockLocs,item.stockage_locatie_id);
     locCell=stkName?`📦 ${_escH(stkName)}`:_dash;
     opslagCell=item.stockage_code?`📍 ${_escH(item.stockage_code)}`:_dash;
   }
