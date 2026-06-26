@@ -571,6 +571,29 @@ async function startServer() {
     }
   }
 
+  // Migration 25: 4 thema's week 1 Abdijschool toevoegen
+  {
+    const _themas25=[
+      {name:'Op schattenjacht met Zino Balino',color:'#F59E0B',leeftijdsgroep:'kleuters'},
+      {name:'We slaan in het rond',color:'#EF4444',leeftijdsgroep:'kleuters'},
+      {name:'Lego Legends',color:'#3B82F6',leeftijdsgroep:'lagere school'},
+      {name:'Modemakers',color:'#EC4899',leeftijdsgroep:'lagere school'},
+    ];
+    const _upsertThema=(t)=>{
+      const ex=get('SELECT id FROM themas WHERE name=?',[t.name]);
+      if(ex) return ex.id;
+      return ins('INSERT INTO themas (name,color,leeftijdsgroep) VALUES (?,?,?)',[t.name,t.color,t.leeftijdsgroep]);
+    };
+    // Zoek kampmoment Abdijschool (Vlierbeek of gewone) week 1
+    const _abdLoc=get("SELECT id FROM locaties WHERE name='Abdijschool Vlierbeek'")||get("SELECT id FROM locaties WHERE name='Abdijschool'");
+    const _km25=_abdLoc?get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=1',[_abdLoc.id]):null;
+    _themas25.forEach(t=>{
+      const tid=_upsertThema(t);
+      if(_km25) try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[_km25.id,tid]);}catch(e){}
+    });
+    console.log('  Migratie 25: 4 themas week 1 Abdijschool aangemaakt');
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
