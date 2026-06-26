@@ -1076,20 +1076,35 @@ async function startServer() {
       let _tAdded=0,_tSkipped=0,_biAdded=0;
       for(const t of _tSeed){
         const bestaand=get('SELECT id FROM themas WHERE name=?',[t.naam]);
-        if(bestaand){_tSkipped++;continue;}
-        const tId=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
-          [t.naam,t.color||'#3498DB',t.leeftijdsgroep||'',t.thema_type||'eigen']);
-        const bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
-          [tId,'Materiaallijst','',t.leeftijdsgroep||'',0]);
+        let tId,bakId;
+        if(bestaand){
+          tId=bestaand.id;
+          // Zoek bestaande Materiaallijst-bak
+          const bestaandeBak=get('SELECT id FROM thema_bakken WHERE thema_id=? AND label=?',[tId,'Materiaallijst']);
+          if(bestaandeBak){
+            bakId=bestaandeBak.id;
+            // Alleen items toevoegen als de bak leeg is
+            const aantalItems=(get('SELECT COUNT(*) as n FROM bak_items WHERE bak_id=?',[bakId])||{}).n||0;
+            if(aantalItems>0){_tSkipped++;continue;}
+          } else {
+            bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
+              [tId,'Materiaallijst','',t.leeftijdsgroep||'',0]);
+          }
+        } else {
+          tId=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
+            [t.naam,t.color||'#3498DB',t.leeftijdsgroep||'',t.thema_type||'eigen']);
+          bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
+            [tId,'Materiaallijst','',t.leeftijdsgroep||'',0]);
+          _tAdded++;
+        }
         if(Array.isArray(t.items)){
-          t.items.forEach((itNaam,idx)=>{
+          t.items.forEach((itNaam)=>{
             const typeId=_itMap2[itNaam.toLowerCase()]||null;
             ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,?,?,?,0,1,0,0)',
               [bakId,itNaam,1,'stuk',typeId]);
             _biAdded++;
           });
         }
-        _tAdded++;
       }
       if(_tAdded>0||_biAdded>0)
         console.log(`  Migratie 32: ${_tAdded} themas gezaaid (${_tSkipped} al aanwezig), ${_biAdded} items ingevoegd`);
