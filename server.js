@@ -1366,6 +1366,25 @@ async function startServer() {
     res.json({ok:true,aangemaakt:checks.length,checks});
   });
   // Update één check (status, notitie, naam)
+  app.get('/api/checks/item-historie',(req,res)=>{
+    const naam=req.query.naam||'';
+    if(!naam)return res.json([]);
+    // Zoek alle checks met deze naam, joined met rit en locatie
+    const rows=all(`
+      SELECT vc.*,
+        r.datum AS rit_datum, r.chauffeur, r.voertuig,
+        GROUP_CONCAT(DISTINCT l.name) AS locaties
+      FROM verhuis_checks vc
+      JOIN transport_ritten r ON vc.rit_id=r.id
+      LEFT JOIN transport_taken tt ON tt.rit_id=r.id
+      LEFT JOIN locaties l ON (tt.van_locatie_id=l.id OR tt.naar_locatie_id=l.id)
+      WHERE LOWER(vc.item_naam)=LOWER(?)
+      GROUP BY vc.id
+      ORDER BY r.datum DESC, vc.id DESC
+      LIMIT 50
+    `,[naam]);
+    res.json(rows);
+  });
   app.put('/api/checks/:id',(req,res)=>{
     const cur=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Check niet gevonden'});

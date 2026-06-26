@@ -6978,8 +6978,9 @@ function _renderKzItems(){
           // Bovenste rij: naam + qty
           +'<div style="display:flex;align-items:center;gap:8px;padding:10px 12px 6px">'
           +'<div style="flex:1;min-width:0">'
-          +'<div style="font-size:15px;font-weight:500;line-height:1.3">'+_escH(c.item_naam)+'</div>'
+          +'<div style="font-size:15px;font-weight:500;line-height:1.3;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" onclick="openItemHistorie('+JSON.stringify(c.item_naam)+')">'+_escH(c.item_naam)+'</div>'
           +'</div>'
+          +'<button onclick="openItemHistorie('+JSON.stringify(c.item_naam)+')" style="border:none;background:transparent;cursor:pointer;font-size:16px;padding:2px 4px;color:var(--text3)" title="Historiek & info">ℹ️</button>'
           +'<span style="font-size:13px;color:var(--text2);white-space:nowrap;font-weight:600">×'+c.qty+'</span>'
           +'</div>'
           // Statusrij: 3 grote knoppen naast elkaar
@@ -7596,6 +7597,18 @@ function toggleDarkMode(){
   </div>
 </div>
 
+<!-- MODAL: Item historiek -->
+<div class="modal-bg" id="modal-item-historie">
+  <div class="modal" style="width:min(500px,100vw);max-width:100vw;max-height:92dvh;display:flex;flex-direction:column;border-radius:var(--rl)">
+    <div class="modal-title">
+      <span id="ih-titel" style="font-size:15px;font-weight:700">Historiek</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-item-historie')" style="width:36px;height:36px;font-size:18px">&#x2715;</button>
+    </div>
+    <div id="ih-info" style="padding:6px 14px 4px;font-size:12px;color:var(--text2)"></div>
+    <div id="ih-lijst" style="flex:1;overflow-y:auto;padding:8px 12px 12px"></div>
+  </div>
+</div>
+
 <!-- SEIZOENSOVERZICHT -->
 <div class="sec" id="sec-seizoensoverzicht">
   <div style="display:flex;gap:5px;margin-bottom:1rem;flex-wrap:wrap">
@@ -7607,6 +7620,56 @@ function toggleDarkMode(){
 </div>
 
 <script>
+// ── ITEM HISTORIEK ──
+async function openItemHistorie(naam){
+  document.getElementById('ih-titel').textContent='📋 '+naam;
+  document.getElementById('ih-info').textContent='Historiek laden…';
+  document.getElementById('ih-lijst').innerHTML='';
+  openModal('modal-item-historie');
+  const rows=await api('GET','/checks/item-historie?naam='+encodeURIComponent(naam));
+  if(!rows||rows.error){
+    document.getElementById('ih-info').textContent='Kon historiek niet laden.';
+    return;
+  }
+  // Huidige item uit kzChecks voor context
+  const huidig=_kzChecks.find(c=>c.item_naam===naam);
+  const totaal=rows.length;
+  const okCount=rows.filter(r=>r.status==='ok').length;
+  const ontbCount=rows.filter(r=>r.status==='ontbreekt').length;
+  document.getElementById('ih-info').innerHTML=
+    `<span style="color:var(--text2)">${totaal} check${totaal!==1?'s':''} gevonden &nbsp;·&nbsp; </span>`
+    +`<span style="color:var(--green-dk)">✅ ${okCount}×</span>`
+    +` <span style="color:var(--red)">❌ ${ontbCount}×</span>`
+    +(huidig?` &nbsp;·&nbsp; <span style="font-weight:600">Nu: ×${huidig.qty}</span>`:'');
+  if(!totaal){
+    document.getElementById('ih-lijst').innerHTML='<div style="color:var(--text3);font-size:13px;padding:1rem 0">Nog niet eerder nagekeken.</div>';
+    return;
+  }
+  const stIco={ok:'✅',deels:'⚠️',ontbreekt:'❌',wacht:'⬜'};
+  const stKleur={ok:'var(--green-bg)','border-ok':'#5DCAA5',deels:'var(--amber-bg)','border-deels':'#F4C875',ontbreekt:'var(--red-bg)','border-ontbreekt':'#F09595',wacht:'var(--bg2)','border-wacht':'var(--border)'};
+  document.getElementById('ih-lijst').innerHTML=rows.map(r=>{
+    const st=r.status||'wacht';
+    const bg=stKleur[st]||'var(--bg2)';
+    const bc=stKleur['border-'+st]||'var(--border)';
+    const locTxt=r.locaties?r.locaties.split(',').filter((v,i,a)=>a.indexOf(v)===i).join(', '):'';
+    return `<div style="border:.5px solid ${bc};background:${bg};border-radius:8px;padding:10px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <span style="font-size:18px">${stIco[st]||'⬜'}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${r.rit_datum?_escH(r.rit_datum):'-'}</div>
+          ${r.chauffeur?`<div style="font-size:11px;color:var(--text2)">👤 ${_escH(r.chauffeur)}${r.voertuig?' · 🚐 '+_escH(r.voertuig):''}</div>`:''}
+          ${locTxt?`<div style="font-size:11px;color:var(--text3)">📍 ${_escH(locTxt)}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;font-weight:600">×${r.qty}</div>
+          ${r.aangevinkt_door?`<div style="font-size:10px;color:var(--text3)">${_escH(r.aangevinkt_door)}</div>`:''}
+        </div>
+      </div>
+      ${r.notitie?`<div style="font-size:12px;color:var(--text2);font-style:italic;border-top:.5px solid ${bc};padding-top:6px;margin-top:4px">💬 ${_escH(r.notitie)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
 // ── CHAUFFEUR-LINK ──
 async function kopieerRitLink(){
   if(!editingRitId){showToast('Sla de rit eerst op','warn');return;}
