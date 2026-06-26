@@ -795,6 +795,37 @@ async function startServer() {
     console.log('  Migratie 27: vaste bakken + item_types aangemaakt');
   }
 
+  // Migration 28: nakijk_sessies + nakijk_regels (twee stappen: KV + kantoor)
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS nakijk_sessies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bak_type TEXT NOT NULL DEFAULT 'thema',
+    thema_bak_id INTEGER,
+    vaste_bak_id INTEGER,
+    sport_item_id INTEGER,
+    locatie_id INTEGER,
+    week INTEGER,
+    datum TEXT NOT NULL,
+    kv_wie TEXT DEFAULT '',
+    kv_tijdstip TEXT DEFAULT '',
+    kv_status TEXT DEFAULT 'open',
+    kantoor_wie TEXT DEFAULT '',
+    kantoor_tijdstip TEXT DEFAULT '',
+    kantoor_status TEXT DEFAULT 'open',
+    notities TEXT DEFAULT ''
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS nakijk_regels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sessie_id INTEGER NOT NULL REFERENCES nakijk_sessies(id) ON DELETE CASCADE,
+    item_naam TEXT NOT NULL,
+    item_id INTEGER,
+    verwacht REAL DEFAULT 0,
+    aangetroffen REAL DEFAULT 0,
+    ontbreekt REAL DEFAULT 0,
+    is_kapot INTEGER DEFAULT 0,
+    besteld INTEGER DEFAULT 0,
+    opmerking TEXT DEFAULT ''
+  )`);
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
@@ -2041,6 +2072,87 @@ async function startServer() {
   });
   app.delete('/api/vaste-bak-items/:id',(req,res)=>{
     run('DELETE FROM vaste_bak_items WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
+
+  // ── NAKIJKEN ──
+  // Haal alle open/recente sessies op met bak-info
+  app.get('/api/nakijk',(req,res)=>{
+    const sessies=all(`SELECT ns.*,
+      tb.label as bak_label, tb.code as bak_code, t.name as thema_naam, t.color as thema_color, t.id as thema_id,
+      vb.naam as vaste_bak_naam, vb.code as vaste_code,
+      l.name as locatie_naam
+      FROM nakijk_sessies ns
+      LEFT JOIN thema_bakken tb ON tb.id=ns.thema_bak_id
+      LEFT JOIN themas t ON t.id=tb.thema_id
+      LEFT JOIN vaste_bakken vb ON vb.id=ns.vaste_bak_id
+      LEFT JOIN locaties l ON l.id=ns.locatie_id
+      ORDER BY ns.id DESC`);
+    const regels=all('SELECT * FROM nakijk_regels ORDER BY sessie_id,id');
+    res.json(sessies.map(s=>({...s,regels:regels.filter(r=>r.sessie_id===s.id)})));
+  });
+  // Urgentie: per thema_bak — wanneer is dit thema de komende weken gepland?
+  app.get('/api/nakijk/urgentie',(req,res)=>{
+    const bakken=all(`SELECT tb.id as bak_id, tb.label, tb.code, t.id as thema_id, t.name as thema_naam, t.color as thema_color,
+      tb.leeftijdsgroep,
+      MAX(ns.kv_tijdstip) as laatste_check,
+      MAX(CASE WHEN ns.kv_status='ingediend' AND ns.kantoor_status='open' THEN 1 ELSE 0 END) as wacht_kantoor
+      FROM thema_bakken tb
+      JOIN themas t ON t.id=tb.thema_id
+      LEFT JOIN nakijk_sessies ns ON ns.thema_bak_id=tb.id
+      GROUP BY tb.id ORDER BY t.name,tb.volgorde`);
+    // Voeg komende weken toe per thema
+    const geplande=all(`SELECT DISTINCT kt.thema_id, km.week FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE km.week IS NOT NULL ORDER BY km.week`);
+    const huidigWeek=(get('SELECT MIN(week) as w FROM kampmomenten WHERE week IS NOT NULL')||{}).w||1;
+    res.json(bakken.map(b=>{
+      const weken=geplande.filter(g=>g.thema_id===b.thema_id).map(g=>g.week).sort((a,z)=>a-z);
+      const eersteVolgendeWeek=weken.find(w=>w>=huidigWeek)||null;
+      return {...b,geplande_weken:weken,eerste_week:eersteVolgendeWeek,is_dringend:eersteVolgendeWeek!=null&&eersteVolgendeWeek<=huidigWeek+1};
+    }));
+  });
+  // Start een nieuwe nakijksessie voor een thema-bak
+  app.post('/api/nakijk/start',(req,res)=>{
+    const{bak_type,thema_bak_id,vaste_bak_id,sport_item_id,locatie_id,week,kv_wie}=req.body;
+    const sessieId=ins(`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,sport_item_id,locatie_id,week,datum,kv_wie,kv_status,kantoor_status)
+      VALUES (?,?,?,?,?,?,?,?,'open','open')`,[bak_type||'thema',thema_bak_id||null,vaste_bak_id||null,sport_item_id||null,locatie_id||null,week||null,now(),kv_wie||'']);
+    // Auto-vul regels vanuit bak_items of vaste_bak_items
+    if(thema_bak_id){
+      const items=all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[thema_bak_id]);
+      items.forEach(i=>ins('INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht) VALUES (?,?,?,?)',[sessieId,i.naam,i.id,i.qty]));
+    } else if(vaste_bak_id){
+      const items=all('SELECT * FROM vaste_bak_items WHERE bak_id=? ORDER BY volgorde,id',[vaste_bak_id]);
+      items.forEach(i=>ins('INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht) VALUES (?,?,?,?)',[sessieId,i.naam,i.id,i.qty]));
+    }
+    res.json({sessie_id:sessieId,regels:all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessieId])});
+  });
+  // KV dient nakijk in
+  app.put('/api/nakijk/:id/kv',(req,res)=>{
+    const{kv_wie,regels,notities}=req.body;
+    run('UPDATE nakijk_sessies SET kv_wie=?,kv_tijdstip=?,kv_status=?,notities=? WHERE id=?',[kv_wie||'',now(),'ingediend',notities||'',req.params.id]);
+    if(Array.isArray(regels)){
+      regels.forEach(r=>{
+        const ontbreekt=Math.max(0,(r.verwacht||0)-(r.aangetroffen||0));
+        run('UPDATE nakijk_regels SET aangetroffen=?,ontbreekt=?,is_kapot=?,opmerking=? WHERE id=? AND sessie_id=?',
+          [r.aangetroffen||0,ontbreekt,r.is_kapot?1:0,r.opmerking||'',r.id,req.params.id]);
+      });
+      // Update qty_stock in bak_items voor thema-bak items
+      regels.forEach(r=>{if(r.item_id&&r.aangetroffen!=null)run('UPDATE bak_items SET qty_stock=? WHERE id=?',[r.aangetroffen,r.item_id]);});
+    }
+    saveDb();
+    res.json({ok:true});
+  });
+  // Kantoor verwerkt nakijk
+  app.put('/api/nakijk/:id/kantoor',(req,res)=>{
+    const{kantoor_wie,regels,kantoor_status}=req.body;
+    run('UPDATE nakijk_sessies SET kantoor_wie=?,kantoor_tijdstip=?,kantoor_status=? WHERE id=?',[kantoor_wie||'',now(),kantoor_status||'nagekeken',req.params.id]);
+    if(Array.isArray(regels)){
+      regels.forEach(r=>{run('UPDATE nakijk_regels SET besteld=?,opmerking=? WHERE id=? AND sessie_id=?',[r.besteld?1:0,r.opmerking||'',r.id,req.params.id]);});
+    }
+    saveDb();
+    res.json({ok:true});
+  });
+  app.delete('/api/nakijk/:id',(req,res)=>{
+    run('DELETE FROM nakijk_sessies WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
 

@@ -582,6 +582,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
       <button class="kal-subtab" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('sport',this)">&#9917; Sport</button>
+      <button class="kal-subtab" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken</button>
       <div style="flex:1"></div>
       <button class="btn-o" style="font-size:11px;height:28px" onclick="setMatSubtab('themas',this)">&#9881;&#65039; Thema&apos;s beheer</button>
     </div>
@@ -728,18 +729,23 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
 
     <div id="mat-sub-nakijken" style="display:none">
-      <!-- Filter bar -->
       <div style="display:flex;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;align-items:center">
         <div style="display:flex;gap:0;border:.5px solid var(--border2);border-radius:var(--r);overflow:hidden">
-          <button class="ov-view-btn active" id="nak-filter-alle" onclick="setNakijkenFilter('alle',this)">Alles</button>
-          <button class="ov-view-btn" id="nak-filter-tekort" onclick="setNakijkenFilter('tekort',this)">⚠️ Tekort</button>
-          <button class="ov-view-btn" id="nak-filter-ok" onclick="setNakijkenFilter('ok',this)">✅ OK</button>
+          <button class="ov-view-btn active" id="nk2-f-alle" onclick="setNk2Filter('alle',this)">Alle bakken</button>
+          <button class="ov-view-btn" id="nk2-f-dringend" onclick="setNk2Filter('dringend',this)">🔴 Dringend</button>
+          <button class="ov-view-btn" id="nk2-f-wacht" onclick="setNk2Filter('wacht',this)">⏳ Wacht kantoor</button>
+          <button class="ov-view-btn" id="nk2-f-tekort" onclick="setNk2Filter('tekort',this)">⚠️ Tekort</button>
         </div>
-        <input class="inp" id="nak-zoek" placeholder="Zoeken…" style="height:30px;font-size:12px;width:160px" oninput="renderNakijkenLijst()">
-        <button class="btn-o" onclick="renderNakijkenVoorraad()">&#8635; Vernieuwen</button>
-        <span id="nak-teller" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
+        <input class="inp" id="nk2-zoek" placeholder="&#128269; Zoeken&#8230;" style="height:30px;font-size:12px;width:180px" oninput="renderNk2Lijst()">
+        <button class="btn-o" onclick="laadNakijken()">&#8635; Vernieuwen</button>
+        <span id="nk2-stats" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
       </div>
-      <div id="nak-voorraad-lijst"></div>
+      <!-- Wie ben jij? (voor KV-check) -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem;background:var(--bg2);padding:8px 12px;border-radius:var(--r);font-size:12px">
+        <span style="color:var(--text2)">Wie ben jij?</span>
+        <input class="inp" id="nk2-wie" placeholder="Naam invullen voor je nakijkt&#8230;" style="flex:1;max-width:220px;height:28px;font-size:12px">
+      </div>
+      <div id="nk2-lijst"></div>
     </div>
 
     <!-- Sport tab -->
@@ -2011,7 +2017,7 @@ function setMatSubtab(tab,btn){
   else if(tab==='catalogus'){renderCatalogus();}
   else if(tab==='standaard'){renderStandaard();}
   else if(tab==='voertuigen'){renderVoertuigen();}
-  else if(tab==='nakijken'){renderNakijkenVoorraad();}
+  else if(tab==='nakijken'){laadNakijken();}
 }
 async function renderVoertuigen(){
   const el=document.getElementById('voertuigen-lijst');
@@ -8760,6 +8766,188 @@ async function _slaaNakStockOp(itemId){
   showToast('Voorraad bijgewerkt','success');
   _sluitAanvullen(itemId);
   renderNakijkenLijst();
+}
+
+// ── NAKIJKEN v2 (bak-gebaseerd, twee stappen: KV + kantoor) ──
+let _nk2Urgentie=[], _nk2Sessies=[], _nk2Filter='alle', _nk2Open={};
+
+async function laadNakijken(){
+  const [urg,sess]=await Promise.all([api('GET','/nakijk/urgentie'),api('GET','/nakijk')]);
+  _nk2Urgentie=Array.isArray(urg)?urg:[];
+  _nk2Sessies=Array.isArray(sess)?sess:[];
+  renderNk2Lijst();
+}
+
+function setNk2Filter(f,btn){
+  _nk2Filter=f;
+  document.querySelectorAll('#mat-sub-nakijken .ov-view-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderNk2Lijst();
+}
+
+function renderNk2Lijst(){
+  const el=document.getElementById('nk2-lijst'); if(!el)return;
+  const zoek=(document.getElementById('nk2-zoek')?.value||'').toLowerCase().trim();
+
+  // Bouw per bak: combineer urgentie + laatste sessie
+  let bakken=_nk2Urgentie.map(b=>{
+    const sessies=_nk2Sessies.filter(s=>s.thema_bak_id===b.bak_id);
+    const laatste=sessies[0]||null;
+    const heeftTekort=laatste&&laatste.regels&&laatste.regels.some(r=>r.ontbreekt>0||r.is_kapot);
+    const wachtKantoor=laatste&&laatste.kv_status==='ingediend'&&laatste.kantoor_status==='open';
+    return {...b,laatste,heeftTekort,wachtKantoor};
+  });
+
+  if(zoek) bakken=bakken.filter(b=>(b.thema_naam||'').toLowerCase().includes(zoek)||(b.label||'').toLowerCase().includes(zoek));
+  if(_nk2Filter==='dringend') bakken=bakken.filter(b=>b.is_dringend);
+  if(_nk2Filter==='wacht') bakken=bakken.filter(b=>b.wachtKantoor);
+  if(_nk2Filter==='tekort') bakken=bakken.filter(b=>b.heeftTekort);
+
+  // Sorteer: dringend eerst, dan wacht kantoor, dan tekort, dan rest
+  bakken.sort((a,b)=>{
+    const score=x=>(x.is_dringend?0:1)*10+(x.wachtKantoor?0:1)*4+(x.heeftTekort?0:1)*2;
+    return score(a)-score(b)||(a.eerste_week||99)-(b.eerste_week||99)||a.thema_naam.localeCompare(b.thema_naam,'nl');
+  });
+
+  const dringend=_nk2Urgentie.filter(b=>b.is_dringend).length;
+  const wacht=_nk2Sessies.filter(s=>s.kv_status==='ingediend'&&s.kantoor_status==='open').length;
+  const statsEl=document.getElementById('nk2-stats');
+  if(statsEl) statsEl.textContent=`${bakken.length} bakken${dringend?` · 🔴 ${dringend} dringend`:''}${wacht?` · ⏳ ${wacht} wacht kantoor`:''}`;
+
+  if(!bakken.length){el.innerHTML='<div class="empty">Geen bakken gevonden.</div>';return;}
+
+  el.innerHTML=bakken.map(b=>_nk2BakHtml(b)).join('');
+}
+
+function _nk2BakHtml(b){
+  const open=_nk2Open[b.bak_id];
+  const kleur=b.thema_color||'#1D9E75';
+  const codePill=b.code?`<span style="font-family:monospace;font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px">${_escH(b.code)}</span>`:'';
+  const weekPill=b.eerste_week?`<span style="font-size:10px;background:${b.is_dringend?'#EF444422':'var(--bg2)'};color:${b.is_dringend?'#B91C1C':'var(--text3)'};border-radius:4px;padding:1px 6px">week ${b.eerste_week}</span>`:'';
+  let statusPill='';
+  if(b.wachtKantoor) statusPill='<span style="font-size:10px;background:#F59E0B22;color:#92400E;border-radius:4px;padding:1px 7px">⏳ Wacht kantoor</span>';
+  else if(b.is_dringend) statusPill='<span style="font-size:10px;background:#EF444422;color:#B91C1C;border-radius:4px;padding:1px 7px">🔴 Dringend</span>';
+  else if(b.heeftTekort) statusPill='<span style="font-size:10px;background:#F59E0B22;color:#92400E;border-radius:4px;padding:1px 7px">⚠️ Tekort</span>';
+  const checkInfo=b.laatste?`<span style="font-size:10px;color:var(--text3)">Laatste check: ${_escH(b.laatste.kv_tijdstip?.substring(0,10)||'?')} door ${_escH(b.laatste.kv_wie||'?')}</span>`:'<span style="font-size:10px;color:var(--text3)">Nog nooit nagekeken</span>';
+
+  return `<div style="border:.5px solid ${b.is_dringend?'#EF4444':b.wachtKantoor?'#F59E0B':'var(--border)'};border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:${kleur}12;cursor:pointer" onclick="_nk2Toggle(${b.bak_id})">
+      <span style="width:10px;height:10px;border-radius:50%;background:${kleur};flex-shrink:0"></span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-weight:600;font-size:13px">${_escH(b.thema_naam)}</span>
+          <span style="font-size:12px;color:var(--text2)">— ${_escH(b.label||'')}</span>
+          ${codePill}${weekPill}${statusPill}
+        </div>
+        <div style="margin-top:2px">${checkInfo}</div>
+      </div>
+      <span style="font-size:12px;color:var(--text3)">${open?'▲':'▼'}</span>
+    </div>
+    ${open?`<div style="padding:10px 14px 14px">${_nk2BakDetail(b)}</div>`:''}
+  </div>`;
+}
+
+function _nk2BakDetail(b){
+  // Als er een openstaande KV-sessie is → toon het check-formulier
+  if(b.laatste&&b.laatste.kv_status==='open'){
+    return _nk2KvFormulier(b.laatste,b);
+  }
+  // Als KV ingediend, wacht kantoor → toon kantoor-view
+  if(b.wachtKantoor){
+    return _nk2KantoorView(b.laatste,b);
+  }
+  // Geen actieve sessie → toon laatste resultaat + start knop
+  let html='';
+  if(b.laatste&&b.laatste.regels?.length){
+    const tekort=b.laatste.regels.filter(r=>r.ontbreekt>0||r.is_kapot);
+    if(tekort.length){
+      html+=`<div style="margin-bottom:8px">${tekort.map(r=>`<div style="font-size:12px;padding:3px 0;border-bottom:.5px solid var(--border)">
+        <span style="color:${r.is_kapot?'#EF4444':'#F59E0B'}">${r.is_kapot?'🔴 Kapot':'⚠️ Ontbreekt'}</span>
+        <span style="margin-left:6px">${_escH(r.item_naam)}</span>
+        ${r.ontbreekt>0?`<span style="color:var(--text3);margin-left:4px">(${r.ontbreekt} st.)</span>`:''}
+        ${r.opmerking?`<span style="font-size:11px;color:var(--text3);margin-left:6px">${_escH(r.opmerking)}</span>`:''}
+      </div>`).join('')}</div>`;
+    } else {
+      html+='<div style="font-size:12px;color:var(--green-dk);margin-bottom:8px">✅ Alles aanwezig bij laatste check</div>';
+    }
+  }
+  html+=`<button class="btn-g" onclick="startNk2Check(${b.bak_id})">🔍 Nakijken starten</button>`;
+  return html;
+}
+
+function _nk2KvFormulier(sessie,b){
+  const regels=sessie.regels||[];
+  return `<div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:8px">📋 Nakijkformulier — vul aan hoeveel er aanwezig is</div>
+    ${regels.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid var(--border)">
+      <span style="flex:1;font-size:12px">${_escH(r.item_naam)}</span>
+      <span style="font-size:11px;color:var(--text3)">Verwacht: ${r.verwacht}</span>
+      <input type="number" id="nk2r-${r.id}" value="${r.aangetroffen||r.verwacht}" min="0" step="1"
+        style="width:64px;height:28px;font-size:13px;text-align:center;border:.5px solid var(--border2);border-radius:6px;padding:0 6px">
+      <label style="font-size:11px;display:flex;align-items:center;gap:3px;cursor:pointer">
+        <input type="checkbox" id="nk2k-${r.id}"${r.is_kapot?' checked':''}> Kapot
+      </label>
+      <input class="inp" id="nk2o-${r.id}" placeholder="Notitie…" value="${_attrH(r.opmerking||'')}" style="width:120px;height:28px;font-size:11px">
+    </div>`).join('')}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-g" onclick="indienKvCheck(${sessie.id},${b.bak_id},${JSON.stringify(regels.map(r=>r.id))})">✅ Indienen</button>
+      <button class="btn-o" onclick="annuleerNk2(${sessie.id},${b.bak_id})">Annuleren</button>
+    </div>
+  </div>`;
+}
+
+function _nk2KantoorView(sessie,b){
+  const regels=sessie.regels||[];
+  const tekort=regels.filter(r=>r.ontbreekt>0||r.is_kapot);
+  return `<div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:6px">⏳ Ingediend door KV (${_escH(sessie.kv_wie||'?')} · ${_escH(sessie.kv_tijdstip?.substring(0,10)||'')}) — kantoor moet verwerken</div>
+    ${tekort.length?tekort.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--border)">
+      <span style="color:${r.is_kapot?'#EF4444':'#F59E0B'}">${r.is_kapot?'🔴':'⚠️'}</span>
+      <span style="flex:1;font-size:12px">${_escH(r.item_naam)} — ${r.is_kapot?'kapot':'ontbreekt'} ${r.ontbreekt>0?r.ontbreekt+' st.':''}</span>
+      <label style="font-size:11px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="nk2b-${r.id}"${r.besteld?' checked':''}> Besteld</label>
+    </div>`).join(''):'<div style="font-size:12px;color:var(--green-dk)">✅ Geen tekorten gerapporteerd</div>'}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-g" onclick="indienKantoor(${sessie.id},${b.bak_id},${JSON.stringify(tekort.map(r=>r.id))})">✅ Verwerkt</button>
+    </div>
+  </div>`;
+}
+
+function _nk2Toggle(bakId){_nk2Open[bakId]=!_nk2Open[bakId];renderNk2Lijst();}
+
+async function startNk2Check(bakId){
+  const wie=document.getElementById('nk2-wie')?.value?.trim()||'';
+  const r=await api('POST','/nakijk/start',{bak_type:'thema',thema_bak_id:bakId,kv_wie:wie});
+  if(!r||r.error){showToast('Kon sessie niet starten','error');return;}
+  _nk2Open[bakId]=true;
+  await laadNakijken();
+}
+
+async function indienKvCheck(sessieId,bakId,regelIds){
+  const regels=regelIds.map(id=>({
+    id,
+    aangetroffen:parseFloat(document.getElementById('nk2r-'+id)?.value)||0,
+    is_kapot:document.getElementById('nk2k-'+id)?.checked?1:0,
+    opmerking:document.getElementById('nk2o-'+id)?.value?.trim()||''
+  }));
+  const wie=document.getElementById('nk2-wie')?.value?.trim()||'';
+  await api('PUT','/nakijk/'+sessieId+'/kv',{kv_wie:wie,regels});
+  showToast('Check ingediend','success');
+  await laadNakijken();
+}
+
+async function indienKantoor(sessieId,bakId,regelIds){
+  const regels=regelIds.map(id=>({id,besteld:document.getElementById('nk2b-'+id)?.checked?1:0}));
+  const wie=document.getElementById('nk2-wie')?.value?.trim()||'';
+  await api('PUT','/nakijk/'+sessieId+'/kantoor',{kantoor_wie:wie,regels,kantoor_status:'nagekeken'});
+  showToast('Verwerkt','success');
+  await laadNakijken();
+}
+
+async function annuleerNk2(sessieId,bakId){
+  if(!confirm('Nakijksessie annuleren?'))return;
+  await api('DELETE','/nakijk/'+sessieId);
+  _nk2Open[bakId]=false;
+  await laadNakijken();
 }
 
 // ── ITEM HISTORIEK ──
