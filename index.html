@@ -406,6 +406,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
     <button class="nb" onclick="goTo('planning')">&#128205; Locaties</button>
     <button class="nb" onclick="goTo('kaart')">&#128506;&#65039; Kaart</button>
+    <button class="nb" onclick="goTo('personeel')">&#128101; Personeel</button>
   </div>
 
   <div class="content">
@@ -573,6 +574,93 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
+       TAB: PERSONEEL
+  ═══════════════════════════════════════════════════════ -->
+  <div class="sec" id="sec-personeel">
+    <div style="display:flex;gap:6px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;flex-wrap:wrap;align-items:center">
+      <button class="kal-subtab active" onclick="setPersSubtab('overzicht',this)">👥 Overzicht</button>
+      <button class="kal-subtab" onclick="setPersSubtab('kv',this)">🏕️ KV's</button>
+      <button class="kal-subtab" onclick="setPersSubtab('chauffeurs',this)">🚐 Chauffeurs</button>
+      <button class="kal-subtab" onclick="setPersSubtab('kantoor',this)">🏢 Kantoor</button>
+      <div style="flex:1"></div>
+      <button class="btn-g" onclick="openNieuwPersoonModal()">+ Persoon toevoegen</button>
+    </div>
+
+    <div id="pers-sub-overzicht">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
+        <input class="inp" id="pers-zoek" placeholder="🔍 Naam zoeken…" style="height:30px;font-size:12px;width:180px" oninput="renderPersoneelOverzicht()">
+        <select class="inp" id="pers-week" style="height:30px;font-size:12px" onchange="renderPersoneelOverzicht()">
+          <option value="">Alle weken</option>
+        </select>
+        <span id="pers-stats" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="pers-lijst"><div class="loading">Laden…</div></div>
+    </div>
+
+    <div id="pers-sub-kv" style="display:none">
+      <div id="pers-kv-content"><div class="loading">Laden…</div></div>
+    </div>
+    <div id="pers-sub-chauffeurs" style="display:none">
+      <div id="pers-chauf-content"><div class="loading">Laden…</div></div>
+    </div>
+    <div id="pers-sub-kantoor" style="display:none">
+      <div id="pers-kantoor-content"><div class="loading">Laden…</div></div>
+    </div>
+  </div>
+
+  <!-- Modaal: nieuw persoon -->
+  <div id="modal-persoon" style="display:none;position:fixed;inset:0;background:#0008;z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:var(--r);padding:1.5rem;width:min(420px,94vw);box-shadow:0 8px 32px #0004">
+      <div style="font-weight:700;font-size:15px;margin-bottom:1rem" id="modal-pers-titel">Persoon toevoegen</div>
+      <input type="hidden" id="pers-edit-id">
+      <div style="display:grid;gap:.5rem">
+        <input class="inp" id="pers-naam" placeholder="Naam *" style="height:34px">
+        <select class="inp" id="pers-rol" style="height:34px">
+          <option value="kv">🏕️ Kampverantwoordelijke (KV)</option>
+          <option value="chauffeur">🚐 Chauffeur</option>
+          <option value="kantoor">🏢 Kantoor</option>
+          <option value="animator">🎪 Animator</option>
+        </select>
+        <input class="inp" id="pers-telefoon" placeholder="Telefoon" style="height:34px">
+        <input class="inp" id="pers-email" placeholder="E-mail" style="height:34px">
+        <textarea class="inp" id="pers-notities" placeholder="Notities" style="height:60px;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:1rem">
+        <button class="btn-g" onclick="slaaPersoonOp()">Opslaan</button>
+        <button class="btn-o" onclick="sluitPersoonModal()">Annuleren</button>
+        <button class="btn-r" id="pers-verwijder-btn" style="display:none;margin-left:auto" onclick="verwijderPersoon()">Verwijderen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modaal: shift toevoegen -->
+  <div id="modal-shift" style="display:none;position:fixed;inset:0;background:#0008;z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:var(--r);padding:1.5rem;width:min(420px,94vw);box-shadow:0 8px 32px #0004">
+      <div style="font-weight:700;font-size:15px;margin-bottom:1rem">Shift / aanstelling toevoegen</div>
+      <input type="hidden" id="shift-pers-id">
+      <input type="hidden" id="shift-edit-id">
+      <div style="display:grid;gap:.5rem">
+        <select class="inp" id="shift-kampmoment" style="height:34px">
+          <option value="">— Kies kampmoment —</option>
+        </select>
+        <input class="inp" id="shift-datum" type="date" placeholder="Datum (optioneel)" style="height:34px">
+        <div style="display:flex;gap:8px">
+          <input class="inp" id="shift-van" type="time" placeholder="Van" style="flex:1;height:34px">
+          <input class="inp" id="shift-tot" type="time" placeholder="Tot" style="flex:1;height:34px">
+        </div>
+        <input class="inp" id="shift-rol-dag" placeholder="Rol die dag (bijv. kookkamp-begeleider)" style="height:34px">
+        <textarea class="inp" id="shift-notities" placeholder="Notities" style="height:50px;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:1rem">
+        <button class="btn-g" onclick="slaaShiftOp()">Opslaan</button>
+        <button class="btn-o" onclick="document.getElementById('modal-shift').style.display='none'">Annuleren</button>
+        <button class="btn-r" id="shift-verwijder-btn" style="display:none;margin-left:auto" onclick="verwijderShift()">Verwijderen</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════════════
        TAB 3: MATERIAAL
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-materiaal">
@@ -628,7 +716,29 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
     <!-- Voorraad: verbruiksstock -->
     <div id="mat-sub-voorraad" style="display:none">
-      <div id="voorraad-content"><div class="loading">Laden&#8230;</div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:.75rem">
+        <input class="inp" id="vrd-zoek" placeholder="🔍 Zoeken op item…" style="height:30px;font-size:12px;width:180px" oninput="renderVoorraadTab()">
+        <select class="inp" id="vrd-cat" style="height:30px;font-size:12px" onchange="renderVoorraadTab()">
+          <option value="">Alle categorieën</option>
+          <option value="sport">⚽ Sport</option>
+          <option value="knutsel">🎨 Knutsel</option>
+          <option value="bakken">🥐 Bakken</option>
+          <option value="spel">🎲 Spel</option>
+          <option value="rekwisiet">🎭 Rekwisieten</option>
+          <option value="container">🪣 Containers</option>
+          <option value="gereedschap">🔧 Gereedschap</option>
+          <option value="diversen">📦 Diversen</option>
+        </select>
+        <select class="inp" id="vrd-filter" style="height:30px;font-size:12px" onchange="renderVoorraadTab()">
+          <option value="">Alle items</option>
+          <option value="tekort">⚠️ Tekort</option>
+          <option value="in-bakken">📦 Zit in bakken</option>
+          <option value="met-stock">✅ Heeft voorraad</option>
+        </select>
+        <button class="btn-o" onclick="_vrdVernieuwen()">↺ Vernieuwen</button>
+        <span id="vrd-stats" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div id="voorraad-content"><div class="loading">Laden…</div></div>
     </div>
 
     <!-- Thema's -->
@@ -1938,7 +2048,7 @@ function setSimDate(v){
 }
 
 // ── 4-TAB ROUTING ──
-const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart','seizoensoverzicht','kampplanner'];
+const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart','seizoensoverzicht','kampplanner','personeel'];
 
 
 function goTo(id){
@@ -1954,6 +2064,7 @@ function goTo(id){
       id==='materiaal',
       id==='planning',
       id==='kaart',
+      id==='personeel',
     ][i]||false;
     b.classList.toggle('active',active);
   });
@@ -1967,6 +2078,7 @@ function goTo(id){
     transporten:renderTransportenOV,
     kaart:renderKaart,
     seizoensoverzicht:renderSeizoensoverzicht,
+    personeel:renderPersoneel,
   };
   try {
     const p = renderMap[id]?.();
@@ -2604,20 +2716,89 @@ async function renderGedeeldTab(){
 }
 
 // ── VOORRAAD TAB ──
+let _vrdData=[];
+async function _vrdVernieuwen(){_vrdData=[];await renderVoorraadTab();}
 async function renderVoorraadTab(){
   const el=document.getElementById('voorraad-content'); if(!el)return;
-  if(!_invVerbruik||!_invVerbruik.length){try{_invVerbruik=await api('GET','/verbruik');}catch(e){}}
-  const items=_invVerbruik||[];
-  if(!items.length){el.innerHTML='<div class="empty">Geen voorraadartikelen gevonden.</div>';return;}
-  const metTekort=items.filter(i=>i.alarm);
-  el.innerHTML=(metTekort.length?`<div style="background:#EF444422;border:.5px solid #EF4444;border-radius:var(--r);padding:8px 12px;margin-bottom:.75rem;font-size:12px">⚠️ <b>${metTekort.length}</b> artikel${metTekort.length!==1?'en':''} onder het minimum</div>`:'')
-    +`<div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">${items.length} verbruiksartikelen in voorraad.</div>`
-    +items.map(item=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:.5px solid ${item.alarm?'#EF4444':'var(--border)'};border-radius:var(--r);margin-bottom:.375rem;background:${item.alarm?'#EF444408':'var(--bg)'}">
-      <span style="font-size:15px">📋</span>
-      <span style="font-weight:600;flex:1">${_escH(item.name)}</span>
-      <span style="font-size:11px;${item.alarm?'color:#EF4444;font-weight:700':''}">${item.qty} ${_escH(item.eenheid||'stuks')}</span>
-      ${item.minimum>0?`<span style="font-size:10px;color:var(--text3)">min ${item.minimum}</span>`:''}
+  if(!_vrdData.length){
+    el.innerHTML='<div class="loading">Laden…</div>';
+    try{_vrdData=await api('GET','/stock-overzicht');}catch(e){el.innerHTML='<div class="empty">Fout bij laden.</div>';return;}
+  }
+  const zoek=(document.getElementById('vrd-zoek')?.value||'').toLowerCase();
+  const cat=document.getElementById('vrd-cat')?.value||'';
+  const filter=document.getElementById('vrd-filter')?.value||'';
+  let items=_vrdData||[];
+  if(zoek) items=items.filter(i=>i.naam.toLowerCase().includes(zoek));
+  if(cat) items=items.filter(i=>i.categorie===cat);
+  if(filter==='tekort') items=items.filter(i=>i.tekort&&i.bakken.length>0);
+  if(filter==='in-bakken') items=items.filter(i=>i.bakken.length>0);
+  if(filter==='met-stock') items=items.filter(i=>i.totaal_stock>0);
+  const statsEl=document.getElementById('vrd-stats');
+  const tekorten=items.filter(i=>i.tekort&&i.bakken.length>0).length;
+  if(statsEl) statsEl.textContent=`${items.length} items${tekorten?` · ⚠️ ${tekorten} tekort`:''}`;
+  if(!items.length){el.innerHTML='<div class="empty">Geen items gevonden.</div>';return;}
+  // Groepeer per categorie
+  const catLabels={sport:'⚽ Sport',knutsel:'🎨 Knutsel',bakken:'🥐 Bakken & koken',spel:'🎲 Spel',rekwisiet:'🎭 Rekwisieten',container:'🪣 Containers',gereedschap:'🔧 Gereedschap',diversen:'📦 Diversen'};
+  const perCat={};
+  items.forEach(i=>{(perCat[i.categorie||'diversen']||(perCat[i.categorie||'diversen']=[])).push(i);});
+  el.innerHTML=Object.entries(perCat).map(([cat,catItems])=>`
+    <div style="margin-bottom:1.25rem">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">${catLabels[cat]||cat}</div>
+      ${catItems.map(item=>{
+        const heeftBakken=item.bakken.length>0;
+        const heeftStock=item.stock.length>0;
+        const tekort=item.tekort&&heeftBakken;
+        const border=tekort?'#EF4444':item.totaal_stock>0?'var(--green)':'var(--border)';
+        const bg=tekort?'#EF444406':item.totaal_stock>0?'#1D9E7506':'var(--bg)';
+        return `<div style="border:.5px solid ${border};border-radius:var(--r);margin-bottom:.375rem;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:${bg};cursor:pointer" onclick="_vrdToggle(${item.id})">
+            <span style="font-weight:600;flex:1;font-size:13px">${_escH(item.naam)}</span>
+            <span style="font-size:11px;color:var(--text3)">${item.eenheid}</span>
+            ${heeftBakken?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:4px;padding:1px 6px">📦 ${item.bakken.length} bak${item.bakken.length!==1?'ken':''}</span>`:''}
+            ${heeftStock?`<span style="font-size:10px;background:${tekort?'#EF444422':'#1D9E7522'};color:${tekort?'#B91C1C':'var(--green-dk)'};border-radius:4px;padding:1px 6px;font-weight:700">${tekort?'⚠️':'✅'} ${item.totaal_stock} in stock</span>`:'<span style="font-size:10px;color:var(--text3)">Geen stock</span>'}
+            <span style="font-size:11px;color:var(--text3)" id="vrd-arr-${item.id}">▼</span>
+          </div>
+          <div id="vrd-detail-${item.id}" style="display:none;padding:8px 12px 12px;border-top:.5px solid var(--border)">
+            ${_vrdDetail(item)}
+          </div>
+        </div>`;
+      }).join('')}
     </div>`).join('');
+}
+const _vrdOpen={};
+function _vrdToggle(id){
+  _vrdOpen[id]=!_vrdOpen[id];
+  const d=document.getElementById('vrd-detail-'+id);
+  const a=document.getElementById('vrd-arr-'+id);
+  if(d) d.style.display=_vrdOpen[id]?'block':'none';
+  if(a) a.textContent=_vrdOpen[id]?'▲':'▼';
+}
+function _vrdDetail(item){
+  let html='';
+  if(item.stock.length){
+    html+=`<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">📍 Voorraad per locatie</div>`;
+    html+=item.stock.map(s=>{
+      const kleur=s.qty<s.minimum?'#EF4444':'var(--text)';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:.5px solid var(--border)">
+        <span style="flex:1;font-size:12px">${_escH(s.locatie_naam)}</span>
+        <span style="font-size:12px;font-weight:600;color:${kleur}">${s.qty} ${_escH(s.eenheid||item.eenheid)}</span>
+        ${s.minimum>0?`<span style="font-size:10px;color:var(--text3)">min ${s.minimum}</span>`:''}
+      </div>`;
+    }).join('');
+    html+='</div>';
+  } else {
+    html+='<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Geen voorraadregistratie voor dit item. <button class="btn-o" style="font-size:11px;padding:2px 8px" onclick="alert(\'Voorraad toevoegen komt binnenkort\')">+ Toevoegen</button></div>';
+  }
+  if(item.bakken.length){
+    html+=`<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">📦 Zit in deze bakken</div>`;
+    html+=item.bakken.map(b=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:.5px solid var(--border)">
+      <span style="width:10px;height:10px;border-radius:50%;background:${b.thema_color||'#6B7280'};flex-shrink:0"></span>
+      <span style="flex:1;font-size:12px">${_escH(b.thema_naam)} — ${_escH(b.bak_label)}</span>
+      <span style="font-size:11px;color:var(--text3)">×${b.qty}${b.verbruik?' (verbruik)':''}</span>
+    </div>`).join('');
+    html+='</div>';
+  }
+  return html||'<div style="font-size:12px;color:var(--text3)">Geen verdere info beschikbaar.</div>';
 }
 
 function renderTransportPlan(){
@@ -8970,6 +9151,191 @@ async function annuleerNk2(sessieId,bakId){
   await api('DELETE','/nakijk/'+sessieId);
   _nk2Open[bakId]=false;
   await laadNakijken();
+}
+
+// ── PERSONEEL ──
+let _persData=[], _persSubtab='overzicht';
+const _rolLabel={kv:'🏕️ KV',chauffeur:'🚐 Chauffeur',kantoor:'🏢 Kantoor',animator:'🎪 Animator'};
+const _rolKleur={kv:'#1D9E75',chauffeur:'#3B82F6',kantoor:'#8B5CF6',animator:'#F59E0B'};
+
+async function renderPersoneel(){
+  if(!_persData.length) await _laadPersoneel();
+  setPersSubtab(_persSubtab, document.querySelector('#sec-personeel .kal-subtab.active')||document.querySelector('#sec-personeel .kal-subtab'));
+}
+
+async function _laadPersoneel(){
+  try{_persData=await api('GET','/personeel');}catch(e){_persData=[];}
+  // Vul weekfilter
+  const weken=[...new Set((S.kampmomenten||[]).map(k=>k.week).filter(Boolean))].sort((a,b)=>a-b);
+  const sel=document.getElementById('pers-week');
+  if(sel){sel.innerHTML='<option value="">Alle weken</option>'+weken.map(w=>`<option value="${w}">Week ${w}</option>`).join('');}
+  // Vul shift-kampmoment dropdown
+  const km=document.getElementById('shift-kampmoment');
+  if(km){km.innerHTML='<option value="">— Kies kampmoment —</option>'+(S.kampmomenten||[]).map(k=>`<option value="${k.id}">Week ${k.week} — ${_escH(k.locatie_naam||'?')}</option>`).join('');}
+}
+
+function setPersSubtab(tab,btn){
+  _persSubtab=tab;
+  document.querySelectorAll('#sec-personeel .kal-subtab').forEach(b=>b.classList.remove('active'));
+  if(btn?.classList.contains('kal-subtab'))btn.classList.add('active');
+  ['overzicht','kv','chauffeurs','kantoor'].forEach(t=>{
+    const el=document.getElementById('pers-sub-'+t);
+    if(el) el.style.display=t===tab?'block':'none';
+  });
+  if(tab==='overzicht') renderPersoneelOverzicht();
+  else if(tab==='kv') renderPersoneelRol('kv');
+  else if(tab==='chauffeurs') renderPersoneelRol('chauffeur');
+  else if(tab==='kantoor') renderPersoneelRol('kantoor');
+}
+
+function renderPersoneelOverzicht(){
+  const el=document.getElementById('pers-lijst'); if(!el)return;
+  const zoek=(document.getElementById('pers-zoek')?.value||'').toLowerCase();
+  const weekF=document.getElementById('pers-week')?.value||'';
+  let lijst=_persData||[];
+  if(zoek) lijst=lijst.filter(p=>p.naam.toLowerCase().includes(zoek));
+  if(weekF) lijst=lijst.filter(p=>p.shifts.some(s=>String(s.week)===weekF));
+  const statsEl=document.getElementById('pers-stats');
+  if(statsEl) statsEl.textContent=`${lijst.length} personen`;
+  if(!lijst.length){el.innerHTML='<div class="empty">Geen personeel gevonden. <button class="btn-g" onclick="openNieuwPersoonModal()">+ Toevoegen</button></div>';return;}
+  el.innerHTML=lijst.map(p=>_persKaart(p)).join('');
+}
+
+function renderPersoneelRol(rol){
+  const elId=rol==='kv'?'pers-kv-content':rol==='chauffeur'?'pers-chauf-content':'pers-kantoor-content';
+  const el=document.getElementById(elId); if(!el)return;
+  const lijst=(_persData||[]).filter(p=>p.rol===rol);
+  if(!lijst.length){el.innerHTML=`<div class="empty">Geen ${_rolLabel[rol]||rol} gevonden. <button class="btn-g" onclick="openNieuwPersoonModal()">+ Toevoegen</button></div>`;return;}
+  el.innerHTML=lijst.map(p=>_persKaart(p)).join('');
+}
+
+function _persKaart(p){
+  const kleur=_rolKleur[p.rol]||'#6B7280';
+  const shifts=p.shifts||[];
+  const komende=shifts.filter(s=>s.week>=(S.kampmomenten?.find(k=>k.id===s.kampmoment_id)?.week||0));
+  return `<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${kleur}10">
+      <div style="width:36px;height:36px;border-radius:50%;background:${kleur};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0">${_escH(p.naam.charAt(0).toUpperCase())}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px">${_escH(p.naam)}</div>
+        <div style="font-size:11px;color:var(--text2)">${_rolLabel[p.rol]||p.rol}${p.telefoon?` · 📞 ${_escH(p.telefoon)}`:''}${p.email?` · ✉️ ${_escH(p.email)}`:''}</div>
+      </div>
+      <span style="font-size:11px;color:var(--text3)">${shifts.length} shift${shifts.length!==1?'s':''}</span>
+      <button class="btn-o" style="font-size:11px;padding:3px 8px" onclick="openShiftModal(${p.id})">+ Shift</button>
+      <button class="btn-o" style="font-size:11px;padding:3px 8px" onclick="openBewerkPersoon(${p.id})">✏️</button>
+    </div>
+    ${shifts.length?`<div style="padding:6px 14px 10px">${shifts.map(s=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:.5px solid var(--border);font-size:12px">
+      <span style="color:var(--text3);width:60px;flex-shrink:0">Week ${s.week||'?'}</span>
+      <span style="flex:1">${_escH(s.locatie_naam||'?')}</span>
+      ${s.van_uur&&s.tot_uur?`<span style="color:var(--text3)">${s.van_uur}–${s.tot_uur}</span>`:''}
+      ${s.rol_dag?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:4px;padding:1px 6px">${_escH(s.rol_dag)}</span>`:''}
+      <button class="btn-r" style="font-size:10px;padding:1px 6px" onclick="verwijderShiftDirect(${s.id},${p.id})">✕</button>
+    </div>`).join('')}</div>`:''}
+  </div>`;
+}
+
+function openNieuwPersoonModal(){
+  document.getElementById('pers-edit-id').value='';
+  document.getElementById('pers-naam').value='';
+  document.getElementById('pers-rol').value='kv';
+  document.getElementById('pers-telefoon').value='';
+  document.getElementById('pers-email').value='';
+  document.getElementById('pers-notities').value='';
+  document.getElementById('modal-pers-titel').textContent='Persoon toevoegen';
+  document.getElementById('pers-verwijder-btn').style.display='none';
+  document.getElementById('modal-persoon').style.display='flex';
+}
+
+function openBewerkPersoon(id){
+  const p=(_persData||[]).find(x=>x.id===id); if(!p)return;
+  document.getElementById('pers-edit-id').value=id;
+  document.getElementById('pers-naam').value=p.naam||'';
+  document.getElementById('pers-rol').value=p.rol||'kv';
+  document.getElementById('pers-telefoon').value=p.telefoon||'';
+  document.getElementById('pers-email').value=p.email||'';
+  document.getElementById('pers-notities').value=p.notities||'';
+  document.getElementById('modal-pers-titel').textContent='Persoon bewerken';
+  document.getElementById('pers-verwijder-btn').style.display='inline-flex';
+  document.getElementById('modal-persoon').style.display='flex';
+}
+
+function sluitPersoonModal(){document.getElementById('modal-persoon').style.display='none';}
+
+async function slaaPersoonOp(){
+  const id=document.getElementById('pers-edit-id').value;
+  const data={naam:document.getElementById('pers-naam').value.trim(),rol:document.getElementById('pers-rol').value,
+    telefoon:document.getElementById('pers-telefoon').value.trim(),email:document.getElementById('pers-email').value.trim(),
+    notities:document.getElementById('pers-notities').value.trim()};
+  if(!data.naam){showToast('Naam is verplicht','error');return;}
+  if(id) await api('PUT',`/personeel/${id}`,data);
+  else await api('POST','/personeel',data);
+  sluitPersoonModal();
+  _persData=[];
+  await _laadPersoneel();
+  setPersSubtab(_persSubtab,null);
+  showToast('Opgeslagen','success');
+}
+
+async function verwijderPersoon(){
+  const id=document.getElementById('pers-edit-id').value; if(!id)return;
+  const p=(_persData||[]).find(x=>String(x.id)===String(id));
+  if(!confirm(`${p?.naam||'Persoon'} verwijderen?`))return;
+  await api('DELETE',`/personeel/${id}`);
+  sluitPersoonModal();
+  _persData=[];
+  await _laadPersoneel();
+  setPersSubtab(_persSubtab,null);
+  showToast('Verwijderd','success');
+}
+
+function openShiftModal(persId){
+  document.getElementById('shift-pers-id').value=persId;
+  document.getElementById('shift-edit-id').value='';
+  document.getElementById('shift-kampmoment').value='';
+  document.getElementById('shift-datum').value='';
+  document.getElementById('shift-van').value='';
+  document.getElementById('shift-tot').value='';
+  document.getElementById('shift-rol-dag').value='';
+  document.getElementById('shift-notities').value='';
+  document.getElementById('shift-verwijder-btn').style.display='none';
+  document.getElementById('modal-shift').style.display='flex';
+}
+
+async function slaaShiftOp(){
+  const persId=document.getElementById('shift-pers-id').value;
+  const editId=document.getElementById('shift-edit-id').value;
+  const data={kampmoment_id:document.getElementById('shift-kampmoment').value||null,
+    datum:document.getElementById('shift-datum').value||'',
+    van_uur:document.getElementById('shift-van').value||'',
+    tot_uur:document.getElementById('shift-tot').value||'',
+    rol_dag:document.getElementById('shift-rol-dag').value.trim(),
+    notities:document.getElementById('shift-notities').value.trim()};
+  if(editId) await api('PUT',`/personeel-shifts/${editId}`,data);
+  else await api('POST',`/personeel/${persId}/shifts`,data);
+  document.getElementById('modal-shift').style.display='none';
+  _persData=[];
+  await _laadPersoneel();
+  setPersSubtab(_persSubtab,null);
+  showToast('Shift opgeslagen','success');
+}
+
+async function verwijderShiftDirect(shiftId,persId){
+  if(!confirm('Shift verwijderen?'))return;
+  await api('DELETE',`/personeel-shifts/${shiftId}`);
+  _persData=[];
+  await _laadPersoneel();
+  setPersSubtab(_persSubtab,null);
+  showToast('Shift verwijderd','success');
+}
+
+async function verwijderShift(){
+  const id=document.getElementById('shift-edit-id').value; if(!id)return;
+  if(!confirm('Shift verwijderen?'))return;
+  await api('DELETE',`/personeel-shifts/${id}`);
+  document.getElementById('modal-shift').style.display='none';
+  _persData=[];
+  await _laadPersoneel();
+  setPersSubtab(_persSubtab,null);
 }
 
 // ── ITEM HISTORIEK ──

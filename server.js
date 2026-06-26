@@ -1014,6 +1014,55 @@ async function startServer() {
     if(_linked>0)console.log(`  Migratie 30: ${_linked} bak_items automatisch gekoppeld aan item_types`);
   }
 
+  // Migration 31: item_type_id aan verbruik_stock + personeel tabellen
+  addColumnIfMissing('verbruik_stock','item_type_id','INTEGER');
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS personeel (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    naam TEXT NOT NULL,
+    rol TEXT DEFAULT 'kv',
+    telefoon TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    notities TEXT DEFAULT ''
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS personeel_shifts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    persoon_id INTEGER NOT NULL REFERENCES personeel(id) ON DELETE CASCADE,
+    kampmoment_id INTEGER REFERENCES kampmomenten(id) ON DELETE SET NULL,
+    locatie_id INTEGER REFERENCES locaties(id) ON DELETE SET NULL,
+    datum TEXT,
+    van_uur TEXT DEFAULT '',
+    tot_uur TEXT DEFAULT '',
+    rol_dag TEXT DEFAULT '',
+    notities TEXT DEFAULT ''
+  )`);
+  // Auto-koppel verbruik_stock aan item_types via naam van materiaal_items
+  {
+    const _vsAliassen={
+      'crepepapier':['crepepapier'],'papier':['papier'],'gekleurd papier':['gekleurd papier'],
+      'karton':['karton'],'lijm':['lijm'],'verf':['verf'],'schaar':['schaar'],
+      'tape':['tape'],'plakband':['plakband'],'wol':['wol'],'ballonnen':['ballon'],
+      'ballon':['ballon'],'touw':['touw'],'hoepel':['hoepel'],'hoepels':['hoepel'],
+      'wasknijpers':['wasknijper'],'wasknijper':['wasknijper'],
+      'voetbal':['voetbal'],'tennisbal':['tennisbal'],'basketbal':['basketbal'],
+      'krijt':['krijt'],'stoepkrijt':['stoepkrijt'],'stempel':['stempel'],
+      'penseel':['penseel'],'penselen':['penseel'],'kwast':['kwast'],
+      'elastiek':['elastiek'],'spons':['spons'],
+    };
+    const _itMap={};
+    all('SELECT id,naam FROM item_types').forEach(t=>{_itMap[t.naam.toLowerCase()]=t.id;});
+    const _vsItems=all(`SELECT vs.id, mi.name FROM verbruik_stock vs
+      JOIN materiaal_items mi ON mi.id=vs.item_id WHERE vs.item_type_id IS NULL`);
+    let _vsLinked=0;
+    _vsItems.forEach(vs=>{
+      const sleutel=(vs.name||'').toLowerCase().trim();
+      const doelNamen=_vsAliassen[sleutel];
+      if(!doelNamen)return;
+      const typeId=_itMap[doelNamen[0]];
+      if(typeId){run('UPDATE verbruik_stock SET item_type_id=? WHERE id=?',[typeId,vs.id]);_vsLinked++;}
+    });
+    if(_vsLinked>0)console.log(`  Migratie 31: ${_vsLinked} verbruik_stock gekoppeld aan item_types`);
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
@@ -2226,6 +2275,81 @@ async function startServer() {
   app.delete('/api/item-types/:id',(req,res)=>{
     run('DELETE FROM item_types WHERE id=?',[req.params.id]);
     res.json({ok:true});
+  });
+
+  // ── STOCK OVERZICHT (per item_type: bakken + voorraad) ──
+  app.get('/api/stock-overzicht',(req,res)=>{
+    const types=all('SELECT * FROM item_types ORDER BY categorie,naam');
+    const bakItems=all(`SELECT bi.item_type_id, bi.naam, bi.qty, bi.verbruik, bi.qty_stock, bi.qty_minimum,
+      tb.label as bak_label, tb.code as bak_code, t.name as thema_naam, t.color as thema_color, t.id as thema_id
+      FROM bak_items bi
+      JOIN thema_bakken tb ON tb.id=bi.bak_id
+      JOIN themas t ON t.id=tb.thema_id
+      WHERE bi.item_type_id IS NOT NULL`);
+    const vasteBakItems=all(`SELECT vbi.item_type_id, vbi.naam, vbi.qty, vbi.is_verbruik as verbruik,
+      vbi.qty_stock, vbi.qty_minimum, vb.naam as bak_label, vb.code as bak_code, 'Vaste bak' as thema_naam, '#6B7280' as thema_color, NULL as thema_id
+      FROM vaste_bak_items vbi JOIN vaste_bakken vb ON vb.id=vbi.bak_id
+      WHERE vbi.item_type_id IS NOT NULL`);
+    const stockRows=all(`SELECT vs.item_type_id, vs.qty, vs.minimum, vs.eenheid,
+      l.name as locatie_naam, l.id as locatie_id
+      FROM verbruik_stock vs JOIN locaties l ON l.id=vs.locatie_id
+      WHERE vs.item_type_id IS NOT NULL`);
+    res.json(types.map(t=>{
+      const allBakken=[...bakItems,...vasteBakItems].filter(b=>b.item_type_id===t.id);
+      const stock=stockRows.filter(s=>s.item_type_id===t.id);
+      const totaalStock=stock.reduce((s,r)=>s+r.qty,0);
+      const totaalNodig=allBakken.reduce((s,b)=>s+b.qty,0);
+      return {...t,bakken:allBakken,stock,totaal_stock:totaalStock,totaal_nodig:totaalNodig,tekort:totaalStock<totaalNodig};
+    }));
+  });
+
+  // ── PERSONEEL ──
+  app.get('/api/personeel',(req,res)=>{
+    const personen=all('SELECT * FROM personeel ORDER BY rol,naam');
+    const shifts=all(`SELECT ps.*, km.week, km.locatie_id, l.name as locatie_naam
+      FROM personeel_shifts ps
+      LEFT JOIN kampmomenten km ON km.id=ps.kampmoment_id
+      LEFT JOIN locaties l ON l.id=COALESCE(ps.locatie_id,km.locatie_id)
+      ORDER BY ps.datum,ps.van_uur`);
+    res.json(personen.map(p=>({...p,shifts:shifts.filter(s=>s.persoon_id===p.id)})));
+  });
+  app.post('/api/personeel',(req,res)=>{
+    const{naam,rol,telefoon,email,notities}=req.body;
+    if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
+    const id=ins('INSERT INTO personeel (naam,rol,telefoon,email,notities) VALUES (?,?,?,?,?)',
+      [naam.trim(),rol||'kv',telefoon||'',email||'',notities||'']);
+    res.json(get('SELECT * FROM personeel WHERE id=?',[id]));
+  });
+  app.put('/api/personeel/:id',(req,res)=>{
+    const{naam,rol,telefoon,email,notities}=req.body;
+    run('UPDATE personeel SET naam=?,rol=?,telefoon=?,email=?,notities=? WHERE id=?',
+      [naam,rol||'kv',telefoon||'',email||'',notities||'',req.params.id]);
+    res.json(get('SELECT * FROM personeel WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/personeel/:id',(req,res)=>{run('DELETE FROM personeel WHERE id=?',[req.params.id]);res.json({ok:true});});
+  app.post('/api/personeel/:id/shifts',(req,res)=>{
+    const{kampmoment_id,locatie_id,datum,van_uur,tot_uur,rol_dag,notities}=req.body;
+    const id=ins('INSERT INTO personeel_shifts (persoon_id,kampmoment_id,locatie_id,datum,van_uur,tot_uur,rol_dag,notities) VALUES (?,?,?,?,?,?,?,?)',
+      [req.params.id,kampmoment_id||null,locatie_id||null,datum||'',van_uur||'',tot_uur||'',rol_dag||'',notities||'']);
+    res.json(get('SELECT * FROM personeel_shifts WHERE id=?',[id]));
+  });
+  app.put('/api/personeel-shifts/:id',(req,res)=>{
+    const{kampmoment_id,locatie_id,datum,van_uur,tot_uur,rol_dag,notities}=req.body;
+    run('UPDATE personeel_shifts SET kampmoment_id=?,locatie_id=?,datum=?,van_uur=?,tot_uur=?,rol_dag=?,notities=? WHERE id=?',
+      [kampmoment_id||null,locatie_id||null,datum||'',van_uur||'',tot_uur||'',rol_dag||'',notities||'',req.params.id]);
+    res.json(get('SELECT * FROM personeel_shifts WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/personeel-shifts/:id',(req,res)=>{run('DELETE FROM personeel_shifts WHERE id=?',[req.params.id]);res.json({ok:true});});
+  // Wie werkt waar welke week
+  app.get('/api/personeel/week/:week',(req,res)=>{
+    const week=parseInt(req.params.week);
+    const rows=all(`SELECT ps.*, p.naam, p.rol, p.telefoon, l.name as locatie_naam, km.week
+      FROM personeel_shifts ps
+      JOIN personeel p ON p.id=ps.persoon_id
+      LEFT JOIN kampmomenten km ON km.id=ps.kampmoment_id
+      LEFT JOIN locaties l ON l.id=COALESCE(ps.locatie_id,km.locatie_id)
+      WHERE km.week=? OR ps.datum LIKE ?`,[week,'%-W'+String(week).padStart(2,'0')+'-%']);
+    res.json(rows);
   });
 
   // ── VASTE BAKKEN ──
