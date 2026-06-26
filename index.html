@@ -531,12 +531,19 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
        TAB: KAMPPLANNER
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-kampplanner">
-    <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem">
-      <button class="kal-subtab active" id="kp-tab-locatie" onclick="setKampMode('locatie',this)">&#128205; Per locatie</button>
+    <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;flex-wrap:wrap">
+      <button class="kal-subtab active" id="kp-tab-rooster" onclick="setKampMode('rooster',this)">&#128203; Rooster</button>
+      <button class="kal-subtab" id="kp-tab-locatie" onclick="setKampMode('locatie',this)">&#128205; Per locatie</button>
       <button class="kal-subtab" id="kp-tab-week" onclick="setKampMode('week',this)">&#128197; Per week</button>
       <button class="kal-subtab" id="kp-tab-thema" onclick="setKampMode('thema',this)">&#127912; Per thema</button>
     </div>
-    <div id="kp-locatie-content"></div>
+    <div id="kp-rooster-content">
+      <div style="display:flex;gap:6px;margin-bottom:.7rem;align-items:center;flex-wrap:wrap">
+        <button class="btn-xs" onclick="toggleRoosterCompact()">&#128203; Compact</button>
+      </div>
+      <div id="rooster-content-kp"></div>
+    </div>
+    <div id="kp-locatie-content" style="display:none"></div>
     <div id="kp-week-content" style="display:none"></div>
     <div id="kp-thema-content" style="display:none"></div>
   </div>
@@ -1093,13 +1100,21 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
     <div id="km-mode-kamp">
       <div class="sl">Thema&apos;s die draaien op deze locatie deze week</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Vink alle thema&apos;s aan die tegelijk op deze locatie draaien:</div>
-      <div id="km-thema-checkboxes" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;margin-bottom:12px"></div>
+      <input class="inp" id="km-thema-zoek" placeholder="&#128269; Zoek thema&hellip;" style="width:100%;margin-bottom:8px;height:30px;font-size:12px" oninput="filterKmThemas()">
+      <div id="km-thema-checkboxes" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;margin-bottom:12px"></div>
     </div>
     <div id="km-mode-themadag" style="display:none">
-      <div class="sl">Thema per dag</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">&#201;&#233;n thema per weekdag. Lege dagen blijven open zonder thema.</div>
-      <div id="km-dag-selects" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+      <div class="sl">Thema&apos;s per dag</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px">Meerdere thema&apos;s per dag mogelijk. Lege dagen blijven open zonder thema.</div>
+      <div id="km-dag-selects" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+    </div>
+    <div id="km-sport-sectie" style="display:none;border-top:.5px solid var(--border);padding-top:12px;margin-top:4px;margin-bottom:12px">
+      <div class="sl">&#9917; Sportpakketten deze week</div>
+      <div id="km-sport-tags" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;min-height:20px"></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select class="sel" id="km-sport-add-sel" style="height:28px;font-size:12px;flex:1;min-width:160px"><option value="">+ Sportpakket toevoegen…</option></select>
+        <button class="btn-xs" onclick="kmModalAddSport()">Toevoegen</button>
+      </div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn-g" style="flex:1" onclick="saveKampmoment()">&#128190; Opslaan</button>
@@ -1264,6 +1279,7 @@ function toggleRoosterCompact(){
   const b=document.getElementById('rooster-compact-btn');
   if(b)b.textContent=_roosterCompact?'👁️ Toon namen':'🔢 Compact';
   renderRooster();
+  renderRooster('rooster-content-kp');
 }
 function showRooster(){
   document.getElementById('ov-main').style.display='none';
@@ -1274,8 +1290,8 @@ function showRooster(){
   document.querySelectorAll('#sec-overzicht .ov-view-btn').forEach((b,i)=>b.classList.toggle('active',i===4));
   renderRooster();
 }
-function renderRooster(){
-  const el=document.getElementById('rooster-content'); if(!el)return;
+function renderRooster(targetId){
+  const el=document.getElementById(targetId||'rooster-content'); if(!el)return;
   const p=_activePeriode();
   const maxWk=_periodeMaxWeken(p);
   const locs=(S.locaties||[]).filter(l=>l.type==='kamp').sort((a,b)=>a.name.localeCompare(b.name,'nl'));
@@ -2092,7 +2108,7 @@ function setKampMode(mode,btn){
   _kampMode=mode;
   document.querySelectorAll('#sec-kampplanner .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  ['locatie','week','thema'].forEach(m=>{
+  ['rooster','locatie','week','thema'].forEach(m=>{
     const el=document.getElementById('kp-'+m+'-content');
     if(el)el.style.display=m===mode?'block':'none';
   });
@@ -2100,7 +2116,8 @@ function setKampMode(mode,btn){
 }
 
 function _renderKampMode(){
-  if(_kampMode==='locatie') _renderKampLocatie();
+  if(_kampMode==='rooster') renderRooster('rooster-content-kp');
+  else if(_kampMode==='locatie') _renderKampLocatie();
   else if(_kampMode==='week') _renderKampWeek();
   else _renderKampThema();
 }
@@ -3749,41 +3766,48 @@ function setKmType(t){
     b.style.fontWeight=a?'600':'400';
   });
 }
+let _kmDagThemas={0:[],1:[],2:[],3:[],4:[]};
 function renderKmDagSelects(perDagKL,perDagLS){
-  // perDagKL/perDagLS: array[5] of thema_id (or null) per dag
-  perDagKL=perDagKL||[null,null,null,null,null];
-  perDagLS=perDagLS||[null,null,null,null,null];
-  const DOW=['Ma','Di','Wo','Do','Vr'];
-  const el=document.getElementById('km-dag-selects');
-  const klThemas=(S.themas||[]).filter(t=>!t.leeftijdsgroep||t.leeftijdsgroep==='KL'||t.leeftijdsgroep==='KLS');
-  const lsThemas=(S.themas||[]).filter(t=>!t.leeftijdsgroep||t.leeftijdsgroep==='LS'||t.leeftijdsgroep==='KLS');
-  el.innerHTML='<div style="font-size:10px;font-weight:700;color:var(--text3);display:grid;grid-template-columns:28px 1fr 1fr;gap:8px;margin-bottom:4px"><span></span><span>🐣 Kleuters</span><span>🏫 Lagere school</span></div>'
-  +DOW.map((lbl,i)=>{
-    const curKL=perDagKL[i]||'';
-    const curLS=perDagLS[i]||'';
-    return `<div style="display:grid;grid-template-columns:28px 1fr 1fr;align-items:center;gap:8px">
-      <span style="font-weight:600;color:var(--text2)">${lbl}</span>
-      <select class="sel km-dag-sel km-dag-sel-kl" data-dag="${i}" data-groep="KL" style="flex:1" onchange="_refreshKmDagDisables()">
-        <option value="">— Geen —</option>
-        ${klThemas.map(th=>`<option value="${th.id}" ${curKL==th.id?'selected':''}>${_escH(th.name)}</option>`).join('')}
-      </select>
-      <select class="sel km-dag-sel km-dag-sel-ls" data-dag="${i}" data-groep="LS" style="flex:1" onchange="_refreshKmDagDisables()">
-        <option value="">— Geen —</option>
-        ${lsThemas.map(th=>`<option value="${th.id}" ${curLS==th.id?'selected':''}>${_escH(th.name)}</option>`).join('')}
-      </select>
+  // Convert legacy KL/LS arrays to _kmDagThemas
+  _kmDagThemas={0:[],1:[],2:[],3:[],4:[]};
+  for(let i=0;i<5;i++){
+    const klId=(perDagKL||[])[i];const lsId=(perDagLS||[])[i];
+    const klT=klId&&(S.themas||[]).find(t=>t.id===klId);
+    const lsT=lsId&&(S.themas||[]).find(t=>t.id===lsId);
+    if(klT)_kmDagThemas[i].push({id:klT.id,name:klT.name,color:klT.color});
+    if(lsT&&lsT.id!==klId)_kmDagThemas[i].push({id:lsT.id,name:lsT.name,color:lsT.color});
+  }
+  _renderKmDagUI();
+}
+function _renderKmDagUI(){
+  const DOW=['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag'];
+  const el=document.getElementById('km-dag-selects'); if(!el)return;
+  el.innerHTML=DOW.map((dag,i)=>{
+    const ths=_kmDagThemas[i]||[];
+    const tags=ths.map(t=>`<span class="thema-tag" style="background:${t.color}22;color:${t.color};font-size:11px">${_escH(t.name)}<button type="button" style="background:none;border:none;cursor:pointer;color:inherit;margin-left:3px;font-size:10px;line-height:1" onclick="kmDagRemoveThema(${i},${t.id})">&#x2715;</button></span>`).join('');
+    const assigned=new Set(ths.map(t=>t.id));
+    const opts=(S.themas||[]).filter(t=>!assigned.has(t.id)).map(t=>`<option value="${t.id}">${_escH(t.name)}</option>`).join('');
+    return `<div style="border:.5px solid var(--border);border-radius:var(--r);padding:8px 10px">
+      <div style="font-weight:600;font-size:12px;color:var(--text2);margin-bottom:5px">${dag}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;min-height:22px;margin-bottom:5px">${tags||'<span style="font-size:11px;color:var(--text3)">Geen thema</span>'}</div>
+      <div style="display:flex;gap:4px">
+        <select class="sel" id="km-dag-add-${i}" style="height:26px;font-size:11px;flex:1"><option value="">+ Thema toevoegen…</option>${opts}</select>
+        <button type="button" class="btn-xs" onclick="kmDagAddThema(${i})">+</button>
+      </div>
     </div>`;
   }).join('');
-  _refreshKmDagDisables();
 }
-function _refreshKmDagDisables(){
-  const selects=[...document.querySelectorAll('.km-dag-sel')];
-  const picked=selects.map(s=>s.value).filter(Boolean);
-  selects.forEach(s=>{
-    [...s.options].forEach(o=>{
-      if(!o.value)return;
-      o.disabled=picked.includes(o.value)&&o.value!==s.value;
-    });
-  });
+function kmDagAddThema(dag){
+  const sel=document.getElementById('km-dag-add-'+dag);
+  const tid=parseInt(sel?.value); if(!tid)return;
+  const t=(S.themas||[]).find(x=>x.id===tid); if(!t)return;
+  if(!_kmDagThemas[dag])_kmDagThemas[dag]=[];
+  if(!_kmDagThemas[dag].find(x=>x.id===tid))_kmDagThemas[dag].push({id:t.id,name:t.name,color:t.color});
+  _renderKmDagUI();
+}
+function kmDagRemoveThema(dag,tid){
+  if(_kmDagThemas[dag])_kmDagThemas[dag]=_kmDagThemas[dag].filter(t=>t.id!==tid);
+  _renderKmDagUI();
 }
 function openNieuwKampmoment(preLocId, preWeek){
   _kmEditId=null;
@@ -3798,8 +3822,10 @@ function openNieuwKampmoment(preLocId, preWeek){
   document.getElementById('km-periode').disabled=false;
   setKmType('kamp');
   renderKmCheckboxes([]);
-  renderKmDagSelects([null,null,null,null,null],[null,null,null,null,null]);
+  _kmDagThemas={0:[],1:[],2:[],3:[],4:[]};
+  _renderKmDagUI();
   updateKmPreview();
+  _fillKmSportSectie(null);
   openModal('modal-km');
 }
 function openBewerkKampmoment(kmId){
@@ -3819,20 +3845,72 @@ function openBewerkKampmoment(kmId){
   const isTd=km.type==='themadag';
   setKmType(isTd?'themadag':'kamp');
   if(isTd){
-    const perDagKL=[null,null,null,null,null];
-    const perDagLS=[null,null,null,null,null];
-    (km.themas||[]).forEach(th=>{if(th.dag!=null&&th.dag>=0&&th.dag<=4){
-      const lg=th.leeftijdsgroep||((S.themas||[]).find(x=>x.id===th.id)?.leeftijdsgroep||'');
-      if(lg==='LS')perDagLS[th.dag]=th.id;
-      else perDagKL[th.dag]=th.id;
-    }});
-    renderKmDagSelects(perDagKL,perDagLS);
+    // Load all themas per day (unlimited, not just KL/LS)
+    _kmDagThemas={0:[],1:[],2:[],3:[],4:[]};
+    (km.themas||[]).forEach(th=>{
+      if(th.dag!=null&&th.dag>=0&&th.dag<=4){
+        const full=(S.themas||[]).find(x=>x.id===th.id)||th;
+        if(!_kmDagThemas[th.dag])_kmDagThemas[th.dag]=[];
+        if(!_kmDagThemas[th.dag].find(x=>x.id===th.id))
+          _kmDagThemas[th.dag].push({id:th.id,name:th.name||full.name,color:th.color||full.color||'#888'});
+      }
+    });
+    _renderKmDagUI();
     renderKmCheckboxes([]);
   } else {
     renderKmCheckboxes((km.themas||[]).map(t=>t.id));
-    renderKmDagSelects([null,null,null,null,null],[null,null,null,null,null]);
+    _kmDagThemas={0:[],1:[],2:[],3:[],4:[]};
+    _renderKmDagUI();
   }
+  _fillKmSportSectie(km);
   openModal('modal-km');
+}
+function _fillKmSportSectie(km){
+  const sec=document.getElementById('km-sport-sectie');
+  if(!sec)return;
+  if(!km){sec.style.display='none';return;}
+  sec.style.display='block';
+  const sets=km.sport_sets||[];
+  const allSets=(_invSport||[]).flatMap(item=>(item.sets||[]).map(s=>({...s,item_naam:item.name})));
+  const geplande=new Set(sets.map(s=>s.set_id));
+  // Tags
+  const tags=document.getElementById('km-sport-tags');
+  if(tags){
+    const grouped={};
+    sets.forEach(s=>{if(!grouped[s.item_naam])grouped[s.item_naam]=[];grouped[s.item_naam].push(s);});
+    tags.innerHTML=Object.entries(grouped).map(([naam,ss])=>
+      `<span class="thema-tag" style="background:var(--blue-bg);color:var(--blue);font-size:11px">⚽ ${_escH(naam)}${ss.length>1?' ×'+ss.length:''} ${ss.map(s=>`<button type="button" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:10px;padding:0 2px" onclick="kmModalRemoveSport(${km.id},${s.set_id},${km.week})">✕</button>`).join('')}</span>`
+    ).join('')||'<span style="font-size:11px;color:var(--text2)">Nog geen sportpakketten.</span>';
+  }
+  // Dropdown
+  const sel=document.getElementById('km-sport-add-sel');
+  if(sel){
+    const beschikbaar=allSets.filter(s=>!geplande.has(s.id));
+    sel.innerHTML='<option value="">+ Sportpakket toevoegen…</option>'+beschikbaar.map(s=>`<option value="${s.id}">${_escH(s.item_naam)} — ${_escH(s.label)}</option>`).join('');
+    sel.dataset.kmid=km.id;
+    sel.dataset.locid=km.locatie_id;
+    sel.dataset.week=km.week;
+  }
+}
+async function kmModalAddSport(){
+  const sel=document.getElementById('km-sport-add-sel');
+  const setId=parseInt(sel?.value); if(!setId)return;
+  const locId=parseInt(sel.dataset.locid);
+  const week=parseInt(sel.dataset.week);
+  await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:locId});
+  S.kampmomenten=await api('GET','/kampmomenten');
+  const km=(S.kampmomenten||[]).find(k=>k.id===parseInt(sel.dataset.kmid));
+  _fillKmSportSectie(km);
+  renderRooster('rooster-content-kp');
+  if(_kampMode==='locatie'||_kampMode==='week')_renderKampMode();
+}
+async function kmModalRemoveSport(kmId,setId,week){
+  await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:null});
+  S.kampmomenten=await api('GET','/kampmomenten');
+  const km=(S.kampmomenten||[]).find(k=>k.id===kmId);
+  _fillKmSportSectie(km);
+  renderRooster('rooster-content-kp');
+  if(_kampMode==='locatie'||_kampMode==='week')_renderKampMode();
 }
 function updateKmPreview(){
   const w=parseInt(document.getElementById('km-week').value);
@@ -3845,7 +3923,17 @@ function updateKmPreview(){
   el.textContent=wd.length?'📅 Week '+w+' · '+fDag(wd[0])+'–'+fDag(wd[wd.length-1])+(p?' ('+p.naam+')':''):'Week '+w+' valt buiten de periode';
   el.style.display='block';
 }
-function renderKmCheckboxes(sel){document.getElementById('km-thema-checkboxes').innerHTML=S.themas.map(th=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r);cursor:pointer;border:.5px solid var(--border)"><input type="checkbox" value="${th.id}" ${sel.includes(th.id)?'checked':''} style="accent-color:${th.color};width:15px;height:15px"><span class="thema-tag" style="background:${th.color}22;color:${th.color}">${th.name}</span></label>`).join('');}
+function renderKmCheckboxes(sel){
+  const zoek=document.getElementById('km-thema-zoek');
+  if(zoek)zoek.value='';
+  document.getElementById('km-thema-checkboxes').innerHTML=(S.themas||[]).map(th=>`<label class="km-thema-lbl" data-naam="${th.name.toLowerCase()}" data-lg="${(th.leeftijdsgroep||'').toLowerCase()}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r);cursor:pointer;border:.5px solid var(--border)"><input type="checkbox" value="${th.id}" ${sel.includes(th.id)?'checked':''} style="accent-color:${th.color};width:15px;height:15px"><span class="thema-tag" style="background:${th.color}22;color:${th.color}">${th.name}</span><span style="font-size:10px;color:var(--text2)">${th.leeftijdsgroep||''}</span></label>`).join('');
+}
+function filterKmThemas(){
+  const q=(document.getElementById('km-thema-zoek')?.value||'').toLowerCase();
+  document.querySelectorAll('.km-thema-lbl').forEach(lbl=>{
+    lbl.style.display=(!q||lbl.dataset.naam.includes(q)||lbl.dataset.lg.includes(q))?'flex':'none';
+  });
+}
 async function saveKampmoment(){
   const week=parseInt(document.getElementById('km-week').value);
   const locatie_id=parseInt(document.getElementById('km-loc').value);
@@ -3867,20 +3955,20 @@ async function saveKampmoment(){
     const checked=[...document.querySelectorAll('#km-thema-checkboxes input:checked')].map(cb=>parseInt(cb.value));
     for(const tid of checked)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid,dag:null});
   } else {
-    const sels=[...document.querySelectorAll('.km-dag-sel')];
-    for(const s of sels){
-      const tid=parseInt(s.value);
-      const dag=parseInt(s.dataset.dag);
-      const leeftijdsgroep=s.dataset.groep||'';
-      if(tid)await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:tid,dag,leeftijdsgroep});
+    for(let dag=0;dag<5;dag++){
+      for(const t of (_kmDagThemas[dag]||[])){
+        await api('POST','/kampmomenten/'+km.id+'/themas',{thema_id:t.id,dag});
+      }
     }
   }
   S.kampmomenten=await api('GET','/kampmomenten');
   if(kalData)kalData=await api('GET','/kalender');
   closeModal('modal-km');
   renderKampen();
-  if(document.getElementById('rooster-ov')&&document.getElementById('rooster-ov').style.display!=='none')renderRooster();
+  renderRooster();
+  renderRooster('rooster-content-kp');
   if(typeof _refreshLocDetail==='function')_refreshLocDetail();
+  if(_kampMode==='locatie'||_kampMode==='week'||_kampMode==='thema')_renderKampMode();
   {const _kl=document.getElementById('km-list');if(_kl)_kl.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
 async function deleteKampmoment(id){if(!confirm('Kampmoment verwijderen?'))return;await api('DELETE','/kampmomenten/'+id);S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);renderKampen();if(document.getElementById('rooster-ov')&&document.getElementById('rooster-ov').style.display!=='none')renderRooster();}
