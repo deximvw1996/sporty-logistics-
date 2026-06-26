@@ -1084,8 +1084,8 @@ async function startServer() {
         if(Array.isArray(t.items)){
           t.items.forEach((itNaam,idx)=>{
             const typeId=_itMap2[itNaam.toLowerCase()]||null;
-            ins('INSERT INTO bak_items (thema_bak_id,naam,aantal,eenheid,item_type_id,volgorde) VALUES (?,?,?,?,?,?)',
-              [bakId,itNaam,1,'stuk',typeId,idx]);
+            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,?,?,?,0,1,0,0)',
+              [bakId,itNaam,1,'stuk',typeId]);
             _biAdded++;
           });
         }
