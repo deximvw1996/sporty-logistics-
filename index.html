@@ -582,6 +582,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128203; Standaard</button>
       <button class="kal-subtab" onclick="setMatSubtab('voertuigen',this)">&#128656; Voertuigen</button>
       <button class="kal-subtab" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken</button>
+      <button class="kal-subtab" onclick="setMatSubtab('sport',this)">&#9917; Sport</button>
     </div>
 
     <!-- Thema's -->
@@ -634,13 +635,26 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
             </select>
           </div>
           <div class="fg md"><label for="th-leeftijd-new">Leeftijdsgroep</label>
-            <select class="sel" id="th-leeftijd-new" style="min-width:130px">
+            <select class="sel" id="th-leeftijd-new" style="min-width:130px" onchange="autoKleurThema()">
               <option value="">&#8212; Geen &#8212;</option>
-              <option value="KL">KL (kleuters)</option>
-              <option value="LS">LS (lagere school)</option>
-              <option value="KLS">KLS (beide)</option>
+              <option value="kleuters">Kleuters</option>
+              <option value="lagere school">Lagere school</option>
+              <option value="beide">Beide</option>
               <option value="12+">12+</option>
               <option value="10+">10+</option>
+            </select>
+          </div>
+          <div class="fg md"><label for="th-org">Organisatie</label>
+            <select class="sel" id="th-org" style="min-width:110px" onchange="autoKleurThema()">
+              <option value="intern">&#127968; Intern</option>
+              <option value="extern">&#127970; Extern</option>
+            </select>
+          </div>
+          <div class="fg md"><label for="th-mattype">Materiaal</label>
+            <select class="sel" id="th-mattype" style="min-width:140px">
+              <option value="eigen_materiaal">Eigen materiaal</option>
+              <option value="eigen_standaard">Standaard</option>
+              <option value="geen">Geen</option>
             </select>
           </div>
           <button class="btn-g" onclick="addThema()">+ Aanmaken</button>
@@ -681,6 +695,11 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <span id="nak-teller" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
       </div>
       <div id="nak-voorraad-lijst"></div>
+    </div>
+
+    <!-- Sport tab -->
+    <div id="mat-sub-sport" style="display:none">
+      <div id="sport-mat-content"><div class="loading">Laden&hellip;</div></div>
     </div>
 
     <div id="mat-sub-catalogus" style="display:none">
@@ -1933,7 +1952,7 @@ function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  ['themas','catalogus','standaard','voertuigen','nakijken'].forEach(t=>{
+  ['themas','catalogus','standaard','voertuigen','nakijken','sport'].forEach(t=>{
     const el=document.getElementById('mat-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
@@ -1943,6 +1962,7 @@ document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.i
   else if(tab==='standaard'){renderStandaard();}
   else if(tab==='voertuigen'){renderVoertuigen();}
   else if(tab==='nakijken'){renderNakijkenVoorraad();}
+  else if(tab==='sport'){renderSportMateriaal();}
 }
 async function renderVoertuigen(){
   const el=document.getElementById('voertuigen-lijst');
@@ -2144,8 +2164,8 @@ function _kpThemaTag(t){
 
 function _kpThemaCell(km,leeftijdsgroep){
   if(!km)return '<span style="color:var(--text2);font-size:11px">—</span>';
-  const cur=(km.themas||[]).find(t=>t.leeftijdsgroep===leeftijdsgroep&&t.dag==null);
-  const opts=(S.themas||[]).filter(t=>t.leeftijdsgroep===leeftijdsgroep);
+  const cur=(km.themas||[]).find(t=>_normLG(t.leeftijdsgroep)===leeftijdsgroep&&t.dag==null);
+  const opts=(S.themas||[]).filter(t=>_normLG(t.leeftijdsgroep)===leeftijdsgroep);
   const selHtml=`<select class="sel" style="height:26px;font-size:11px;max-width:180px" onchange="kpSetThema(${km.id},'${leeftijdsgroep}',parseInt(this.value)||null,this)">
     <option value="">${cur?'Wijzigen…':'+ Thema toevoegen…'}</option>
     ${opts.filter(t=>t.id!==(cur?.id)).map(t=>`<option value="${t.id}">${_escH(t.name)}</option>`).join('')}
@@ -4105,7 +4125,7 @@ function renderThemas(){
   if(!S.themas.length){el.innerHTML='<div class="empty">Nog geen themas aangemaakt.</div>';return;}
   const _thHead=document.createElement('div');
   _thHead.className='th-head';
-  _thHead.innerHTML=`<input type="checkbox" id="th-sel-all" onchange="themaSelAllPage(this)" title="Selecteer alles op deze pagina" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;margin:0"><span style="flex:1;min-width:0">Thema</span><span style="width:64px;flex-shrink:0;text-align:center">Leeftijd</span><span style="width:48px;flex-shrink:0;text-align:right">Items</span><span style="width:62px;flex-shrink:0"></span>`;
+  _thHead.innerHTML=`<input type="checkbox" id="th-sel-all" onchange="themaSelAllPage(this)" title="Selecteer alles op deze pagina" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;margin:0"><span style="flex:1;min-width:0">Thema</span><span style="width:70px;flex-shrink:0;text-align:center">Leeftijd</span><span style="width:62px;flex-shrink:0;text-align:center">Org.</span><span style="width:110px;flex-shrink:0;text-align:center">Materiaal</span><span style="width:40px;flex-shrink:0;text-align:right">Items</span><span style="width:62px;flex-shrink:0"></span>`;
   el.appendChild(_thHead);
 
   // Group by categorie
@@ -4153,18 +4173,32 @@ function renderThemas(){
       hd.onclick=(e)=>{if(editingThema===t.id)return;if(e.target.tagName!=='BUTTON'&&e.target.tagName!=='INPUT'&&e.target.tagName!=='SELECT'&&!e.target.closest('button'))toggleThemaBody(t.id);};
 
       if(editingThema===t.id){
+        const _tt=t.thema_type||'eigen_materiaal';
+        const _isExt=_tt==='extern';
+        const _matVal=_tt==='eigen_standaard'||_tt==='geen'?'eigen_standaard':(_tt==='extern'?'geen':'eigen_materiaal');
         hd.innerHTML=`<span class="thema-swatch" style="background:${t.color}"></span>
           <input type="text" class="inp gb" style="flex:2" id="es-n-${t.id}" value="${t.name}" onclick="event.stopPropagation()">
           <input type="color" id="es-c-${t.id}" value="${t.color}" style="width:36px;height:30px;padding:2px;border:.5px solid var(--border2);border-radius:var(--r);cursor:pointer" onclick="event.stopPropagation()" title="Kies kleur">
-          <select class="sel gb th-cat-sel" id="es-cat-${t.id}" style="min-width:130px" onclick="event.stopPropagation()">${renderThemaCatSelect(t.categorie)}</select>
+          <select class="sel gb th-cat-sel" id="es-cat-${t.id}" style="min-width:110px" onclick="event.stopPropagation()">${renderThemaCatSelect(t.categorie)}</select>
           <select class="sel gb" id="es-lg-${t.id}" style="min-width:90px" onclick="event.stopPropagation()" title="Leeftijdsgroep">${renderLeeftijdSelect(t.leeftijdsgroep)}</select>
-          <button class="bi save" onclick="event.stopPropagation();saveThema(${t.id})">✓</button>
-          <button class="bi" onclick="event.stopPropagation();editingThema=null;renderThemas()">✕</button>`;
+          <select class="sel gb" id="es-org-${t.id}" style="min-width:80px" onclick="event.stopPropagation()" title="Organisatie">
+            <option value="intern" ${!_isExt?'selected':''}>&#127968; Intern</option>
+            <option value="extern" ${_isExt?'selected':''}>&#127970; Extern</option>
+          </select>
+          <select class="sel gb" id="es-mat-${t.id}" style="min-width:110px" onclick="event.stopPropagation()" title="Materiaal">
+            <option value="eigen_materiaal" ${_matVal==='eigen_materiaal'?'selected':''}>Eigen materiaal</option>
+            <option value="eigen_standaard" ${_matVal==='eigen_standaard'?'selected':''}>Standaard</option>
+            <option value="geen" ${_matVal==='geen'?'selected':''}>Geen</option>
+          </select>
+          <button class="bi save" onclick="event.stopPropagation();saveThema(${t.id})">&#10003;</button>
+          <button class="bi" onclick="event.stopPropagation();editingThema=null;renderThemas()">&#x2715;</button>`;
       } else {
         hd.innerHTML=`<input type="checkbox" class="th-sel-cb" ${_themaSel.has(t.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleThemaSel(${t.id},this)" title="Selecteer" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
           <span class="thema-swatch" style="background:${t.color}"></span>
           <span class="th-naam">${t.name}</span>
           <span class="th-leeftijd">${leeftijdBadge(t.leeftijdsgroep)}</span>
+          <span style="width:62px;flex-shrink:0;text-align:center">${_themaOrgBadge(t.thema_type)}</span>
+          <span style="width:110px;flex-shrink:0;text-align:center">${_themaMatBadge(t.thema_type)}</span>
           <span class="th-items" title="materiaalitems">${mat.length+koppel.length}</span>
           <div class="ra th-acties">
             <button class="bi" onclick="event.stopPropagation();openThemaPopup(${t.id})" title="Waar &amp; wanneer ingepland?">📍</button>
@@ -4234,13 +4268,119 @@ function renderThemas(){
   const _sa=document.getElementById('th-sel-all'); if(_sa)_sa.checked=_themaPageIds.length>0&&_themaPageIds.every(id=>_themaSel.has(id));
   _renderThemaBulkBar();
 }
+// ── Thema badge helpers ─────────────────────────────────
+function _themaOrgBadge(thema_type){
+  const ext=thema_type==='extern';
+  return ext
+    ? `<span class="pill" style="background:#8B5CF622;color:#8B5CF6;font-size:10px">Extern</span>`
+    : `<span class="pill" style="background:var(--green-bg);color:var(--green-dk);font-size:10px">Intern</span>`;
+}
+function _themaMatBadge(thema_type){
+  if(thema_type==='extern') return `<span class="pill" style="background:var(--bg2);color:var(--text2);font-size:10px">—</span>`;
+  if(thema_type==='eigen_standaard'||thema_type==='geen') return `<span class="pill" style="background:var(--blue-bg);color:var(--blue-dk);font-size:10px">Standaard</span>`;
+  return `<span class="pill" style="background:#F59E0B22;color:#B45309;font-size:10px">Eigen materiaal</span>`;
+}
+function _themaTypeFromForm(orgEl,matEl){
+  const org=(orgEl?.value||'intern');
+  if(org==='extern') return 'extern';
+  const mat=matEl?.value||'eigen_materiaal';
+  return mat==='geen'?'eigen_standaard':mat;
+}
+function autoKleurThema(){
+  const org=document.getElementById('th-org')?.value;
+  const lg=document.getElementById('th-leeftijd-new')?.value;
+  const map={'extern':'#8B5CF6','kleuters':'#F59E0B','lagere school':'#3B82F6','beide':'#10B981','12+':'#EF4444','10+':'#F97316'};
+  const color=org==='extern'?map['extern']:(lg&&map[lg]);
+  if(color){const c=document.getElementById('th-color');if(c)c.value=color;}
+}
+
+// ── Sport materiaal ────────────────────────────────────
+async function renderSportMateriaal(){
+  const el=document.getElementById('sport-mat-content'); if(!el)return;
+  if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
+  const items=_invSport||[];
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
+    <strong style="font-size:14px">&#9917; Sportpakketten &mdash; ${items.length} item${items.length!==1?'s':''}</strong>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input class="inp" id="ns-naam" placeholder="Naam nieuw item&hellip;" style="height:30px;font-size:12px;width:170px">
+      <input class="inp" id="ns-cat" placeholder="Categorie" style="height:30px;font-size:12px;width:110px">
+      <button class="btn-g" onclick="addSportItem()">+ Nieuw item</button>
+    </div>
+  </div>`;
+  if(!items.length){
+    html+='<div class="empty">Nog geen sportitems. Voeg hierboven een item toe.</div>';
+  } else {
+    html+=items.map(item=>{
+      const sets=item.sets||[];
+      const setTags=sets.map(s=>`<div class="row" style="font-size:12px;padding:4px 6px;gap:8px">
+        <span style="flex:1">&#128230; ${_escH(s.label)}</span>
+        <button class="btn-xs" style="color:var(--red)" onclick="deleteSportSet(${item.id},${s.id})">Verwijder</button>
+      </div>`).join('');
+      return `<div class="exp-card" style="margin-bottom:6px">
+        <div class="exp-hd" onclick="toggleSportBody(${item.id})" style="gap:8px">
+          <span style="font-weight:600">&#9917; ${_escH(item.name)}</span>
+          ${item.cat?`<span style="font-size:11px;color:var(--text2)">${_escH(item.cat)}</span>`:''}
+          <span style="margin-left:auto" class="pill">${sets.length} set${sets.length!==1?'s':''}</span>
+          <button class="bi" onclick="event.stopPropagation();deleteSportItem(${item.id})" style="color:var(--red)" title="Verwijder item">&#128465;</button>
+        </div>
+        <div id="sport-body-${item.id}" class="exp-body" style="display:none">
+          ${setTags||'<div style="font-size:12px;color:var(--text2);padding:4px 0">Nog geen sets aangemaakt.</div>'}
+          <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+            <input class="inp" id="ns-lbl-${item.id}" placeholder="Label (bv. Set A, Doos 1&hellip;)" style="height:26px;font-size:12px;flex:1">
+            <button class="btn-xs btn-g" onclick="addSportSet(${item.id})">+ Set toevoegen</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  el.innerHTML=html;
+}
+function toggleSportBody(id){
+  const b=document.getElementById('sport-body-'+id);
+  if(b)b.style.display=b.style.display==='block'?'none':'block';
+}
+async function addSportItem(){
+  const naam=document.getElementById('ns-naam')?.value.trim();
+  const cat=document.getElementById('ns-cat')?.value.trim()||'';
+  if(!naam){showToast('Naam is verplicht','warn');return;}
+  const r=await api('POST','/sport',{name:naam,cat});
+  if(r.error){showToast(r.error,'error');return;}
+  document.getElementById('ns-naam').value='';
+  document.getElementById('ns-cat').value='';
+  _invSport=await api('GET','/sport');
+  renderSportMateriaal();
+  showToast('Item aangemaakt','success');
+}
+async function addSportSet(itemId){
+  const label=document.getElementById('ns-lbl-'+itemId)?.value.trim();
+  if(!label){showToast('Label is verplicht','warn');return;}
+  const r=await api('POST','/sport/'+itemId+'/sets',{label});
+  if(r.error){showToast(r.error,'error');return;}
+  _invSport=await api('GET','/sport');
+  renderSportMateriaal();
+  setTimeout(()=>{const b=document.getElementById('sport-body-'+itemId);if(b)b.style.display='block';},50);
+}
+async function deleteSportSet(itemId,setId){
+  if(!confirm('Set verwijderen?'))return;
+  await api('DELETE','/sport/sets/'+setId);
+  _invSport=await api('GET','/sport');
+  renderSportMateriaal();
+}
+async function deleteSportItem(itemId){
+  if(!confirm('Sportitem en al zijn sets verwijderen?'))return;
+  await api('DELETE','/sport/'+itemId);
+  _invSport=await api('GET','/sport');
+  renderSportMateriaal();
+}
+
 async function addThema(){
   const name=document.getElementById('th-name').value.trim();
   const color=document.getElementById('th-color').value||'#1D9E75';
   const categorie=document.getElementById('th-cat-sel-new')?.value||'';
   const leeftijdsgroep=document.getElementById('th-leeftijd-new')?.value||'';
+  const thema_type=_themaTypeFromForm(document.getElementById('th-org'),document.getElementById('th-mattype'));
   if(!name){showToast('Naam is verplicht','warn');document.getElementById('th-name').focus();return;}
-  const r=await api('POST','/themas',{name,color,categorie,leeftijdsgroep});
+  const r=await api('POST','/themas',{name,color,categorie,leeftijdsgroep,thema_type});
   if(r.error)return;
   // Reload full thema list with materiaal from server
   S.themas=await api('GET','/themas');
@@ -7017,8 +7157,9 @@ async function saveThema(id){
   const color=document.getElementById('es-c-'+id).value;
   const categorie=document.getElementById('es-cat-'+id)?.value||'';
   const leeftijdsgroep=document.getElementById('es-lg-'+id)?.value||'';
+  const thema_type=_themaTypeFromForm(document.getElementById('es-org-'+id),document.getElementById('es-mat-'+id));
   if(!name){showToast('Naam is verplicht','warn');return;}
-  const r=await api('PUT','/themas/'+id,{name,color,categorie,leeftijdsgroep});
+  const r=await api('PUT','/themas/'+id,{name,color,categorie,leeftijdsgroep,thema_type});
   if(r.error)return;
   S.themas=S.themas.map(t=>t.id===id?{...t,...r,materiaal:t.materiaal}:t);
   editingThema=null;
@@ -7031,16 +7172,21 @@ function renderThemaCatSelect(selectedCat){
     + S_thema_cats.map(c=>`<option value="${c.name}" ${c.name===selectedCat?'selected':''}>${c.name}</option>`).join('');
 }
 
-// Leeftijdsgroep: KL=kleuters, LS=lagere school, KLS=beide, 12+/10+ leeftijd.
-const _LEEFTIJD_OPTS=[['','— Geen —'],['KL','KL (kleuters)'],['LS','LS (lagere school)'],['KLS','KLS (beide)'],['12+','12+'],['10+','10+']];
+// Leeftijdsgroep: ondersteunt zowel 'kleuters'/'lagere school'/'beide' als legacy 'KL'/'LS'/'KLS'
+const _LG_NORM={'KL':'kleuters','LS':'lagere school','KLS':'beide'};
+function _normLG(lg){return _LG_NORM[lg]||lg||'';}
+const _LEEFTIJD_OPTS=[['','— Geen —'],['kleuters','Kleuters'],['lagere school','Lagere school'],['beide','Beide'],['12+','12+'],['10+','10+']];
 function renderLeeftijdSelect(sel){
-  return _LEEFTIJD_OPTS.map(o=>`<option value="${o[0]}" ${o[0]===(sel||'')?'selected':''}>${o[1]}</option>`).join('');
+  const norm=_normLG(sel);
+  return _LEEFTIJD_OPTS.map(o=>`<option value="${o[0]}" ${o[0]===norm?'selected':''}>${o[1]}</option>`).join('');
 }
 function leeftijdBadge(lg){
   if(!lg) return '';
-  const map={'KL':'#D85A30','LS':'#1D9E75','KLS':'#378ADD','12+':'#7F77DD','10+':'#7F77DD'};
-  const c=map[lg]||'#888780';
-  return `<span style="display:inline-block;background:${c}22;color:${c};border:.5px solid ${c}66;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle">${lg}</span>`;
+  const n=_normLG(lg);
+  const map={'kleuters':'#F59E0B','lagere school':'#3B82F6','beide':'#10B981','12+':'#7F77DD','10+':'#F97316'};
+  const lbl={'kleuters':'Kleuters','lagere school':'Lagere school','beide':'Beide'};
+  const c=map[n]||'#888780';
+  return `<span style="display:inline-block;background:${c}22;color:${c};border:.5px solid ${c}66;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle">${lbl[n]||n}</span>`;
 }
 
 let _importThemasActie=null;  // functie die op 'Importeren' wordt uitgevoerd
