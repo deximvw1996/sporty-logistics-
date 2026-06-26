@@ -855,6 +855,165 @@ async function startServer() {
     }
   }
 
+  // Migration 30: item_types catalogus seeden + item_type_id FK aan bak_items
+  addColumnIfMissing('bak_items','item_type_id','INTEGER');
+  addColumnIfMissing('vaste_bak_items','item_type_id','INTEGER'); // al aanwezig maar voor zekerheid
+  {
+    const _itCount=(get('SELECT COUNT(*) as n FROM item_types')||{}).n||0;
+    if(_itCount===0){
+      const _seed=[
+        // [categorie, naam, eenheid]
+        // ── Sport ──
+        ['sport','Bal (generiek)','stuk'],['sport','Zachte bal','stuk'],['sport','Tennisbal','stuk'],
+        ['sport','Voetbal','stuk'],['sport','Basketbal','stuk'],['sport','Rugbybal','stuk'],
+        ['sport','Waterballon','stuk'],['sport','Ballon','stuk'],['sport','Frisbee','stuk'],
+        ['sport','Hoepel','stuk'],['sport','Springtouw','stuk'],['sport','Touw','meter'],
+        ['sport','Net','stuk'],['sport','Badmintonracket','stuk'],['sport','Tennisracket','stuk'],
+        ['sport','Fluitje','stuk'],['sport','Stok','stuk'],['sport','Bamboestok','stuk'],
+        ['sport','Houten rolstok','stuk'],['sport','Mat','stuk'],['sport','Pion','stuk'],
+        ['sport','Hindernis','stuk'],['sport','Hesje','stuk'],['sport','Vlag','stuk'],
+        ['sport','Stopwatch','stuk'],['sport','Medaille','stuk'],
+        // ── Knutsel ──
+        ['knutsel','Papier','vel'],['knutsel','Gekleurd papier','vel'],['knutsel','Crepepapier','rol'],
+        ['knutsel','Karton','stuk'],['knutsel','Kartonnen doos','stuk'],
+        ['knutsel','Lijm','stuk'],['knutsel','Lijmstift','stuk'],['knutsel','Lijmpistool','stuk'],
+        ['knutsel','Schaar','stuk'],['knutsel','Tape','rol'],['knutsel','Plakband','rol'],
+        ['knutsel','Isolatietape','rol'],['knutsel','Verf','pot'],['knutsel','Penseel','stuk'],
+        ['knutsel','Kwast','stuk'],['knutsel','Stempel','stuk'],['knutsel','Wol','bol'],
+        ['knutsel','Draad','meter'],['knutsel','Garen','bol'],['knutsel','Elastiek','stuk'],
+        ['knutsel','Naald','stuk'],['knutsel','Stof','stuk'],['knutsel','Spons','stuk'],
+        ['knutsel','Wasknijper','stuk'],
+        // ── Bakken & koken ──
+        ['bakken','Bloem','kg'],['bakken','Ei','stuk'],['bakken','Boter','g'],
+        ['bakken','Suiker','kg'],['bakken','Melk','liter'],['bakken','Bakpapier','rol'],
+        ['bakken','Ingrediënten (algemeen)','set'],
+        // ── Spel ──
+        ['spel','Dobbelsteen','stuk'],['spel','Kaartje','stuk'],['spel','Speelkaarten','spel'],
+        ['spel','Puzzel','stuk'],['spel','Lego','set'],['spel','Blok','stuk'],
+        // ── Rekwisieten ──
+        ['rekwisiet','Schmink','stuk'],['rekwisiet','Masker','stuk'],['rekwisiet','Cape','stuk'],
+        ['rekwisiet','Pruik','stuk'],['rekwisiet','Sjaal','stuk'],['rekwisiet','Decoratie','set'],
+        ['rekwisiet','Confetti','pak'],['rekwisiet','Versiering','set'],
+        ['rekwisiet','Nummerlabel','stuk'],['rekwisiet','Foto (afdruk)','stuk'],
+        ['rekwisiet','Zaklamp','stuk'],['rekwisiet','Waterpistool','stuk'],
+        // ── Containers ──
+        ['container','Emmer','stuk'],['container','Beker','stuk'],['container','Bord','stuk'],
+        ['container','Pot / bakje','stuk'],['container','Mand','stuk'],
+        ['container','Fles / petfles','stuk'],['container','Buis','stuk'],
+        // ── Gereedschap ──
+        ['gereedschap','Schroef','stuk'],['gereedschap','Spijker','stuk'],['gereedschap','Zaag','stuk'],
+        // ── Diversen ──
+        ['diversen','Magneet','stuk'],['diversen','Krijt','stuk'],['diversen','Stoepkrijt','stuk'],
+        ['diversen','Zand','kg'],
+      ];
+      _seed.forEach(([cat,naam,eenheid])=>ins('INSERT INTO item_types (naam,eenheid,categorie) VALUES (?,?,?)',[naam,eenheid,cat]));
+      console.log(`  Migratie 30: ${_seed.length} item_types gezaaid`);
+    }
+    // Auto-koppel bak_items aan item_types via naam-aliassen (NL enkelvoud/meervoud)
+    const _aliases={
+      // sport
+      'bal':['bal (generiek)'],'ballen':['bal (generiek)'],
+      'zachte bal':['zachte bal'],'zachte ballen':['zachte bal'],
+      'tennisbal':['tennisbal'],'tennisballen':['tennisbal'],
+      'voetbal':['voetbal'],'voetballen':['voetbal'],
+      'basketbal':['basketbal'],'basketballen':['basketbal'],
+      'rugbybal':['rugbybal'],'rugbyballen':['rugbybal'],
+      'waterballon':['waterballon'],'waterballonnen':['waterballon'],
+      'ballon':['ballon'],'ballonnen':['ballon'],
+      'frisbee':['frisbee'],'frisbees':['frisbee'],
+      'hoepel':['hoepel'],'hoepels':['hoepel'],
+      'springtouw':['springtouw'],'springtouwen':['springtouw'],
+      'touw':['touw'],'touwen':['touw'],'touwtje':['touw'],'touwtjes':['touw'],
+      'net':['net'],'netten':['net'],
+      'badmintonracket':['badmintonracket'],'badmintonrackets':['badmintonracket'],
+      'tennisracket':['tennisracket'],'tennisrackets':['tennisracket'],
+      'fluitje':['fluitje'],'fluit':['fluitje'],
+      'stok':['stok'],'stokken':['stok'],
+      'bamboestok':['bamboestok'],'bamboestokken':['bamboestok'],'bamboe':['bamboestok'],
+      'houten':['houten rolstok'],'houten rolstok':['houten rolstok'],
+      'mat':['mat'],'matten':['mat'],
+      'pion':['pion'],'pionnen':['pion'],
+      'hindernis':['hindernis'],'hindernissen':['hindernis'],
+      'hesje':['hesje'],'hesjes':['hesje'],
+      'vlag':['vlag'],'vlaggen':['vlag'],
+      'stopwatch':['stopwatch'],'medaille':['medaille'],'medailles':['medaille'],
+      // knutsel
+      'papier':['papier'],'gekleurd papier':['gekleurd papier'],
+      'crepepapier':['crepepapier'],
+      'karton':['karton'],'kartonnen':['karton'],
+      'kartonnen doos':['kartonnen doos'],'dozen':['kartonnen doos'],
+      'lijm':['lijm'],'lijmstift':['lijmstift'],'lijmstiften':['lijmstift'],
+      'lijmpistool':['lijmpistool'],
+      'schaar':['schaar'],'scharen':['schaar'],
+      'tape':['tape'],'plakband':['plakband'],
+      'isolatietape':['isolatietape'],
+      'verf':['verf'],
+      'penseel':['penseel'],'penselen':['penseel'],
+      'kwast':['kwast'],'kwasten':['kwast'],
+      'stempel':['stempel'],'stempels':['stempel'],
+      'wol':['wol'],'wollen':['wol'],
+      'draad':['draad'],
+      'garen':['garen'],
+      'elastiek':['elastiek'],'elastieken':['elastiek'],
+      'naald':['naald'],'naalden':['naald'],
+      'stof':['stof'],'stoffen':['stof'],
+      'spons':['spons'],'sponsjes':['spons'],
+      'wasknijper':['wasknijper'],'wasknijpers':['wasknijper'],
+      'knijper':['wasknijper'],'knijpers':['wasknijper'],
+      // bakken
+      'bloem':['bloem'],'ei':['ei'],'eieren':['ei'],
+      'boter':['boter'],'suiker':['suiker'],'melk':['melk'],
+      'bakpapier':['bakpapier'],
+      'ingrediënten':['ingrediënten (algemeen)'],
+      // spel
+      'dobbelsteen':['dobbelsteen'],'dobbelstenen':['dobbelsteen'],
+      'kaartje':['kaartje'],'kaartjes':['kaartje'],
+      'speelkaarten':['speelkaarten'],
+      'puzzel':['puzzel'],
+      'lego':['lego'],'legoblokjes':['lego'],
+      'blok':['blok'],'blokken':['blok'],
+      // rekwisieten
+      'schmink':['schmink'],'masker':['masker'],'maskers':['masker'],
+      'cape':['cape'],'capes':['cape'],
+      'pruik':['pruik'],'sjaal':['sjaal'],
+      'decoratie':['decoratie'],'confetti':['confetti'],
+      'versiering':['versiering'],'versieringen':['versiering'],
+      'nummer':['nummerlabel'],'nummers':['nummerlabel'],
+      'foto':['foto (afdruk)'],
+      'zaklamp':['zaklamp'],'zaklampen':['zaklamp'],
+      'waterpistool':['waterpistool'],'waterpistolen':['waterpistool'],
+      // containers
+      'emmer':['emmer'],'emmers':['emmer'],
+      'beker':['beker'],'bekers':['beker'],
+      'bord':['bord'],'borden':['bord'],'bordje':['bord'],'bordjes':['bord'],
+      'pot':['pot / bakje'],'potje':['pot / bakje'],'potjes':['pot / bakje'],'potten':['pot / bakje'],
+      'mand':['mand'],'mandje':['mand'],'mandjes':['mand'],
+      'fles':['fles / petfles'],'flessen':['fles / petfles'],'petfles':['fles / petfles'],'petflessen':['fles / petfles'],'lege flessen':['fles / petfles'],
+      'buis':['buis'],'buizen':['buis'],'buisje':['buis'],'buisjes':['buis'],
+      // gereedschap
+      'schroef':['schroef'],'schroeven':['schroef'],
+      'spijker':['spijker'],'spijkers':['spijker'],
+      'zaag':['zaag'],'zaagje':['zaag'],
+      // diversen
+      'magneet':['magneet'],'magneten':['magneet'],
+      'krijt':['krijt'],'krijtje':['krijt'],'krijtjes':['krijt'],
+      'stoepkrijt':['stoepkrijt'],
+      'zand':['zand'],
+    };
+    const _typesByNaam={};
+    all('SELECT id,naam FROM item_types').forEach(t=>{_typesByNaam[t.naam.toLowerCase()]=t.id;});
+    const _unmatched=all('SELECT id,naam FROM bak_items WHERE item_type_id IS NULL');
+    let _linked=0;
+    _unmatched.forEach(bi=>{
+      const sleutel=(bi.naam||'').toLowerCase().trim();
+      const doelNamen=_aliases[sleutel];
+      if(!doelNamen)return;
+      const typeId=_typesByNaam[doelNamen[0]];
+      if(typeId){run('UPDATE bak_items SET item_type_id=? WHERE id=?',[typeId,bi.id]);_linked++;}
+    });
+    if(_linked>0)console.log(`  Migratie 30: ${_linked} bak_items automatisch gekoppeld aan item_types`);
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
