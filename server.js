@@ -826,6 +826,35 @@ async function startServer() {
     opmerking TEXT DEFAULT ''
   )`);
 
+  // Migration 29: migreer thema_materiaal (parent_id hiërarchie) → thema_bakken + bak_items
+  // Eenmalig: alleen uitvoeren als thema_bakken leeg is maar thema_materiaal niet
+  {
+    const _tbCount=(get('SELECT COUNT(*) as n FROM thema_bakken')||{}).n||0;
+    const _tmCount=(get('SELECT COUNT(*) as n FROM thema_materiaal WHERE parent_id IS NULL')||{}).n||0;
+    if(_tbCount===0&&_tmCount>0){
+      try{
+        // Haal alle top-level thema_materiaal rijen op (= bakken)
+        const _bakRows=all('SELECT * FROM thema_materiaal WHERE parent_id IS NULL ORDER BY thema_id,sort_order,id');
+        // Map: thema_materiaal.id → thema_bakken.id
+        const _bakMap={};
+        _bakRows.forEach(bak=>{
+          const newId=ins(`INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde)
+            VALUES (?,?,?,?,?)`,[bak.thema_id,bak.name||'',bak.stockage_code||'','',bak.sort_order||0]);
+          _bakMap[bak.id]=newId;
+        });
+        // Haal alle kind-rijen op (= items in bakken)
+        const _itemRows=all('SELECT * FROM thema_materiaal WHERE parent_id IS NOT NULL ORDER BY thema_id,sort_order,id');
+        _itemRows.forEach(item=>{
+          const bakId=_bakMap[item.parent_id];
+          if(!bakId)return;
+          ins(`INSERT INTO bak_items (bak_id,naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum)
+            VALUES (?,?,?,?,1,'stuks',0,?)`,[bakId,item.name||'',item.qty||1,item.is_verbruik?1:0,item.is_verbruik?(item.qty||1):0]);
+        });
+        console.log(`  Migratie 29: ${Object.keys(_bakMap).length} bakken + ${_itemRows.length} items gemigreerd naar thema_bakken`);
+      }catch(e){console.error('  Migratie 29 fout (niet-fataal):',e.message);}
+    }
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
@@ -1714,6 +1743,11 @@ async function startServer() {
     return bakken.map(b=>({...b,items:all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[b.id]),log:all('SELECT * FROM bak_nakijk_log WHERE bak_id=? ORDER BY tijdstip DESC LIMIT 5',[b.id])}));
   }
   app.get('/api/themas/:id/bakken',(req,res)=>res.json(_bakkenVanThema(req.params.id)));
+  // Alle bakken van alle themas in één call (voor Themabakken-tab)
+  app.get('/api/alle-bakken',(req,res)=>{
+    const themas=all('SELECT * FROM themas ORDER BY name');
+    res.json(themas.map(t=>({...t,bakken:_bakkenVanThema(t.id)})));
+  });
   app.post('/api/themas/:id/bakken',(req,res)=>{
     const{label,code,leeftijdsgroep,volgorde}=req.body;
     const id=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',

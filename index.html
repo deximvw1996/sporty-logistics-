@@ -2451,12 +2451,17 @@ function renderMateriaal(){
 }
 
 // ── THEMABAKKEN ──
-let _tbOpen={};
+let _tbOpen={}, _tbData=[];
 async function renderThemabakken(){
   const el=document.getElementById('tb-lijst'); if(!el)return;
+  // Laad data van thema_bakken (canonical na migratie 29)
+  if(!_tbData.length){
+    el.innerHTML='<div class="loading">Laden…</div>';
+    try{_tbData=await api('GET','/alle-bakken');}catch(e){el.innerHTML='<div class="empty">Fout bij laden.</div>';return;}
+  }
   const zoek=(document.getElementById('tb-zoek')?.value||'').toLowerCase().trim();
   const lgFilter=document.getElementById('tb-filter-lg')?.value||'';
-  let themas=(S.themas||[]).filter(t=>t.thema_type!=='extern');
+  let themas=(_tbData||[]).filter(t=>t.thema_type!=='extern');
   if(zoek) themas=themas.filter(t=>t.name.toLowerCase().includes(zoek));
   if(lgFilter) themas=themas.filter(t=>_normLG(t.leeftijdsgroep)===lgFilter);
   themas=[...themas].sort((a,b)=>a.name.localeCompare(b.name,'nl'));
@@ -2464,13 +2469,11 @@ async function renderThemabakken(){
   if(statsEl) statsEl.textContent=themas.length+' thema\'s';
   if(!themas.length){el.innerHTML='<div class="empty">Geen thema\'s gevonden.</div>';return;}
   el.innerHTML=themas.map(t=>{
-    const mat=t.materiaal||[];
-    // Bakken = top-level items (parent_id null/0)
-    const bakken=mat.filter(m=>!m.parent_id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const bakken=t.bakken||[];
     const open=_tbOpen[t.id];
     const lgBadge=t.leeftijdsgroep?leeftijdBadge(t.leeftijdsgroep):'';
     const typeLabel=t.thema_type==='eigen_standaard'?'<span class="pill" style="background:var(--blue-bg);color:var(--blue-dk);font-size:10px">Standaard</span>':'';
-    const totItems=mat.filter(m=>m.parent_id).length;
+    const totItems=bakken.reduce((s,b)=>s+(b.items||[]).length,0);
     return `<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
       <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:${t.color||'#1D9E75'}18;cursor:pointer" onclick="_tbToggle(${t.id})">
         <span style="width:10px;height:10px;border-radius:50%;background:${t.color||'#1D9E75'};flex-shrink:0"></span>
@@ -2479,26 +2482,33 @@ async function renderThemabakken(){
         <span style="font-size:11px;color:var(--text3)">${bakken.length} bak${bakken.length!==1?'ken':''} · ${totItems} items</span>
         <span style="font-size:12px;color:var(--text3)">${open?'▲':'▼'}</span>
       </div>
-      ${open?`<div style="padding:8px 14px 12px">${_renderThemaBakkenInhoud(t,bakken,mat)}</div>`:''}
+      ${open?`<div style="padding:8px 14px 12px">${_renderThemaBakkenInhoud(t,bakken)}</div>`:''}
     </div>`;
   }).join('');
 }
 function _tbToggle(tid){_tbOpen[tid]=!_tbOpen[tid];renderThemabakken();}
-function _renderThemaBakkenInhoud(thema,bakken,mat){
-  if(!bakken.length) return '<div style="font-size:12px;color:var(--text3);padding:4px 0">Nog geen bakken voor dit thema.</div>';
+async function _tbVernieuwen(){_tbData=[];await renderThemabakken();}
+function _renderThemaBakkenInhoud(thema,bakken){
+  if(!bakken.length) return `<div style="font-size:12px;color:var(--text3);padding:4px 0">Nog geen bakken voor dit thema.</div>`;
   return bakken.map(bak=>{
-    const items=mat.filter(m=>m.parent_id===bak.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-    const verbruikItems=items.filter(i=>i.is_verbruik);
-    const vastItems=items.filter(i=>!i.is_verbruik);
-    const code=bak.stockage_code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.stockage_code)}</span>`:'';
+    const items=bak.items||[];
+    const vastItems=items.filter(i=>!i.verbruik);
+    const verbruikItems=items.filter(i=>i.verbruik);
+    const code=bak.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.code)}</span>`:'';
+    const log=bak.log||[];
+    const lastCheck=log[0];
+    const checkInfo=lastCheck?`<span style="font-size:10px;color:var(--text3)">✓ ${lastCheck.tijdstip?.substring(0,10)} door ${_escH(lastCheck.wie||'?')}</span>`:'<span style="font-size:10px;color:var(--text3)">Nog niet nagekeken</span>';
+    const tekort=items.filter(i=>i.qty_stock>0&&i.qty_stock<i.qty_minimum).length;
     return `<div style="margin-bottom:10px;border-left:2px solid var(--border2);padding-left:10px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <span style="font-weight:600;font-size:13px">📦 ${_escH(bak.name)}</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+        <span style="font-weight:600;font-size:13px">📦 ${_escH(bak.label||'')}</span>
         ${code}
+        ${tekort?`<span style="font-size:10px;color:#B91C1C;font-weight:700">⚠️ ${tekort} tekort</span>`:''}
         <span style="font-size:11px;color:var(--text3)">${items.length} items</span>
+        <span style="margin-left:auto">${checkInfo}</span>
       </div>
-      ${vastItems.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${vastItems.map(i=>`<span style="font-size:11px;background:var(--bg2);border:.5px solid var(--border);border-radius:4px;padding:2px 7px">${_escH(i.name)} <span style="color:var(--text3)">×${i.qty}</span></span>`).join('')}</div>`:''}
-      ${verbruikItems.length?`<div style="font-size:11px;color:var(--text2);margin-top:2px">🔄 Verbruik: ${verbruikItems.map(i=>`${_escH(i.name)} ×${i.qty}`).join(', ')}</div>`:''}
+      ${vastItems.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${vastItems.map(i=>`<span style="font-size:11px;background:var(--bg2);border:.5px solid var(--border);border-radius:4px;padding:2px 7px">${_escH(i.naam||i.name||'')} <span style="color:var(--text3)">×${i.qty}</span></span>`).join('')}</div>`:''}
+      ${verbruikItems.length?`<div style="font-size:11px;color:var(--text2);margin-top:2px">🔄 Verbruik: ${verbruikItems.map(i=>`${_escH(i.naam||i.name||'')} ×${i.qty}`).join(', ')}</div>`:''}
     </div>`;
   }).join('');
 }
