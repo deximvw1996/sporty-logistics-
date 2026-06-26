@@ -1947,6 +1947,51 @@ async function startServer() {
     run('UPDATE transport_taken SET spoed_effect_toegepast=1 WHERE id=?',[taak.id]);
   }
 
+  // ── CATALOGUS ITEM DETAIL ──
+  app.get('/api/catalogus-item/:type/:id',(req,res)=>{
+    const{type,id}=req.params;
+    let item=null,extra={};
+    if(type==='sport'){
+      item=get('SELECT * FROM sport_items WHERE id=?',[id]);
+      if(item){
+        extra.sets=all('SELECT ss.*,l.name AS loc_naam FROM sport_sets ss LEFT JOIN locaties l ON ss.locatie_id=l.id WHERE ss.sport_id=? ORDER BY ss.label',[id]);
+        extra.fotos=all('SELECT id,tijdstip,wie FROM sport_fotos WHERE sport_id=? ORDER BY id DESC LIMIT 10',[id]);
+      }
+    } else if(type==='thema'){
+      item=get('SELECT mi.*,t.name AS thema_naam,t.color AS thema_color FROM materiaal_items mi JOIN themas t ON mi.thema_id=t.id WHERE mi.id=? AND mi.tracking=?',[id,'thema']);
+    } else if(type==='standaard'){
+      item=get('SELECT mi.*,l.name AS loc_naam FROM materiaal_items mi LEFT JOIN locaties l ON mi.locatie_id=l.id WHERE mi.id=? AND mi.tracking=?',[id,'standaard']);
+    } else if(type==='gedeeld'){
+      item=get('SELECT * FROM gedeeld_items WHERE id=?',[id]);
+      if(item){
+        extra.stock=all('SELECT gs.*,l.name AS locatie_name FROM gedeeld_stock gs JOIN locaties l ON gs.locatie_id=l.id WHERE gs.gedeeld_id=? ORDER BY l.name',[id]);
+        extra.gebruik=all('SELECT gg.*,t.name AS thema_name,t.color FROM gedeeld_gebruik gg JOIN themas t ON gg.thema_id=t.id WHERE gg.gedeeld_id=?',[id]);
+      }
+    } else if(type==='verbruik'){
+      item=get('SELECT * FROM materiaal_items WHERE id=? AND tracking=?',[id,'verbruik']);
+      if(item){
+        extra.stock=all('SELECT vs.*,l.name AS locatie_name FROM verbruik_stock vs JOIN locaties l ON vs.locatie_id=l.id WHERE vs.item_id=? ORDER BY l.name',[id]);
+        extra.log=all('SELECT vl.*,l.name AS loc_naam FROM verbruik_log vl LEFT JOIN locaties l ON vl.locatie_id=l.id WHERE vl.item_id=? ORDER BY vl.created_at DESC LIMIT 20',[id]);
+      }
+    }
+    if(!item)return res.status(404).json({error:'Item niet gevonden'});
+    // Transport check historiek op naam
+    const naam=item.name||item.naam||'';
+    extra.checks=naam?all(`
+      SELECT vc.*,r.datum AS rit_datum,r.chauffeur,r.voertuig,
+        GROUP_CONCAT(DISTINCT l.name) AS locaties
+      FROM verhuis_checks vc
+      JOIN transport_ritten r ON vc.rit_id=r.id
+      LEFT JOIN transport_taken tt ON tt.rit_id=r.id
+      LEFT JOIN locaties l ON (tt.van_locatie_id=l.id OR tt.naar_locatie_id=l.id)
+      WHERE LOWER(vc.item_naam)=LOWER(?)
+      GROUP BY vc.id ORDER BY r.datum DESC LIMIT 30
+    `,[naam]):[];
+    // Activiteiten log
+    extra.activiteit=all(`SELECT * FROM activiteiten_log WHERE beschrijving LIKE ? ORDER BY id DESC LIMIT 10`,['%'+naam+'%']);
+    res.json({...item,type,...extra});
+  });
+
   // ── PWA ──
   app.get('/sw.js',(req,res)=>{
     res.setHeader('Content-Type','application/javascript');

@@ -4837,7 +4837,7 @@ function _renderCatRow(item,stockLocs){
   const row=`<tr${_catSel.has(uid)?' style="background:var(--bg2)"':''}>
     <td style="text-align:center"><input type="checkbox"${_catSel.has(uid)?' checked':''} onclick="catSelToggle(${_q(uid)})"></td>
     <td title="${_catTypeLbl[item.type]}" style="text-align:center;font-size:15px">${item.type==='verbruik'&&item.alarm?'🔴':ico}</td>
-    <td style="font-weight:600">${_escH(item.naam)}</td>
+    <td style="font-weight:600;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" onclick="openCatalogusDetail(${_q(item.type)},${item.raw_id},${_q(item.naam)})" title="Bekijk detail & historiek">${_escH(item.naam)}</td>
     <td>${ctx}</td>
     <td style="text-align:right;font-variant-numeric:tabular-nums">${aantal}</td>
     <td style="font-size:11px;color:var(--text2)">${locCell}</td>
@@ -7614,6 +7614,17 @@ function toggleDarkMode(){
   </div>
 </div>
 
+<!-- MODAL: Catalogus item detail -->
+<div class="modal-bg" id="modal-cat-detail">
+  <div class="modal" style="width:min(580px,100vw);max-width:100vw;max-height:92dvh;display:flex;flex-direction:column;border-radius:var(--rl)">
+    <div class="modal-title">
+      <span id="cd-titel" style="font-size:15px;font-weight:700">Item detail</span>
+      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-cat-detail')" style="width:36px;height:36px;font-size:18px">&#x2715;</button>
+    </div>
+    <div id="cd-body" style="flex:1;overflow-y:auto;padding:0 14px 16px"></div>
+  </div>
+</div>
+
 <!-- MODAL: Item historiek -->
 <div class="modal-bg" id="modal-item-historie">
   <div class="modal" style="width:min(500px,100vw);max-width:100vw;max-height:92dvh;display:flex;flex-direction:column;border-radius:var(--rl)">
@@ -7637,6 +7648,122 @@ function toggleDarkMode(){
 </div>
 
 <script>
+// ── CATALOGUS ITEM DETAIL ──
+const _cdTypeIco={sport:'⚽',thema:'🎨',standaard:'📋',gedeeld:'🔧',verbruik:'🧻'};
+const _cdTypeLbl={sport:'Sport',thema:'Thema-materiaal',standaard:'Locatiemateriaal',gedeeld:'Gedeeld materiaal',verbruik:'Verbruiksartikel'};
+
+async function openCatalogusDetail(type,rawId,naam){
+  document.getElementById('cd-titel').textContent=(_cdTypeIco[type]||'📦')+' '+naam;
+  document.getElementById('cd-body').innerHTML='<div style="padding:2rem 0;text-align:center;color:var(--text3);font-size:13px">Laden…</div>';
+  openModal('modal-cat-detail');
+  const data=await api('GET','/catalogus-item/'+type+'/'+rawId);
+  if(!data||data.error){document.getElementById('cd-body').innerHTML='<p style="color:var(--text3)">Kon item niet laden.</p>';return;}
+  _renderCatDetail(data);
+}
+
+function _renderCatDetail(d){
+  const el=document.getElementById('cd-body');
+  const sec=(titel,inhoud)=>`<div style="margin-top:1.25rem">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:.5rem;padding-bottom:4px;border-bottom:.5px solid var(--border)">${titel}</div>
+    ${inhoud}
+  </div>`;
+  const pill=(txt,kleur)=>`<span style="display:inline-block;background:${kleur||'var(--bg2)'};border:.5px solid var(--border2);border-radius:999px;padding:2px 10px;font-size:11px;margin:2px 3px 2px 0">${_escH(txt)}</span>`;
+
+  let html='';
+
+  // ── Info-header ──
+  const typeLbl=_cdTypeLbl[d.type]||d.type;
+  html+=`<div style="display:flex;align-items:flex-start;gap:14px;padding-top:.75rem">
+    <span style="font-size:32px;line-height:1">${_cdTypeIco[d.type]||'📦'}</span>
+    <div style="flex:1">
+      <div style="font-size:18px;font-weight:700;line-height:1.2">${_escH(d.name||d.naam||'')}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:3px">${typeLbl}${d.thema_naam?' · 🎨 '+_escH(d.thema_naam):''}${d.cat?' · '+_escH(d.cat):''}${d.sub&&d.sub!=='andere'&&d.sub!==d.type?' · '+_escH(d.sub):''}</div>
+    </div>
+  </div>`;
+
+  // ── Kerncijfers ──
+  const cijfers=[];
+  if(d.qty!=null&&d.type!=='sport') cijfers.push(['Aantal',d.qty+(d.eenheid?' '+d.eenheid:'')]);
+  if(d.type==='verbruik'&&d.stock){
+    const totaal=d.stock.reduce((s,x)=>s+(x.qty||0),0);
+    const minTotaal=d.stock.reduce((s,x)=>s+(x.minimum||0),0);
+    cijfers.push(['Totale stock',totaal+(d.stock[0]?.eenheid?' '+d.stock[0].eenheid:'')]);
+    if(minTotaal>0)cijfers.push(['Minimum',minTotaal]);
+  }
+  if(d.sets?.length) cijfers.push(['Sets',d.sets.length]);
+  if(cijfers.length) html+=sec('Kerncijfers',
+    `<div style="display:flex;gap:1rem;flex-wrap:wrap">`+cijfers.map(([lbl,val])=>
+      `<div style="background:var(--bg2);border:.5px solid var(--border);border-radius:8px;padding:10px 16px;min-width:80px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">${lbl}</div>
+        <div style="font-size:18px;font-weight:700;margin-top:2px">${_escH(String(val))}</div>
+      </div>`).join('')+'</div>');
+
+  // ── Gebruik / thema's (gedeeld) ──
+  if(d.gebruik?.length) html+=sec('Gebruikt door thema\'s',
+    d.gebruik.map(g=>{const c=g.color||'#888';return `<span style="display:inline-block;background:${c}22;border:.5px solid ${c}55;color:${c};border-radius:999px;padding:2px 10px;font-size:12px;margin:2px 3px 2px 0">${_escH(g.thema_name||'?')}</span>`;}).join(''));
+
+  // ── Sport sets ──
+  if(d.sets?.length) html+=sec('Sets & locaties',
+    `<div style="display:flex;flex-direction:column;gap:4px">`+d.sets.map(s=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg2);border-radius:6px;font-size:12px">
+        <span style="font-weight:600;min-width:40px">${_escH(s.label||'#'+s.id)}</span>
+        <span style="color:var(--text2);flex:1">${s.loc_naam?'📍 '+_escH(s.loc_naam):'— geen locatie —'}</span>
+        <span style="color:var(--text3)">${s.status||''}</span>
+      </div>`).join('')+'</div>');
+
+  // ── Verbruik stock per locatie ──
+  if(d.type==='verbruik'&&d.stock?.length) html+=sec('Voorraad per locatie',
+    `<div style="display:flex;flex-direction:column;gap:4px">`+d.stock.map(s=>{
+      const tekort=s.minimum>0&&s.qty<=s.minimum;
+      const eenheid=s.eenheid||'stuks';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:${tekort?'var(--red-bg)':'var(--bg2)'};border:.5px solid ${tekort?'#fca5a5':'var(--border)'};border-radius:6px;font-size:12px">
+        <span style="flex:1;font-weight:500">${_escH(s.locatie_name)}</span>
+        <span style="${tekort?'color:var(--red);font-weight:700':'color:var(--text)'}">📦 ${s.qty} ${_escH(eenheid)}</span>
+        ${s.minimum>0?`<span style="color:var(--text3);font-size:10px">min ${s.minimum}</span>`:''}
+        ${tekort?'<span style="font-size:10px;color:var(--red);font-weight:700">⚠️ TEKORT</span>':''}
+      </div>`;}).join('')+'</div>');
+
+  // ── Gedeeld stock per locatie ──
+  if(d.type==='gedeeld'&&d.stock?.length) html+=sec('Aanwezig per locatie',
+    `<div style="display:flex;flex-direction:column;gap:4px">`+d.stock.filter(s=>(s.qty||0)>0).map(s=>
+      `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--bg2);border-radius:6px;font-size:12px">
+        <span style="flex:1">${_escH(s.locatie_name)}</span>
+        <span style="font-weight:600">${s.qty} st</span>
+      </div>`).join('')+'</div>');
+
+  // ── Verbruik mutatiehistoriek ──
+  if(d.log?.length) html+=sec('Mutatiehistoriek (verbruik)',
+    `<div style="display:flex;flex-direction:column;gap:3px">`+d.log.map(l=>
+      `<div style="display:flex;gap:8px;padding:5px 8px;background:var(--bg2);border-radius:5px;font-size:11px;align-items:center">
+        <span style="color:var(--text3);min-width:68px">${(l.created_at||l.datum||'').substring(0,10)}</span>
+        <span style="font-weight:600;color:${(l.delta||0)>=0?'var(--green-dk)':'var(--red)'}">${(l.delta||0)>=0?'+':''}${l.delta}</span>
+        <span style="flex:1;color:var(--text2)">${_escH(l.reden||'')}${l.loc_naam?' · '+_escH(l.loc_naam):''}</span>
+        ${l.wie?`<span style="color:var(--text3)">${_escH(l.wie)}</span>`:''}
+      </div>`).join('')+'</div>');
+
+  // ── Transport & klaarzetten historiek ──
+  if(d.checks?.length){
+    const stIco={ok:'✅',deels:'⚠️',ontbreekt:'❌',wacht:'⬜'};
+    html+=sec('Transport & klaarzetten historiek ('+d.checks.length+')',
+      `<div style="display:flex;flex-direction:column;gap:4px">`+d.checks.map(c=>{
+        const locs=c.locaties?c.locaties.split(',').filter((v,i,a)=>a.indexOf(v)===i).join(', '):'';
+        return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:var(--bg2);border-radius:6px;font-size:11px">
+          <span style="font-size:16px;flex-shrink:0">${stIco[c.status]||'⬜'}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:12px">${_escH(c.rit_datum||'?')}</div>
+            ${c.chauffeur?`<div style="color:var(--text2)">👤 ${_escH(c.chauffeur)}${c.voertuig?' · 🚐 '+_escH(c.voertuig):''}</div>`:''}
+            ${locs?`<div style="color:var(--text3)">📍 ${_escH(locs)}</div>`:''}
+            ${c.notitie?`<div style="color:var(--text2);font-style:italic;margin-top:2px">💬 ${_escH(c.notitie)}</div>`:''}
+          </div>
+          <span style="color:var(--text3);white-space:nowrap">×${c.qty}</span>
+        </div>`;}).join('')+'</div>');
+  } else {
+    html+=sec('Transport & klaarzetten historiek','<div style="color:var(--text3);font-size:12px">Nog niet nagekeken in een rit.</div>');
+  }
+
+  el.innerHTML=html;
+}
+
 // ── NAKIJKEN & AANVULLEN ──
 let _nakijkenData=[];
 let _nakijkenFilter='alle';
