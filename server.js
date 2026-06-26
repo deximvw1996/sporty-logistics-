@@ -1063,7 +1063,9 @@ async function startServer() {
     if(_vsLinked>0)console.log(`  Migratie 31: ${_vsLinked} verbruik_stock gekoppeld aan item_types`);
   }
 
-  // Migration 32: themas en materiaallijsten seeden vanuit data/themas-seed.json
+  // Migration 32: themas extra kolommen + seeden vanuit data/themas-seed.json
+  addColumnIfMissing('themas','leeftijdsgroep','TEXT DEFAULT \'\'');
+  addColumnIfMissing('themas','thema_type','TEXT DEFAULT \'eigen\'');
   {
     const _seedPath=path.join(__dirname,'data','themas-seed.json');
     if(fs.existsSync(_seedPath)){
@@ -2904,7 +2906,7 @@ async function startServer() {
   // ── PWA ──
   app.get('/sw.js',(req,res)=>{
     res.setHeader('Content-Type','application/javascript');
-    res.send(`const CACHE='sporty-v2';const SHELL=['/'];
+    res.send(`const CACHE='sporty-v3';const SHELL=['/'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL))));
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET')return;
