@@ -594,6 +594,166 @@ async function startServer() {
     console.log('  Migratie 25: 4 themas week 1 Abdijschool aangemaakt');
   }
 
+  // Migration 26: thema_type + is_verbruik + parent_id + 1001BB + Alice themas volledig
+  addColumnIfMissing('themas','thema_type',"TEXT DEFAULT 'eigen_materiaal'");
+  addColumnIfMissing('thema_materiaal','is_verbruik','INTEGER DEFAULT 0');
+  addColumnIfMissing('thema_materiaal','parent_id','INTEGER');
+  // Bestaande week-1 themas updaten naar correct type (geen eigen themabundel = eigen_standaard)
+  run("UPDATE themas SET thema_type='eigen_standaard' WHERE name IN ('Op schattenjacht met Zino Balino','We slaan in het rond','Lego Legends','Modemakers') AND thema_type='eigen_materiaal'");
+  {
+    // Helper: thema ophalen of aanmaken
+    const _uT=(name,kleur,lgr,type)=>{
+      const ex=get('SELECT id FROM themas WHERE name=?',[name]);
+      if(ex) return ex.id;
+      return ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',[name,kleur,lgr,type]);
+    };
+    // Helper: bak aanmaken (parent_id=null)
+    const _uBak=(tid,label,code,locId,so)=>{
+      const ex=get('SELECT id FROM thema_materiaal WHERE thema_id=? AND name=? AND parent_id IS NULL',[tid,label]);
+      if(ex) return ex.id;
+      return ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_code,stockage_locatie_id,sort_order,is_verbruik) VALUES (?,?,1,?,?,?,0)',[tid,label,code||'',locId||null,so||0]);
+    };
+    // Helper: item in bak aanmaken (parent_id=bakId)
+    const _uItem=(tid,bakId,name,qty,verbruik,so)=>{
+      const ex=get('SELECT id FROM thema_materiaal WHERE thema_id=? AND parent_id=? AND name=?',[tid,bakId,name]);
+      if(ex) return ex.id;
+      return ins('INSERT INTO thema_materiaal (thema_id,parent_id,name,qty,sort_order,is_verbruik) VALUES (?,?,?,?,?,?)',[tid,bakId,name,qty||1,so||0,verbruik?1:0]);
+    };
+
+    const KT=4; // Kantoor id
+    const RW=7; // Rozenweg id
+
+    // ── 1001 BALLEN EN BELLEN ──
+    const _bb=_uT('1001 Ballen en Bellen','#10B981','kleuters','eigen_materiaal');
+    // Themabak 1/4 – N20
+    const _bb1=_uBak(_bb,'Themabak 1/4','N20',KT,10);
+    _uItem(_bb,_bb1,'Voetballen',10,false,1);
+    _uItem(_bb,_bb1,'Basketballen',10,false,2);
+    _uItem(_bb,_bb1,'Mousse balletjes',20,false,3);
+    // Themabak 2/4 – H53
+    const _bb2=_uBak(_bb,'Themabak 2/4','H53',KT,20);
+    _uItem(_bb,_bb2,'Bubble rocket',6,false,1);
+    _uItem(_bb,_bb2,'Geplastificeerde handleiding bubble rocket',2,false,2);
+    _uItem(_bb,_bb2,'Kleine bellenblazers',20,false,3);
+    _uItem(_bb,_bb2,'Wasteilen',3,false,4);
+    _uItem(_bb,_bb2,'Waterpistolen',6,false,5);
+    _uItem(_bb,_bb2,'Mouse watershooter',8,false,6);
+    _uItem(_bb,_bb2,'Multiblaasring',3,false,7);
+    _uItem(_bb,_bb2,'Windmolen met bellenblaas',5,false,8);
+    // Themabak 3/4 – H55 (vast materiaal)
+    const _bb3=_uBak(_bb,'Themabak 3/4 (vast)','H55',KT,30);
+    _uItem(_bb,_bb3,'Trechters',2,false,1);
+    _uItem(_bb,_bb3,'Vierkant stuk stof',1,false,2);
+    _uItem(_bb,_bb3,'Plastic borden',5,false,3);
+    _uItem(_bb,_bb3,'Plastic kommetjes',8,false,4);
+    _uItem(_bb,_bb3,'Handleiding Bubble tennis',1,false,5);
+    // Themabak 3/4 – H55 (verbruiksmateriaal)
+    const _bb3v=_uBak(_bb,'Themabak 3/4 (verbruik)','H55',KT,35);
+    _uItem(_bb,_bb3v,'Afwasmiddel',1,true,1);
+    _uItem(_bb,_bb3v,'Glycerine',1,true,2);
+    _uItem(_bb,_bb3v,'Bellenblaasmiddel (Action, 4 liter)',1,true,3);
+    _uItem(_bb,_bb3v,'Rietjes',1,true,4);
+    _uItem(_bb,_bb3v,'Pijpenragers (1/kind)',1,true,5);
+    _uItem(_bb,_bb3v,'Kralen',1,true,6);
+    _uItem(_bb,_bb3v,'Ballonnen met stokje',1,true,7);
+    _uItem(_bb,_bb3v,'Papiersnippers',1,true,8);
+    _uItem(_bb,_bb3v,'Pompons',1,true,9);
+    _uItem(_bb,_bb3v,'Crêpepapier',1,true,10);
+    // Themabak 4/4 – H57
+    const _bb4=_uBak(_bb,'Themabak 4/4','H57',KT,40);
+    _uItem(_bb,_bb4,'PET-fles met rietjes',3,false,1);
+    _uItem(_bb,_bb4,'PET-fles met sok',3,false,2);
+    _uItem(_bb,_bb4,'PET-fles (afgesneden)',3,false,3);
+    _uItem(_bb,_bb4,'Katapult voor waterballonnen + waterballonnen',5,false,4);
+    _uItem(_bb,_bb4,'Bubble wand',6,false,5);
+    _uItem(_bb,_bb4,'Bubble tennis set',1,false,6);
+    _uItem(_bb,_bb4,'Bellenblaas hout en touw',5,false,7);
+    // Sportmateriaal (aparte items/zakken)
+    const _bbs=_uBak(_bb,'Sportmateriaal','',KT,50);
+    _uItem(_bb,_bbs,'Handbalpakket – 10 ballen (Gele zak H70)',1,false,1);
+    _uItem(_bb,_bbs,'Kinball – 1 bal + pomp (LS Bak H70)',1,false,2);
+    _uItem(_bb,_bbs,'Zweefbal – 3 zeefballen + pomp (LS Bak H70)',1,false,3);
+    _uItem(_bb,_bbs,'Minitennis – 20 racketjes + 20 balletjes (Zwarte curver H26)',1,false,4);
+    _uItem(_bb,_bbs,'Mini rugby – 10 ballen (Gele zak H70)',1,false,5);
+
+    // ── ALICE IN WONDERLAND ──
+    const _aw=_uT('Alice in Wonderland','#8B5CF6','kleuters','eigen_materiaal');
+    // Decor/los
+    const _awLos=_uBak(_aw,'Los decor','',KT,0);
+    _uItem(_aw,_awLos,'Decor Alice in Wonderland',1,false,1);
+    _uItem(_aw,_awLos,'Croquet doelen',1,false,2);
+    _uItem(_aw,_awLos,'Verkleedkledij (set)',1,false,3);
+    // Themabak 1/2 – N08
+    const _aw1=_uBak(_aw,'Themabak 1/2','N08',KT,10);
+    _uItem(_aw,_aw1,'Verkleedkledij Alice (kleedje)',1,false,1);
+    _uItem(_aw,_aw1,'Verkleedkledij Konijn (broek, vest, hoed, handschoenen, horloge)',1,false,2);
+    _uItem(_aw,_aw1,'Breekmes',1,false,3);
+    _uItem(_aw,_aw1,'Taartstandaard',2,false,4);
+    _uItem(_aw,_aw1,'Theekopjes',16,false,5);
+    _uItem(_aw,_aw1,'Kleine bordjes',16,false,6);
+    _uItem(_aw,_aw1,'Lepels',16,false,7);
+    _uItem(_aw,_aw1,'Kannetjes',4,false,8);
+    _uItem(_aw,_aw1,'Theepotten',4,false,9);
+    _uItem(_aw,_aw1,'Taartschep',2,false,10);
+    _uItem(_aw,_aw1,'Voorbeelden sponstaartjes',1,false,11);
+    _uItem(_aw,_aw1,'Plantenspuit',6,false,12);
+    _uItem(_aw,_aw1,'Kaartjes theebingo',15,false,13);
+    _uItem(_aw,_aw1,'Bingokaarten theebingo',16,false,14);
+    _uItem(_aw,_aw1,'Puzzels de gekke hoedenmaker',5,false,15);
+    _uItem(_aw,_aw1,'Aanwijzingen de gekke hoedenmaker (10/set)',5,false,16);
+    _uItem(_aw,_aw1,'Hoeden',16,false,17);
+    _uItem(_aw,_aw1,'Memory kaartjes',24,false,18);
+    _uItem(_aw,_aw1,'Croquet sticks',8,false,19);
+    _uItem(_aw,_aw1,'Moppenkat',4,false,20);
+    _uItem(_aw,_aw1,'Dierenafbeeldingen (Dieren naar de overkant)',11,false,21);
+    _uItem(_aw,_aw1,'Kaartjes Wit zoekt rood',18,false,22);
+    _uItem(_aw,_aw1,'Pittenzak werpspel',1,false,23);
+    _uItem(_aw,_aw1,'Ringenwerpspel',1,false,24);
+    _uItem(_aw,_aw1,'Blinddoeken',2,false,25);
+    _uItem(_aw,_aw1,'Blikkenspel (6 blikken + 3 balletjes)',1,false,26);
+    _uItem(_aw,_aw1,'Yogakaarten dobbelsteen',1,false,27);
+    _uItem(_aw,_aw1,'Creatieve dobbelsteen',1,false,28);
+    _uItem(_aw,_aw1,'A3 kaart yoga (Gooi en beweeg)',1,false,29);
+    _uItem(_aw,_aw1,'Glimlach moppenkat',4,false,30);
+    _uItem(_aw,_aw1,'Kaartjes dierengeluiden klein',18,false,31);
+    _uItem(_aw,_aw1,'Kaartjes dierengeluiden groot',9,false,32);
+    _uItem(_aw,_aw1,'Boekje Alice in Wonderland',1,false,33);
+    _uItem(_aw,_aw1,'Flesje Drink mij',1,false,34);
+    _uItem(_aw,_aw1,'Voorbeelden gekke hoeden',1,false,35);
+    _uItem(_aw,_aw1,'Doos PlayMais',1,false,36);
+    // Themabak 2/2 – E26 (verbruik)
+    const _aw2=_uBak(_aw,'Themabak 2/2 (verbruik)','E26',KT,20);
+    _uItem(_aw,_aw2,'Sponsen in verschillende kleuren/vormen (±2/kind)',1,true,1);
+    _uItem(_aw,_aw2,'Foampapier in verschillende kleuren (±20 vellen)',1,true,2);
+    _uItem(_aw,_aw2,'Pompons (8 zakjes)',1,true,3);
+    _uItem(_aw,_aw2,'Potje glitter',1,true,4);
+    _uItem(_aw,_aw2,'Knutsellijm (4 flesjes)',1,true,5);
+    _uItem(_aw,_aw2,'Appelsap (4 liter)',1,true,6);
+    _uItem(_aw,_aw2,'Aquarelpapier (1/kind)',1,true,7);
+    _uItem(_aw,_aw2,'Theezakjes in verschillende kleuren (±70)',1,true,8);
+    _uItem(_aw,_aw2,'Whiteboardstiften',10,true,9);
+    _uItem(_aw,_aw2,'Wit A3 papier',32,true,10);
+    _uItem(_aw,_aw2,'Doorzichtige plakband/tape',1,true,11);
+    _uItem(_aw,_aw2,'Pijpenragers (±160)',1,true,12);
+    _uItem(_aw,_aw2,'Stroken gekleurd papier breed (±2-3 cm)',1,true,13);
+    _uItem(_aw,_aw2,'Stroken gekleurd papier smal (±1 cm)',1,true,14);
+    _uItem(_aw,_aw2,'Grote kartonnen bordjes met gat',16,true,15);
+    _uItem(_aw,_aw2,'Kleine kartonnen bordjes met gat',32,true,16);
+    _uItem(_aw,_aw2,'Lint',1,true,17);
+    _uItem(_aw,_aw2,'Wattenstaafjes',60,true,18);
+    _uItem(_aw,_aw2,'Print witte rozen (1/kind)',1,true,19);
+    _uItem(_aw,_aw2,'Groene velcro',1,true,20);
+    _uItem(_aw,_aw2,'Rode verf (bus)',1,true,21);
+    _uItem(_aw,_aw2,'Roze verf (bus)',1,true,22);
+    _uItem(_aw,_aw2,'Pluimen (2 zakjes)',1,true,23);
+    _uItem(_aw,_aw2,'Crêpepapier (1 pak)',1,true,24);
+    _uItem(_aw,_aw2,'Wol in verschillende kleuren (5 bollen)',1,true,25);
+    _uItem(_aw,_aw2,'Kralen (1 doos)',1,true,26);
+    _uItem(_aw,_aw2,'Ballonnen (1 zakje)',1,true,27);
+
+    console.log('  Migratie 26: 1001BB + Alice volledig ingevoegd');
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
