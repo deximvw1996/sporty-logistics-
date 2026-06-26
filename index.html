@@ -2041,7 +2041,8 @@ async function renderOverzicht(){
   }).join(''):'<div class="empty">Nog geen kampmomenten gepland.</div>');
 }
 
-function renderPlanning(){
+async function renderPlanning(){
+  if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
   renderLocatiesTab();
 }
 
@@ -3275,6 +3276,42 @@ function fIso(iso){const d=new Date(iso+'T12:00:00');return DOW[d.getDay()]+' '+
 
 
 // KAMPEN PLANNEN
+// ── Sport planning helpers ──
+function _kmSportTagsHTML(km){
+  const sets=km.sport_sets||[];
+  if(!sets.length) return '<span style="font-size:12px;color:var(--text2)">Nog geen sportpakketten gekoppeld.</span>';
+  // Groepeer per item_naam
+  const grouped={};
+  sets.forEach(s=>{if(!grouped[s.item_naam])grouped[s.item_naam]=[];grouped[s.item_naam].push(s);});
+  return Object.entries(grouped).map(([naam,ssets])=>{
+    const labels=ssets.map(s=>`<span style="font-size:10px;opacity:.8">${_escH(s.label)}</span> <button style="background:transparent;border:none;cursor:pointer;color:var(--text2);font-size:10px;padding:0 0 0 1px" onclick="removeSportFromKm(${km.id},${s.set_id},${km.week})" title="Verwijder">&#x2715;</button>`).join(', ');
+    return `<span class="thema-tag" style="background:var(--blue-bg);color:var(--blue-dk);border:.5px solid var(--blue-dk)44">⚽ ${_escH(naam)} <span style="opacity:.7;font-size:10px">(${labels})</span></span>`;
+  }).join('');
+}
+function _kmSportAddHTML(km){
+  const allSets=(_invSport||[]).flatMap(item=>(item.sets||[]).map(s=>({...s,item_naam:item.name})));
+  const geplande=new Set((km.sport_sets||[]).map(s=>s.set_id));
+  const beschikbaar=allSets.filter(s=>!geplande.has(s.id));
+  if(!beschikbaar.length) return '<span style="font-size:11px;color:var(--text2)">Alle sets zijn al gepland.</span>';
+  // Groepeer opties per item_naam
+  const optsHtml=beschikbaar.map(s=>`<option value="${s.id}">${_escH(s.item_naam||'?')} — ${_escH(s.label)}</option>`).join('');
+  return `<select class="sel" id="add-sport-${km.id}" style="height:28px;font-size:11px"><option value="">+ Sportpakket toevoegen…</option>${optsHtml}</select><button class="btn-xs" onclick="addSportToKm(${km.id},${km.locatie_id},${km.week})">Toevoegen</button>`;
+}
+async function addSportToKm(kmId,locatieId,week){
+  const sel=document.getElementById('add-sport-'+kmId);
+  const setId=parseInt(sel?.value);
+  if(!setId)return;
+  const r=await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:locatieId});
+  if(r.error){showToast(r.error,'error');return;}
+  S.kampmomenten=await api('GET','/kampmomenten');
+  renderKampen();
+}
+async function removeSportFromKm(kmId,setId,week){
+  await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:null});
+  S.kampmomenten=await api('GET','/kampmomenten');
+  renderKampen();
+}
+
 // Helpers voor themadag-aware kampmoment-rendering
 const _DOW_KORT=['Ma','Di','Wo','Do','Vr'];
 function _kmThemaChipsHTML(km, withRemove){
@@ -3361,6 +3398,11 @@ function renderKampen(){
           <div class="sl">Thema's op deze locatie, week ${km.week}</div>
           <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px">${thTags||'<span style="font-size:12px;color:var(--text2)">Nog geen thema\'s gekoppeld.</span>'}</div>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${addSel}</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div class="sl">Sportpakketten — week ${km.week}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px" id="sport-tags-${km.id}">${_kmSportTagsHTML(km)}</div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${_kmSportAddHTML(km)}</div>
         </div>
         <div>
           <div class="sl">Materiaaloverzicht voor dit kampmoment</div>

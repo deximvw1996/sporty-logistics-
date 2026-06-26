@@ -1014,7 +1014,13 @@ async function startServer() {
       const dagRec=get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[km.locatie_id,iso]);
       if(dagRec?dagRec.open==1:true) openDagen.push(iso);
     }
-    return {...km, locatie:loc, themas, open_dagen:openDagen, locatie_materiaal:locMat, periode};
+    const sportSets=all(`SELECT sp.set_id, ss.label, ss.item_id, ss.locatie_id as thuis_locatie_id, si.name as item_naam, si.stockage_locatie_id
+      FROM sport_planning sp
+      JOIN sport_sets ss ON ss.id=sp.set_id
+      JOIN sport_items si ON si.id=ss.item_id
+      WHERE sp.locatie_id=? AND sp.week=?
+      ORDER BY si.name, ss.label`,[km.locatie_id, km.week]);
+    return {...km, locatie:loc, themas, sport_sets:sportSets, open_dagen:openDagen, locatie_materiaal:locMat, periode};
   }
 
   app.get('/api/kampmomenten',(req,res)=>{
