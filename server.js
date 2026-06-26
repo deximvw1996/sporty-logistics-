@@ -527,7 +527,7 @@ async function startServer() {
 
       // Kampmomenten per locatie per week (Woudlucht = hernoemde Verkeerspark)
       const _lkm={
-        'Sporthal Kessel-Lo':[1,2,3,4,5,6,7,8,9],'Abdijschool':[1,2,3,4,5,6,7,8],
+        'Sporthal Kessel-Lo':[1,2,3,4,5,6,7,8,9],'Abdijschool Vlierbeek':[1,2,3,4,5,6,7,8],
         'Syntra':[1,2,8,9],'Woudlucht':[2,3],'Sporthal Heverlee':[8,9],
         'Scoutslokalen Vlierbeek':[1,2,3,8,9],'De Bosstraat':[1,2,6,7,8],
         'De Waaier':[4,5,6,7,8],'De Kring':[1,2,7,8,9],'De Ark 3':[3,4,5,6],
@@ -551,6 +551,24 @@ async function startServer() {
       });
       console.log(`  Migratie 21+22: ${_kmAan} kampmomenten aangemaakt`);
     } catch(e) { console.error('  Migratie 21+22 fout (niet-fataal):', e.message); }
+  }
+
+  // Migration 24: kampmomenten fix — Abdijschool Vlierbeek krijgt weken 1-8 (was verkeerd op Abdijschool id=6)
+  {
+    const _avl=get("SELECT id FROM locaties WHERE name='Abdijschool Vlierbeek'");
+    const _abd=get("SELECT id FROM locaties WHERE name='Abdijschool'");
+    if(_avl){
+      const _avlKm=(get('SELECT COUNT(*) as n FROM kampmomenten WHERE locatie_id=?',[_avl.id])||{}).n||0;
+      if(_avlKm<8){
+        const _pid24=(get('SELECT id FROM vakantieperiodes LIMIT 1')||{}).id||1;
+        [1,2,3,4,5,6,7,8].forEach(w=>{
+          try{run('INSERT OR IGNORE INTO kampmomenten (locatie_id,week,type,periode_id) VALUES (?,?,?,?)',[_avl.id,w,'kamp',_pid24]);}catch(e){}
+        });
+        // Verwijder de verkeerde kampmomenten op 'Abdijschool' als die locatie puur een naamsduplicated is
+        if(_abd) try{run('DELETE FROM kampmomenten WHERE locatie_id=?',[_abd.id]);}catch(e){}
+        console.log('  Migratie 24: Abdijschool Vlierbeek weken 1-8 gezet');
+      }
+    }
   }
 
   // Migration 23: transporten uit oude database wissen (eenmalig)
