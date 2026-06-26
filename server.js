@@ -499,7 +499,7 @@ async function startServer() {
   const _kmCount = (get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
   if (_kmCount < 50) {
     // Themas en gerelateerde data wissen
-    const _resetTbls=['kampmoment_themas','thema_materiaal','themas','thema_categorieen',
+    const _resetTbls=['kampmoment_themas','kampmomenten','thema_materiaal','themas','thema_categorieen',
       'standaard_materiaal','gedeeld_gebruik','gedeeld_stock','gedeeld_items',
       'verplaatsingen','materiaal_eenheden','materiaal_items',
       'terugkomst_regels','terugkomst_rapporten','spoedmeldingen','activiteiten_log',
