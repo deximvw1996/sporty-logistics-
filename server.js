@@ -754,6 +754,47 @@ async function startServer() {
     console.log('  Migratie 26: 1001BB + Alice volledig ingevoegd');
   }
 
+  // Migration 27: item_types (centrale catalogus) + vaste_bakken + vaste_bak_items
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS item_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    naam TEXT NOT NULL,
+    eenheid TEXT DEFAULT 'stuk',
+    categorie TEXT DEFAULT '',
+    notities TEXT DEFAULT ''
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS vaste_bakken (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    naam TEXT NOT NULL,
+    code TEXT DEFAULT '',
+    type TEXT DEFAULT 'vast',
+    notities TEXT DEFAULT '',
+    volgorde INTEGER DEFAULT 0
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS vaste_bak_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bak_id INTEGER NOT NULL REFERENCES vaste_bakken(id) ON DELETE CASCADE,
+    item_type_id INTEGER REFERENCES item_types(id) ON DELETE SET NULL,
+    naam TEXT NOT NULL,
+    qty REAL DEFAULT 1,
+    eenheid TEXT DEFAULT 'stuk',
+    is_verbruik INTEGER DEFAULT 0,
+    qty_stock REAL DEFAULT 0,
+    qty_minimum REAL DEFAULT 0,
+    notitie TEXT DEFAULT '',
+    volgorde INTEGER DEFAULT 0
+  )`);
+  // Seed standaard vaste bakken als ze nog niet bestaan
+  if(!(get('SELECT id FROM vaste_bakken LIMIT 1'))){
+    const _vb=[
+      ['EHBO koffer','EHBO','vast'],
+      ['Sportkoffer KLS','SPORT-KLS','vast'],
+      ['Sportkoffer LS','SPORT-LS','vast'],
+      ['Creabak kampen','CREA','verbruik'],
+    ];
+    _vb.forEach(([naam,code,type])=>ins('INSERT INTO vaste_bakken (naam,code,type) VALUES (?,?,?)',[naam,code,type]));
+    console.log('  Migratie 27: vaste bakken + item_types aangemaakt');
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
@@ -1944,6 +1985,64 @@ async function startServer() {
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
+
+  // ── ITEM TYPES (centrale materiaalkatalogus) ──
+  app.get('/api/item-types',(req,res)=>res.json(all('SELECT * FROM item_types ORDER BY categorie,naam')));
+  app.post('/api/item-types',(req,res)=>{
+    const{naam,eenheid,categorie,notities}=req.body;
+    if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
+    const id=ins('INSERT INTO item_types (naam,eenheid,categorie,notities) VALUES (?,?,?,?)',[naam.trim(),eenheid||'stuk',categorie||'',notities||'']);
+    res.json(get('SELECT * FROM item_types WHERE id=?',[id]));
+  });
+  app.put('/api/item-types/:id',(req,res)=>{
+    const{naam,eenheid,categorie,notities}=req.body;
+    run('UPDATE item_types SET naam=?,eenheid=?,categorie=?,notities=? WHERE id=?',[naam,eenheid||'stuk',categorie||'',notities||'',req.params.id]);
+    res.json(get('SELECT * FROM item_types WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/item-types/:id',(req,res)=>{
+    run('DELETE FROM item_types WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
+
+  // ── VASTE BAKKEN ──
+  app.get('/api/vaste-bakken',(req,res)=>{
+    const bakken=all('SELECT * FROM vaste_bakken ORDER BY volgorde,naam');
+    const items=all('SELECT vbi.*, it.eenheid as it_eenheid FROM vaste_bak_items vbi LEFT JOIN item_types it ON it.id=vbi.item_type_id ORDER BY vbi.bak_id,vbi.volgorde,vbi.id');
+    res.json(bakken.map(b=>({...b,items:items.filter(i=>i.bak_id===b.id)})));
+  });
+  app.post('/api/vaste-bakken',(req,res)=>{
+    const{naam,code,type,notities}=req.body;
+    if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
+    const id=ins('INSERT INTO vaste_bakken (naam,code,type,notities) VALUES (?,?,?,?)',[naam.trim(),code||'',type||'vast',notities||'']);
+    res.json({...get('SELECT * FROM vaste_bakken WHERE id=?',[id]),items:[]});
+  });
+  app.put('/api/vaste-bakken/:id',(req,res)=>{
+    const{naam,code,type,notities}=req.body;
+    run('UPDATE vaste_bakken SET naam=?,code=?,type=?,notities=? WHERE id=?',[naam,code||'',type||'vast',notities||'',req.params.id]);
+    res.json(get('SELECT * FROM vaste_bakken WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/vaste-bakken/:id',(req,res)=>{
+    run('DELETE FROM vaste_bakken WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
+  app.post('/api/vaste-bakken/:id/items',(req,res)=>{
+    const{naam,qty,eenheid,is_verbruik,qty_minimum,notitie,item_type_id}=req.body;
+    if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
+    const maxOrd=(get('SELECT MAX(volgorde) as m FROM vaste_bak_items WHERE bak_id=?',[req.params.id])||{}).m||0;
+    const id=ins('INSERT INTO vaste_bak_items (bak_id,naam,qty,eenheid,is_verbruik,qty_minimum,notitie,item_type_id,volgorde) VALUES (?,?,?,?,?,?,?,?,?)',
+      [req.params.id,naam.trim(),qty||1,eenheid||'stuk',is_verbruik?1:0,qty_minimum||0,notitie||'',item_type_id||null,maxOrd+10]);
+    res.json(get('SELECT * FROM vaste_bak_items WHERE id=?',[id]));
+  });
+  app.put('/api/vaste-bak-items/:id',(req,res)=>{
+    const{naam,qty,eenheid,is_verbruik,qty_stock,qty_minimum,notitie}=req.body;
+    run('UPDATE vaste_bak_items SET naam=?,qty=?,eenheid=?,is_verbruik=?,qty_stock=?,qty_minimum=?,notitie=? WHERE id=?',
+      [naam,qty||1,eenheid||'stuk',is_verbruik?1:0,qty_stock||0,qty_minimum||0,notitie||'',req.params.id]);
+    res.json(get('SELECT * FROM vaste_bak_items WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/vaste-bak-items/:id',(req,res)=>{
+    run('DELETE FROM vaste_bak_items WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
 
   // ── SPORT MATERIAAL ──
   app.get('/api/sport', (req,res) => {

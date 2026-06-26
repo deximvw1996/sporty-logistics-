@@ -576,13 +576,58 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
        TAB 3: MATERIAAL
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-materiaal">
-    <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;">
-      <button class="kal-subtab active" onclick="setMatSubtab('catalogus',this)">&#128230; Materiaal</button>
-      <button class="kal-subtab" onclick="setMatSubtab('themas',this)">&#127912; Thema&apos;s</button>
-      <button class="kal-subtab" onclick="setMatSubtab('standaard',this)">&#128203; Standaard</button>
-      <button class="kal-subtab" onclick="setMatSubtab('voertuigen',this)">&#128656; Voertuigen</button>
-      <button class="kal-subtab" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken</button>
+    <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;flex-wrap:wrap;align-items:center">
+      <button class="kal-subtab active" onclick="setMatSubtab('themabakken',this)">&#129082; Themabakken</button>
+      <button class="kal-subtab" onclick="setMatSubtab('vastebakken',this)">&#128451; Vaste bakken</button>
+      <button class="kal-subtab" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
+      <button class="kal-subtab" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('sport',this)">&#9917; Sport</button>
+      <div style="flex:1"></div>
+      <button class="btn-o" style="font-size:11px;height:28px" onclick="setMatSubtab('themas',this)">&#9881;&#65039; Thema&apos;s beheer</button>
+    </div>
+
+    <!-- Themabakken: thema's met hun bakken en inhoud -->
+    <div id="mat-sub-themabakken">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
+        <input class="inp" id="tb-zoek" placeholder="&#128269; Thema zoeken&#8230;" oninput="renderThemabakken()" style="flex:1;min-width:160px;max-width:300px">
+        <select class="sel" id="tb-filter-lg" onchange="renderThemabakken()" style="height:32px;font-size:12px">
+          <option value="">Alle leeftijden</option>
+          <option value="kleuters">Kleuters</option>
+          <option value="lagere school">Lagere school</option>
+          <option value="beide">Beide</option>
+        </select>
+        <span id="tb-stats" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
+      </div>
+      <div id="tb-lijst"></div>
+    </div>
+
+    <!-- Vaste bakken: EHBO, Sportkoffer KLS, Creabak... -->
+    <div id="mat-sub-vastebakken" style="display:none">
+      <div id="vb-lijst"></div>
+      <div class="card" style="margin-top:.75rem">
+        <div class="card-hd">+ Nieuwe vaste bak aanmaken</div>
+        <div class="fr">
+          <div class="fg grow"><label>Naam</label><input class="inp" id="vb-new-naam" placeholder="bv. EHBO koffer, Creabak&#8230;"></div>
+          <div class="fg sm"><label>Code</label><input class="inp" id="vb-new-code" placeholder="bv. EHBO" style="width:80px"></div>
+          <div class="fg md"><label>Type</label>
+            <select class="sel" id="vb-new-type">
+              <option value="vast">Vast materiaal</option>
+              <option value="verbruik">Verbruik (wekelijks aanvullen)</option>
+            </select>
+          </div>
+          <button class="btn-g" onclick="addVasteBak()">+ Aanmaken</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gedeeld materiaal: ovens, muziekboxen... -->
+    <div id="mat-sub-gedeeld" style="display:none">
+      <div id="gedeeld-content"><div class="loading">Laden&#8230;</div></div>
+    </div>
+
+    <!-- Voorraad: verbruiksstock -->
+    <div id="mat-sub-voorraad" style="display:none">
+      <div id="voorraad-content"><div class="loading">Laden&#8230;</div></div>
     </div>
 
     <!-- Thema's -->
@@ -1951,18 +1996,22 @@ let matSubtab='catalogus';
 function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  ['themas','catalogus','standaard','voertuigen','nakijken','sport'].forEach(t=>{
+  if(btn&&btn.classList.contains('kal-subtab'))btn.classList.add('active');
+  ['themabakken','vastebakken','gedeeld','voorraad','sport','themas','catalogus','standaard','voertuigen','nakijken'].forEach(t=>{
     const el=document.getElementById('mat-sub-'+t);
     if(el) el.style.display=t===tab?'block':'none';
   });
-  if(tab==='themas'){renderThemas();renderThemaCatBeheer();
-document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.innerHTML=renderThemaCatSelect(cur);});}
+  if(tab==='themabakken'){renderThemabakken();}
+  else if(tab==='vastebakken'){renderVasteBakken();}
+  else if(tab==='gedeeld'){renderGedeeldTab();}
+  else if(tab==='voorraad'){renderVoorraadTab();}
+  else if(tab==='sport'){renderSportMateriaal();}
+  else if(tab==='themas'){renderThemas();renderThemaCatBeheer();
+    document.querySelectorAll('.th-cat-sel').forEach(sel=>{const cur=sel.value;sel.innerHTML=renderThemaCatSelect(cur);});}
   else if(tab==='catalogus'){renderCatalogus();}
   else if(tab==='standaard'){renderStandaard();}
   else if(tab==='voertuigen'){renderVoertuigen();}
   else if(tab==='nakijken'){renderNakijkenVoorraad();}
-  else if(tab==='sport'){renderSportMateriaal();}
 }
 async function renderVoertuigen(){
   const el=document.getElementById('voertuigen-lijst');
@@ -2390,7 +2439,169 @@ async function setSportPlan(setId,week,locatieIdStr){
 }
 
 function renderMateriaal(){
-  setMatSubtab(matSubtab, document.querySelector('#sec-materiaal .kal-subtab.active')||document.querySelector('#sec-materiaal .kal-subtab'));
+  const activeTab=(['themabakken','vastebakken','gedeeld','voorraad','sport','themas','catalogus','standaard','voertuigen','nakijken'].includes(matSubtab)?matSubtab:'themabakken');
+  matSubtab=activeTab;
+  setMatSubtab(activeTab, document.querySelector('#sec-materiaal .kal-subtab.active')||document.querySelector('#sec-materiaal .kal-subtab'));
+}
+
+// ── THEMABAKKEN ──
+let _tbOpen={};
+async function renderThemabakken(){
+  const el=document.getElementById('tb-lijst'); if(!el)return;
+  const zoek=(document.getElementById('tb-zoek')?.value||'').toLowerCase().trim();
+  const lgFilter=document.getElementById('tb-filter-lg')?.value||'';
+  let themas=(S.themas||[]).filter(t=>t.thema_type!=='extern');
+  if(zoek) themas=themas.filter(t=>t.name.toLowerCase().includes(zoek));
+  if(lgFilter) themas=themas.filter(t=>_normLG(t.leeftijdsgroep)===lgFilter);
+  themas=[...themas].sort((a,b)=>a.name.localeCompare(b.name,'nl'));
+  const statsEl=document.getElementById('tb-stats');
+  if(statsEl) statsEl.textContent=themas.length+' thema\'s';
+  if(!themas.length){el.innerHTML='<div class="empty">Geen thema\'s gevonden.</div>';return;}
+  el.innerHTML=themas.map(t=>{
+    const mat=t.materiaal||[];
+    // Bakken = top-level items (parent_id null/0)
+    const bakken=mat.filter(m=>!m.parent_id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const open=_tbOpen[t.id];
+    const lgBadge=t.leeftijdsgroep?leeftijdBadge(t.leeftijdsgroep):'';
+    const typeLabel=t.thema_type==='eigen_standaard'?'<span class="pill" style="background:var(--blue-bg);color:var(--blue-dk);font-size:10px">Standaard</span>':'';
+    const totItems=mat.filter(m=>m.parent_id).length;
+    return `<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:${t.color||'#1D9E75'}18;cursor:pointer" onclick="_tbToggle(${t.id})">
+        <span style="width:10px;height:10px;border-radius:50%;background:${t.color||'#1D9E75'};flex-shrink:0"></span>
+        <span style="font-weight:600;flex:1">${_escH(t.name)}</span>
+        ${lgBadge}${typeLabel}
+        <span style="font-size:11px;color:var(--text3)">${bakken.length} bak${bakken.length!==1?'ken':''} · ${totItems} items</span>
+        <span style="font-size:12px;color:var(--text3)">${open?'▲':'▼'}</span>
+      </div>
+      ${open?`<div style="padding:8px 14px 12px">${_renderThemaBakkenInhoud(t,bakken,mat)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+function _tbToggle(tid){_tbOpen[tid]=!_tbOpen[tid];renderThemabakken();}
+function _renderThemaBakkenInhoud(thema,bakken,mat){
+  if(!bakken.length) return '<div style="font-size:12px;color:var(--text3);padding:4px 0">Nog geen bakken voor dit thema.</div>';
+  return bakken.map(bak=>{
+    const items=mat.filter(m=>m.parent_id===bak.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+    const verbruikItems=items.filter(i=>i.is_verbruik);
+    const vastItems=items.filter(i=>!i.is_verbruik);
+    const code=bak.stockage_code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.stockage_code)}</span>`:'';
+    return `<div style="margin-bottom:10px;border-left:2px solid var(--border2);padding-left:10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-weight:600;font-size:13px">📦 ${_escH(bak.name)}</span>
+        ${code}
+        <span style="font-size:11px;color:var(--text3)">${items.length} items</span>
+      </div>
+      ${vastItems.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${vastItems.map(i=>`<span style="font-size:11px;background:var(--bg2);border:.5px solid var(--border);border-radius:4px;padding:2px 7px">${_escH(i.name)} <span style="color:var(--text3)">×${i.qty}</span></span>`).join('')}</div>`:''}
+      ${verbruikItems.length?`<div style="font-size:11px;color:var(--text2);margin-top:2px">🔄 Verbruik: ${verbruikItems.map(i=>`${_escH(i.name)} ×${i.qty}`).join(', ')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── VASTE BAKKEN ──
+let _vasteBakken=[], _vbOpen={};
+async function renderVasteBakken(){
+  const el=document.getElementById('vb-lijst'); if(!el)return;
+  try{_vasteBakken=await api('GET','/vaste-bakken');}catch(e){el.innerHTML='<div class="empty">Fout bij laden.</div>';return;}
+  if(!_vasteBakken.length){el.innerHTML='<div class="empty">Nog geen vaste bakken aangemaakt.</div>';return;}
+  el.innerHTML=_vasteBakken.map(bak=>{
+    const open=_vbOpen[bak.id];
+    const items=bak.items||[];
+    const vast=items.filter(i=>!i.is_verbruik), verbruik=items.filter(i=>i.is_verbruik);
+    const typePill=bak.type==='verbruik'?'<span class="pill" style="background:#F9731622;color:#9A3412;font-size:10px">Wekelijks aanvullen</span>':'<span class="pill" style="background:var(--bg2);color:var(--text2);font-size:10px">Vast</span>';
+    const codePill=bak.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.code)}</span>`:'';
+    return `<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg2);cursor:pointer" onclick="_vbToggle(${bak.id})">
+        <span style="font-size:16px">🗃️</span>
+        <span style="font-weight:600;flex:1">${_escH(bak.naam)}</span>
+        ${codePill}${typePill}
+        <span style="font-size:11px;color:var(--text3)">${items.length} items</span>
+        <button class="bi" onclick="event.stopPropagation();deleteVasteBak(${bak.id})" title="Verwijderen">🗑️</button>
+        <span style="font-size:12px;color:var(--text3)">${open?'▲':'▼'}</span>
+      </div>
+      ${open?`<div style="padding:8px 14px 12px">${_renderVasteBakInhoud(bak,vast,verbruik)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+function _vbToggle(id){_vbOpen[id]=!_vbOpen[id];renderVasteBakken();}
+function _renderVasteBakInhoud(bak,vast,verbruik){
+  const itemRij=(i)=>`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:.5px solid var(--border)">
+    <span style="flex:1;font-size:12px">${_escH(i.naam)}</span>
+    <span style="font-size:11px;color:var(--text3)">×${i.qty} ${_escH(i.eenheid||'stuk')}</span>
+    ${i.is_verbruik&&i.qty_minimum>0?`<span style="font-size:10px;color:var(--text3)">min ${i.qty_minimum}</span>`:''}
+    <button class="bi del" onclick="deleteVasteBakItem(${i.id})" title="Verwijderen">🗑️</button>
+  </div>`;
+  const addForm=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px">
+    <input class="inp" id="vbi-naam-${bak.id}" placeholder="Nieuw item&#8230;" style="flex:1;min-width:120px">
+    <input class="inp" type="number" id="vbi-qty-${bak.id}" value="1" min="0.1" step="0.1" style="width:60px" title="Verwacht aantal">
+    <input class="inp" id="vbi-eenheid-${bak.id}" placeholder="stuk" style="width:60px" title="Eenheid">
+    <label style="font-size:11px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="vbi-verbruik-${bak.id}"> Verbruik</label>
+    <button class="btn-g btn-xs" onclick="addVasteBakItem(${bak.id})">+ Item</button>
+  </div>`;
+  if(!vast.length&&!verbruik.length) return '<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Nog geen items.</div>'+addForm;
+  return (vast.length?`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Vast materiaal</div>${vast.map(itemRij).join('')}`:'')
+    +(verbruik.length?`<div style="font-size:11px;font-weight:600;color:var(--text2);margin:8px 0 4px">🔄 Verbruik</div>${verbruik.map(itemRij).join('')}`:'')
+    +addForm;
+}
+async function addVasteBak(){
+  const naam=document.getElementById('vb-new-naam')?.value?.trim();
+  const code=document.getElementById('vb-new-code')?.value?.trim();
+  const type=document.getElementById('vb-new-type')?.value||'vast';
+  if(!naam)return showToast('Naam vereist','error');
+  await api('POST','/vaste-bakken',{naam,code,type});
+  document.getElementById('vb-new-naam').value='';
+  document.getElementById('vb-new-code').value='';
+  renderVasteBakken();
+}
+async function addVasteBakItem(bakId){
+  const naam=document.getElementById(`vbi-naam-${bakId}`)?.value?.trim();
+  const qty=parseFloat(document.getElementById(`vbi-qty-${bakId}`)?.value)||1;
+  const eenheid=document.getElementById(`vbi-eenheid-${bakId}`)?.value?.trim()||'stuk';
+  const isVerbruik=document.getElementById(`vbi-verbruik-${bakId}`)?.checked?1:0;
+  if(!naam)return showToast('Naam vereist','error');
+  await api('POST',`/vaste-bakken/${bakId}/items`,{naam,qty,eenheid,is_verbruik:isVerbruik});
+  _vbOpen[bakId]=true;
+  renderVasteBakken();
+}
+async function deleteVasteBakItem(id){
+  if(!confirm('Item verwijderen?'))return;
+  await api('DELETE',`/vaste-bak-items/${id}`);
+  renderVasteBakken();
+}
+async function deleteVasteBak(id){
+  if(!confirm('Vaste bak verwijderen? Alle items worden ook verwijderd.'))return;
+  await api('DELETE',`/vaste-bakken/${id}`);
+  renderVasteBakken();
+}
+
+// ── GEDEELD TAB ──
+async function renderGedeeldTab(){
+  const el=document.getElementById('gedeeld-content'); if(!el)return;
+  if(!_invGedeeld||!_invGedeeld.length){try{_invGedeeld=await api('GET','/gedeeld');}catch(e){}}
+  const items=_invGedeeld||[];
+  if(!items.length){el.innerHTML='<div class="empty">Geen gedeeld materiaal gevonden.</div>';return;}
+  el.innerHTML=`<div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">${items.length} gedeelde items (ovens, muziekboxen, tenten&#8230;) die tussen locaties bewegen.</div>`
+    +items.map(item=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.375rem;background:var(--bg)">
+      <span style="font-size:15px">🔧</span>
+      <span style="font-weight:600;flex:1">${_escH(item.name)}</span>
+      <span style="font-size:11px;color:var(--text3)">Totaal: ${item.totaal}</span>
+    </div>`).join('');
+}
+
+// ── VOORRAAD TAB ──
+async function renderVoorraadTab(){
+  const el=document.getElementById('voorraad-content'); if(!el)return;
+  if(!_invVerbruik||!_invVerbruik.length){try{_invVerbruik=await api('GET','/verbruik');}catch(e){}}
+  const items=_invVerbruik||[];
+  if(!items.length){el.innerHTML='<div class="empty">Geen voorraadartikelen gevonden.</div>';return;}
+  const metTekort=items.filter(i=>i.alarm);
+  el.innerHTML=(metTekort.length?`<div style="background:#EF444422;border:.5px solid #EF4444;border-radius:var(--r);padding:8px 12px;margin-bottom:.75rem;font-size:12px">⚠️ <b>${metTekort.length}</b> artikel${metTekort.length!==1?'en':''} onder het minimum</div>`:'')
+    +`<div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">${items.length} verbruiksartikelen in voorraad.</div>`
+    +items.map(item=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:.5px solid ${item.alarm?'#EF4444':'var(--border)'};border-radius:var(--r);margin-bottom:.375rem;background:${item.alarm?'#EF444408':'var(--bg)'}">
+      <span style="font-size:15px">📋</span>
+      <span style="font-weight:600;flex:1">${_escH(item.name)}</span>
+      <span style="font-size:11px;${item.alarm?'color:#EF4444;font-weight:700':''}">${item.qty} ${_escH(item.eenheid||'stuks')}</span>
+      ${item.minimum>0?`<span style="font-size:10px;color:var(--text3)">min ${item.minimum}</span>`:''}
+    </div>`).join('');
 }
 
 function renderTransportPlan(){
