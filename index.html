@@ -559,6 +559,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div id="thema-bulk" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bg2);padding:8px 12px;border-radius:var(--r);margin-bottom:.6rem"></div>
       <div id="thema-pager"></div>
       <div id="thema-list"></div>
+      <div id="thema-pager-bottom" style="margin-top:.5rem"></div>
       <div class="card" style="margin-bottom:.875rem">
         <div class="card-hd">&#128203; Planning importeren / exporteren</div>
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -732,6 +733,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div id="cat-stats" style="font-size:11px;color:var(--text2);margin-bottom:.5rem;padding:0 2px"></div>
       <div id="cat-pager"></div>
       <div id="cat-list"></div>
+      <div id="cat-pager-bottom" style="margin-top:.5rem"></div>
     </div>
   </div><!-- /sec-materiaal -->
 
@@ -3693,8 +3695,9 @@ function renderThemas(){
   const _pageItems=_ordered.slice(_startIdx,_startIdx+_per);
   _themaPageIds=_pageItems.map(o=>o.t.id);
   const _validIds=new Set(S.themas.map(t=>t.id)); [..._themaSel].forEach(id=>{if(!_validIds.has(id))_themaSel.delete(id);});
-  const _thPager=document.getElementById('thema-pager');
-  if(_thPager)_thPager.innerHTML=_pagerBar('thema',_themaPage,_per,_tot);
+  const _thPb=_pagerBar('thema',_themaPage,_per,_tot);
+  const _thPager=document.getElementById('thema-pager');if(_thPager)_thPager.innerHTML=_thPb;
+  const _thPagerBot=document.getElementById('thema-pager-bottom');if(_thPagerBot)_thPagerBot.innerHTML=_thPb;
 
   let _lastCat=null;
   _pageItems.forEach(({cat,t})=>{
@@ -4790,8 +4793,9 @@ function renderCatalogusLijst(){
   if(_catPage>_totPg)_catPage=_totPg; if(_catPage<1)_catPage=1;
   const _start=(_catPage-1)*_per;
   const pageItems=filtered.slice(_start,_start+_per);
-  const pagerEl=document.getElementById('cat-pager');
-  if(pagerEl)pagerEl.innerHTML=_pagerBar('cat',_catPage,_per,_tot);
+  const _pb=_pagerBar('cat',_catPage,_per,_tot);
+  const pagerEl=document.getElementById('cat-pager');if(pagerEl)pagerEl.innerHTML=_pb;
+  const pagerBotEl=document.getElementById('cat-pager-bottom');if(pagerBotEl)pagerBotEl.innerHTML=_pb;
 
   let rows='',lastG=null;
   pageItems.forEach(item=>{
