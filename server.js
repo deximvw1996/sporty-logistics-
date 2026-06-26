@@ -2135,14 +2135,21 @@ async function startServer() {
       JOIN themas t ON t.id=tb.thema_id
       LEFT JOIN nakijk_sessies ns ON ns.thema_bak_id=tb.id
       GROUP BY tb.id ORDER BY t.name,tb.volgorde`);
-    // Voeg komende weken toe per thema
     const geplande=all(`SELECT DISTINCT kt.thema_id, km.week FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE km.week IS NOT NULL ORDER BY km.week`);
     const huidigWeek=(get('SELECT MIN(week) as w FROM kampmomenten WHERE week IS NOT NULL')||{}).w||1;
-    res.json(bakken.map(b=>{
+    const themaBakken=bakken.map(b=>{
       const weken=geplande.filter(g=>g.thema_id===b.thema_id).map(g=>g.week).sort((a,z)=>a-z);
       const eersteVolgendeWeek=weken.find(w=>w>=huidigWeek)||null;
-      return {...b,geplande_weken:weken,eerste_week:eersteVolgendeWeek,is_dringend:eersteVolgendeWeek!=null&&eersteVolgendeWeek<=huidigWeek+1};
-    }));
+      return {...b,bak_soort:'thema',geplande_weken:weken,eerste_week:eersteVolgendeWeek,is_dringend:eersteVolgendeWeek!=null&&eersteVolgendeWeek<=huidigWeek+1};
+    });
+    // Vaste bakken: geen urgentie berekening, altijd zichtbaar
+    const vasteBakken=all(`SELECT vb.id as bak_id, vb.naam as label, vb.code, vb.type, vb.notities,
+      MAX(ns.kv_tijdstip) as laatste_check,
+      MAX(CASE WHEN ns.kv_status='ingediend' AND ns.kantoor_status='open' THEN 1 ELSE 0 END) as wacht_kantoor
+      FROM vaste_bakken vb
+      LEFT JOIN nakijk_sessies ns ON ns.vaste_bak_id=vb.id
+      GROUP BY vb.id ORDER BY vb.volgorde,vb.id`).map(b=>({...b,bak_soort:'vast',thema_naam:'Vaste bakken',thema_color:'#6B7280',is_dringend:false,geplande_weken:[],eerste_week:null}));
+    res.json([...themaBakken,...vasteBakken]);
   });
   // Start een nieuwe nakijksessie voor een thema-bak
   app.post('/api/nakijk/start',(req,res)=>{

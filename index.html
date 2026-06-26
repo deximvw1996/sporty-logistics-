@@ -8801,7 +8801,8 @@ function renderNk2Lijst(){
 
   // Bouw per bak: combineer urgentie + laatste sessie
   let bakken=_nk2Urgentie.map(b=>{
-    const sessies=_nk2Sessies.filter(s=>s.thema_bak_id===b.bak_id);
+    const isVast=b.bak_soort==='vast';
+    const sessies=_nk2Sessies.filter(s=>isVast?s.vaste_bak_id===b.bak_id:s.thema_bak_id===b.bak_id);
     const laatste=sessies[0]||null;
     const heeftTekort=laatste&&laatste.regels&&laatste.regels.some(r=>r.ontbreekt>0||r.is_kapot);
     const wachtKantoor=laatste&&laatste.kv_status==='ingediend'&&laatste.kantoor_status==='open';
@@ -8813,10 +8814,10 @@ function renderNk2Lijst(){
   if(_nk2Filter==='wacht') bakken=bakken.filter(b=>b.wachtKantoor);
   if(_nk2Filter==='tekort') bakken=bakken.filter(b=>b.heeftTekort);
 
-  // Sorteer: dringend eerst, dan wacht kantoor, dan tekort, dan rest
+  // Sorteer: dringend eerst, dan wacht kantoor, dan tekort, dan vaste bakken achteraan
   bakken.sort((a,b)=>{
-    const score=x=>(x.is_dringend?0:1)*10+(x.wachtKantoor?0:1)*4+(x.heeftTekort?0:1)*2;
-    return score(a)-score(b)||(a.eerste_week||99)-(b.eerste_week||99)||a.thema_naam.localeCompare(b.thema_naam,'nl');
+    const score=x=>(x.is_dringend?0:1)*100+(x.wachtKantoor?0:1)*40+(x.heeftTekort?0:1)*20+(x.bak_soort==='vast'?10:0);
+    return score(a)-score(b)||(a.eerste_week||99)-(b.eerste_week||99)||(a.thema_naam||'').localeCompare(b.thema_naam||'','nl');
   });
 
   const dringend=_nk2Urgentie.filter(b=>b.is_dringend).length;
@@ -8826,7 +8827,16 @@ function renderNk2Lijst(){
 
   if(!bakken.length){el.innerHTML='<div class="empty">Geen bakken gevonden.</div>';return;}
 
-  el.innerHTML=bakken.map(b=>_nk2BakHtml(b)).join('');
+  // Scheiding tussen themabakken en vaste bakken
+  const themaBakken=bakken.filter(b=>b.bak_soort!=='vast');
+  const vasteBakken=bakken.filter(b=>b.bak_soort==='vast');
+  let html='';
+  if(themaBakken.length) html+=themaBakken.map(b=>_nk2BakHtml(b)).join('');
+  if(vasteBakken.length){
+    if(themaBakken.length) html+=`<div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 6px;padding-top:10px;border-top:.5px solid var(--border)">🗃️ Vaste bakken</div>`;
+    html+=vasteBakken.map(b=>_nk2BakHtml(b)).join('');
+  }
+  el.innerHTML=html;
 }
 
 function _nk2BakHtml(b){
@@ -8881,7 +8891,7 @@ function _nk2BakDetail(b){
       html+='<div style="font-size:12px;color:var(--green-dk);margin-bottom:8px">✅ Alles aanwezig bij laatste check</div>';
     }
   }
-  html+=`<button class="btn-g" onclick="startNk2Check(${b.bak_id})">🔍 Nakijken starten</button>`;
+  html+=`<button class="btn-g" onclick="startNk2Check(${b.bak_id},'${b.bak_soort||'thema'}')">🔍 Nakijken starten</button>`;
   return html;
 }
 
@@ -8924,9 +8934,11 @@ function _nk2KantoorView(sessie,b){
 
 function _nk2Toggle(bakId){_nk2Open[bakId]=!_nk2Open[bakId];renderNk2Lijst();}
 
-async function startNk2Check(bakId){
+async function startNk2Check(bakId,bakSoort){
   const wie=document.getElementById('nk2-wie')?.value?.trim()||'';
-  const r=await api('POST','/nakijk/start',{bak_type:'thema',thema_bak_id:bakId,kv_wie:wie});
+  const isVast=bakSoort==='vast';
+  const body=isVast?{bak_type:'vast',vaste_bak_id:bakId,kv_wie:wie}:{bak_type:'thema',thema_bak_id:bakId,kv_wie:wie};
+  const r=await api('POST','/nakijk/start',body);
   if(!r||r.error){showToast('Kon sessie niet starten','error');return;}
   _nk2Open[bakId]=true;
   await laadNakijken();
