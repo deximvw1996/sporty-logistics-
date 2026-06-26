@@ -4538,7 +4538,7 @@ async function renderCatalogus(){
   const thSel=document.getElementById('cat-add-thema');
   if(thSel) thSel.innerHTML=(S.themas||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')||'<option value="">— Geen thema\'s —</option>';
   // Vul stockage-dropdowns in add-form
-  const stOpts='<option value="">— Automatisch —</option>'+(S.locaties||[]).filter(l=>l.type==='stockage').map(l=>`<option value="${l.id}">📦 ${l.name}</option>`).join('');
+  const stOpts='<option value="">— Automatisch —</option>'+_stockOptsHtml(null,'');
   const stSel=document.getElementById('cat-add-stockage');
   if(stSel) stSel.innerHTML=stOpts;
   const locOpts='<option value="">— Onbekend —</option>'+(S.locaties||[]).map(l=>`<option value="${l.id}">${l.type==='kamp'?'⛺':'📦'} ${l.name}</option>`).join('');
@@ -4690,6 +4690,31 @@ function renderCatalogusLijst(){
   }
 
   const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
+  const stockParents=stockLocs.filter(l=>!l.parent_id);
+  const stockChildren=stockLocs.filter(l=>l.parent_id);
+  // Helper: bouw gegroepeerde <option>/<optgroup> HTML voor stockage dropdowns
+  function _stockOptsHtml(selectedId,placeholder){
+    let h=placeholder?`<option value="">${placeholder}</option>`:'';
+    for(const p of stockParents){
+      const subs=stockChildren.filter(c=>c.parent_id==p.id);
+      if(subs.length){
+        h+=`<optgroup label="📦 ${_escH(p.name)}">`;
+        for(const s of subs) h+=`<option value="${s.id}"${selectedId==s.id?' selected':''}>↳ ${_escH(s.name)}</option>`;
+        h+=`</optgroup>`;
+      } else {
+        h+=`<option value="${p.id}"${selectedId==p.id?' selected':''}>📦 ${_escH(p.name)}</option>`;
+      }
+    }
+    return h;
+  }
+  // Helper: toon naam inclusief parent (bv. "Kantoor › Sport")
+  function _stockFullName(id){
+    if(!id) return null;
+    const loc=stockLocs.find(l=>l.id==id);
+    if(!loc) return null;
+    if(loc.parent_id){const par=stockLocs.find(l=>l.id==loc.parent_id);return (par?par.name+' › ':'')+loc.name;}
+    return loc.name;
+  }
   // Bulk-selectie: stale uids opruimen + bulk-balk opbouwen
   const validUids=new Set(items.map(i=>i.type+'-'+i.raw_id));
   [..._catSel].forEach(u=>{if(!validUids.has(u))_catSel.delete(u);});
@@ -4698,7 +4723,7 @@ function renderCatalogusLijst(){
   if(_catSel.size>0){
     const selTypes=[...new Set(selItems.map(i=>i.type))];
     const catEditable=selTypes.length===1&&selTypes[0]!=='thema';
-    const stkOpts='<option value="">📦 Opslag wijzigen…</option><option value="0">— Geen opslag —</option>'+stockLocs.map(l=>`<option value="${l.id}">📦 ${_escH(l.name)}</option>`).join('');
+    const stkOpts='<option value="">📦 Opslag wijzigen…</option><option value="0">— Geen opslag —</option>'+_stockOptsHtml(null,'');
     const catOpts=catEditable
       ?'<option value="">🏷️ Categorie wijzigen…</option>'+(_catCatsByType[selTypes[0]]||[]).map(c=>`<option value="${c[0]}">${c[1]}</option>`).join('')
       :'<option value="">🏷️ Categorie — kies 1 soort</option>';
@@ -4716,7 +4741,7 @@ function renderCatalogusLijst(){
 
   if(!filtered.length){el.innerHTML=bulkBar+'<div class="empty">Geen artikelen gevonden. Probeer een andere zoekopdracht of filter.</div>';_catLastFiltered=[];const _pe=document.getElementById('cat-pager');if(_pe)_pe.innerHTML='';return;}
 
-  const stockName=id=>id?(stockLocs.find(l=>l.id==id)?.name||null):null;
+  const stockName=id=>_stockFullName(id);
   const groupKey=item=>{
     if(group==='type')return (_catTypeIco[item.type]||'')+' '+(_catTypeLbl[item.type]||'?');
     if(group==='thema')return item.thema||'— Geen thema —';
@@ -4781,7 +4806,7 @@ function _renderCatRow(item,stockLocs){
       :item.type==='verbruik'
       ?Object.keys(_verbruikCatLbl).map(c=>`<option value="${c}"${(item.sub||'andere')===c?' selected':''}>${_verbruikCatLbl[c]}</option>`).join('')
       :`<option value="opblaas"${item.sub==='opblaas'?' selected':''}>🎈 Opblaas</option><option value="keuken"${item.sub==='keuken'?' selected':''}>🍳 Keuken</option><option value="gedeeld"${(item.sub==='gedeeld'||!item.sub)?' selected':''}>📦 Andere</option>`;
-    const stockageOpts='<option value="">— Automatisch —</option>'+stockLocs.map(l=>`<option value="${l.id}"${item.stockage_locatie_id==l.id?' selected':''}>📦 ${_escH(l.name)}</option>`).join('');
+    const stockageOpts='<option value="">— Automatisch —</option>'+_stockOptsHtml(item.stockage_locatie_id,'');
     const locatieOpts='<option value="">— Onbekend —</option>'+(S.locaties||[]).map(l=>`<option value="${l.id}"${item.locatie_id==l.id?' selected':''}>${l.type==='kamp'?'⛺':'📦'} ${_escH(l.name)}</option>`).join('');
     return `<tr class="mat-edit"><td colspan="9">
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -4827,8 +4852,8 @@ function _renderCatRow(item,stockLocs){
     }).join('<br>');
     opslagCell=_dash;
   }else{
-    const stk=item.stockage_locatie_id?stockLocs.find(l=>l.id==item.stockage_locatie_id):null;
-    locCell=stk?`📦 ${_escH(stk.name)}`:_dash;
+    const stkName=_stockFullName(item.stockage_locatie_id);
+    locCell=stkName?`📦 ${_escH(stkName)}`:_dash;
     opslagCell=item.stockage_code?`📍 ${_escH(item.stockage_code)}`:_dash;
   }
   const delFn=`deleteCatItem(${_q(item.type)},${item.raw_id},${item.thema_id||'null'})`;

@@ -428,6 +428,72 @@ async function startServer() {
     FOREIGN KEY(bak_id) REFERENCES thema_bakken(id) ON DELETE CASCADE
   )`);
 
+  // Migration 20: sub-locaties + correcte sport_items import
+  addColumnIfMissing('locaties', 'parent_id', 'INTEGER DEFAULT NULL');
+
+  // Sub-locaties aanmaken als ze nog niet bestaan
+  const _kantoor = get("SELECT id FROM locaties WHERE name='Kantoor' AND (parent_id IS NULL OR parent_id=0)");
+  const _rozenweg = get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0)");
+  if (_kantoor) {
+    const _subK = [['Boven',_kantoor.id],['Naschoolse',_kantoor.id],['Sport',_kantoor.id],['Beneden',_kantoor.id]];
+    _subK.forEach(([n,pid]) => {
+      if (!get('SELECT id FROM locaties WHERE name=? AND parent_id=?',[n,pid]))
+        ins('INSERT INTO locaties (name,type,stockage_rol,parent_id) VALUES (?,?,?,?)',[n,'stockage','beide',pid]);
+    });
+  }
+  if (_rozenweg) {
+    const _subR = [['Boven',_rozenweg.id],['RGA',_rozenweg.id],['RGB',_rozenweg.id],['RGC',_rozenweg.id],['RGD',_rozenweg.id],['RGE',_rozenweg.id],['RGF',_rozenweg.id]];
+    _subR.forEach(([n,pid]) => {
+      if (!get('SELECT id FROM locaties WHERE name=? AND parent_id=?',[n,pid]))
+        ins('INSERT INTO locaties (name,type,stockage_rol,parent_id) VALUES (?,?,?,?)',[n,'stockage','beide',pid]);
+    });
+  }
+
+  // Sport_items seeding: vervang oude foutieve data (≤15 items of verouderde namen)
+  const _sportCount = (get('SELECT COUNT(*) as n FROM sport_items') || {}).n || 0;
+  const _heeftOud = get("SELECT id FROM sport_items WHERE name='Cirkus A' OR name='Basket A'");
+  if (_kantoor && _rozenweg && (_sportCount <= 15 || _heeftOud)) {
+    run('DELETE FROM sport_sets'); run('DELETE FROM sport_planning'); run('DELETE FROM sport_items');
+    const _rw = [
+      'Sportkoffer LS','Archery tag A','Archery tag B','Baseball variaties','Bumperball',
+      'Cirkelvoetbal en handvoetbal','Gaelic football en goalbal','Geksentriek balspel',
+      'Guldensporenslag','Homeball','Kanjamm A','Kanjamm B','Kubb','Levende risk',
+      'Levende stratego','Mölkky','Spikeball A','Spikeball B','Tchoukbal',
+      'Ultimate frisbee A','Ultimate frisbee B','Verrekijker voetbal','Watch and go','You fo','Zwerkbal'
+    ];
+    const _kt = [
+      'Sportkoffer KLS','Atletiek KLS A','Atletiek KLS B','Atletiek LS B','Atletiek LS C','Atletiek LS D',
+      'Badminton A','Badminton B','Base hockey A',
+      'Basket A','Basket B','Basket C','Basket D',
+      'Bonkerbal A','Bounceball A','Bounceball B','Bounceball C',
+      'Bumball A','Bumball B','Bumball C',
+      'Circus A','Circus B','Circus C',
+      'Fling it A','Fling it B','Fling it C',
+      'Frisbee A','Frisbee B','Goubak A','Gouret A','Gouret B',
+      'Handbal A','Handbal B','Handbal C','Handbal D',
+      'Hockey A','Hockey B','Hockey C','Hockey D',
+      'Kinball A','Kinball B','Kinball C','Kinball D','Kinball E','Kinball Abdij',
+      'Lacrosse A','Lacrosse B',
+      'Mini basket A','Mini basket B','Mini basket C','Mini basket D',
+      'Mini rugby A','Mini rugby Abdij',
+      'Mini tennis A','Mini tennis B',
+      'New games A','New games B',
+      'Poulball A','Poulball B','Poulball C',
+      'Ringstick A',
+      'Rope skipping A','Rope skipping B','Rope skipping Abdij',
+      'Rugby A','Rugby B','Rugby Abdij',
+      'Scoop A','Scoop B','Scratchball A','Scratchball B',
+      'Speedminton A','Springy rackets A','Tag rugby A',
+      'Voetbal A','Voetbal B','Voetbal C','Voetbal D',
+      'Volleybal A','Volleybal B','Volleybal C','Volleybal D',
+      'Wereldbal A','Wereldbal B','Wereldbal C',
+      'Zweefbal A','Zweefbal B'
+    ];
+    _rw.forEach(n => ins('INSERT INTO sport_items (name,cat,stockage_locatie_id) VALUES (?,?,?)',[n,'sport',_rozenweg.id]));
+    _kt.forEach(n => ins('INSERT INTO sport_items (name,cat,stockage_locatie_id) VALUES (?,?,?)',[n,'sport',_kantoor.id]));
+    console.log(`  Migratie 20: ${_rw.length + _kt.length} sport_items opnieuw ingevoerd`);
+  }
+
   saveDb();
 
 
@@ -435,18 +501,18 @@ async function startServer() {
   // ── LOCATIES ──
   app.get('/api/locaties',(req,res)=>res.json(all('SELECT * FROM locaties ORDER BY type,name')));
   app.post('/api/locaties',(req,res)=>{
-    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol}=req.body;
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id}=req.body;
     if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});
-    const id=ins('INSERT INTO locaties (name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol) VALUES (?,?,?,?,?,?,?,?,?)',
-      [name.trim(),addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide']);
+    const id=ins('INSERT INTO locaties (name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [name.trim(),addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null]);
     const loc=get('SELECT * FROM locaties WHERE id=?',[id]);
     logAct('locatie','aangemaakt',`Locatie "${loc.name}" aangemaakt`+(addr?` (${addr})`:''),id,loc.name);
     res.json(loc);
   });
   app.put('/api/locaties/:id',(req,res)=>{
-    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol}=req.body;
-    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=? WHERE id=?',
-      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',req.params.id]);
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id}=req.body;
+    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=? WHERE id=?',
+      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,req.params.id]);
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
     logAct('locatie','bewerkt',`Locatie "${loc.name}" bewerkt`,loc.id,loc.name);
     res.json(loc);
