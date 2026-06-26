@@ -495,71 +495,62 @@ async function startServer() {
   }
 
   // Migration 21: frisse start data + kampmomenten Zomer 2026
-  // Guard: enkel uitvoeren als kampmomenten nog niet geïmporteerd zijn (< 50 records)
-  const _kmCount = (get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
-  if (_kmCount < 50) {
-    // Themas en gerelateerde data wissen
-    const _resetTbls=['kampmoment_themas','kampmomenten','thema_materiaal','themas','thema_categorieen',
-      'standaard_materiaal','gedeeld_gebruik','gedeeld_stock','gedeeld_items',
-      'verplaatsingen','materiaal_eenheden','materiaal_items',
-      'terugkomst_regels','terugkomst_rapporten','spoedmeldingen','activiteiten_log',
-      'set_planning','sport_planning','sport_sets','verbruik_log','verbruik_stock'];
-    _resetTbls.forEach(t=>{try{run(`DELETE FROM ${t}`);}catch(e){}});
+  // Migration 21+22: frisse start data + kampmomenten + Verkeerspark=Woudlucht
+  // Gebruik een marker-vlag zodat dit maar 1x uitvoert en nooit crasht
+  const _mig21Done=get("SELECT id FROM kampmomenten WHERE type='kamp' LIMIT 1");
+  const _kmCount21=(get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
+  if(!_mig21Done || _kmCount21<50){
+    try {
+      // Alle afhankelijke data wissen (volgorde: children eerst)
+      const _tClear=['kampmoment_themas','kampmoment_themas',
+        'thema_materiaal','themas','thema_categorieen',
+        'standaard_materiaal','gedeeld_gebruik','gedeeld_stock','gedeeld_items',
+        'verplaatsingen','materiaal_eenheden','materiaal_items',
+        'terugkomst_regels','terugkomst_rapporten','spoedmeldingen','activiteiten_log',
+        'set_planning','sport_planning','sport_sets','verbruik_log','verbruik_stock'];
+      _tClear.forEach(t=>{try{run(`DELETE FROM ${t}`);}catch(e){}});
+      // Kampmomenten apart (na kampmoment_themas)
+      try{run('DELETE FROM kampmomenten');}catch(e){}
 
-    // Ontbrekende locaties
-    function _upsertLoc(name,addr){
-      if(!get('SELECT id FROM locaties WHERE name=? AND (parent_id IS NULL OR parent_id=0)',[name]))
-        ins('INSERT INTO locaties (name,addr,type,stockage_rol) VALUES (?,?,?,?)',[name,addr||'','kamp','beide']);
-    }
-    _upsertLoc('Woudlucht','Woudluchtdreef, 3001 Heverlee');
-    _upsertLoc('Rotselaar','Rotselaar');
-    _upsertLoc('Betekom','Betekom');
-    _upsertLoc('Grasmus','Grasmus, Leuven');
-    _upsertLoc('Boutersem','Boutersem');
-    _upsertLoc('Gemeenteschool Bertem','Bertem');
+      // Ontbrekende locaties
+      const _uL=(n,a)=>{if(!get('SELECT id FROM locaties WHERE name=? AND (parent_id IS NULL OR parent_id=0)',[n]))ins('INSERT INTO locaties (name,addr,type,stockage_rol) VALUES (?,?,?,?)',[n,a||'','kamp','beide']);};
+      _uL('Rotselaar','Rotselaar');_uL('Betekom','Betekom');
+      _uL('Grasmus','Grasmus, Leuven');_uL('Boutersem','Boutersem');
+      _uL('Gemeenteschool Bertem','Bertem');
 
-    // Kampmomenten per locatie per week
-    const _locNaamMap={
-      'Sporthal Kessel-Lo':[1,2,3,4,5,6,7,8,9],'Abdijschool':[1,2,3,4,5,6,7,8],
-      'Syntra':[1,2,8,9],'Woudlucht':[2,3],'Sporthal Heverlee':[8,9],
-      'Scoutslokalen Vlierbeek':[1,2,3,8,9],'De Bosstraat':[1,2,6,7,8],
-      'De Waaier':[4,5,6,7,8],'De Kring':[1,2,7,8,9],'De Ark 3':[3,4,5,6],
-      'De Kraal':[1,2,3,6,8],'Rotselaar':[1,2,7,8,9],'Betekom':[2,9],
-      'De Wijzer Oud-Heverlee':[1,2,7,8],'De Mozaiek':[1,2,3,4,5,6,7,8,9],
-      'Sportschuur':[8,9],'Grasmus':[1,2,3,4,5,6,7,8],'Terbank':[2,3,4,5,6,7,8],
-      'Fablab KUL':[2,3,9],'Campus GroepT':[1],'Boutersem':[2,3,6,7,8],
-      'Gemeenteschool Bertem':[9],'Klare Bron':[1,2,3,4,5,6,7,8],
-    };
-    const _pid21=(get('SELECT id FROM vakantieperiodes LIMIT 1')||{}).id||1;
-    let _kmAan=0;
-    Object.entries(_locNaamMap).forEach(([naam,weken])=>{
-      const _l=get('SELECT id FROM locaties WHERE name=? AND (parent_id IS NULL OR parent_id=0)',[naam]);
-      if(!_l) return;
-      weken.forEach(w=>{
-        if(!get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=? AND periode_id=?',[_l.id,w,_pid21])){
-          ins('INSERT INTO kampmomenten (locatie_id,week,type,periode_id) VALUES (?,?,?,?)',[_l.id,w,'kamp',_pid21]);
-          _kmAan++;
-        }
+      // Mig22 alvast hier: Verkeerspark hernomen naar Woudlucht (voor de locatie-lookup hieronder)
+      const _vp22=get("SELECT id FROM locaties WHERE name='Verkeerspark Heverlee'");
+      if(_vp22) run("UPDATE locaties SET name='Woudlucht' WHERE id=?",[_vp22.id]);
+      // Verwijder eventueel los Woudlucht duplicaat
+      const _wlDup=get("SELECT id FROM locaties WHERE name='Woudlucht' AND id!=? AND (parent_id IS NULL OR parent_id=0)",[(_vp22||{}).id||0]);
+      if(_wlDup) try{run('DELETE FROM locaties WHERE id=?',[_wlDup.id]);}catch(e){}
+
+      // Kampmomenten per locatie per week (Woudlucht = hernoemde Verkeerspark)
+      const _lkm={
+        'Sporthal Kessel-Lo':[1,2,3,4,5,6,7,8,9],'Abdijschool':[1,2,3,4,5,6,7,8],
+        'Syntra':[1,2,8,9],'Woudlucht':[2,3],'Sporthal Heverlee':[8,9],
+        'Scoutslokalen Vlierbeek':[1,2,3,8,9],'De Bosstraat':[1,2,6,7,8],
+        'De Waaier':[4,5,6,7,8],'De Kring':[1,2,7,8,9],'De Ark 3':[3,4,5,6],
+        'De Kraal':[1,2,3,6,8],'Rotselaar':[1,2,7,8,9],'Betekom':[2,9],
+        'De Wijzer Oud-Heverlee':[1,2,7,8],'De Mozaiek':[1,2,3,4,5,6,7,8,9],
+        'Sportschuur':[8,9],'Grasmus':[1,2,3,4,5,6,7,8],'Terbank':[2,3,4,5,6,7,8],
+        'Fablab KUL':[2,3,9],'Campus GroepT':[1],'Boutersem':[2,3,6,7,8],
+        'Gemeenteschool Bertem':[9],'Klare Bron':[1,2,3,4,5,6,7,8],
+      };
+      const _pid21=(get('SELECT id FROM vakantieperiodes LIMIT 1')||{}).id||1;
+      let _kmAan=0;
+      Object.entries(_lkm).forEach(([naam,weken])=>{
+        const _l=get('SELECT id FROM locaties WHERE name=? AND (parent_id IS NULL OR parent_id=0)',[naam]);
+        if(!_l) return;
+        weken.forEach(w=>{
+          try{
+            run('INSERT OR IGNORE INTO kampmomenten (locatie_id,week,type,periode_id) VALUES (?,?,?,?)',[_l.id,w,'kamp',_pid21]);
+            _kmAan++;
+          }catch(e){}
+        });
       });
-    });
-    console.log(`  Migratie 21: ${_kmAan} kampmomenten aangemaakt, data gereset`);
-  }
-
-  // Migration 22: Verkeerspark Heverlee = Woudlucht (zelfde locatie, 2 namen)
-  // Hernoem Verkeerspark → Woudlucht, verplaats kampmomenten van dubbel id, verwijder dubbel
-  const _vp=get("SELECT id FROM locaties WHERE name='Verkeerspark Heverlee'");
-  const _wl=get("SELECT id FROM locaties WHERE name='Woudlucht' AND (parent_id IS NULL OR parent_id=0)");
-  if(_vp&&_wl){
-    // Verplaats kampmomenten van Woudlucht (nieuw) naar Verkeerspark (id heeft coördinaten)
-    run('UPDATE kampmomenten SET locatie_id=? WHERE locatie_id=?',[_vp.id,_wl.id]);
-    // Hernoem Verkeerspark → Woudlucht
-    run("UPDATE locaties SET name='Woudlucht' WHERE id=?",[_vp.id]);
-    // Verwijder het lege Woudlucht duplicaat
-    run('DELETE FROM locaties WHERE id=?',[_wl.id]);
-    console.log('  Migratie 22: Verkeerspark hernoemd naar Woudlucht, dubbel verwijderd');
-  } else if(_vp){
-    run("UPDATE locaties SET name='Woudlucht' WHERE id=?",[_vp.id]);
-    console.log('  Migratie 22: Verkeerspark hernoemd naar Woudlucht');
+      console.log(`  Migratie 21+22: ${_kmAan} kampmomenten aangemaakt`);
+    } catch(e) { console.error('  Migratie 21+22 fout (niet-fataal):', e.message); }
   }
 
   saveDb();
