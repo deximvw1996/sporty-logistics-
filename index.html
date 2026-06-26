@@ -401,11 +401,11 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
   <div class="nav">
     <button class="nb active" onclick="goTo('overzicht')">&#128202; Overzicht</button>
-    <button class="nb" onclick="goTo('transport-plan')">&#128197; Planning</button>
+    <button class="nb" onclick="goTo('kampplanner')">&#127956; Kampplanner</button>
+    <button class="nb" onclick="goTo('transport-plan')">&#128666; Transport</button>
     <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
     <button class="nb" onclick="goTo('planning')">&#128205; Locaties</button>
     <button class="nb" onclick="goTo('kaart')">&#128506;&#65039; Kaart</button>
-    <button class="nb" onclick="goTo('seizoensoverzicht')">&#128197; Seizoen</button>
   </div>
 
   <div class="content">
@@ -525,6 +525,20 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div id="plan-sub-sport-content" style="display:none">
       <div id="sport-planning-grid"><div class="loading">Laden&hellip;</div></div>
     </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TAB: KAMPPLANNER
+  ═══════════════════════════════════════════════════════ -->
+  <div class="sec" id="sec-kampplanner">
+    <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem">
+      <button class="kal-subtab active" id="kp-tab-locatie" onclick="setKampMode('locatie',this)">&#128205; Per locatie</button>
+      <button class="kal-subtab" id="kp-tab-week" onclick="setKampMode('week',this)">&#128197; Per week</button>
+      <button class="kal-subtab" id="kp-tab-thema" onclick="setKampMode('thema',this)">&#127912; Per thema</button>
+    </div>
+    <div id="kp-locatie-content"></div>
+    <div id="kp-week-content" style="display:none"></div>
+    <div id="kp-thema-content" style="display:none"></div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -1838,7 +1852,7 @@ function setSimDate(v){
 }
 
 // ── 4-TAB ROUTING ──
-const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart','seizoensoverzicht'];
+const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart','seizoensoverzicht','kampplanner'];
 
 
 function goTo(id){
@@ -1849,17 +1863,18 @@ function goTo(id){
   document.querySelectorAll('.nb').forEach((b,i)=>{
     const active=[
       id==='overzicht',
+      id==='kampplanner',
       id==='transport-plan'||id==='transporten'||id==='transport-noden',
       id==='materiaal',
       id==='planning',
       id==='kaart',
-      id==='seizoensoverzicht'
     ][i]||false;
     b.classList.toggle('active',active);
   });
   const renderMap={
     overzicht:renderOverzicht,
     planning:renderPlanning,
+    kampplanner:renderKampplanner,
     materiaal:renderMateriaal,
     'transport-noden':renderNoden,
     'transport-plan':renderTransportPlan,
@@ -2063,6 +2078,224 @@ async function renderPlanning(){
   if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
   if(_planSubtab==='sport') renderSportPlanningGrid();
   else renderLocatiesTab();
+}
+
+// ══════════════════════════════════════════════════════════
+//  KAMPPLANNER — 3 planningsmodi
+// ══════════════════════════════════════════════════════════
+let _kampMode='locatie';
+let _kampLocId=null;
+let _kampWeek=null;
+let _kampThemaId=null;
+
+function setKampMode(mode,btn){
+  _kampMode=mode;
+  document.querySelectorAll('#sec-kampplanner .kal-subtab').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  ['locatie','week','thema'].forEach(m=>{
+    const el=document.getElementById('kp-'+m+'-content');
+    if(el)el.style.display=m===mode?'block':'none';
+  });
+  _renderKampMode();
+}
+
+function _renderKampMode(){
+  if(_kampMode==='locatie') _renderKampLocatie();
+  else if(_kampMode==='week') _renderKampWeek();
+  else _renderKampThema();
+}
+
+async function renderKampplanner(){
+  if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
+  if(!S.themas||!S.themas.length){try{S.themas=await api('GET','/themas');S.themas=S.themas.map(t=>({...t,materiaal:t.materiaal||[]}));}catch(e){}}
+  _renderKampMode();
+}
+
+// ── Helpers ──────────────────────────────────────────────
+function _kpKampLocs(){
+  return (S.locaties||[]).filter(l=>l.type==='kamp'&&!l.parent_id);
+}
+function _kpWeken(){
+  return [...new Set((S.kampmomenten||[]).map(k=>k.week))].sort((a,b)=>a-b);
+}
+function _kpKm(locId,week){
+  return (S.kampmomenten||[]).find(k=>k.locatie_id===locId&&k.week===week);
+}
+function _kpThemaTag(t){
+  return `<span class="thema-tag" style="background:${t.color}22;color:${t.color};font-size:11px">${_escH(t.name)}</span>`;
+}
+
+function _kpThemaCell(km,leeftijdsgroep){
+  if(!km)return '<span style="color:var(--text2);font-size:11px">—</span>';
+  const cur=(km.themas||[]).find(t=>t.leeftijdsgroep===leeftijdsgroep&&t.dag==null);
+  const opts=(S.themas||[]).filter(t=>t.leeftijdsgroep===leeftijdsgroep);
+  const selHtml=`<select class="sel" style="height:26px;font-size:11px;max-width:180px" onchange="kpSetThema(${km.id},'${leeftijdsgroep}',parseInt(this.value)||null,this)">
+    <option value="">${cur?'Wijzigen…':'+ Thema toevoegen…'}</option>
+    ${opts.filter(t=>t.id!==(cur?.id)).map(t=>`<option value="${t.id}">${_escH(t.name)}</option>`).join('')}
+  </select>`;
+  if(cur){
+    return `<div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">
+      ${_kpThemaTag(cur)}
+      <button class="btn-xs" style="background:var(--red-bg);color:var(--red);padding:1px 5px" onclick="kpSetThema(${km.id},'${leeftijdsgroep}',null,null)">&#x2715;</button>
+      ${selHtml}
+    </div>`;
+  }
+  return selHtml;
+}
+
+function _kpSportCell(km){
+  if(!km)return '<span style="color:var(--text2);font-size:11px">—</span>';
+  const sets=km.sport_sets||[];
+  const allSets=(_invSport||[]).flatMap(item=>(item.sets||[]).map(s=>({...s,item_naam:item.name})));
+  const geplande=new Set(sets.map(s=>s.set_id));
+  const beschikbaar=allSets.filter(s=>!geplande.has(s.id));
+  const tags=sets.length?Object.entries(sets.reduce((g,s)=>{if(!g[s.item_naam])g[s.item_naam]=[];g[s.item_naam].push(s);return g},{})).map(([naam,ss])=>`<span class="thema-tag" style="background:var(--blue-bg);color:var(--blue);font-size:11px">⚽ ${_escH(naam)}${ss.length>1?' ×'+ss.length:''} ${ss.map(s=>`<button style="background:none;border:none;cursor:pointer;color:var(--red);font-size:10px;padding:0 1px" onclick="kpRemoveSport(${km.id},${s.set_id},${km.week})">✕</button>`).join('')}</span>`).join(''):'';
+  const addSel=beschikbaar.length?`<select class="sel" style="height:26px;font-size:11px;max-width:160px" onchange="kpAddSport(${km.id},${km.locatie_id},${km.week},parseInt(this.value),this)">
+    <option value="">+ Sport toevoegen…</option>
+    ${beschikbaar.map(s=>`<option value="${s.id}">${_escH(s.item_naam)} — ${_escH(s.label)}</option>`).join('')}
+  </select>`:'';
+  return `<div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">${tags}${addSel}</div>`;
+}
+
+async function kpSetThema(kmId,leeftijdsgroep,newThemaId,sel){
+  const km=(S.kampmomenten||[]).find(k=>k.id===kmId);
+  if(!km)return;
+  const existing=(km.themas||[]).find(t=>t.leeftijdsgroep===leeftijdsgroep&&t.dag==null);
+  if(existing) await api('DELETE','/kampmomenten/'+kmId+'/themas/'+existing.id);
+  if(newThemaId) await api('POST','/kampmomenten/'+kmId+'/themas',{thema_id:newThemaId});
+  S.kampmomenten=await api('GET','/kampmomenten');
+  _renderKampMode();
+}
+
+async function kpAddSport(kmId,locId,week,setId,sel){
+  if(!setId)return;
+  await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:locId});
+  S.kampmomenten=await api('GET','/kampmomenten');
+  if(sel)sel.value='';
+  _renderKampMode();
+}
+
+async function kpRemoveSport(kmId,setId,week){
+  await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:null});
+  S.kampmomenten=await api('GET','/kampmomenten');
+  _renderKampMode();
+}
+
+// ── Modus 1: Per locatie ──────────────────────────────────
+function _renderKampLocatie(){
+  const el=document.getElementById('kp-locatie-content');
+  if(!el)return;
+  const locs=_kpKampLocs();
+  const weken=_kpWeken();
+  let html=`<div style="margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+    <label style="font-size:13px;font-weight:600">Locatie:</label>
+    <select class="sel" style="height:30px" onchange="_kampLocId=parseInt(this.value)||null;_renderKampLocatie()">
+      <option value="">Kies een locatie…</option>
+      ${locs.map(l=>`<option value="${l.id}"${l.id===_kampLocId?' selected':''}>${_escH(l.name)}</option>`).join('')}
+    </select>
+  </div>`;
+  if(!_kampLocId){el.innerHTML=html+'<div class="empty">Selecteer een locatie om te beginnen.</div>';return;}
+  html+=`<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px">
+    <thead><tr style="background:var(--bg2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:60px">Week</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:200px">&#128118; Kleuters</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:200px">&#127979; Lagere school</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:180px">&#9917; Sport</th>
+    </tr></thead><tbody>`;
+  weken.forEach(w=>{
+    const km=_kpKm(_kampLocId,w);
+    if(!km)return;
+    html+=`<tr style="border-bottom:.5px solid var(--border)">
+      <td style="padding:8px 10px;font-weight:700;color:var(--text2)">W${w}</td>
+      <td style="padding:6px 10px">${_kpThemaCell(km,'kleuters')}</td>
+      <td style="padding:6px 10px">${_kpThemaCell(km,'lagere school')}</td>
+      <td style="padding:6px 10px">${_kpSportCell(km)}</td>
+    </tr>`;
+  });
+  html+='</tbody></table></div>';
+  el.innerHTML=html;
+}
+
+// ── Modus 2: Per week ────────────────────────────────────
+function _renderKampWeek(){
+  const el=document.getElementById('kp-week-content');
+  if(!el)return;
+  const weken=_kpWeken();
+  const locs=_kpKampLocs();
+  let html=`<div style="margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+    <label style="font-size:13px;font-weight:600">Week:</label>
+    <select class="sel" style="height:30px" onchange="_kampWeek=parseInt(this.value)||null;_renderKampWeek()">
+      <option value="">Kies een week…</option>
+      ${weken.map(w=>`<option value="${w}"${w===_kampWeek?' selected':''}>Week ${w}</option>`).join('')}
+    </select>
+  </div>`;
+  if(!_kampWeek){el.innerHTML=html+'<div class="empty">Selecteer een week om te beginnen.</div>';return;}
+  html+=`<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:13px">
+    <thead><tr style="background:var(--bg2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:140px">Locatie</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:200px">&#128118; Kleuters</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:200px">&#127979; Lagere school</th>
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);min-width:180px">&#9917; Sport</th>
+    </tr></thead><tbody>`;
+  locs.forEach(l=>{
+    const km=_kpKm(l.id,_kampWeek);
+    if(!km)return;
+    html+=`<tr style="border-bottom:.5px solid var(--border)">
+      <td style="padding:8px 10px;font-weight:600">${_escH(l.name)}</td>
+      <td style="padding:6px 10px">${_kpThemaCell(km,'kleuters')}</td>
+      <td style="padding:6px 10px">${_kpThemaCell(km,'lagere school')}</td>
+      <td style="padding:6px 10px">${_kpSportCell(km)}</td>
+    </tr>`;
+  });
+  html+='</tbody></table></div>';
+  el.innerHTML=html;
+}
+
+// ── Modus 3: Per thema ───────────────────────────────────
+function _renderKampThema(){
+  const el=document.getElementById('kp-thema-content');
+  if(!el)return;
+  const themas=(S.themas||[]).filter(t=>!t.parent_id);
+  const weken=_kpWeken();
+  const locs=_kpKampLocs();
+  const cur=themas.find(t=>t.id===_kampThemaId);
+  let html=`<div style="margin-bottom:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <label style="font-size:13px;font-weight:600">Thema:</label>
+    <select class="sel" style="height:30px;min-width:200px" onchange="_kampThemaId=parseInt(this.value)||null;_renderKampThema()">
+      <option value="">Kies een thema…</option>
+      ${themas.map(t=>`<option value="${t.id}"${t.id===_kampThemaId?' selected':''}>${_escH(t.name)}${t.leeftijdsgroep?' ('+t.leeftijdsgroep+')':''}</option>`).join('')}
+    </select>
+    ${cur?`<span class="thema-tag" style="background:${cur.color}22;color:${cur.color}">${_escH(cur.leeftijdsgroep||'alle')}</span>`:''}
+  </div>`;
+  if(!_kampThemaId||!cur){el.innerHTML=html+'<div class="empty">Selecteer een thema om te zien waar het ingepland is.</div>';return;}
+  // Bouw matrix: rijen = locaties, kolommen = weken
+  html+=`<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px">
+    <thead><tr style="background:var(--bg2)">
+      <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);position:sticky;left:0;background:var(--bg2);min-width:140px">Locatie</th>
+      ${weken.map(w=>`<th style="padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);min-width:80px">Week ${w}</th>`).join('')}
+    </tr></thead><tbody>`;
+  locs.forEach(l=>{
+    html+=`<tr style="border-bottom:.5px solid var(--border)">
+      <td style="padding:8px 10px;font-weight:600;position:sticky;left:0;background:var(--bg)">${_escH(l.name)}</td>`;
+    weken.forEach(w=>{
+      const km=_kpKm(l.id,w);
+      if(!km){html+='<td style="padding:6px 10px;text-align:center;color:var(--text2)">—</td>';return;}
+      const isAssigned=(km.themas||[]).some(t=>t.id===_kampThemaId&&t.dag==null);
+      if(isAssigned){
+        html+=`<td style="padding:6px 10px;text-align:center;background:${cur.color}18">
+          <span style="color:${cur.color};font-size:14px;font-weight:700">&#10003;</span>
+          <br><button class="btn-xs" style="font-size:10px;background:var(--red-bg);color:var(--red);margin-top:2px" onclick="kpSetThema(${km.id},'${cur.leeftijdsgroep||''}',null,null)">Verwijder</button>
+        </td>`;
+      } else {
+        html+=`<td style="padding:6px 10px;text-align:center">
+          <button class="btn-xs" style="font-size:11px" onclick="kpSetThema(${km.id},'${cur.leeftijdsgroep||''}',${cur.id},null)">+ Inplannen</button>
+        </td>`;
+      }
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  el.innerHTML=html;
 }
 async function renderSportPlanningGrid(){
   const el=document.getElementById('sport-planning-grid');
