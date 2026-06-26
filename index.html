@@ -3956,7 +3956,10 @@ function _q(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").rep
 // LOCATIES
 function renderLocaties(){
   if(!document.getElementById('loc-list')){renderLocatiesTab();return;}
-  document.getElementById('loc-list').innerHTML=S.locaties.map(l=>{
+  // Sub-locaties (parent_id!=null) niet in hoofdlijst tonen
+  const hoofdLocs=S.locaties.filter(l=>!l.parent_id);
+  const subVan=pid=>S.locaties.filter(l=>l.parent_id==pid);
+  document.getElementById('loc-list').innerHTML=hoofdLocs.map(l=>{
     const hasCoords = l.lat && l.lng;
     if(editingLoc===l.id) return `
       <div class="row editing" style="flex-direction:column;gap:6px;align-items:stretch">
@@ -3977,6 +3980,8 @@ function renderLocaties(){
           <button class="bi" onclick="editingLoc=null;renderLocaties()">&#x2715;</button>
         </div>
       </div>`;
+    const subs=subVan(l.id);
+    const subHtml=subs.length?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">${subs.map(s=>`<span style="font-size:11px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;color:var(--text2)">↳ ${_escH(s.name)}</span>`).join('')}</div>`:'';
     return `<div class="row">
       <span>${l.type==='stockage'?'📦':'⛺'}</span>
       <div class="ri">
@@ -3984,6 +3989,7 @@ function renderLocaties(){
         <div class="rs">${l.addr||'Geen adres'} · <span class="pill ${l.type==='stockage'?'p-stock':'p-green'}">${l.type==='stockage'?'Stockage':'Kamplocatie'}</span>${l.type==='stockage'&&l.stockage_rol&&l.stockage_rol!=='beide'?` <span class="pill p-blue">${l.stockage_rol==='sport'?'⚽ Sport':'🎨 Thema'}</span>`:''}</div>
         ${l.contact_naam||l.contact_tel?`<div class="loc-contact">${l.contact_naam?'<span>👤 '+l.contact_naam+'</span>':''}${l.contact_tel?'<a href="tel:'+l.contact_tel+'">📱 '+l.contact_tel+'</a>':''}</div>`:''}
         ${l.notities?`<div style="font-size:10px;color:var(--text3);margin-top:1px">📝 ${l.notities}</div>`:''}
+        ${subHtml}
       </div>
       <div class="ra">
         <button class="bi" title="Geschiedenis" onclick="openLocGeschiedenis(${l.id},${_q(l.name)})">&#128221;</button>
