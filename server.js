@@ -553,6 +553,17 @@ async function startServer() {
     } catch(e) { console.error('  Migratie 21+22 fout (niet-fataal):', e.message); }
   }
 
+  // Migration 23: transporten uit oude database wissen (eenmalig)
+  const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
+  const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
+  if(_trCount>0||_ttCount>0){
+    try{
+      ['verhuis_checks','transport_regels','transport_taken','transport_ritten','verplaatsingen']
+        .forEach(t=>{try{run(`DELETE FROM ${t}`);}catch(e){}});
+      console.log('  Migratie 23: transport- en verplaatsingsdata gewist');
+    }catch(e){console.error('  Migratie 23 fout (niet-fataal):',e.message);}
+  }
+
   saveDb();
 
 
