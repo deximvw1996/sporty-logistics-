@@ -1233,6 +1233,45 @@ async function startServer() {
     }
   }
 
+  // Migration 37: themedagen zaaien uit PDF-bundels (thema_type='themadag')
+  {
+    const _sp37=path.join(__dirname,'data','themedagen-bakken-seed.json');
+    if(fs.existsSync(_sp37)){
+      let _seed37=[];
+      try{_seed37=JSON.parse(fs.readFileSync(_sp37,'utf8'));}catch(e){console.error('  Migratie 37: JSON onleesbaar:',e.message);}
+      let _tAdded37=0,_bAdded37=0,_iAdded37=0;
+      for(const t of _seed37){
+        if(!t.thema_naam||!t.thema_naam.trim()) continue;
+        let tRow=get('SELECT id FROM themas WHERE name=? AND thema_type=?',[t.thema_naam,'themadag']);
+        if(!tRow){
+          const tId=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
+            [t.thema_naam,'#8E44AD',t.leeftijdsgroep||'','themadag']);
+          tRow={id:tId};
+          _tAdded37++;
+        }
+        // Wis bestaande bakken
+        const _bb37=all('SELECT id FROM thema_bakken WHERE thema_id=?',[tRow.id]);
+        if(_bb37.length>0){
+          const _bIds=_bb37.map(r=>r.id);
+          run(`DELETE FROM bak_items WHERE bak_id IN (${_bIds.map(()=>'?').join(',')})`,_bIds);
+          run('DELETE FROM thema_bakken WHERE thema_id=?',[tRow.id]);
+        }
+        (t.bakken||[]).forEach((bak,idx)=>{
+          const bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
+            [tRow.id,bak.label||'',bak.code||'',t.leeftijdsgroep||'',idx]);
+          _bAdded37++;
+          (bak.items||[]).forEach(itNaam=>{
+            if(!itNaam||!itNaam.trim()) return;
+            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,1,\'stuk\',null,0,1,0,0)',
+              [bakId,itNaam.trim()]);
+            _iAdded37++;
+          });
+        });
+      }
+      if(_tAdded37>0)console.log(`  Migratie 37: ${_tAdded37} themadagen gezaaid (${_bAdded37} bakken, ${_iAdded37} items)`);
+    }
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
