@@ -1196,6 +1196,43 @@ async function startServer() {
     }
   }
 
+  // Migration 36: echte bakken + items uit PDF-bundels zaaien (vervangt nep-items)
+  {
+    const _sp36=path.join(__dirname,'data','thema-bakken-seed.json');
+    if(fs.existsSync(_sp36)){
+      let _seed36=[];
+      try{_seed36=JSON.parse(fs.readFileSync(_sp36,'utf8'));}catch(e){console.error('  Migratie 36: JSON onleesbaar:',e.message);}
+      let _tUpd36=0,_bAdded36=0,_iAdded36=0;
+      for(const t of _seed36){
+        if(!Array.isArray(t.bakken)||t.bakken.length===0) continue;
+        const tRow=get('SELECT id FROM themas WHERE name=?',[t.naam]);
+        if(!tRow) continue;
+        // Wis bestaande bakken + items voor dit thema
+        const _bestaandeBakken=all('SELECT id FROM thema_bakken WHERE thema_id=?',[tRow.id]);
+        if(_bestaandeBakken.length>0){
+          const _bIds=_bestaandeBakken.map(r=>r.id);
+          const _bPh=_bIds.map(()=>'?').join(',');
+          run(`DELETE FROM bak_items WHERE bak_id IN (${_bPh})`,_bIds);
+          run(`DELETE FROM thema_bakken WHERE thema_id=?`,[tRow.id]);
+        }
+        // Voeg echte bakken in
+        t.bakken.forEach((bak,idx)=>{
+          const bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
+            [tRow.id,bak.label||'',bak.code||'',t.leeftijdsgroep||'',idx]);
+          _bAdded36++;
+          (bak.items||[]).forEach(itNaam=>{
+            if(!itNaam||!itNaam.trim()) return;
+            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,1,\'stuk\',null,0,1,0,0)',
+              [bakId,itNaam.trim()]);
+            _iAdded36++;
+          });
+        });
+        _tUpd36++;
+      }
+      if(_tUpd36>0)console.log(`  Migratie 36: ${_tUpd36} themas bijgewerkt met echte bakken (${_bAdded36} bakken, ${_iAdded36} items)`);
+    }
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
