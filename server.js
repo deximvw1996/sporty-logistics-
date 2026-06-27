@@ -1159,6 +1159,22 @@ async function startServer() {
     }
   }
 
+  // Migration 34: ontbrekende item_types toevoegen
+  {
+    const _extra34=[
+      ['sport','Helm','stuk'],
+      ['sport','Trampoline','stuk'],
+      ['sport','Lasso','stuk'],
+      ['knutsel','Krijt (knutsel)','stuk'],
+      ['rekwisiet','Ballon','stuk'],
+    ];
+    for(const [cat,naam,eenheid] of _extra34){
+      if(!get('SELECT id FROM item_types WHERE naam=?',[naam])){
+        ins('INSERT INTO item_types (naam,eenheid,categorie) VALUES (?,?,?)',[naam,eenheid,cat]);
+      }
+    }
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
