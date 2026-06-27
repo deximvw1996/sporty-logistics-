@@ -1175,6 +1175,27 @@ async function startServer() {
     }
   }
 
+  // Migration 35: update leeftijdsgroep + thema_type voor alle themas uit de seed (ook bestaande)
+  {
+    const _seedPath35=path.join(__dirname,'data','themas-seed.json');
+    if(fs.existsSync(_seedPath35)){
+      let _tSeed35=[];
+      try{_tSeed35=JSON.parse(fs.readFileSync(_seedPath35,'utf8'));}catch(e){}
+      let _upd35=0;
+      for(const t of _tSeed35){
+        const res=get('SELECT id,leeftijdsgroep,thema_type FROM themas WHERE name=?',[t.naam]);
+        if(res){
+          const needsUpdate=(res.leeftijdsgroep!==t.leeftijdsgroep)||(res.thema_type!==t.thema_type);
+          if(needsUpdate){
+            run('UPDATE themas SET leeftijdsgroep=?,thema_type=? WHERE id=?',[t.leeftijdsgroep||'',t.thema_type||'eigen',res.id]);
+            _upd35++;
+          }
+        }
+      }
+      if(_upd35>0)console.log(`  Migratie 35: ${_upd35} themas bijgewerkt (leeftijdsgroep/thema_type)`);
+    }
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
