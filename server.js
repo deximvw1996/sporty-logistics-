@@ -1204,10 +1204,9 @@ async function startServer() {
       try{_seed36=JSON.parse(fs.readFileSync(_sp36,'utf8'));}catch(e){console.error('  Migratie 36: JSON onleesbaar:',e.message);}
       let _tUpd36=0,_bAdded36=0,_iAdded36=0;
       for(const t of _seed36){
-        if(!Array.isArray(t.bakken)||t.bakken.length===0) continue;
         const tRow=get('SELECT id FROM themas WHERE name=?',[t.naam]);
         if(!tRow) continue;
-        // Wis bestaande bakken + items voor dit thema
+        // Wis altijd bestaande bakken + items voor dit thema (ook als geen PDF bestaat)
         const _bestaandeBakken=all('SELECT id FROM thema_bakken WHERE thema_id=?',[tRow.id]);
         if(_bestaandeBakken.length>0){
           const _bIds=_bestaandeBakken.map(r=>r.id);
@@ -1215,6 +1214,7 @@ async function startServer() {
           run(`DELETE FROM bak_items WHERE bak_id IN (${_bPh})`,_bIds);
           run(`DELETE FROM thema_bakken WHERE thema_id=?`,[tRow.id]);
         }
+        if(!Array.isArray(t.bakken)||t.bakken.length===0){_tUpd36++;continue;}
         // Voeg echte bakken in
         t.bakken.forEach((bak,idx)=>{
           const bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
