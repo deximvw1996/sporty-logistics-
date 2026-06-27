@@ -1111,6 +1111,54 @@ async function startServer() {
     }
   }
 
+  // Migration 33: verwijder nep-themas (thema_type 'eigen'/'eigen_standaard' van de oude seed),
+  // voeg echte themas toe vanuit data/themas-seed.json (opnieuw seeden met echte namen)
+  {
+    // Stap 1: verwijder alle themas die door de nep-seed zijn aangemaakt
+    // Originele 5 themas hebben thema_type='' (lege string, voor de kolom bestond)
+    // Nep-seed heeft thema_type='eigen' of 'eigen_standaard'
+    const _nepIds=all("SELECT id FROM themas WHERE thema_type IN ('eigen','eigen_standaard')").map(r=>r.id);
+    if(_nepIds.length>0){
+      const _placeholders=_nepIds.map(()=>'?').join(',');
+      // Verwijder bak_items voor deze themas
+      const _bakIds=all(`SELECT id FROM thema_bakken WHERE thema_id IN (${_placeholders})`,_nepIds).map(r=>r.id);
+      if(_bakIds.length>0){
+        const _bp=_bakIds.map(()=>'?').join(',');
+        run(`DELETE FROM bak_items WHERE bak_id IN (${_bp})`,_bakIds);
+      }
+      run(`DELETE FROM thema_bakken WHERE thema_id IN (${_placeholders})`,_nepIds);
+      run(`DELETE FROM themas WHERE id IN (${_placeholders})`,_nepIds);
+      console.log(`  Migratie 33: ${_nepIds.length} nep-themas verwijderd`);
+    }
+    // Stap 2: voeg echte themas toe (zelfde seed-logica als migration 32)
+    const _seedPath33=path.join(__dirname,'data','themas-seed.json');
+    if(fs.existsSync(_seedPath33)){
+      let _tSeed33=[];
+      try{_tSeed33=JSON.parse(fs.readFileSync(_seedPath33,'utf8'));}catch(e){console.error('  Migratie 33: seed JSON onleesbaar:',e.message);}
+      const _itMap33={};
+      all('SELECT id,naam FROM item_types').forEach(t=>{_itMap33[t.naam.toLowerCase()]=t.id;});
+      let _tAdded33=0,_biAdded33=0;
+      for(const t of _tSeed33){
+        const bestaand33=get('SELECT id FROM themas WHERE name=?',[t.naam]);
+        if(bestaand33) continue;
+        const tId33=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
+          [t.naam,t.color||'#3498DB',t.leeftijdsgroep||'',t.thema_type||'eigen']);
+        const bakId33=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
+          [tId33,'Materiaallijst','',t.leeftijdsgroep||'',0]);
+        _tAdded33++;
+        if(Array.isArray(t.items)){
+          t.items.forEach((itNaam)=>{
+            const typeId33=_itMap33[itNaam.toLowerCase()]||null;
+            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,?,?,?,0,1,0,0)',
+              [bakId33,itNaam,1,'stuk',typeId33]);
+            _biAdded33++;
+          });
+        }
+      }
+      if(_tAdded33>0)console.log(`  Migratie 33: ${_tAdded33} echte themas gezaaid, ${_biAdded33} items ingevoegd`);
+    }
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
