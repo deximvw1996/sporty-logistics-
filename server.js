@@ -1272,6 +1272,172 @@ async function startServer() {
     }
   }
 
+  // Migration 38: standaarddozen + locatie-eigenschappen
+  {
+    createTableIfMissing(`CREATE TABLE IF NOT EXISTS standaard_dozen (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      naam TEXT NOT NULL UNIQUE,
+      opslagcode TEXT DEFAULT '',
+      conditie_type TEXT DEFAULT 'altijd',
+      conditie_waarde TEXT DEFAULT '',
+      qty_default INTEGER DEFAULT 1,
+      volgorde INTEGER DEFAULT 0
+    )`);
+    createTableIfMissing(`CREATE TABLE IF NOT EXISTS standaard_doos_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      doos_id INTEGER NOT NULL,
+      naam TEXT NOT NULL,
+      qty INTEGER DEFAULT 1,
+      eenheid TEXT DEFAULT 'stuk',
+      verbruik INTEGER DEFAULT 0,
+      was_item INTEGER DEFAULT 0,
+      FOREIGN KEY(doos_id) REFERENCES standaard_dozen(id) ON DELETE CASCADE
+    )`);
+    createTableIfMissing(`CREATE TABLE IF NOT EXISTS locatie_doos_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      locatie_id INTEGER NOT NULL,
+      doos_id INTEGER NOT NULL,
+      qty INTEGER,
+      actief INTEGER DEFAULT 1,
+      UNIQUE(locatie_id, doos_id),
+      FOREIGN KEY(locatie_id) REFERENCES locaties(id) ON DELETE CASCADE,
+      FOREIGN KEY(doos_id) REFERENCES standaard_dozen(id) ON DELETE CASCADE
+    )`);
+    addColumnIfMissing('locaties','heeft_eigen_sportmateriaal',"INTEGER DEFAULT 0");
+    addColumnIfMissing('locaties','heeft_eigen_oven',"INTEGER DEFAULT 0");
+    // Zaai de 7 standaarddozen
+    const _dozen38=[
+      {naam:'EHBO Koffer',opslagcode:'',conditie_type:'altijd',conditie_waarde:'',qty_default:1,volgorde:1,items:[
+        {naam:'Ontsmettingsmiddel',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Kompressen',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Pleisters',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Windel',qty:1,eenheid:'stuk',verbruik:1,was_item:0},
+        {naam:'Slotjes',qty:1,eenheid:'stuk',verbruik:1,was_item:0},
+        {naam:'Tape',qty:1,eenheid:'rol',verbruik:1,was_item:0},
+        {naam:'Brandwondenzalf',qty:1,eenheid:'tube',verbruik:1,was_item:0},
+        {naam:'Zalf tegen insectenbeten',qty:1,eenheid:'tube',verbruik:1,was_item:0},
+        {naam:'Coldpacks',qty:2,eenheid:'stuk',verbruik:1,was_item:0},
+        {naam:'Schaartje',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Pincet',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Thermometer',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+      ]},
+      {naam:'Kuisbak',opslagcode:'',conditie_type:'locatie',conditie_waarde:'kuisbak',qty_default:1,volgorde:2,items:[
+        {naam:'Allesreiniger',qty:1,eenheid:'bus',verbruik:1,was_item:0},
+        {naam:'Keukenhanddoeken',qty:2,eenheid:'stuk',verbruik:1,was_item:0},
+        {naam:'Afwasproduct',qty:1,eenheid:'bus',verbruik:1,was_item:0},
+        {naam:'Emmer',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'WC-product',qty:1,eenheid:'bus',verbruik:1,was_item:0},
+        {naam:'Keukenrol',qty:1,eenheid:'rol',verbruik:1,was_item:0},
+        {naam:'WC-papier',qty:1,eenheid:'rol',verbruik:1,was_item:0},
+        {naam:'Borstels',qty:2,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'WC-borstel',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Aftrekkers',qty:2,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Handzeep (klein)',qty:6,eenheid:'busje',verbruik:1,was_item:0},
+        {naam:'Vuilblik',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Refill handzeep (groot)',qty:1,eenheid:'bus',verbruik:1,was_item:0},
+        {naam:'Handdoekjes',qty:2,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Dweilen',qty:4,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Allesreiniger spray',qty:1,eenheid:'bus',verbruik:1,was_item:0},
+        {naam:'Schotelvodden',qty:2,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Blauwe vuilniszakken',qty:1,eenheid:'rol',verbruik:1,was_item:0},
+        {naam:'Doorzichtige vuilzakken',qty:1,eenheid:'rol',verbruik:1,was_item:0},
+      ]},
+      {naam:'Afwasbak',opslagcode:'',conditie_type:'thema',conditie_waarde:'kookactiviteit',qty_default:1,volgorde:3,items:[
+        {naam:'Afwasmiddel',qty:1,eenheid:'bus',verbruik:1,was_item:0},
+        {naam:'Vodden',qty:6,eenheid:'stuk',verbruik:0,was_item:1},
+        {naam:'Sponsjes',qty:6,eenheid:'stuk',verbruik:1,was_item:0},
+        {naam:'Keukenhanddoeken (afwas)',qty:10,eenheid:'stuk',verbruik:0,was_item:1},
+        {naam:'Kookschorten',qty:20,eenheid:'stuk',verbruik:0,was_item:1},
+      ]},
+      {naam:'Sportkoffer Kleuters',opslagcode:'',conditie_type:'leeftijdsgroep',conditie_waarde:'kleuters',qty_default:1,volgorde:4,items:[]},
+      {naam:'Sportkoffer Lagere School',opslagcode:'',conditie_type:'leeftijdsgroep',conditie_waarde:'lagere school',qty_default:1,volgorde:5,items:[
+        {naam:'Potjes',qty:40,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Kegels',qty:10,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Partijvesten',qty:10,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Pittenzakken',qty:20,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Kleine hoepels',qty:20,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Tennisballen',qty:20,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Kleine mousseballen',qty:20,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Gekleurde touwtjes',qty:20,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Frisbees',qty:10,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Dik trektouw',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Toversnoer',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Baseballbat',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Tennisracket',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Voetbal',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Mousse bal',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Rugby bal',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Dobbelstenen',qty:2,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Verlengkabel',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Parachute',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Ballonnen',qty:1,eenheid:'zakje',verbruik:1,was_item:0},
+        {naam:'Fit-o-meter (map sportoefeningen)',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+      ]},
+      {naam:'Creakoffer Kampen',opslagcode:'',conditie_type:'locatie',conditie_waarde:'creakoffer',qty_default:1,volgorde:6,items:[
+        {naam:'Vloeibare lijm',qty:1,eenheid:'fles',verbruik:1,was_item:0},
+        {naam:'Lijmstiften',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Behangerslijm',qty:1,eenheid:'pot',verbruik:1,was_item:0},
+        {naam:'Stiften',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Penselen',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Touw',qty:1,eenheid:'bol',verbruik:1,was_item:0},
+        {naam:'Nietjesmachine',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Perforator',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Nietjes',qty:1,eenheid:'doos',verbruik:1,was_item:0},
+        {naam:'Scharen',qty:16,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Gommen',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Slijpers',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Plakband',qty:1,eenheid:'rol',verbruik:1,was_item:0},
+        {naam:'WC-rolletjes',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Wasco\'s',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Plastic tafeldoeken',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Kleurpotloden',qty:1,eenheid:'set',verbruik:1,was_item:0},
+        {naam:'Plastic potjes voor verf',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Verf T-shirts',qty:20,eenheid:'stuk',verbruik:0,was_item:1},
+        {naam:'Wit en gekleurd papier',qty:1,eenheid:'pak',verbruik:1,was_item:0},
+      ]},
+      {naam:'Kleuterkriebels',opslagcode:'',conditie_type:'programma',conditie_waarde:'kleuterkriebels',qty_default:1,volgorde:7,items:[
+        {naam:'Houten puzzels',qty:5,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Mand met boeken',qty:1,eenheid:'mand',verbruik:0,was_item:0},
+        {naam:'Grote kartonnen buizen',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Plastic bekers',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Schoendozen',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Eierdozen',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Bak met bonen',qty:1,eenheid:'bak',verbruik:0,was_item:0},
+        {naam:'Bak met schelpen/flessendoppen/veters/glazen steentjes',qty:1,eenheid:'bak',verbruik:0,was_item:0},
+        {naam:'Ondiepe plastic bakken',qty:2,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Automat',qty:1,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Invitations to play (gelamineerd)',qty:3,eenheid:'stuk',verbruik:0,was_item:0},
+        {naam:'Bak houten ringen/stokjes/poppetjes/regenboog',qty:1,eenheid:'bak',verbruik:0,was_item:0},
+        {naam:'Houten reuzedomino',qty:1,eenheid:'set',verbruik:0,was_item:0},
+        {naam:'Emmer noppers',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer houten blokken',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer natuurblokken',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer autootjes',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer dieren',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer wc-rollen',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer pingpongballetjes',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer stukken stof',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer wasknijpers/bekers/schepjes',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer keukenspulletjes',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer dennenappels',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+        {naam:'Emmer plasticine',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
+      ]},
+    ];
+    for(const doos of _dozen38){
+      let doosRow=get('SELECT id FROM standaard_dozen WHERE naam=?',[doos.naam]);
+      if(!doosRow){
+        const doosId=ins('INSERT INTO standaard_dozen (naam,opslagcode,conditie_type,conditie_waarde,qty_default,volgorde) VALUES (?,?,?,?,?,?)',
+          [doos.naam,doos.opslagcode||'',doos.conditie_type,doos.conditie_waarde,doos.qty_default,doos.volgorde]);
+        doosRow={id:doosId};
+        for(const item of doos.items){
+          ins('INSERT INTO standaard_doos_items (doos_id,naam,qty,eenheid,verbruik,was_item) VALUES (?,?,?,?,?,?)',
+            [doosRow.id,item.naam,item.qty,item.eenheid,item.verbruik,item.was_item]);
+        }
+      }
+    }
+    console.log('  Migratie 38: standaarddozen + locatie-eigenschappen klaar');
+  }
+
   // Migration 23: transporten uit oude database wissen (eenmalig)
   const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
   const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
