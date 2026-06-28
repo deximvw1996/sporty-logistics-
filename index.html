@@ -5455,7 +5455,7 @@ async function renderLocatieDetail(){
     </div>
     ${l.lat&&l.lng?'<div id="loc-detail-map" style="height:190px;border-radius:var(--rl);margin-top:.75rem;overflow:hidden"></div>':'<div style="font-size:11px;color:var(--text3);margin-top:8px">○ Geen kaartcoördinaten — bewerk de locatie en gebruik 📍.</div>'}
   </div>`;
-  // Standaarddozen + locatie-eigenschappen (alleen kamplocatie)
+  // Locatie-instellingen: eigenschappen + standaarddozen + standaardmateriaal (alleen kamplocatie)
   if(isKamp){
     let dozen=[];
     try{dozen=await api('GET','/standaard-dozen');}catch(e){}
@@ -5463,8 +5463,10 @@ async function renderLocatieDetail(){
     try{locConfig=await api('GET',`/locatie-doos-config/${l.id}`);}catch(e){}
     const cfgByDoos={};locConfig.forEach(c=>{cfgByDoos[c.doos_id]=c;});
     h+=`<div class="card" style="margin-top:.75rem">
-      <div class="card-hd">📦 Standaarddozen &amp; locatie-eigenschappen</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+      <div class="card-hd">⚙️ Locatie-instellingen</div>
+
+      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Eigenschappen</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px">
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
           <input type="checkbox" ${l.heeft_eigen_sportmateriaal?'checked':''} onchange="saveLocEigenschap(${l.id},'heeft_eigen_sportmateriaal',this.checked)">
           Heeft eigen sportmateriaal
@@ -5474,7 +5476,9 @@ async function renderLocatieDetail(){
           Heeft eigen oven
         </label>
       </div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Vink uit als een doos niet naar deze locatie moet. Standaard = automatisch op basis van conditie.</div>
+
+      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Standaarddozen</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Vink uit als een doos niet naar deze locatie moet.</div>
       ${dozen.map(d=>{
         const cfg=cfgByDoos[d.id];
         const condLabel={altijd:'altijd',leeftijdsgroep:`leeftijd: ${d.conditie_waarde}`,thema:'als kookactiviteit',programma:'als kleuterkriebels',locatie:'locatie-instelling'}[d.conditie_type]||'';
@@ -5491,6 +5495,10 @@ async function renderLocatieDetail(){
           <input type="number" value="${qty}" min="1" style="width:44px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="setDoosQty(${l.id},${d.id},this.value)">
         </div>`;
       }).join('')}
+
+      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-top:14px;margin-bottom:4px">Standaardmateriaal</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Materiaal dat altijd op deze locatie aanwezig hoort te zijn (EHBO, muziekbox…).</div>
+      <div id="lm-body-${l.id}">${_locMatRowsHTML(l.id)}</div>
     </div>`;
   }
   // Kampmomenten (alleen kamplocatie)
@@ -5520,12 +5528,6 @@ async function renderLocatieDetail(){
       }
       h+='</div>';
     }
-    // Standaardmateriaal
-    h+=`<div class="card" style="margin-top:.75rem">
-      <div class="card-hd">📦 Standaardmateriaal</div>
-      <div style="font-size:11px;color:var(--text2);padding:6px 8px;background:var(--bg2);border-radius:var(--r);margin-bottom:10px">ℹ️ Materiaal dat altijd op deze locatie aanwezig hoort te zijn (EHBO, muziekbox…).</div>
-      <div id="lm-body-${l.id}">${_locMatRowsHTML(l.id)}</div>
-    </div>`;
   }
   // Kleurenborden (alleen kamplocatie)
   if(isKamp){

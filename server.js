@@ -2041,6 +2041,7 @@ async function startServer() {
     const kts=all('SELECT * FROM kampmoment_themas');
     const kalDagen=all('SELECT * FROM kalender_dagen');
     const gelotenDagen=all('SELECT * FROM gesloten_dagen').map(g=>g.datum);
+    const allKleuren=all('SELECT * FROM locatie_kleuren');
     const stockage=locs.filter(l=>l.type==='stockage');
 
     // Typed stockage: basis/sport → Kantoor, thema → Rozenweg
@@ -2097,7 +2098,11 @@ async function startServer() {
         if(!isOpvolgend){
           // Eerste week: lever per stockage-groep
           const prevD=prevWorkday(openDagen[0]);
-          Object.entries(byStockage(basisRegels)).forEach(([sid,mat])=>{
+          // Kleurenborden voor deze locatie+week meesturen met basislevering
+          const kleuren=allKleuren.filter(k=>k.locatie_id==loc.id&&k.week===km.week);
+          const kleurenRegels=kleuren.map(k=>({naam:`Kleurenbord ${k.kleur} ×${k.aantal}`,qty:k.aantal,soort:'basis',stockage_id:sportStockageId}));
+          const basisPlusKleuren=[...basisRegels,...kleurenRegels];
+          Object.entries(byStockage(basisPlusKleuren)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'08:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering basis week '+km.week+' — '+loc.name+(sLoc?' (van '+sLoc.name+')':'')});
           });
