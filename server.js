@@ -1304,6 +1304,23 @@ async function startServer() {
   // Migration 39: heeft_kookactiviteit op themas
   addColumnIfMissing('themas','heeft_kookactiviteit',"INTEGER DEFAULT 0");
 
+  // Migration 41: sport_items zonder sets krijgen automatisch 1 set
+  // (de letter/code in de naam IS de set-identifier, bv. "Archery tag A" = set "A" van "Archery tag")
+  {
+    const _itemsZonderSet=all(`SELECT si.id,si.name,si.stockage_locatie_id FROM sport_items si
+      WHERE NOT EXISTS (SELECT 1 FROM sport_sets ss WHERE ss.item_id=si.id)`);
+    if(_itemsZonderSet.length>0){
+      _itemsZonderSet.forEach(si=>{
+        // Label = laatste woord als het 1-3 letters/cijfers is, anders "1"
+        const parts=si.name.trim().split(/\s+/);
+        const lastWord=parts[parts.length-1];
+        const label=/^[A-Z0-9]{1,3}$/.test(lastWord)?lastWord:'1';
+        ins('INSERT INTO sport_sets (item_id,label,locatie_id) VALUES (?,?,?)',[si.id,label,si.stockage_locatie_id||null]);
+      });
+      console.log(`  Migratie 41: ${_itemsZonderSet.length} sport_sets aangemaakt`);
+    }
+  }
+
   // Migration 38: standaarddozen + locatie-eigenschappen
   {
     createTableIfMissing(`CREATE TABLE IF NOT EXISTS standaard_dozen (
