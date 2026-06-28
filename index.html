@@ -541,8 +541,12 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div id="kp-rooster-content">
       <div style="display:flex;gap:6px;margin-bottom:.7rem;align-items:center;flex-wrap:wrap">
         <button class="btn-xs" onclick="toggleRoosterCompact()">&#128203; Compact</button>
+        <span style="font-size:11px;color:var(--text2)">Klik een cel om details te zien en te bewerken.</span>
       </div>
-      <div id="rooster-content-kp"></div>
+      <div style="display:flex;gap:1rem;align-items:flex-start">
+        <div style="flex:1 1 0;min-width:0;overflow-x:auto"><div id="rooster-content-kp"></div></div>
+        <div id="kp-detail-panel" style="display:none;flex:0 0 320px;max-width:320px;border:.5px solid var(--border);border-radius:var(--r);background:var(--bg);padding:10px;font-size:12px"></div>
+      </div>
     </div>
     <div id="kp-locatie-content" style="display:none"></div>
     <div id="kp-week-content" style="display:none"></div>
@@ -1497,14 +1501,129 @@ function renderRooster(targetId){
         } else {
           inner = ths.length?ths.map(t=>`<span class="thema-tag" style="background:${t.color}22;color:${t.color};display:block;margin:1px 0;white-space:normal">${_escH(t.name)}</span>`).join(''):'<span style="color:var(--text3);font-size:10px">geen thema</span>';
         }
-        row+=`<td class="rooster-cell vol" onclick="openBewerkKampmoment(${km.id})" title="${_attrH(namen||'Bewerk kampmoment')}">${inner}</td>`;
+        const clickFn = (targetId==='rooster-content-kp')
+          ? `selectKpCell(${km.id})`
+          : `openBewerkKampmoment(${km.id})`;
+        row+=`<td class="rooster-cell vol" onclick="${clickFn}" title="${_attrH(namen||'Bewerk kampmoment')}">${inner}</td>`;
       } else {
-        row+=`<td class="rooster-cell leeg" onclick="openNieuwKampmoment(${l.id},${w})" title="Kampmoment toevoegen (week ${w})">+</td>`;
+        const clickFn = (targetId==='rooster-content-kp')
+          ? `openNieuwKampmoment(${l.id},${w})`
+          : `openNieuwKampmoment(${l.id},${w})`;
+        row+=`<td class="rooster-cell leeg" onclick="${clickFn}" title="Kampmoment toevoegen (week ${w})">+</td>`;
       }
     }
     body+=`<tr>${row}</tr>`;
   });
   el.innerHTML=`<div style="overflow-x:auto"><table class="rooster-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+// ── KP DETAIL PANEEL ──
+let _kpSelKmId=null;
+async function selectKpCell(kmId){
+  _kpSelKmId=kmId;
+  // Markeer geselecteerde cel
+  document.querySelectorAll('#rooster-content-kp .rooster-cell').forEach(c=>{
+    c.style.outline = c.getAttribute('onclick')===`selectKpCell(${kmId})` ? '2px solid var(--green)' : '';
+  });
+  const panel=document.getElementById('kp-detail-panel');
+  if(!panel) return;
+  panel.style.display='block';
+  panel.innerHTML='<div class="loading">Laden…</div>';
+  try {
+    const [dozen] = await Promise.all([
+      api('GET',`/kampmoment-dozen/${kmId}`)
+    ]);
+    const km=(S.kampmomenten||[]).find(k=>k.id===kmId);
+    const loc=(S.locaties||[]).find(l=>l.id===km?.locatie_id);
+    const ths=km?.themas||[];
+    // Themabakken ophalen
+    let bakken=[];
+    for(const t of ths){
+      const b=await api('GET',`/themas/${t.id}/bakken`);
+      if(Array.isArray(b)) bakken.push(...b.map(bk=>({...bk,thema:t.name,themaColor:t.color})));
+    }
+    let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong style="font-size:13px">${_escH(loc?.name||'')} — Week ${km?.week||''}</strong>
+      <button class="btn-xs" onclick="openBewerkKampmoment(${kmId})">✏️ Bewerk</button>
+    </div>`;
+
+    // Thema's
+    html+=`<div style="margin-bottom:8px">`;
+    if(ths.length){
+      ths.forEach(t=>{
+        html+=`<span class="thema-tag" style="background:${t.color}22;color:${t.color};display:inline-block;margin:2px 2px 2px 0">${_escH(t.name)}</span>`;
+      });
+    } else {
+      html+=`<span style="color:var(--text3)">Geen thema gekoppeld</span>`;
+    }
+    html+=`</div>`;
+
+    // Locatie-eigenschappen
+    html+=`<div style="margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:var(--r);font-size:11px">
+      <strong style="font-size:11px;color:var(--text2)">LOCATIE-EIGENSCHAPPEN</strong><br>
+      <label style="display:flex;align-items:center;gap:5px;margin-top:4px;cursor:pointer">
+        <input type="checkbox" ${loc?.heeft_eigen_sportmateriaal?'checked':''} onchange="saveLocEigenschap(${loc?.id},'heeft_eigen_sportmateriaal',this.checked)">
+        Heeft eigen sportmateriaal
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;margin-top:2px;cursor:pointer">
+        <input type="checkbox" ${loc?.heeft_eigen_oven?'checked':''} onchange="saveLocEigenschap(${loc?.id},'heeft_eigen_oven',this.checked)">
+        Heeft eigen oven
+      </label>
+    </div>`;
+
+    // Standaard dozen
+    html+=`<div style="margin-bottom:8px">
+      <strong style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Standaarddozen</strong>`;
+    (dozen||[]).forEach(d=>{
+      const icon=d.actief?'✅':'⬜';
+      const override=d.heeft_override?'<span style="font-size:9px;color:var(--text3)">(override)</span>':'';
+      const condLabel={altijd:'altijd',leeftijdsgroep:`leeftijd: ${d.conditie_waarde}`,thema:'als kookactiviteit',programma:'als kleuterkriebels',locatie:'locatie-instelling'}[d.conditie_type]||'';
+      html+=`<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:.5px solid var(--border)">
+        <input type="checkbox" ${d.actief?'checked':''} onchange="toggleDoos(${loc?.id},${d.id},this.checked,${kmId})">
+        <div style="flex:1">
+          <span style="${d.actief?'':'color:var(--text3)'}">${_escH(d.naam)}</span>
+          ${d.opslagcode?`<span style="font-size:9px;font-weight:600;color:var(--green-dk);margin-left:4px">${_escH(d.opslagcode)}</span>`:''}
+          ${override}
+          <div style="font-size:9px;color:var(--text3)">${condLabel}</div>
+        </div>
+        <span style="font-size:10px;color:var(--text2)">×${d.qty_effectief}</span>
+      </div>`;
+    });
+    html+=`</div>`;
+
+    // Themabakken
+    if(bakken.length){
+      html+=`<div><strong style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Themabakken</strong>`;
+      bakken.forEach(bk=>{
+        if(!bk.code&&!bk.label) return;
+        html+=`<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:.5px solid var(--border)">
+          <span style="font-size:9px;background:${bk.themaColor}22;color:${bk.themaColor};border-radius:3px;padding:1px 4px">${_escH(bk.thema)}</span>
+          <span style="flex:1">${_escH(bk.label)}</span>
+          ${bk.code?`<span style="font-size:10px;font-weight:700;color:var(--green-dk)">${_escH(bk.code)}</span>`:''}
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+
+    panel.innerHTML=html;
+  } catch(e){
+    panel.innerHTML=`<div style="color:var(--red);font-size:12px">Fout bij laden: ${e.message}</div>`;
+  }
+}
+
+async function saveLocEigenschap(locId, veld, val){
+  if(!locId) return;
+  const loc=(S.locaties||[]).find(l=>l.id===locId);
+  if(!loc) return;
+  const upd={...loc,[veld]:val?1:0};
+  const r=await api('PUT',`/locaties/${locId}`,upd);
+  if(r&&!r.error){ S.locaties=S.locaties.map(l=>l.id===locId?r:l); }
+  if(_kpSelKmId) selectKpCell(_kpSelKmId);
+}
+
+async function toggleDoos(locId, doosId, actief, kmId){
+  await api('POST','/locatie-doos-config',{locatie_id:locId,doos_id:doosId,actief});
+  if(kmId) selectKpCell(kmId);
 }
 
 

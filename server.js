@@ -1272,6 +1272,9 @@ async function startServer() {
     }
   }
 
+  // Migration 39: heeft_kookactiviteit op themas
+  addColumnIfMissing('themas','heeft_kookactiviteit',"INTEGER DEFAULT 0");
+
   // Migration 38: standaarddozen + locatie-eigenschappen
   {
     createTableIfMissing(`CREATE TABLE IF NOT EXISTS standaard_dozen (
@@ -1465,12 +1468,71 @@ async function startServer() {
     res.json(loc);
   });
   app.put('/api/locaties/:id',(req,res)=>{
-    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id}=req.body;
-    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=? WHERE id=?',
-      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,req.params.id]);
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven}=req.body;
+    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=?,heeft_eigen_sportmateriaal=?,heeft_eigen_oven=? WHERE id=?',
+      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,heeft_eigen_sportmateriaal?1:0,heeft_eigen_oven?1:0,req.params.id]);
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
     logAct('locatie','bewerkt',`Locatie "${loc.name}" bewerkt`,loc.id,loc.name);
     res.json(loc);
+  });
+
+  // ── STANDAARD DOZEN ──
+  app.get('/api/standaard-dozen',(req,res)=>{
+    const dozen=all('SELECT * FROM standaard_dozen ORDER BY volgorde');
+    dozen.forEach(d=>{d.items=all('SELECT * FROM standaard_doos_items WHERE doos_id=? ORDER BY id',[ d.id]);});
+    res.json(dozen);
+  });
+  app.put('/api/standaard-dozen/:id',(req,res)=>{
+    const{opslagcode}=req.body;
+    run('UPDATE standaard_dozen SET opslagcode=? WHERE id=?',[opslagcode||'',req.params.id]);
+    res.json(get('SELECT * FROM standaard_dozen WHERE id=?',[req.params.id]));
+  });
+
+  // ── LOCATIE DOOS CONFIG ──
+  app.get('/api/locatie-doos-config/:locatie_id',(req,res)=>{
+    res.json(all('SELECT * FROM locatie_doos_config WHERE locatie_id=?',[req.params.locatie_id]));
+  });
+  app.post('/api/locatie-doos-config',(req,res)=>{
+    const{locatie_id,doos_id,qty,actief}=req.body;
+    run('INSERT OR REPLACE INTO locatie_doos_config (locatie_id,doos_id,qty,actief) VALUES (?,?,?,?)',
+      [locatie_id,doos_id,qty||null,actief===false?0:1]);
+    res.json({ok:true});
+  });
+
+  // ── KAMPMOMENT STANDAARD DOZEN (welke dozen gaan mee) ──
+  app.get('/api/kampmoment-dozen/:km_id',(req,res)=>{
+    const km=get('SELECT * FROM kampmomenten WHERE id=?',[req.params.km_id]);
+    if(!km)return res.json([]);
+    const loc=get('SELECT * FROM locaties WHERE id=?',[km.locatie_id]);
+    const themas=all('SELECT t.* FROM themas t JOIN kampmoment_themas kt ON kt.thema_id=t.id WHERE kt.kampmoment_id=?',[km.id]);
+    const heeftKoken=themas.some(t=>t.heeft_kookactiviteit);
+    const leeftijden=new Set(themas.map(t=>t.leeftijdsgroep).filter(Boolean));
+    const heeftKleuters=leeftijden.has('kleuters');
+    const heeftLS=leeftijden.has('lagere school');
+    // Laad alle dozen
+    const dozen=all('SELECT * FROM standaard_dozen ORDER BY volgorde');
+    const locConfig=all('SELECT * FROM locatie_doos_config WHERE locatie_id=?',[km.locatie_id]);
+    const configByDoos={};
+    locConfig.forEach(c=>{configByDoos[c.doos_id]=c;});
+    const result=dozen.map(doos=>{
+      const cfg=configByDoos[doos.id];
+      let actief=true;
+      let qty=cfg?.qty||doos.qty_default;
+      // Conditie-logica
+      if(doos.conditie_type==='leeftijdsgroep'){
+        if(doos.conditie_waarde==='kleuters') actief=heeftKleuters&&!loc?.heeft_eigen_sportmateriaal;
+        else if(doos.conditie_waarde==='lagere school') actief=heeftLS&&!loc?.heeft_eigen_sportmateriaal;
+      } else if(doos.conditie_type==='thema'){
+        if(doos.conditie_waarde==='kookactiviteit') actief=heeftKoken;
+      } else if(doos.conditie_type==='programma'){
+        actief=false; // handmatig activeren
+      }
+      // Locatie-override overschrijft alles
+      if(cfg) actief=cfg.actief===1;
+      doos.items=all('SELECT * FROM standaard_doos_items WHERE doos_id=? ORDER BY id',[doos.id]);
+      return {...doos,actief,qty_effectief:qty,heeft_override:!!cfg};
+    });
+    res.json(result);
   });
   app.delete('/api/locaties/:id',(req,res)=>{
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
