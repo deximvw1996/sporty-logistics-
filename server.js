@@ -572,6 +572,7 @@ async function startServer() {
   }
 
   // Migration 25: 4 thema's week 1 Abdijschool toevoegen
+  // Guard: sla over als de 4 themas al correct gekoppeld zijn (was vroeger zonder guard → groeiende duplicaten)
   {
     const _themas25=[
       {name:'Op schattenjacht met Zino Balino',color:'#F59E0B',leeftijdsgroep:'kleuters'},
@@ -584,14 +585,37 @@ async function startServer() {
       if(ex) return ex.id;
       return ins('INSERT INTO themas (name,color,leeftijdsgroep) VALUES (?,?,?)',[t.name,t.color,t.leeftijdsgroep]);
     };
-    // Zoek kampmoment Abdijschool (Vlierbeek of gewone) week 1
     const _abdLoc=get("SELECT id FROM locaties WHERE name='Abdijschool Vlierbeek'")||get("SELECT id FROM locaties WHERE name='Abdijschool'");
     const _km25=_abdLoc?get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=1',[_abdLoc.id]):null;
-    _themas25.forEach(t=>{
-      const tid=_upsertThema(t);
-      if(_km25) try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[_km25.id,tid]);}catch(e){}
-    });
-    console.log('  Migratie 25: 4 themas week 1 Abdijschool aangemaakt');
+    if(_km25){
+      // Eerst: verwijder duplicaten (rijen met zelfde kampmoment_id+thema_id, hou laagste id)
+      try{
+        db.run(`DELETE FROM kampmoment_themas WHERE id NOT IN (
+          SELECT MIN(id) FROM kampmoment_themas GROUP BY kampmoment_id, thema_id
+        )`);
+      }catch(e){}
+      // Dan: zorg dat de 4 correcte themas gekoppeld zijn
+      const _kt25count=(get('SELECT COUNT(*) as n FROM kampmoment_themas WHERE kampmoment_id=?',[_km25.id])||{}).n||0;
+      if(_kt25count<4){
+        _themas25.forEach(t=>{
+          const tid=_upsertThema(t);
+          try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[_km25.id,tid]);}catch(e){}
+        });
+        console.log('  Migratie 25: 4 themas week 1 Abdijschool aangemaakt');
+      }
+    }
+  }
+
+  // Migration 40: verwijder alle duplicaten in kampmoment_themas (herstel van ontbrekende UNIQUE constraint)
+  {
+    try{
+      const _before40=(get('SELECT COUNT(*) as n FROM kampmoment_themas')||{}).n||0;
+      db.run(`DELETE FROM kampmoment_themas WHERE id NOT IN (
+        SELECT MIN(id) FROM kampmoment_themas GROUP BY kampmoment_id, thema_id
+      )`);
+      const _after40=(get('SELECT COUNT(*) as n FROM kampmoment_themas')||{}).n||0;
+      if(_before40!==_after40) console.log(`  Migratie 40: ${_before40-_after40} dubbele kampmoment_themas verwijderd`);
+    }catch(e){console.error('  Migratie 40 fout:',e.message);}
   }
 
   // Migration 26: thema_type + is_verbruik + parent_id + 1001BB + Alice themas volledig
