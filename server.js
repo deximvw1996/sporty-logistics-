@@ -606,15 +606,20 @@ async function startServer() {
     }
   }
 
-  // Migration 40: verwijder alle duplicaten in kampmoment_themas (herstel van ontbrekende UNIQUE constraint)
+  // Migration 40: opruimen kampmoment_themas
+  // (a) wees orphaned rows kwijt (thema werd verwijderd maar FK CASCADE werkte niet)
+  // (b) verwijder exacte duplicaten (zelfde kampmoment_id+thema_id)
   {
     try{
       const _before40=(get('SELECT COUNT(*) as n FROM kampmoment_themas')||{}).n||0;
+      // Orphaned rows: thema_id bestaat niet meer in themas
+      db.run(`DELETE FROM kampmoment_themas WHERE thema_id NOT IN (SELECT id FROM themas)`);
+      // Echte duplicaten: hou laagste id per paar
       db.run(`DELETE FROM kampmoment_themas WHERE id NOT IN (
         SELECT MIN(id) FROM kampmoment_themas GROUP BY kampmoment_id, thema_id
       )`);
       const _after40=(get('SELECT COUNT(*) as n FROM kampmoment_themas')||{}).n||0;
-      if(_before40!==_after40) console.log(`  Migratie 40: ${_before40-_after40} dubbele kampmoment_themas verwijderd`);
+      if(_before40!==_after40) console.log(`  Migratie 40: ${_before40-_after40} ongeldige/dubbele kampmoment_themas verwijderd`);
     }catch(e){console.error('  Migratie 40 fout:',e.message);}
   }
 
