@@ -1,0 +1,2617 @@
+[
+  {
+    "week": 1,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 1,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 1,
+    "locatie": "Syntra",
+    "pakket": "Circus C"
+  },
+  {
+    "week": 1,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "goubak A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Bosstraat",
+    "pakket": "Atletiek KLS A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kring",
+    "pakket": "badminton A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kraal",
+    "pakket": "basketbal B"
+  },
+  {
+    "week": 1,
+    "locatie": "Rotselaar",
+    "pakket": "badminton B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "mini basket A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 1,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 1,
+    "locatie": "Campus GroepT",
+    "pakket": "bumball B"
+  },
+  {
+    "week": 1,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 1,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 1,
+    "locatie": "Syntra",
+    "pakket": "handbal D"
+  },
+  {
+    "week": 1,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "voetbal A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Bosstraat",
+    "pakket": "frisbee A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kring",
+    "pakket": "circus B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kraal",
+    "pakket": "fling it B"
+  },
+  {
+    "week": 1,
+    "locatie": "Rotselaar",
+    "pakket": "Volleybal B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "handbal C"
+  },
+  {
+    "week": 1,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 1,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 1,
+    "locatie": "Campus GroepT",
+    "pakket": "bounceball A"
+  },
+  {
+    "week": 1,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 1,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 1,
+    "locatie": "Syntra",
+    "pakket": "Hockey D"
+  },
+  {
+    "week": 1,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "Poulball A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Bosstraat",
+    "pakket": "Hockey A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kring",
+    "pakket": "kinball B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kraal",
+    "pakket": "hockey B"
+  },
+  {
+    "week": 1,
+    "locatie": "Rotselaar",
+    "pakket": "basket C"
+  },
+  {
+    "week": 1,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "rope skipping B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 1,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 1,
+    "locatie": "Campus GroepT",
+    "pakket": "handbal A"
+  },
+  {
+    "week": 1,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 1,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 1,
+    "locatie": "Syntra",
+    "pakket": "Rope skipping Abdij"
+  },
+  {
+    "week": 1,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "fling it A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Bosstraat",
+    "pakket": "voetbal B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kring",
+    "pakket": "scoop A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kraal",
+    "pakket": "poulball B"
+  },
+  {
+    "week": 1,
+    "locatie": "Rotselaar",
+    "pakket": "bounceball B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "fling it C"
+  },
+  {
+    "week": 1,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 1,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 1,
+    "locatie": "Campus GroepT",
+    "pakket": "Lacrosse A"
+  },
+  {
+    "week": 1,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 1,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 1,
+    "locatie": "Syntra",
+    "pakket": "Kinball E"
+  },
+  {
+    "week": 1,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "atletiek LS B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Bosstraat",
+    "pakket": "springy rackets A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kring",
+    "pakket": "rugby A"
+  },
+  {
+    "week": 1,
+    "locatie": "De Kraal",
+    "pakket": "volleybal A"
+  },
+  {
+    "week": 1,
+    "locatie": "Rotselaar",
+    "pakket": "wereldbal B"
+  },
+  {
+    "week": 1,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "voetbal C"
+  },
+  {
+    "week": 1,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 1,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 1,
+    "locatie": "Campus GroepT",
+    "pakket": "rope skipping A"
+  },
+  {
+    "week": 1,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 1,
+    "locatie": "De Bosstraat",
+    "pakket": "mini basket D"
+  },
+  {
+    "week": 1,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 1,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 1,
+    "locatie": "Campus GroepT",
+    "pakket": "Kinball Abdij"
+  },
+  {
+    "week": 2,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 2,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 2,
+    "locatie": "Syntra",
+    "pakket": "Circus C"
+  },
+  {
+    "week": 2,
+    "locatie": "Woudlucht",
+    "pakket": "bonkerbal A"
+  },
+  {
+    "week": 2,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "goubak A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Bosstraat",
+    "pakket": "Atletiek KLS A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kring",
+    "pakket": "badminton A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kraal",
+    "pakket": "basketbal B"
+  },
+  {
+    "week": 2,
+    "locatie": "Rotselaar",
+    "pakket": "badminton B"
+  },
+  {
+    "week": 2,
+    "locatie": "Betekom",
+    "pakket": "handbal B"
+  },
+  {
+    "week": 2,
+    "locatie": "Boutersem",
+    "pakket": "baseball B"
+  },
+  {
+    "week": 2,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "mini basket A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 2,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 2,
+    "locatie": "Terbank",
+    "pakket": "Atletiek LS D"
+  },
+  {
+    "week": 2,
+    "locatie": "Fablab KUL",
+    "pakket": "lacrosse B"
+  },
+  {
+    "week": 2,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 2,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 2,
+    "locatie": "Syntra",
+    "pakket": "handbal D"
+  },
+  {
+    "week": 2,
+    "locatie": "Woudlucht",
+    "pakket": "kinball A"
+  },
+  {
+    "week": 2,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "voetbal A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Bosstraat",
+    "pakket": "frisbee A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kring",
+    "pakket": "circus B"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kraal",
+    "pakket": "fling it B"
+  },
+  {
+    "week": 2,
+    "locatie": "Rotselaar",
+    "pakket": "Volleybal B"
+  },
+  {
+    "week": 2,
+    "locatie": "Betekom",
+    "pakket": "kinbal C"
+  },
+  {
+    "week": 2,
+    "locatie": "Boutersem",
+    "pakket": "atletiek LS C"
+  },
+  {
+    "week": 2,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "handbal C"
+  },
+  {
+    "week": 2,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 2,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 2,
+    "locatie": "Terbank",
+    "pakket": "Baseball C"
+  },
+  {
+    "week": 2,
+    "locatie": "Fablab KUL",
+    "pakket": "en 10+ spelen"
+  },
+  {
+    "week": 2,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 2,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 2,
+    "locatie": "Syntra",
+    "pakket": "Hockey D"
+  },
+  {
+    "week": 2,
+    "locatie": "Woudlucht",
+    "pakket": "Bumball A"
+  },
+  {
+    "week": 2,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "Poulball A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Bosstraat",
+    "pakket": "Hockey A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kring",
+    "pakket": "kinball B"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kraal",
+    "pakket": "hockey B"
+  },
+  {
+    "week": 2,
+    "locatie": "Rotselaar",
+    "pakket": "basket C"
+  },
+  {
+    "week": 2,
+    "locatie": "Betekom",
+    "pakket": "ringstick A"
+  },
+  {
+    "week": 2,
+    "locatie": "Boutersem",
+    "pakket": "bumball C"
+  },
+  {
+    "week": 2,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "rope skipping B"
+  },
+  {
+    "week": 2,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 2,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 2,
+    "locatie": "Terbank",
+    "pakket": "Gouret B"
+  },
+  {
+    "week": 2,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 2,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 2,
+    "locatie": "Syntra",
+    "pakket": "Rope skipping Abdij"
+  },
+  {
+    "week": 2,
+    "locatie": "Woudlucht",
+    "pakket": "tag rugby A"
+  },
+  {
+    "week": 2,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "fling it A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Bosstraat",
+    "pakket": "voetbal B"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kring",
+    "pakket": "scoop A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kraal",
+    "pakket": "poulball B"
+  },
+  {
+    "week": 2,
+    "locatie": "Rotselaar",
+    "pakket": "bounceball B"
+  },
+  {
+    "week": 2,
+    "locatie": "Betekom",
+    "pakket": "zweefbal B"
+  },
+  {
+    "week": 2,
+    "locatie": "Boutersem",
+    "pakket": "volleybal D"
+  },
+  {
+    "week": 2,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "fling it C"
+  },
+  {
+    "week": 2,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 2,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 2,
+    "locatie": "Terbank",
+    "pakket": "Bounceball C"
+  },
+  {
+    "week": 2,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 2,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 2,
+    "locatie": "Syntra",
+    "pakket": "Kinball E"
+  },
+  {
+    "week": 2,
+    "locatie": "Woudlucht",
+    "pakket": "new games A"
+  },
+  {
+    "week": 2,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "atletiek LS B"
+  },
+  {
+    "week": 2,
+    "locatie": "De Bosstraat",
+    "pakket": "springy rackets A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kring",
+    "pakket": "rugby A"
+  },
+  {
+    "week": 2,
+    "locatie": "De Kraal",
+    "pakket": "volleybal A"
+  },
+  {
+    "week": 2,
+    "locatie": "Rotselaar",
+    "pakket": "wereldbal B"
+  },
+  {
+    "week": 2,
+    "locatie": "Betekom",
+    "pakket": "rugby B"
+  },
+  {
+    "week": 2,
+    "locatie": "Boutersem",
+    "pakket": "scoop B"
+  },
+  {
+    "week": 2,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "voetbal C"
+  },
+  {
+    "week": 2,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 2,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 2,
+    "locatie": "Terbank",
+    "pakket": "Kinball D"
+  },
+  {
+    "week": 2,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 2,
+    "locatie": "De Bosstraat",
+    "pakket": "mini basket D"
+  },
+  {
+    "week": 2,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 2,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 3,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 3,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 3,
+    "locatie": "Woudlucht",
+    "pakket": "bonkerbal A"
+  },
+  {
+    "week": 3,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "goubak A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Ark 3",
+    "pakket": "baseball A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Kraal",
+    "pakket": "basketbal B"
+  },
+  {
+    "week": 3,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 3,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 3,
+    "locatie": "Terbank",
+    "pakket": "Atletiek LS D"
+  },
+  {
+    "week": 3,
+    "locatie": "Fablab KUL",
+    "pakket": "lacrosse B"
+  },
+  {
+    "week": 3,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 3,
+    "locatie": "Boutersem",
+    "pakket": "baseball B"
+  },
+  {
+    "week": 3,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 3,
+    "locatie": "Woudlucht",
+    "pakket": "kinball A"
+  },
+  {
+    "week": 3,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "voetbal A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Ark 3",
+    "pakket": "mini rugby A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Kraal",
+    "pakket": "fling it B"
+  },
+  {
+    "week": 3,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 3,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 3,
+    "locatie": "Terbank",
+    "pakket": "Baseball C"
+  },
+  {
+    "week": 3,
+    "locatie": "Fablab KUL",
+    "pakket": "en 10+ spelen"
+  },
+  {
+    "week": 3,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 3,
+    "locatie": "Boutersem",
+    "pakket": "atletiek LS C"
+  },
+  {
+    "week": 3,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 3,
+    "locatie": "Woudlucht",
+    "pakket": "Bumball A"
+  },
+  {
+    "week": 3,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "Poulball A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Ark 3",
+    "pakket": "scratchball A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Kraal",
+    "pakket": "hockey B"
+  },
+  {
+    "week": 3,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 3,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 3,
+    "locatie": "Terbank",
+    "pakket": "Gouret B"
+  },
+  {
+    "week": 3,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 3,
+    "locatie": "Boutersem",
+    "pakket": "bumball C"
+  },
+  {
+    "week": 3,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 3,
+    "locatie": "Woudlucht",
+    "pakket": "tag rugby A"
+  },
+  {
+    "week": 3,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "fling it A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Ark 3",
+    "pakket": "zweefbal A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Kraal",
+    "pakket": "poulball B"
+  },
+  {
+    "week": 3,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 3,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 3,
+    "locatie": "Terbank",
+    "pakket": "Bounceball C"
+  },
+  {
+    "week": 3,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 3,
+    "locatie": "Boutersem",
+    "pakket": "volleybal D"
+  },
+  {
+    "week": 3,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 3,
+    "locatie": "Woudlucht",
+    "pakket": "new games A"
+  },
+  {
+    "week": 3,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "atletiek LS B"
+  },
+  {
+    "week": 3,
+    "locatie": "De Ark 3",
+    "pakket": "basketbal A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Kraal",
+    "pakket": "volleybal A"
+  },
+  {
+    "week": 3,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 3,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 3,
+    "locatie": "Terbank",
+    "pakket": "Kinball D"
+  },
+  {
+    "week": 3,
+    "locatie": "Boutersem",
+    "pakket": "scoop B"
+  },
+  {
+    "week": 3,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 3,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 3,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 4,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 4,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Waaier",
+    "pakket": "bumball B"
+  },
+  {
+    "week": 4,
+    "locatie": "De Ark 3",
+    "pakket": "baseball A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 4,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 4,
+    "locatie": "Terbank",
+    "pakket": "Atletiek LS D"
+  },
+  {
+    "week": 4,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 4,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Waaier",
+    "pakket": "bounceball A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Ark 3",
+    "pakket": "mini rugby A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 4,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 4,
+    "locatie": "Terbank",
+    "pakket": "Baseball C"
+  },
+  {
+    "week": 4,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 4,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Waaier",
+    "pakket": "handbal A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Ark 3",
+    "pakket": "scratchball A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 4,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 4,
+    "locatie": "Terbank",
+    "pakket": "Gouret B"
+  },
+  {
+    "week": 4,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 4,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Waaier",
+    "pakket": "Lacrosse A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Ark 3",
+    "pakket": "zweefbal A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 4,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 4,
+    "locatie": "Terbank",
+    "pakket": "Bounceball C"
+  },
+  {
+    "week": 4,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 4,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Waaier",
+    "pakket": "rope skipping A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Ark 3",
+    "pakket": "basketbal A"
+  },
+  {
+    "week": 4,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 4,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 4,
+    "locatie": "Terbank",
+    "pakket": "Kinball D"
+  },
+  {
+    "week": 4,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 4,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 4,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 5,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 5,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Waaier",
+    "pakket": "bumball B"
+  },
+  {
+    "week": 5,
+    "locatie": "De Ark 3",
+    "pakket": "baseball A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 5,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 5,
+    "locatie": "Terbank",
+    "pakket": "Atletiek LS D"
+  },
+  {
+    "week": 5,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 5,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Waaier",
+    "pakket": "bounceball A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Ark 3",
+    "pakket": "mini rugby A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 5,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 5,
+    "locatie": "Terbank",
+    "pakket": "Baseball C"
+  },
+  {
+    "week": 5,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 5,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Waaier",
+    "pakket": "handbal A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Ark 3",
+    "pakket": "scratchball A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 5,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 5,
+    "locatie": "Terbank",
+    "pakket": "Gouret B"
+  },
+  {
+    "week": 5,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 5,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Waaier",
+    "pakket": "Lacrosse A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Ark 3",
+    "pakket": "zweefbal A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 5,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 5,
+    "locatie": "Terbank",
+    "pakket": "Bounceball C"
+  },
+  {
+    "week": 5,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 5,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Waaier",
+    "pakket": "rope skipping A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Ark 3",
+    "pakket": "basketbal A"
+  },
+  {
+    "week": 5,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 5,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 5,
+    "locatie": "Terbank",
+    "pakket": "Kinball D"
+  },
+  {
+    "week": 5,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 5,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 5,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 6,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 6,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Bosstraat",
+    "pakket": "Atletiek KLS A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Waaier",
+    "pakket": "bumball B"
+  },
+  {
+    "week": 6,
+    "locatie": "De Ark 3",
+    "pakket": "baseball A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Kraal",
+    "pakket": "basketbal B"
+  },
+  {
+    "week": 6,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 6,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 6,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 6,
+    "locatie": "Terbank",
+    "pakket": "Atletiek LS D"
+  },
+  {
+    "week": 6,
+    "locatie": "Boutersem",
+    "pakket": "baseball B"
+  },
+  {
+    "week": 6,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Bosstraat",
+    "pakket": "frisbee A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Waaier",
+    "pakket": "bounceball A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Ark 3",
+    "pakket": "mini rugby A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Kraal",
+    "pakket": "fling it B"
+  },
+  {
+    "week": 6,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 6,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 6,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 6,
+    "locatie": "Terbank",
+    "pakket": "Baseball C"
+  },
+  {
+    "week": 6,
+    "locatie": "Boutersem",
+    "pakket": "atletiek LS C"
+  },
+  {
+    "week": 6,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Bosstraat",
+    "pakket": "Hockey A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Waaier",
+    "pakket": "handbal A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Ark 3",
+    "pakket": "scratchball A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Kraal",
+    "pakket": "hockey B"
+  },
+  {
+    "week": 6,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 6,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 6,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 6,
+    "locatie": "Terbank",
+    "pakket": "Gouret B"
+  },
+  {
+    "week": 6,
+    "locatie": "Boutersem",
+    "pakket": "bumball C"
+  },
+  {
+    "week": 6,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Bosstraat",
+    "pakket": "voetbal B"
+  },
+  {
+    "week": 6,
+    "locatie": "De Waaier",
+    "pakket": "Lacrosse A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Ark 3",
+    "pakket": "zweefbal A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Kraal",
+    "pakket": "poulball B"
+  },
+  {
+    "week": 6,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 6,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 6,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 6,
+    "locatie": "Terbank",
+    "pakket": "Bounceball C"
+  },
+  {
+    "week": 6,
+    "locatie": "Boutersem",
+    "pakket": "volleybal D"
+  },
+  {
+    "week": 6,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Bosstraat",
+    "pakket": "springy rackets A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Waaier",
+    "pakket": "rope skipping A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Ark 3",
+    "pakket": "basketbal A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Kraal",
+    "pakket": "volleybal A"
+  },
+  {
+    "week": 6,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 6,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 6,
+    "locatie": "Terbank",
+    "pakket": "Kinball D"
+  },
+  {
+    "week": 6,
+    "locatie": "Boutersem",
+    "pakket": "scoop B"
+  },
+  {
+    "week": 6,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 6,
+    "locatie": "De Bosstraat",
+    "pakket": "mini basket D"
+  },
+  {
+    "week": 6,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 6,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 7,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 7,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Bosstraat",
+    "pakket": "Atletiek KLS A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Waaier",
+    "pakket": "bumball B"
+  },
+  {
+    "week": 7,
+    "locatie": "De Kring",
+    "pakket": "badminton A"
+  },
+  {
+    "week": 7,
+    "locatie": "Rotselaar",
+    "pakket": "badminton B"
+  },
+  {
+    "week": 7,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "mini basket A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 7,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 7,
+    "locatie": "Terbank",
+    "pakket": "Atletiek LS D"
+  },
+  {
+    "week": 7,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 7,
+    "locatie": "Boutersem",
+    "pakket": "baseball B"
+  },
+  {
+    "week": 7,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Bosstraat",
+    "pakket": "frisbee A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Waaier",
+    "pakket": "bounceball A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Kring",
+    "pakket": "circus B"
+  },
+  {
+    "week": 7,
+    "locatie": "Rotselaar",
+    "pakket": "Volleybal B"
+  },
+  {
+    "week": 7,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "handbal C"
+  },
+  {
+    "week": 7,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 7,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 7,
+    "locatie": "Terbank",
+    "pakket": "Baseball C"
+  },
+  {
+    "week": 7,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 7,
+    "locatie": "Boutersem",
+    "pakket": "atletiek LS C"
+  },
+  {
+    "week": 7,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Bosstraat",
+    "pakket": "Hockey A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Waaier",
+    "pakket": "handbal A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Kring",
+    "pakket": "kinball B"
+  },
+  {
+    "week": 7,
+    "locatie": "Rotselaar",
+    "pakket": "basket C"
+  },
+  {
+    "week": 7,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "rope skipping B"
+  },
+  {
+    "week": 7,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 7,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 7,
+    "locatie": "Terbank",
+    "pakket": "Gouret B"
+  },
+  {
+    "week": 7,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 7,
+    "locatie": "Boutersem",
+    "pakket": "bumball C"
+  },
+  {
+    "week": 7,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Bosstraat",
+    "pakket": "voetbal B"
+  },
+  {
+    "week": 7,
+    "locatie": "De Waaier",
+    "pakket": "Lacrosse A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Kring",
+    "pakket": "scoop A"
+  },
+  {
+    "week": 7,
+    "locatie": "Rotselaar",
+    "pakket": "bounceball B"
+  },
+  {
+    "week": 7,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "fling it C"
+  },
+  {
+    "week": 7,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 7,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 7,
+    "locatie": "Terbank",
+    "pakket": "Bounceball C"
+  },
+  {
+    "week": 7,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 7,
+    "locatie": "Boutersem",
+    "pakket": "volleybal D"
+  },
+  {
+    "week": 7,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Bosstraat",
+    "pakket": "springy rackets A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Waaier",
+    "pakket": "rope skipping A"
+  },
+  {
+    "week": 7,
+    "locatie": "De Kring",
+    "pakket": "rugby A"
+  },
+  {
+    "week": 7,
+    "locatie": "Rotselaar",
+    "pakket": "wereldbal B"
+  },
+  {
+    "week": 7,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "voetbal C"
+  },
+  {
+    "week": 7,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 7,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 7,
+    "locatie": "Terbank",
+    "pakket": "Kinball D"
+  },
+  {
+    "week": 7,
+    "locatie": "Boutersem",
+    "pakket": "scoop B"
+  },
+  {
+    "week": 7,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 7,
+    "locatie": "De Bosstraat",
+    "pakket": "mini basket D"
+  },
+  {
+    "week": 7,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 7,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 8,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 8,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "base hockey A"
+  },
+  {
+    "week": 8,
+    "locatie": "Syntra",
+    "pakket": "Circus C"
+  },
+  {
+    "week": 8,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "baseball A"
+  },
+  {
+    "week": 8,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "goubak A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Bosstraat",
+    "pakket": "Atletiek KLS A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Waaier",
+    "pakket": "bumball B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kring",
+    "pakket": "badminton A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kraal",
+    "pakket": "basketbal B"
+  },
+  {
+    "week": 8,
+    "locatie": "Rotselaar",
+    "pakket": "badminton B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "mini basket A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 8,
+    "locatie": "Sportschuur",
+    "pakket": "bonkerbal A"
+  },
+  {
+    "week": 8,
+    "locatie": "Grasmus",
+    "pakket": "hockey C"
+  },
+  {
+    "week": 8,
+    "locatie": "Terbank",
+    "pakket": "Atletiek LS D"
+  },
+  {
+    "week": 8,
+    "locatie": "Boutersem",
+    "pakket": "baseball B"
+  },
+  {
+    "week": 8,
+    "locatie": "Klare Bron",
+    "pakket": "Atletiek KLS B"
+  },
+  {
+    "week": 8,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "circus A"
+  },
+  {
+    "week": 8,
+    "locatie": "Syntra",
+    "pakket": "handbal D"
+  },
+  {
+    "week": 8,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "mini rugby A"
+  },
+  {
+    "week": 8,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "voetbal A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Bosstraat",
+    "pakket": "frisbee A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Waaier",
+    "pakket": "bounceball A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kring",
+    "pakket": "circus B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kraal",
+    "pakket": "fling it B"
+  },
+  {
+    "week": 8,
+    "locatie": "Rotselaar",
+    "pakket": "Volleybal B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "handbal C"
+  },
+  {
+    "week": 8,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 8,
+    "locatie": "Sportschuur",
+    "pakket": "kinball A"
+  },
+  {
+    "week": 8,
+    "locatie": "Grasmus",
+    "pakket": "mini basket C"
+  },
+  {
+    "week": 8,
+    "locatie": "Terbank",
+    "pakket": "Baseball C"
+  },
+  {
+    "week": 8,
+    "locatie": "Boutersem",
+    "pakket": "atletiek LS C"
+  },
+  {
+    "week": 8,
+    "locatie": "Klare Bron",
+    "pakket": "Mini basket B"
+  },
+  {
+    "week": 8,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "Gouret A"
+  },
+  {
+    "week": 8,
+    "locatie": "Syntra",
+    "pakket": "Hockey D"
+  },
+  {
+    "week": 8,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "scratchball A"
+  },
+  {
+    "week": 8,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "Poulball A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Bosstraat",
+    "pakket": "Hockey A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Waaier",
+    "pakket": "handbal A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kring",
+    "pakket": "kinball B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kraal",
+    "pakket": "hockey B"
+  },
+  {
+    "week": 8,
+    "locatie": "Rotselaar",
+    "pakket": "basket C"
+  },
+  {
+    "week": 8,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "rope skipping B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 8,
+    "locatie": "Sportschuur",
+    "pakket": "Bumball A"
+  },
+  {
+    "week": 8,
+    "locatie": "Grasmus",
+    "pakket": "new games B"
+  },
+  {
+    "week": 8,
+    "locatie": "Terbank",
+    "pakket": "Gouret B"
+  },
+  {
+    "week": 8,
+    "locatie": "Boutersem",
+    "pakket": "bumball C"
+  },
+  {
+    "week": 8,
+    "locatie": "Klare Bron",
+    "pakket": "Mini rugby Abdij"
+  },
+  {
+    "week": 8,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "mini tennis A"
+  },
+  {
+    "week": 8,
+    "locatie": "Syntra",
+    "pakket": "Rope skipping Abdij"
+  },
+  {
+    "week": 8,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "zweefbal A"
+  },
+  {
+    "week": 8,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "fling it A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Bosstraat",
+    "pakket": "voetbal B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Waaier",
+    "pakket": "Lacrosse A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kring",
+    "pakket": "scoop A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kraal",
+    "pakket": "poulball B"
+  },
+  {
+    "week": 8,
+    "locatie": "Rotselaar",
+    "pakket": "bounceball B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "fling it C"
+  },
+  {
+    "week": 8,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 8,
+    "locatie": "Sportschuur",
+    "pakket": "tag rugby A"
+  },
+  {
+    "week": 8,
+    "locatie": "Grasmus",
+    "pakket": "volleybal C"
+  },
+  {
+    "week": 8,
+    "locatie": "Terbank",
+    "pakket": "Bounceball C"
+  },
+  {
+    "week": 8,
+    "locatie": "Boutersem",
+    "pakket": "volleybal D"
+  },
+  {
+    "week": 8,
+    "locatie": "Klare Bron",
+    "pakket": "mini tennis B"
+  },
+  {
+    "week": 8,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "wereldbal A"
+  },
+  {
+    "week": 8,
+    "locatie": "Syntra",
+    "pakket": "Kinball E"
+  },
+  {
+    "week": 8,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "basketbal A"
+  },
+  {
+    "week": 8,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "atletiek LS B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Bosstraat",
+    "pakket": "springy rackets A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Waaier",
+    "pakket": "rope skipping A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kring",
+    "pakket": "rugby A"
+  },
+  {
+    "week": 8,
+    "locatie": "De Kraal",
+    "pakket": "volleybal A"
+  },
+  {
+    "week": 8,
+    "locatie": "Rotselaar",
+    "pakket": "wereldbal B"
+  },
+  {
+    "week": 8,
+    "locatie": "De Wijzer Oud-Heverlee",
+    "pakket": "voetbal C"
+  },
+  {
+    "week": 8,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 8,
+    "locatie": "Sportschuur",
+    "pakket": "new games A"
+  },
+  {
+    "week": 8,
+    "locatie": "Grasmus",
+    "pakket": "speedminton A"
+  },
+  {
+    "week": 8,
+    "locatie": "Terbank",
+    "pakket": "Kinball D"
+  },
+  {
+    "week": 8,
+    "locatie": "Boutersem",
+    "pakket": "scoop B"
+  },
+  {
+    "week": 8,
+    "locatie": "Abdijschool Vlierbeek",
+    "pakket": "volley abdij"
+  },
+  {
+    "week": 8,
+    "locatie": "De Bosstraat",
+    "pakket": "mini basket D"
+  },
+  {
+    "week": 8,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  },
+  {
+    "week": 8,
+    "locatie": "Grasmus",
+    "pakket": "Rugby abdij"
+  },
+  {
+    "week": 9,
+    "locatie": "Sporthal Kessel-Lo",
+    "pakket": "Atletiek LS A"
+  },
+  {
+    "week": 9,
+    "locatie": "Syntra",
+    "pakket": "Circus C"
+  },
+  {
+    "week": 9,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "baseball A"
+  },
+  {
+    "week": 9,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "goubak A"
+  },
+  {
+    "week": 9,
+    "locatie": "De Kring",
+    "pakket": "badminton A"
+  },
+  {
+    "week": 9,
+    "locatie": "Rotselaar",
+    "pakket": "badminton B"
+  },
+  {
+    "week": 9,
+    "locatie": "Betekom",
+    "pakket": "handbal B"
+  },
+  {
+    "week": 9,
+    "locatie": "De Mozaiek",
+    "pakket": "Frisbee B"
+  },
+  {
+    "week": 9,
+    "locatie": "Sportschuur",
+    "pakket": "bonkerbal A"
+  },
+  {
+    "week": 9,
+    "locatie": "Fablab KUL",
+    "pakket": "lacrosse B"
+  },
+  {
+    "week": 9,
+    "locatie": "Gemeenteschool Bertem",
+    "pakket": "baseball B"
+  },
+  {
+    "week": 9,
+    "locatie": "Syntra",
+    "pakket": "handbal D"
+  },
+  {
+    "week": 9,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "mini rugby A"
+  },
+  {
+    "week": 9,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "voetbal A"
+  },
+  {
+    "week": 9,
+    "locatie": "De Kring",
+    "pakket": "circus B"
+  },
+  {
+    "week": 9,
+    "locatie": "Rotselaar",
+    "pakket": "Volleybal B"
+  },
+  {
+    "week": 9,
+    "locatie": "Betekom",
+    "pakket": "kinbal C"
+  },
+  {
+    "week": 9,
+    "locatie": "De Mozaiek",
+    "pakket": "Poulball C"
+  },
+  {
+    "week": 9,
+    "locatie": "Sportschuur",
+    "pakket": "kinball A"
+  },
+  {
+    "week": 9,
+    "locatie": "Fablab KUL",
+    "pakket": "en 10+ spelen"
+  },
+  {
+    "week": 9,
+    "locatie": "Gemeenteschool Bertem",
+    "pakket": "atletiek LS C"
+  },
+  {
+    "week": 9,
+    "locatie": "Syntra",
+    "pakket": "Hockey D"
+  },
+  {
+    "week": 9,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "scratchball A"
+  },
+  {
+    "week": 9,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "Poulball A"
+  },
+  {
+    "week": 9,
+    "locatie": "De Kring",
+    "pakket": "kinball B"
+  },
+  {
+    "week": 9,
+    "locatie": "Rotselaar",
+    "pakket": "basket C"
+  },
+  {
+    "week": 9,
+    "locatie": "Betekom",
+    "pakket": "ringstick A"
+  },
+  {
+    "week": 9,
+    "locatie": "De Mozaiek",
+    "pakket": "Scratchball B"
+  },
+  {
+    "week": 9,
+    "locatie": "Sportschuur",
+    "pakket": "Bumball A"
+  },
+  {
+    "week": 9,
+    "locatie": "Gemeenteschool Bertem",
+    "pakket": "bumball C"
+  },
+  {
+    "week": 9,
+    "locatie": "Syntra",
+    "pakket": "Rope skipping Abdij"
+  },
+  {
+    "week": 9,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "zweefbal A"
+  },
+  {
+    "week": 9,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "fling it A"
+  },
+  {
+    "week": 9,
+    "locatie": "De Kring",
+    "pakket": "scoop A"
+  },
+  {
+    "week": 9,
+    "locatie": "Rotselaar",
+    "pakket": "bounceball B"
+  },
+  {
+    "week": 9,
+    "locatie": "Betekom",
+    "pakket": "zweefbal B"
+  },
+  {
+    "week": 9,
+    "locatie": "De Mozaiek",
+    "pakket": "wereldbal C"
+  },
+  {
+    "week": 9,
+    "locatie": "Sportschuur",
+    "pakket": "tag rugby A"
+  },
+  {
+    "week": 9,
+    "locatie": "Gemeenteschool Bertem",
+    "pakket": "volleybal D"
+  },
+  {
+    "week": 9,
+    "locatie": "Syntra",
+    "pakket": "Kinball E"
+  },
+  {
+    "week": 9,
+    "locatie": "Sporthal Heverlee",
+    "pakket": "basketbal A"
+  },
+  {
+    "week": 9,
+    "locatie": "Scoutslokalen Vlierbeek",
+    "pakket": "atletiek LS B"
+  },
+  {
+    "week": 9,
+    "locatie": "De Kring",
+    "pakket": "rugby A"
+  },
+  {
+    "week": 9,
+    "locatie": "Rotselaar",
+    "pakket": "wereldbal B"
+  },
+  {
+    "week": 9,
+    "locatie": "Betekom",
+    "pakket": "rugby B"
+  },
+  {
+    "week": 9,
+    "locatie": "De Mozaiek",
+    "pakket": "voetbal D"
+  },
+  {
+    "week": 9,
+    "locatie": "Sportschuur",
+    "pakket": "new games A"
+  },
+  {
+    "week": 9,
+    "locatie": "Gemeenteschool Bertem",
+    "pakket": "scoop B"
+  },
+  {
+    "week": 9,
+    "locatie": "De Mozaiek",
+    "pakket": "Basket D"
+  }
+]

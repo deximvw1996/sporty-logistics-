@@ -1321,6 +1321,39 @@ async function startServer() {
     }
   }
 
+  // Migration 42: sport_planning seeden vanuit data/sport-planning-seed.json
+  {
+    const _sp42=path.join(__dirname,'data','sport-planning-seed.json');
+    if(fs.existsSync(_sp42)){
+      const _bestaand=(get('SELECT COUNT(*) as n FROM sport_planning')||{}).n||0;
+      if(_bestaand<100){
+        let _seed42=[];
+        try{_seed42=JSON.parse(fs.readFileSync(_sp42,'utf8'));}catch(e){console.error('  Migratie 42: JSON onleesbaar:',e.message);}
+        // Bouw caches voor snelheid
+        const _siCache={};
+        all('SELECT id,name FROM sport_items').forEach(si=>{_siCache[si.name.toLowerCase().trim()]=si.id;});
+        const _ssCache={};
+        all('SELECT id,item_id FROM sport_sets').forEach(ss=>{if(!_ssCache[ss.item_id])_ssCache[ss.item_id]=ss.id;});
+        const _locCache={};
+        all('SELECT id,name FROM locaties').forEach(l=>{_locCache[l.name.toLowerCase().trim()]=l.id;});
+        let _added42=0,_skip42=0;
+        const _skip42Items=new Set();
+        for(const entry of _seed42){
+          if(!entry.pakket||entry.pakket==='en 10+ spelen'){continue;}
+          const locId=_locCache[(entry.locatie||'').toLowerCase().trim()];
+          if(!locId){_skip42++;continue;}
+          const siId=_siCache[entry.pakket.toLowerCase().trim()];
+          if(!siId){_skip42Items.add(entry.pakket);_skip42++;continue;}
+          const ssId=_ssCache[siId];
+          if(!ssId){_skip42++;continue;}
+          try{run('INSERT OR IGNORE INTO sport_planning (set_id,locatie_id,week) VALUES (?,?,?)',[ssId,locId,entry.week]);_added42++;}catch(e){}
+        }
+        if(_added42>0)console.log(`  Migratie 42: ${_added42} sport_planning entries gezaaid (${_skip42} overgeslagen)`);
+        if(_skip42Items.size>0)console.log('  Migratie 42: niet-gematchte pakketten:',JSON.stringify([..._skip42Items]));
+      }
+    }
+  }
+
   // Migration 38: standaarddozen + locatie-eigenschappen
   {
     createTableIfMissing(`CREATE TABLE IF NOT EXISTS standaard_dozen (
