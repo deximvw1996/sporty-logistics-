@@ -1354,6 +1354,33 @@ async function startServer() {
     }
   }
 
+  // Migration 44: ontbrekende themas aanmaken + koppelen aan week 1
+  {
+    const _nieuwW1=[
+      {name:'Ingenieus Zomerkamp',             leeftijdsgroep:'tieners',    color:'#8E44AD', loc:'Campus GroepT'},
+      {name:'Meisjes en Wetenschap',           leeftijdsgroep:'tieners',    color:'#E91E63', loc:'Campus GroepT'},
+      {name:'Beestige Natuur 3-daagse',        leeftijdsgroep:'kleuters',   color:'#27AE60', loc:'De Wijzer Oud-Heverlee'},
+      {name:'Ervaring met Zwemmen',            leeftijdsgroep:'lagere school',color:'#2980B9',loc:'Sporthal Kessel-Lo'},
+      {name:'Ropeskipping Kamp',               leeftijdsgroep:'lagere school',color:'#E67E22',loc:'Sporthal Kessel-Lo'},
+      {name:'Sportkamp Water & Balsport',      leeftijdsgroep:'lagere school',color:'#16A085',loc:'Sporthal Kessel-Lo'},
+      {name:'Play a Game',                     leeftijdsgroep:'lagere school',color:'#F39C12',loc:'Scoutslokalen Vlierbeek'},
+      {name:'Kickx 3-daagse',                  leeftijdsgroep:'tieners',    color:'#C0392B', loc:'Scoutslokalen Vlierbeek'},
+    ];
+    for(const entry of _nieuwW1){
+      const exists=get('SELECT id FROM themas WHERE LOWER(name)=LOWER(?)',[entry.name]);
+      if(!exists) ins('INSERT INTO themas (name,leeftijdsgroep,color,thema_type) VALUES (?,?,?,?)',[entry.name,entry.leeftijdsgroep,entry.color,'eigen']);
+      const th=get('SELECT id FROM themas WHERE LOWER(name)=LOWER(?)',[entry.name]);
+      if(!th) continue;
+      const loc=get('SELECT id FROM locaties WHERE name=?',[entry.loc]);
+      if(!loc) continue;
+      const km=get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=1',[loc.id]);
+      if(!km) continue;
+      try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[km.id,th.id]);}catch(e){}
+    }
+    const _n44=(get('SELECT COUNT(*) as n FROM themas WHERE name IN (\'Ingenieus Zomerkamp\',\'Meisjes en Wetenschap\',\'Beestige Natuur 3-daagse\')')||{}).n||0;
+    if(_n44>0)console.log(`  Migratie 44: ${_n44} nieuwe themas aangemaakt + gekoppeld aan week 1`);
+  }
+
   // Migration 43: themas koppelen aan kampmomenten week 1
   {
     const _w1count=(get('SELECT COUNT(*) as n FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE km.week=1')||{}).n||0;
