@@ -1354,6 +1354,45 @@ async function startServer() {
     }
   }
 
+  // Migration 43: themas koppelen aan kampmomenten week 1
+  {
+    const _w1count=(get('SELECT COUNT(*) as n FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE km.week=1')||{}).n||0;
+    if(_w1count<5){
+      const _planW1=[
+        {loc:'Abdijschool Vlierbeek',    th:['Op Schattenjacht met Zino Balino','We slaan in het rond','LegoLegends','Modemakers']},
+        {loc:'De Bosstraat',             th:['Reis rond de Wereld','Ambachtenacademie','Geef Acht!']},
+        {loc:'De Wijzer Oud-Heverlee',   th:['1001 Ballen en Bellen']},
+        {loc:'Grasmus',                  th:['Sprookjesland','Wie Wordt Homo Universalis']},
+        {loc:'Klare Bron',               th:['Alle Kleuren van de Regenboog']},
+        {loc:'De Kraal',                 th:['Feestje Bouwen','Fit & Fun Kamp']},
+        {loc:'De Mozaïek',               th:['Kriebelbeestjes','Atleet voor een Dag']},
+        {loc:'Rotselaar',                th:['Later als ik Groot Ben','Expeditie Survival']},
+        {loc:'Scoutslokalen Vlierbeek',  th:['Zeepkistenrace','Zoete Toetjes']},
+        {loc:'Sporthal Kessel-Lo',       th:['Mini Splash','De Beweegplaneet']},
+        {loc:'Syntra',                   th:['Hoera \'t is Feest','Koekjesatelier']},
+      ];
+      // Rotselaar: 'Balanceren op één been' heeft speciale tekens → zoek met LIKE
+      const _rotBal=get("SELECT id FROM themas WHERE name LIKE '%alanceren%been%'");
+      if(_rotBal) _planW1.find(p=>p.loc==='Rotselaar').th.push('__id:'+_rotBal.id);
+      let _add43=0,_skip43=new Set();
+      for(const entry of _planW1){
+        const _loc=get('SELECT id FROM locaties WHERE name=?',[entry.loc]);
+        if(!_loc){_skip43.add('LOC:'+entry.loc);continue;}
+        const _km=get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=1',[_loc.id]);
+        if(!_km){_skip43.add('KM:'+entry.loc);continue;}
+        for(const tRef of entry.th){
+          let thId;
+          if(tRef.startsWith('__id:')){thId=parseInt(tRef.slice(5));}
+          else{const th=get('SELECT id FROM themas WHERE LOWER(name)=LOWER(?)',[tRef]);thId=th?.id;}
+          if(!thId){_skip43.add('T:'+tRef);continue;}
+          try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[_km.id,thId]);_add43++;}catch(e){}
+        }
+      }
+      if(_add43>0)console.log(`  Migratie 43: ${_add43} thema-koppelingen week 1`);
+      if(_skip43.size>0)console.log('  Migratie 43 overgeslagen:',JSON.stringify([..._skip43]));
+    }
+  }
+
   // Migration 38: standaarddozen + locatie-eigenschappen
   {
     createTableIfMissing(`CREATE TABLE IF NOT EXISTS standaard_dozen (
