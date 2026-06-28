@@ -1558,39 +1558,6 @@ async function selectKpCell(kmId){
     }
     html+=`</div>`;
 
-    // Locatie-eigenschappen
-    html+=`<div style="margin-bottom:8px;padding:6px 8px;background:var(--bg2);border-radius:var(--r);font-size:11px">
-      <strong style="font-size:11px;color:var(--text2)">LOCATIE-EIGENSCHAPPEN</strong><br>
-      <label style="display:flex;align-items:center;gap:5px;margin-top:4px;cursor:pointer">
-        <input type="checkbox" ${loc?.heeft_eigen_sportmateriaal?'checked':''} onchange="saveLocEigenschap(${loc?.id},'heeft_eigen_sportmateriaal',this.checked)">
-        Heeft eigen sportmateriaal
-      </label>
-      <label style="display:flex;align-items:center;gap:5px;margin-top:2px;cursor:pointer">
-        <input type="checkbox" ${loc?.heeft_eigen_oven?'checked':''} onchange="saveLocEigenschap(${loc?.id},'heeft_eigen_oven',this.checked)">
-        Heeft eigen oven
-      </label>
-    </div>`;
-
-    // Standaard dozen
-    html+=`<div style="margin-bottom:8px">
-      <strong style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Standaarddozen</strong>`;
-    (dozen||[]).forEach(d=>{
-      const icon=d.actief?'✅':'⬜';
-      const override=d.heeft_override?'<span style="font-size:9px;color:var(--text3)">(override)</span>':'';
-      const condLabel={altijd:'altijd',leeftijdsgroep:`leeftijd: ${d.conditie_waarde}`,thema:'als kookactiviteit',programma:'als kleuterkriebels',locatie:'locatie-instelling'}[d.conditie_type]||'';
-      html+=`<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:.5px solid var(--border)">
-        <input type="checkbox" ${d.actief?'checked':''} onchange="toggleDoos(${loc?.id},${d.id},this.checked,${kmId})">
-        <div style="flex:1">
-          <span style="${d.actief?'':'color:var(--text3)'}">${_escH(d.naam)}</span>
-          ${d.opslagcode?`<span style="font-size:9px;font-weight:600;color:var(--green-dk);margin-left:4px">${_escH(d.opslagcode)}</span>`:''}
-          ${override}
-          <div style="font-size:9px;color:var(--text3)">${condLabel}</div>
-        </div>
-        <span style="font-size:10px;color:var(--text2)">×${d.qty_effectief}</span>
-      </div>`;
-    });
-    html+=`</div>`;
-
     // Themabakken
     if(bakken.length){
       html+=`<div><strong style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Themabakken</strong>`;
@@ -1624,6 +1591,14 @@ async function saveLocEigenschap(locId, veld, val){
 async function toggleDoos(locId, doosId, actief, kmId){
   await api('POST','/locatie-doos-config',{locatie_id:locId,doos_id:doosId,actief});
   if(kmId) selectKpCell(kmId);
+}
+
+async function toggleDoosLocatie(locId, doosId, actief){
+  await api('POST','/locatie-doos-config',{locatie_id:locId,doos_id:doosId,actief});
+}
+
+async function setDoosQty(locId, doosId, qty){
+  await api('POST','/locatie-doos-config',{locatie_id:locId,doos_id:doosId,qty:parseInt(qty)||1,actief:1});
 }
 
 
@@ -5480,6 +5455,44 @@ async function renderLocatieDetail(){
     </div>
     ${l.lat&&l.lng?'<div id="loc-detail-map" style="height:190px;border-radius:var(--rl);margin-top:.75rem;overflow:hidden"></div>':'<div style="font-size:11px;color:var(--text3);margin-top:8px">○ Geen kaartcoördinaten — bewerk de locatie en gebruik 📍.</div>'}
   </div>`;
+  // Standaarddozen + locatie-eigenschappen (alleen kamplocatie)
+  if(isKamp){
+    let dozen=[];
+    try{dozen=await api('GET','/standaard-dozen');}catch(e){}
+    let locConfig=[];
+    try{locConfig=await api('GET',`/locatie-doos-config/${l.id}`);}catch(e){}
+    const cfgByDoos={};locConfig.forEach(c=>{cfgByDoos[c.doos_id]=c;});
+    h+=`<div class="card" style="margin-top:.75rem">
+      <div class="card-hd">📦 Standaarddozen &amp; locatie-eigenschappen</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
+          <input type="checkbox" ${l.heeft_eigen_sportmateriaal?'checked':''} onchange="saveLocEigenschap(${l.id},'heeft_eigen_sportmateriaal',this.checked)">
+          Heeft eigen sportmateriaal
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
+          <input type="checkbox" ${l.heeft_eigen_oven?'checked':''} onchange="saveLocEigenschap(${l.id},'heeft_eigen_oven',this.checked)">
+          Heeft eigen oven
+        </label>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Vink uit als een doos niet naar deze locatie moet. Standaard = automatisch op basis van conditie.</div>
+      ${dozen.map(d=>{
+        const cfg=cfgByDoos[d.id];
+        const condLabel={altijd:'altijd',leeftijdsgroep:`leeftijd: ${d.conditie_waarde}`,thema:'als kookactiviteit',programma:'als kleuterkriebels',locatie:'locatie-instelling'}[d.conditie_type]||'';
+        const isActief=cfg?cfg.actief===1:true;
+        const qty=cfg?.qty||d.qty_default;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--border)">
+          <input type="checkbox" ${isActief?'checked':''} onchange="toggleDoosLocatie(${l.id},${d.id},this.checked)">
+          <div style="flex:1">
+            <span style="font-size:12px${isActief?'':';color:var(--text3)'}">${_escH(d.naam)}</span>
+            ${d.opslagcode?`<span style="font-size:10px;font-weight:700;color:var(--green-dk);margin-left:5px">${_escH(d.opslagcode)}</span>`:''}
+            ${cfg?'<span style="font-size:9px;color:var(--text3);margin-left:4px">(override)</span>':''}
+            <div style="font-size:10px;color:var(--text3)">${condLabel}</div>
+          </div>
+          <input type="number" value="${qty}" min="1" style="width:44px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="setDoosQty(${l.id},${d.id},this.value)">
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
   // Kampmomenten (alleen kamplocatie)
   if(isKamp){
     const kms=(S.kampmomenten||[]).filter(k=>k.locatie_id===l.id).sort((a,b)=>a.week-b.week);
