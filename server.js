@@ -496,10 +496,13 @@ async function startServer() {
 
   // Migration 21: frisse start data + kampmomenten Zomer 2026
   // Migration 21+22: frisse start data + kampmomenten + Verkeerspark=Woudlucht
-  // Gebruik een marker-vlag zodat dit maar 1x uitvoert en nooit crasht
+  // Gebruik een blijvende vlag zodat dit maar 1x ooit uitvoert — ook als de kampplanner
+  // later bewust leeggemaakt wordt (Migratie 45), mag dit NIET opnieuw vullen.
+  createTableIfMissing('CREATE TABLE IF NOT EXISTS app_vlaggen (naam TEXT PRIMARY KEY, waarde TEXT)');
+  const _mig21Vlag=get("SELECT naam FROM app_vlaggen WHERE naam='migratie21_klaar'");
   const _mig21Done=get("SELECT id FROM kampmomenten WHERE type='kamp' LIMIT 1");
   const _kmCount21=(get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
-  if(!_mig21Done || _kmCount21<50){
+  if(!_mig21Vlag && (!_mig21Done || _kmCount21<50)){
     try {
       // Alle afhankelijke data wissen (volgorde: children eerst)
       const _tClear=['kampmoment_themas','kampmoment_themas',
@@ -552,6 +555,7 @@ async function startServer() {
       console.log(`  Migratie 21+22: ${_kmAan} kampmomenten aangemaakt`);
     } catch(e) { console.error('  Migratie 21+22 fout (niet-fataal):', e.message); }
   }
+  if(!_mig21Vlag) try{ins('INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES (\'migratie21_klaar\',\'1\')');}catch(e){}
 
   // Migration 24: kampmomenten fix — Abdijschool Vlierbeek krijgt weken 1-8 (was verkeerd op Abdijschool id=6)
   {
@@ -1379,6 +1383,25 @@ async function startServer() {
     }
     const _n44=(get('SELECT COUNT(*) as n FROM themas WHERE name IN (\'Ingenieus Zomerkamp\',\'Meisjes en Wetenschap\',\'Beestige Natuur 3-daagse\')')||{}).n||0;
     if(_n44>0)console.log(`  Migratie 44: ${_n44} nieuwe themas aangemaakt + gekoppeld aan week 1`);
+  }
+
+  // Migration 45: kampplanner volledig leegmaken op uitdrukkelijk verzoek (eenmalig!)
+  // Themas, locaties, sportplanning en materiaal-catalogus blijven ongemoeid.
+  // Loopt maar 1x — anders zou elke herstart later manueel toegevoegde kampen weer wissen.
+  {
+    const _vlag45=get("SELECT naam FROM app_vlaggen WHERE naam='kampplanner_leeggemaakt'");
+    if(!_vlag45){
+      const _kmAantal45=(get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
+      if(_kmAantal45>0){
+        const _tIds45=all('SELECT id FROM transport_taken WHERE kampmoment_id IS NOT NULL').map(t=>t.id);
+        _tIds45.forEach(id=>{try{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);}catch(e){}});
+        try{run('DELETE FROM transport_taken WHERE kampmoment_id IS NOT NULL');}catch(e){}
+        try{run('DELETE FROM kampmoment_themas');}catch(e){}
+        try{run('DELETE FROM kampmomenten');}catch(e){}
+        console.log(`  Migratie 45: kampplanner leeggemaakt (${_kmAantal45} kampmomenten, ${_tIds45.length} gekoppelde transporten verwijderd) — themas/locaties/sportplanning ongemoeid`);
+      }
+      try{ins('INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES (\'kampplanner_leeggemaakt\',\'1\')');}catch(e){}
+    }
   }
 
   // Migration 43: themas koppelen aan kampmomenten week 1
