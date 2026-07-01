@@ -1383,8 +1383,7 @@ async function startServer() {
 
   // Migration 43: themas koppelen aan kampmomenten week 1
   {
-    const _w1count=(get('SELECT COUNT(*) as n FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE km.week=1')||{}).n||0;
-    if(_w1count<5){
+    {
       const _planW1=[
         {loc:'Abdijschool Vlierbeek',    th:['Op Schattenjacht met Zino Balino','We slaan in het rond','LegoLegends','Modemakers']},
         {loc:'De Bosstraat',             th:['Reis rond de Wereld','Ambachtenacademie','Geef Acht!']},
@@ -1392,7 +1391,7 @@ async function startServer() {
         {loc:'Grasmus',                  th:['Sprookjesland','Wie Wordt Homo Universalis']},
         {loc:'Klare Bron',               th:['Alle Kleuren van de Regenboog']},
         {loc:'De Kraal',                 th:['Feestje Bouwen','Fit & Fun Kamp']},
-        {loc:'De Mozaïek',               th:['Kriebelbeestjes','Atleet voor een Dag']},
+        {loc:'De Mozaiek',               th:['Kriebelbeestjes','Atleet voor een Dag']},
         {loc:'Rotselaar',                th:['Later als ik Groot Ben','Expeditie Survival']},
         {loc:'Scoutslokalen Vlierbeek',  th:['Zeepkistenrace','Zoete Toetjes']},
         {loc:'Sporthal Kessel-Lo',       th:['Mini Splash','De Beweegplaneet']},
