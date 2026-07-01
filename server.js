@@ -558,7 +558,9 @@ async function startServer() {
   if(!_mig21Vlag) try{ins('INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES (\'migratie21_klaar\',\'1\')');}catch(e){}
 
   // Migration 24: kampmomenten fix — Abdijschool Vlierbeek krijgt weken 1-8 (was verkeerd op Abdijschool id=6)
-  {
+  // Skip volledig als de kampplanner bewust leeggemaakt is (Migratie 45) — anders vult dit week 1 telkens weer aan.
+  const _kp45Vlag24=get("SELECT naam FROM app_vlaggen WHERE naam='kampplanner_leeggemaakt'");
+  if(!_kp45Vlag24){
     const _avl=get("SELECT id FROM locaties WHERE name='Abdijschool Vlierbeek'");
     const _abd=get("SELECT id FROM locaties WHERE name='Abdijschool'");
     if(_avl){
