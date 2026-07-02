@@ -96,6 +96,7 @@ function logAct(type, actie, beschrijving, locatie_id=null, locatie_naam=null) {
 async function startServer() {
   const SQL = await initSqlJs();
   db = fs.existsSync(DB_PATH) ? new SQL.Database(fs.readFileSync(DB_PATH)) : new SQL.Database();
+  db.run('PRAGMA foreign_keys = ON');
 
   // ── SCHEMA MIGRATIONS ──
   // Get current schema version
@@ -1149,6 +1150,9 @@ async function startServer() {
   // Migration 33: verwijder nep-themas (thema_type 'eigen'/'eigen_standaard' van de oude seed),
   // voeg echte themas toe vanuit data/themas-seed.json (opnieuw seeden met echte namen)
   {
+    const _vlag33=get("SELECT naam FROM app_vlaggen WHERE naam='migratie33_klaar'");
+    if(_vlag33){console.log('  Migratie 33: al uitgevoerd, overgeslagen');}
+    else{
     // Stap 1: verwijder alle themas die door de nep-seed zijn aangemaakt
     // Originele 5 themas hebben thema_type='' (lege string, voor de kolom bestond)
     // Nep-seed heeft thema_type='eigen' of 'eigen_standaard'
@@ -1192,6 +1196,8 @@ async function startServer() {
       }
       if(_tAdded33>0)console.log(`  Migratie 33: ${_tAdded33} echte themas gezaaid, ${_biAdded33} items ingevoegd`);
     }
+    try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie33_klaar','1')");}catch(e){}
+    } // end if(!_vlag33)
   }
 
   // Migration 34: ontbrekende item_types toevoegen
@@ -1233,6 +1239,9 @@ async function startServer() {
 
   // Migration 36: echte bakken + items uit PDF-bundels zaaien (vervangt nep-items)
   {
+    const _vlag36=get("SELECT naam FROM app_vlaggen WHERE naam='migratie36_klaar'");
+    if(_vlag36){console.log('  Migratie 36: al uitgevoerd, overgeslagen');}
+    else{
     const _sp36=path.join(__dirname,'data','thema-bakken-seed.json');
     if(fs.existsSync(_sp36)){
       let _seed36=[];
@@ -1266,10 +1275,15 @@ async function startServer() {
       }
       if(_tUpd36>0)console.log(`  Migratie 36: ${_tUpd36} themas bijgewerkt met echte bakken (${_bAdded36} bakken, ${_iAdded36} items)`);
     }
+    try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie36_klaar','1')");}catch(e){}
+    } // end if(!_vlag36)
   }
 
   // Migration 37: themedagen zaaien uit PDF-bundels (thema_type='themadag')
   {
+    const _vlag37=get("SELECT naam FROM app_vlaggen WHERE naam='migratie37_klaar'");
+    if(_vlag37){console.log('  Migratie 37: al uitgevoerd, overgeslagen');}
+    else{
     const _sp37=path.join(__dirname,'data','themedagen-bakken-seed.json');
     if(fs.existsSync(_sp37)){
       let _seed37=[];
@@ -1305,6 +1319,8 @@ async function startServer() {
       }
       if(_tAdded37>0)console.log(`  Migratie 37: ${_tAdded37} themadagen gezaaid (${_bAdded37} bakken, ${_iAdded37} items)`);
     }
+    try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie37_klaar','1')");}catch(e){}
+    } // end if(!_vlag37)
   }
 
   // Migration 39: heeft_kookactiviteit op themas
@@ -1610,15 +1626,21 @@ async function startServer() {
     console.log('  Migratie 38: standaarddozen + locatie-eigenschappen klaar');
   }
 
-  // Migration 23: transporten uit oude database wissen (eenmalig)
-  const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
-  const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
-  if(_trCount>0||_ttCount>0){
-    try{
-      ['verhuis_checks','transport_regels','transport_taken','transport_ritten','verplaatsingen']
-        .forEach(t=>{try{run(`DELETE FROM ${t}`);}catch(e){}});
-      console.log('  Migratie 23: transport- en verplaatsingsdata gewist');
-    }catch(e){console.error('  Migratie 23 fout (niet-fataal):',e.message);}
+  // Migration 23: transporten uit oude database wissen (eenmalig, gated)
+  {
+    const _vlag23=get("SELECT naam FROM app_vlaggen WHERE naam='migratie23_klaar'");
+    if(!_vlag23){
+      const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
+      const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
+      if(_trCount>0||_ttCount>0){
+        try{
+          ['verhuis_checks','transport_regels','transport_taken','transport_ritten','verplaatsingen']
+            .forEach(t=>{try{run(`DELETE FROM ${t}`);}catch(e){}});
+          console.log('  Migratie 23: transport- en verplaatsingsdata gewist');
+        }catch(e){console.error('  Migratie 23 fout (niet-fataal):',e.message);}
+      }
+      try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie23_klaar','1')");}catch(e){}
+    }
   }
 
   saveDb();
