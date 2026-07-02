@@ -2414,7 +2414,7 @@ async function startServer() {
   app.post('/api/transport-taken/bulk-ontkoppel',(req,res)=>{
     const{ids}=req.body;
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
-    ids.forEach(id=>run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=? AND COALESCE((SELECT spoed_kind FROM transport_taken WHERE id=?),'') != 1",[id,id]));
+    ids.forEach(id=>run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=? AND COALESCE((SELECT spoed_kind FROM transport_taken WHERE id=?),'') != '1'",[id,id]));
     saveDb();res.json({ok:true,count:ids.length});
   });
   // Bulk: verplaats naar andere rit
@@ -3465,8 +3465,7 @@ async function startServer() {
     if(type==='sport'){
       item=get('SELECT * FROM sport_items WHERE id=?',[id]);
       if(item){
-        extra.sets=all('SELECT ss.*,l.name AS loc_naam FROM sport_sets ss LEFT JOIN locaties l ON ss.locatie_id=l.id WHERE ss.sport_id=? ORDER BY ss.label',[id]);
-        extra.fotos=all('SELECT id,tijdstip,wie FROM sport_fotos WHERE sport_id=? ORDER BY id DESC LIMIT 10',[id]);
+        extra.sets=all('SELECT ss.*,l.name AS loc_naam FROM sport_sets ss LEFT JOIN locaties l ON ss.locatie_id=l.id WHERE ss.item_id=? ORDER BY ss.label',[id]);
       }
     } else if(type==='thema'){
       item=get('SELECT mi.*,t.name AS thema_naam,t.color AS thema_color FROM materiaal_items mi JOIN themas t ON mi.thema_id=t.id WHERE mi.id=? AND mi.tracking=?',[id,'thema']);

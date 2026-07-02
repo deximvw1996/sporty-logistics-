@@ -637,8 +637,8 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
   </div>
 
-  <!-- Modaal: shift toevoegen -->
-  <div id="modal-shift" style="display:none;position:fixed;inset:0;background:#0008;z-index:1000;align-items:center;justify-content:center">
+  <!-- Modaal: shift toevoegen (personeel) -->
+  <div id="modal-pers-shift" style="display:none;position:fixed;inset:0;background:#0008;z-index:1000;align-items:center;justify-content:center">
     <div style="background:var(--bg);border-radius:var(--r);padding:1.5rem;width:min(420px,94vw);box-shadow:0 8px 32px #0004">
       <div style="font-weight:700;font-size:15px;margin-bottom:1rem">Shift / aanstelling toevoegen</div>
       <input type="hidden" id="shift-pers-id">
@@ -657,7 +657,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       </div>
       <div style="display:flex;gap:8px;margin-top:1rem">
         <button class="btn-g" onclick="slaaShiftOp()">Opslaan</button>
-        <button class="btn-o" onclick="document.getElementById('modal-shift').style.display='none'">Annuleren</button>
+        <button class="btn-o" onclick="document.getElementById('modal-pers-shift').style.display='none'">Annuleren</button>
         <button class="btn-r" id="shift-verwijder-btn" style="display:none;margin-left:auto" onclick="verwijderShift()">Verwijderen</button>
       </div>
     </div>
@@ -975,7 +975,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <select class="sel" id="tb-filter-week" style="height:30px;font-size:12px" onchange="renderTransportBeheer()">
         <option value="">Alle weken</option>
       </select>
-      <input class="inp" id="tb-zoek" placeholder="Zoeken…" style="height:30px;font-size:12px;width:140px" oninput="renderTransportBeheer()">
+      <input class="inp" id="transport-zoek" placeholder="Zoeken…" style="height:30px;font-size:12px;width:140px" oninput="renderTransportBeheer()">
     </div>
 
     <!-- Bulk-actiebalk (verschijnt als items geselecteerd zijn) -->
@@ -1975,7 +1975,7 @@ async function printDagplanningChauffeur(chauffeurId, datum){
       +'<div style="font-size:12px;color:#666;margin-bottom:6px">'+( t.tijd_van?t.tijd_van+' &mdash; '+(t.tijd_tot||''):'Geen tijdstip')+'</div>'
       +(t.notities?'<div style="font-size:12px;padding:6px;background:#f5f5f5;border-radius:4px;margin-bottom:8px">'+t.notities+'</div>':'')
       +'<div class="items">'
-      +(t.regels&&t.regels.length?t.regels.map(r=>'<div class="item-row"><span class="qty">&times;'+r.qty+'</span><span>'+r.omschrijving+'</span></div>').join(''):'<div style="color:#999">Geen items opgegeven</div>')
+      +(t.regels&&t.regels.length?t.regels.map(r=>'<div class="item-row"><span class="qty">&times;'+r.qty+'</span><span>'+r.naam+'</span></div>').join(''):'<div style="color:#999">Geen items opgegeven</div>')
       +'</div></div>';
   }).join('') : '<div style="padding:20px;text-align:center;color:#999">Geen transporten gepland voor deze dag</div>'}
   <div class="footer">Gegenereerd op ${new Date().toLocaleString('nl-BE')} | Sporty vzw Logistiek</div>
@@ -2459,7 +2459,7 @@ function _kpSportCell(km){
 async function kpSetThema(kmId,leeftijdsgroep,newThemaId,sel){
   const km=(S.kampmomenten||[]).find(k=>k.id===kmId);
   if(!km)return;
-  const existing=(km.themas||[]).find(t=>t.leeftijdsgroep===leeftijdsgroep&&t.dag==null);
+  const existing=(km.themas||[]).find(t=>_normLG(t.leeftijdsgroep)===leeftijdsgroep&&t.dag==null);
   if(existing) await api('DELETE','/kampmomenten/'+kmId+'/themas/'+existing.id);
   if(newThemaId) await api('POST','/kampmomenten/'+kmId+'/themas',{thema_id:newThemaId});
   S.kampmomenten=await api('GET','/kampmomenten');
@@ -5667,6 +5667,24 @@ function _stockFullName(stockLocs,id){
   if(loc.parent_id){const par=(stockLocs||[]).find(l=>l.id==loc.parent_id);return(par?par.name+' › ':'')+loc.name;}
   return loc.name;
 }
+function _stockOptsHtml(selectedId,placeholder){
+  const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
+  const stockParents=stockLocs.filter(l=>!l.parent_id);
+  const stockChildren=stockLocs.filter(l=>l.parent_id);
+  let h=placeholder?`<option value="">${placeholder}</option>`:'';
+  for(const p of stockParents){
+    const subs=stockChildren.filter(c=>c.parent_id==p.id);
+    if(subs.length){
+      h+=`<optgroup label="📦 ${_escH(p.name)}">`;
+      for(const s of subs) h+=`<option value="${s.id}"${selectedId==s.id?' selected':''}>↳ ${_escH(s.name)}</option>`;
+      h+=`</optgroup>`;
+    } else {
+      h+=`<option value="${p.id}"${selectedId==p.id?' selected':''}>📦 ${_escH(p.name)}</option>`;
+    }
+  }
+  return h;
+}
+
 async function renderCatalogus(){
   if(!_invSport||!_invSport.length){
     const r=await api('GET','/sport');
@@ -5842,23 +5860,6 @@ function renderCatalogusLijst(){
   }
 
   const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
-  const stockParents=stockLocs.filter(l=>!l.parent_id);
-  const stockChildren=stockLocs.filter(l=>l.parent_id);
-  // Helper: bouw gegroepeerde <option>/<optgroup> HTML voor stockage dropdowns
-  function _stockOptsHtml(selectedId,placeholder){
-    let h=placeholder?`<option value="">${placeholder}</option>`:'';
-    for(const p of stockParents){
-      const subs=stockChildren.filter(c=>c.parent_id==p.id);
-      if(subs.length){
-        h+=`<optgroup label="📦 ${_escH(p.name)}">`;
-        for(const s of subs) h+=`<option value="${s.id}"${selectedId==s.id?' selected':''}>↳ ${_escH(s.name)}</option>`;
-        h+=`</optgroup>`;
-      } else {
-        h+=`<option value="${p.id}"${selectedId==p.id?' selected':''}>📦 ${_escH(p.name)}</option>`;
-      }
-    }
-    return h;
-  }
   // Helper: toon naam inclusief parent (bv. "Kantoor › Sport")
   function _stockFullNameLocal(id){return _stockFullName(stockLocs,id);}
   // Bulk-selectie: stale uids opruimen + bulk-balk opbouwen
@@ -7383,7 +7384,7 @@ function renderTransportBeheer(){
 
   const filterStatus=document.getElementById('tb-filter-status')?.value||'';
   const filterWeek=document.getElementById('tb-filter-week')?.value;
-  const zoek=(document.getElementById('tb-zoek')?.value||'').toLowerCase().trim();
+  const zoek=(document.getElementById('transport-zoek')?.value||'').toLowerCase().trim();
 
   function _nodWeek(t){
     if(t.week)return t.week;
@@ -9433,7 +9434,7 @@ function openShiftModal(persId){
   document.getElementById('shift-rol-dag').value='';
   document.getElementById('shift-notities').value='';
   document.getElementById('shift-verwijder-btn').style.display='none';
-  document.getElementById('modal-shift').style.display='flex';
+  document.getElementById('modal-pers-shift').style.display='flex';
 }
 
 async function slaaShiftOp(){
@@ -9447,7 +9448,7 @@ async function slaaShiftOp(){
     notities:document.getElementById('shift-notities').value.trim()};
   if(editId) await api('PUT',`/personeel-shifts/${editId}`,data);
   else await api('POST',`/personeel/${persId}/shifts`,data);
-  document.getElementById('modal-shift').style.display='none';
+  document.getElementById('modal-pers-shift').style.display='none';
   _persData=[];
   await _laadPersoneel();
   setPersSubtab(_persSubtab,null);
@@ -9467,7 +9468,7 @@ async function verwijderShift(){
   const id=document.getElementById('shift-edit-id').value; if(!id)return;
   if(!confirm('Shift verwijderen?'))return;
   await api('DELETE',`/personeel-shifts/${id}`);
-  document.getElementById('modal-shift').style.display='none';
+  document.getElementById('modal-pers-shift').style.display='none';
   _persData=[];
   await _laadPersoneel();
   setPersSubtab(_persSubtab,null);
