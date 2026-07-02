@@ -2309,9 +2309,16 @@ async function startServer() {
           const vertrekkende=prevKmThemas.filter(kt=>!newThIds.has(kt.thema_id));
           const aankomende=kmThemas.filter(kt=>!prevThIds.has(kt.thema_id));
 
-          if(vertrekkende.length||aankomende.length){
+          // Aankomende thema's die direct van een andere locatie komen (A→B consecutive)
+          // worden afgehandeld door het "DIRECT THEMA-TRANSFER" blok → hier overslaan.
+          const aankomendeViaStockage=aankomende.filter(kt=>{
+            const kwamVanAndereLocatie=kts.some(kt2=>kt2.thema_id===kt.thema_id&&kt2.kampmoment_id!==km.id&&
+              (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.week===km.week-1&&km2.locatie_id!==km.locatie_id;})());
+            return !kwamVanAndereLocatie;
+          });
+          if(vertrekkende.length||aankomendeViaStockage.length){
             const ophaalMat=vertrekkende.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return thema_mat.filter(m=>m.thema_id===kt.thema_id).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema',stockage_id:m.stockage_locatie_id||themaStockageId}));});
-            const leverMat=aankomende.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return thema_mat.filter(m=>m.thema_id===kt.thema_id).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema',stockage_id:m.stockage_locatie_id||themaStockageId}));});
+            const leverMat=aankomendeViaStockage.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return thema_mat.filter(m=>m.thema_id===kt.thema_id).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema',stockage_id:m.stockage_locatie_id||themaStockageId}));});
             const prevOpen=getOpenDagen(prevKm);
             const wisseldatum=prevOpen.length?nextWorkday(prevOpen[prevOpen.length-1]):prevWorkday(openDagen[0]);
             Object.entries(byStockage(ophaalMat)).forEach(([sid,mat])=>{
@@ -2326,7 +2333,11 @@ async function startServer() {
         if(!heeftOpvolger){
           // Laatste week: haal op per stockage-groep
           const nextD=nextWorkday(openDagen[openDagen.length-1]);
-          Object.entries(byStockage(basisRegels)).forEach(([sid,mat])=>{
+          // Kleurenborden meeophalend na de laatste week
+          const kleuren=allKleuren.filter(k=>k.locatie_id==loc.id&&k.week===km.week);
+          const kleurenRegels=kleuren.map(k=>({naam:`Kleurenbord ${k.kleur} ×${k.aantal}`,qty:k.aantal,soort:'basis',stockage_id:sportStockageId}));
+          const basisPlusKleuren=[...basisRegels,...kleurenRegels];
+          Object.entries(byStockage(basisPlusKleuren)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling basis week '+km.week+' — '+loc.name+(sLoc?' (naar '+sLoc.name+')':'')});
           });
