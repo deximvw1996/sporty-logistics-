@@ -2372,10 +2372,17 @@ async function startServer() {
     const gelotenDagen=all('SELECT * FROM gesloten_dagen').map(g=>g.datum);
     const allKleuren=all('SELECT * FROM locatie_kleuren');
     const stockage=locs.filter(l=>l.type==='stockage');
+    // Enkel top-level stockageplaatsen komen in aanmerking (sub-locaties zoals RGA-RGF,
+    // Boven/Beneden/Naschoolse zijn kamers/codes BINNEN Kantoor of Rozenweg, geen aparte
+    // ophaal-/leverbestemming op zich).
+    const stockageTopLevel=stockage.filter(l=>!l.parent_id);
 
-    // Typed stockage: basis/sport → Kantoor, thema → Rozenweg
-    const sportStockageId=locs.find(l=>l.type==='stockage'&&(l.stockage_rol==='sport'||l.stockage_rol==='beide'))?.id||stockage[0]?.id||null;
-    const themaStockageId=locs.find(l=>l.type==='stockage'&&(l.stockage_rol==='thema'||l.stockage_rol==='beide'))?.id||stockage[0]?.id||null;
+    // Typed stockage: basis/sport → Kantoor, alles met een code (themabakken/attributen) → Rozenweg.
+    // Naam-match eerst (expliciete regel), stockage_rol als terugval voor toekomstige locaties.
+    const sportStockageId=stockageTopLevel.find(l=>l.name==='Kantoor')?.id
+      ||stockageTopLevel.find(l=>l.stockage_rol==='sport'||l.stockage_rol==='beide')?.id||stockageTopLevel[0]?.id||null;
+    const themaStockageId=stockageTopLevel.find(l=>l.name==='Rozenweg')?.id
+      ||stockageTopLevel.find(l=>l.stockage_rol==='thema'||l.stockage_rol==='beide')?.id||stockageTopLevel[0]?.id||null;
 
     const allPeriodes=all('SELECT * FROM vakantieperiodes');
     const defaultPeriode=allPeriodes[0]||{id:1,start_datum:'2026-06-29',eind_datum:'2026-09-06'};

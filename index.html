@@ -1305,6 +1305,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div style="display:flex;gap:8px">
       <button class="btn-g" style="flex:1" onclick="saveKampmoment()">&#128190; Opslaan</button>
       <button class="btn-o" onclick="closeModal('modal-km')">Annuleren</button>
+      <button class="btn-r" id="km-delete-btn" style="display:none" onclick="deleteKampmoment(_kmEditId)" title="Locatie voor deze week weer sluiten">&#128465; Verwijderen</button>
     </div>
   </div>
 </div>
@@ -4427,6 +4428,7 @@ function openNieuwKampmoment(preLocId, preWeek){
   _renderKmDagUI();
   updateKmPreview();
   _fillKmSportSectie(null);
+  const delBtn=document.getElementById('km-delete-btn');if(delBtn)delBtn.style.display='none';
   openModal('modal-km');
 }
 function openBewerkKampmoment(kmId){
@@ -4464,6 +4466,7 @@ function openBewerkKampmoment(kmId){
     _renderKmDagUI();
   }
   _fillKmSportSectie(km);
+  const delBtn=document.getElementById('km-delete-btn');if(delBtn)delBtn.style.display='block';
   openModal('modal-km');
 }
 function _fillKmSportSectie(km){
@@ -4572,7 +4575,20 @@ async function saveKampmoment(){
   if(_kampMode==='locatie'||_kampMode==='week'||_kampMode==='thema')_renderKampMode();
   {const _kl=document.getElementById('km-list');if(_kl)_kl.scrollIntoView({behavior:'smooth',block:'nearest'});}
 }
-async function deleteKampmoment(id){if(!confirm('Kampmoment verwijderen?'))return;await api('DELETE','/kampmomenten/'+id);S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);renderKampen();if(document.getElementById('rooster-ov')&&document.getElementById('rooster-ov').style.display!=='none')renderRooster();}
+async function deleteKampmoment(id){
+  if(!id){showToast('Geen kampmoment geselecteerd','warn');return;}
+  if(!confirm('Kampmoment verwijderen? De locatie gaat deze week weer dicht en gekoppelde thema\'s/transporten worden losgekoppeld.'))return;
+  await api('DELETE','/kampmomenten/'+id);
+  S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);
+  closeModal('modal-km');
+  _kmEditId=null;
+  renderKampen();
+  renderRooster();
+  renderRooster('rooster-content-kp');
+  if(document.getElementById('kp-detail-panel'))document.getElementById('kp-detail-panel').style.display='none';
+  if(_kampMode==='locatie'||_kampMode==='week'||_kampMode==='thema')_renderKampMode();
+  showToast('Kampmoment verwijderd','success');
+}
 async function addThemaToKm(kmId){const thema_id=parseInt(document.getElementById('add-th-'+kmId).value);if(!thema_id)return;const r=await api('POST','/kampmomenten/'+kmId+'/themas',{thema_id});if(r.error){showToast(r.error,'error');return;}S.kampmomenten=S.kampmomenten.map(k=>k.id===kmId?r:k);renderKampen();}
 async function removeThemaFromKm(kmId,ktId){const r=await api('DELETE','/kampmomenten/'+kmId+'/themas/'+ktId);S.kampmomenten=S.kampmomenten.map(k=>k.id===kmId?r:k);renderKampen();}
 
