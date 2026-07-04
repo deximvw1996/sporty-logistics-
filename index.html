@@ -1272,8 +1272,8 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="fg grow"><label for="km-periode">Vakantieperiode</label><select class="sel" id="km-periode" style="width:100%" onchange="updateKmWeekMax();updateKmPreview()"></select></div>
     </div>
     <div class="fr">
-      <div class="fg sm"><label for="km-week">Week</label><input class="inp" type="number" id="km-week" min="1" max="9" placeholder="1…" oninput="updateKmPreview()"></div>
-      <div class="fg grow"><label for="km-loc">Locatie</label><select class="sel" id="km-loc" style="width:100%"></select></div>
+      <div class="fg sm"><label for="km-week">Week</label><input class="inp" type="number" id="km-week" min="1" max="9" placeholder="1…" oninput="updateKmPreview();_refreshKmSportSectie()"></div>
+      <div class="fg grow"><label for="km-loc">Locatie</label><select class="sel" id="km-loc" style="width:100%" onchange="_refreshKmSportSectie()"></select></div>
     </div>
     <div id="km-preview" style="font-size:12px;color:var(--green-dk);background:var(--green-bg);padding:6px 10px;border-radius:var(--r);margin-bottom:12px;display:none"></div>
     <div class="fr" style="margin-bottom:10px">
@@ -4427,7 +4427,7 @@ function openNieuwKampmoment(preLocId, preWeek){
   _kmDagThemas={0:[],1:[],2:[],3:[],4:[]};
   _renderKmDagUI();
   updateKmPreview();
-  _fillKmSportSectie(null);
+  _fillKmSportSectie(preLocId,preWeek);
   const delBtn=document.getElementById('km-delete-btn');if(delBtn)delBtn.style.display='none';
   openModal('modal-km');
 }
@@ -4465,36 +4465,43 @@ function openBewerkKampmoment(kmId){
     _kmDagThemas={0:[],1:[],2:[],3:[],4:[]};
     _renderKmDagUI();
   }
-  _fillKmSportSectie(km);
+  _fillKmSportSectie(km.locatie_id,km.week);
   const delBtn=document.getElementById('km-delete-btn');if(delBtn)delBtn.style.display='block';
   openModal('modal-km');
 }
-function _fillKmSportSectie(km){
+// Sportpakketten zijn gekoppeld aan locatie+week (los van het kampmoment zelf), dus deze
+// sectie werkt identiek bij aanmaken (nog geen kampmoment-id) en bij bewerken.
+function _fillKmSportSectie(locatieId,week){
   const sec=document.getElementById('km-sport-sectie');
   if(!sec)return;
-  if(!km){sec.style.display='none';return;}
+  if(!locatieId||!week){sec.style.display='none';return;}
   sec.style.display='block';
-  const sets=km.sport_sets||[];
   const allSets=(_invSport||[]).flatMap(item=>(item.sets||[]).map(s=>({...s,item_naam:item.name})));
-  const geplande=new Set(sets.map(s=>s.set_id));
+  const geplande=allSets.filter(s=>(s.planning||[]).some(p=>p.locatie_id===locatieId&&p.week===week));
+  const geplandeIds=new Set(geplande.map(s=>s.id));
   // Tags
   const tags=document.getElementById('km-sport-tags');
   if(tags){
     const grouped={};
-    sets.forEach(s=>{if(!grouped[s.item_naam])grouped[s.item_naam]=[];grouped[s.item_naam].push(s);});
+    geplande.forEach(s=>{if(!grouped[s.item_naam])grouped[s.item_naam]=[];grouped[s.item_naam].push(s);});
     tags.innerHTML=Object.entries(grouped).map(([naam,ss])=>
-      `<span class="thema-tag" style="background:var(--blue-bg);color:var(--blue);font-size:11px">⚽ ${_escH(naam)}${ss.length>1?' ×'+ss.length:''} ${ss.map(s=>`<button type="button" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:10px;padding:0 2px" onclick="kmModalRemoveSport(${km.id},${s.set_id},${km.week})">✕</button>`).join('')}</span>`
+      `<span class="thema-tag" style="background:var(--blue-bg);color:var(--blue);font-size:11px">⚽ ${_escH(naam)}${ss.length>1?' ×'+ss.length:''} ${ss.map(s=>`<button type="button" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:10px;padding:0 2px" onclick="kmModalRemoveSport(${s.id},${locatieId},${week})">✕</button>`).join('')}</span>`
     ).join('')||'<span style="font-size:11px;color:var(--text2)">Nog geen sportpakketten.</span>';
   }
   // Dropdown
   const sel=document.getElementById('km-sport-add-sel');
   if(sel){
-    const beschikbaar=allSets.filter(s=>!geplande.has(s.id));
+    const beschikbaar=allSets.filter(s=>!geplandeIds.has(s.id));
     sel.innerHTML='<option value="">+ Sportpakket toevoegen…</option>'+beschikbaar.map(s=>`<option value="${s.id}">${_escH(s.item_naam)} — ${_escH(s.label)}</option>`).join('');
-    sel.dataset.kmid=km.id;
-    sel.dataset.locid=km.locatie_id;
-    sel.dataset.week=km.week;
+    sel.dataset.locid=locatieId;
+    sel.dataset.week=week;
   }
+}
+// Herlees de huidige week/locatie uit het formulier zelf (werkt zowel bij aanmaken als bewerken).
+function _refreshKmSportSectie(){
+  const week=parseInt(document.getElementById('km-week')?.value);
+  const locId=parseInt(document.getElementById('km-loc')?.value);
+  _fillKmSportSectie(locId,week);
 }
 async function kmModalAddSport(){
   const sel=document.getElementById('km-sport-add-sel');
@@ -4502,17 +4509,15 @@ async function kmModalAddSport(){
   const locId=parseInt(sel.dataset.locid);
   const week=parseInt(sel.dataset.week);
   await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:locId});
-  S.kampmomenten=await api('GET','/kampmomenten');
-  const km=(S.kampmomenten||[]).find(k=>k.id===parseInt(sel.dataset.kmid));
-  _fillKmSportSectie(km);
+  _invSport=await api('GET','/sport');
+  _fillKmSportSectie(locId,week);
   renderRooster('rooster-content-kp');
   if(_kampMode==='locatie'||_kampMode==='week')_renderKampMode();
 }
-async function kmModalRemoveSport(kmId,setId,week){
+async function kmModalRemoveSport(setId,locId,week){
   await api('POST','/sport/sets/'+setId+'/plan',{week,locatie_id:null});
-  S.kampmomenten=await api('GET','/kampmomenten');
-  const km=(S.kampmomenten||[]).find(k=>k.id===kmId);
-  _fillKmSportSectie(km);
+  _invSport=await api('GET','/sport');
+  _fillKmSportSectie(locId,week);
   renderRooster('rooster-content-kp');
   if(_kampMode==='locatie'||_kampMode==='week')_renderKampMode();
 }
