@@ -510,6 +510,10 @@ async function startServer() {
   // Gebruik een blijvende vlag zodat dit maar 1x ooit uitvoert — ook als de kampplanner
   // later bewust leeggemaakt wordt (Migratie 45), mag dit NIET opnieuw vullen.
   createTableIfMissing('CREATE TABLE IF NOT EXISTS app_vlaggen (naam TEXT PRIMARY KEY, waarde TEXT)');
+  // Migratie 49 (thema's+materiaal bewust leeggemaakt) mag NIET stilzwijgend ongedaan gemaakt
+  // worden door oudere seed-migraties (26/44) die "voeg dit thema toe als het nog niet bestaat"
+  // doen — die zouden anders bij elke herstart de net gewiste thema's terug aanmaken.
+  const _migratie49AlKlaar=!!get("SELECT naam FROM app_vlaggen WHERE naam='migratie49_klaar'");
   const _mig21Vlag=get("SELECT naam FROM app_vlaggen WHERE naam='migratie21_klaar'");
   const _mig21Done=get("SELECT id FROM kampmomenten WHERE type='kamp' LIMIT 1");
   const _kmCount21=(get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
@@ -590,7 +594,7 @@ async function startServer() {
 
   // Migration 25: 4 thema's week 1 Abdijschool toevoegen
   // Guard: sla over als de 4 themas al correct gekoppeld zijn (was vroeger zonder guard → groeiende duplicaten)
-  {
+  if(!_migratie49AlKlaar) {
     const _themas25=[
       {name:'Op schattenjacht met Zino Balino',color:'#F59E0B',leeftijdsgroep:'kleuters'},
       {name:'We slaan in het rond',color:'#EF4444',leeftijdsgroep:'kleuters'},
@@ -646,7 +650,7 @@ async function startServer() {
   addColumnIfMissing('thema_materiaal','parent_id','INTEGER');
   // Bestaande week-1 themas updaten naar correct type (geen eigen themabundel = eigen_standaard)
   run("UPDATE themas SET thema_type='eigen_standaard' WHERE name IN ('Op schattenjacht met Zino Balino','We slaan in het rond','Lego Legends','Modemakers') AND thema_type='eigen_materiaal'");
-  {
+  if(!_migratie49AlKlaar) {
     // Helper: thema ophalen of aanmaken
     const _uT=(name,kleur,lgr,type)=>{
       const ex=get('SELECT id FROM themas WHERE name=?',[name]);
@@ -1112,7 +1116,7 @@ async function startServer() {
   // Migration 32: themas extra kolommen + seeden vanuit data/themas-seed.json
   addColumnIfMissing('themas','leeftijdsgroep','TEXT DEFAULT \'\'');
   addColumnIfMissing('themas','thema_type','TEXT DEFAULT \'eigen\'');
-  {
+  if(!_migratie49AlKlaar) {
     const _seedPath=path.join(__dirname,'data','themas-seed.json');
     if(fs.existsSync(_seedPath)){
       let _tSeed=[];
@@ -1387,7 +1391,7 @@ async function startServer() {
   }
 
   // Migration 44: ontbrekende themas aanmaken + koppelen aan week 1
-  {
+  if(!_migratie49AlKlaar) {
     const _nieuwW1=[
       {name:'Ingenieus Zomerkamp',             leeftijdsgroep:'tieners',    color:'#8E44AD', loc:'Campus GroepT'},
       {name:'Meisjes en Wetenschap',           leeftijdsgroep:'tieners',    color:'#E91E63', loc:'Campus GroepT'},
@@ -1716,6 +1720,52 @@ async function startServer() {
       if(p){ run('UPDATE transport_ritten SET personeel_id=? WHERE id=?',[p.id,r.id]); _rittenGekoppeld++; }
     });
     if(_rittenGekoppeld>0) console.log(`  Migratie 48: ${_rittenGekoppeld} transport_ritten gekoppeld aan personeel`);
+  }
+
+  // Migration 49: EENMALIGE opkuis op vraag van Maxim — thema's en al het materiaal volledig
+  // gewist, zodat alles samen stuk per stuk proper opnieuw opgebouwd kan worden. Sportpakketten
+  // (sport_items/sport_sets/sport_planning), locaties en personeel blijven ongemoeid.
+  // Gegated via app_vlaggen: dit mag maar 1 keer gebeuren, anders wist elke herstart opnieuw
+  // alle nieuw ingevoerde thema's/materiaal.
+  {
+    const _vlag49=get("SELECT naam FROM app_vlaggen WHERE naam='migratie49_klaar'");
+    if(!_vlag49){
+      const _wisTabellen49=[
+        'kampmoment_themas','bak_fotos','bak_nakijk_log','bak_items','thema_bakken',
+        'thema_materiaal','thema_categorieen','themas',
+        'nakijk_regels','nakijk_sessies',
+        'terugkomst_regels','terugkomst_rapporten',
+        'gedeeld_gebruik','gedeeld_stock','gedeeld_items',
+        'vaste_bak_items','vaste_bakken',
+        'standaard_doos_items','locatie_doos_config','standaard_dozen',
+        'kamp_basis_afwijking','standaard_materiaal',
+        'locatie_materiaal',
+        'kleurenborden_stock','locatie_kleuren',
+        'verbruik_log','verbruik_stock','materiaal_eenheden','verplaatsingen','materiaal_items',
+        'spoedmeldingen',
+        'item_types',
+      ];
+      _wisTabellen49.forEach(t=>{
+        try{ db.run(`DELETE FROM ${t}`); }
+        catch(e){ console.error(`  Migratie 49 fout bij wissen ${t} (niet-fataal):`,e.message); }
+      });
+      console.log(`  Migratie 49: thema's en materiaal volledig gewist (${_wisTabellen49.length} tabellen) — sportpakketten, locaties, personeel blijven behouden`);
+      try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie49_klaar','1')");}catch(e){}
+    }
+  }
+
+  // Migration 50: EENMALIGE correctie — tijdens het testen van Migratie 49 werden themas
+  // per ongeluk 1x teruggezaaid door migraties 25/26/32/44 (nu allemaal gegate op
+  // _migratie49AlKlaar, zie hierboven), vóór die gates er stonden. Ruimt dat resultaat nog
+  // eens op. Enkel thema-tabellen; sport/personeel/locaties blijven ongemoeid.
+  {
+    const _vlag50=get("SELECT naam FROM app_vlaggen WHERE naam='migratie50_klaar'");
+    if(!_vlag50){
+      const _wisTabellen50=['kampmoment_themas','bak_fotos','bak_nakijk_log','bak_items','thema_bakken','thema_materiaal','thema_categorieen','themas'];
+      _wisTabellen50.forEach(t=>{ try{ db.run(`DELETE FROM ${t}`); }catch(e){console.error(`  Migratie 50 fout bij wissen ${t} (niet-fataal):`,e.message);} });
+      console.log('  Migratie 50: resterende thema-data na Migratie 49 nogmaals opgeruimd');
+      try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie50_klaar','1')");}catch(e){}
+    }
   }
 
   saveDb();
