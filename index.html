@@ -507,7 +507,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   <div class="sec" id="sec-planning">
     <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem">
       <button class="kal-subtab active" id="plan-sub-locaties" onclick="setPlanSubtab('locaties',this)">&#128205; Locaties &amp; Kampen</button>
-      <button class="kal-subtab" id="plan-sub-sport" onclick="setPlanSubtab('sport',this)">&#9917; Sportpakketten</button>
     </div>
     <div id="plan-sub-locaties-content">
       <div class="loc-split" style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
@@ -523,9 +522,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         </div>
       </div>
     </div>
-    <div id="plan-sub-sport-content" style="display:none">
-      <div id="sport-planning-grid"><div class="loading">Laden&hellip;</div></div>
-    </div>
+    <div id="plan-sub-sport-content" style="display:none"></div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -537,6 +534,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" id="kp-tab-locatie" onclick="setKampMode('locatie',this)">&#128205; Per locatie</button>
       <button class="kal-subtab" id="kp-tab-week" onclick="setKampMode('week',this)">&#128197; Per week</button>
       <button class="kal-subtab" id="kp-tab-thema" onclick="setKampMode('thema',this)">&#127912; Per thema</button>
+      <button class="kal-subtab" id="kp-tab-sport" onclick="setKampMode('sport',this)">&#9917; Sportpakketten</button>
     </div>
     <div id="kp-rooster-content">
       <div style="display:flex;gap:6px;margin-bottom:.7rem;align-items:center;flex-wrap:wrap">
@@ -551,6 +549,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div id="kp-locatie-content" style="display:none"></div>
     <div id="kp-week-content" style="display:none"></div>
     <div id="kp-thema-content" style="display:none"></div>
+    <div id="kp-sport-content" style="display:none"><div id="sport-planning-grid"><div class="loading">Laden&hellip;</div></div></div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -669,7 +668,8 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-materiaal">
     <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;flex-wrap:wrap;align-items:center">
-      <button class="kal-subtab active" onclick="setMatSubtab('themabakken',this)">&#129082; Themabakken</button>
+      <button class="kal-subtab" onclick="setMatSubtab('catalogus',this)">&#128230; Alle artikelen</button>
+      <button class="kal-subtab" onclick="setMatSubtab('themabakken',this)">&#129082; Themabakken</button>
       <button class="kal-subtab" onclick="setMatSubtab('vastebakken',this)">&#128451; Vaste bakken</button>
       <button class="kal-subtab" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
       <button class="kal-subtab" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
@@ -2373,9 +2373,7 @@ function setPlanSubtab(tab,btn){
   if(tab==='sport') renderSportPlanningGrid();
 }
 async function renderPlanning(){
-  if(!_invSport||!_invSport.length){try{_invSport=await api('GET','/sport');}catch(e){}}
-  if(_planSubtab==='sport') renderSportPlanningGrid();
-  else renderLocatiesTab();
+  renderLocatiesTab();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2390,7 +2388,7 @@ function setKampMode(mode,btn){
   _kampMode=mode;
   document.querySelectorAll('#sec-kampplanner .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
-  ['rooster','locatie','week','thema'].forEach(m=>{
+  ['rooster','locatie','week','thema','sport'].forEach(m=>{
     const el=document.getElementById('kp-'+m+'-content');
     if(el)el.style.display=m===mode?'block':'none';
   });
@@ -2401,6 +2399,10 @@ function _renderKampMode(){
   if(_kampMode==='rooster') renderRooster('rooster-content-kp');
   else if(_kampMode==='locatie') _renderKampLocatie();
   else if(_kampMode==='week') _renderKampWeek();
+  else if(_kampMode==='sport'){
+    if(!_invSport||!_invSport.length) api('GET','/sport').then(d=>{_invSport=d;renderSportPlanningGrid();}).catch(()=>{});
+    else renderSportPlanningGrid();
+  }
   else _renderKampThema();
 }
 
@@ -2797,17 +2799,92 @@ async function deleteVasteBak(id){
 }
 
 // ── GEDEELD TAB ──
+let _kbsData={};// locatie_id -> [{kleur,aantal}]
+
 async function renderGedeeldTab(){
   const el=document.getElementById('gedeeld-content'); if(!el)return;
   if(!_invGedeeld||!_invGedeeld.length){try{_invGedeeld=await api('GET','/gedeeld');}catch(e){}}
   const items=_invGedeeld||[];
-  if(!items.length){el.innerHTML='<div class="empty">Geen gedeeld materiaal gevonden.</div>';return;}
-  el.innerHTML=`<div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">${items.length} gedeelde items (ovens, muziekboxen, tenten&#8230;) die tussen locaties bewegen.</div>`
+  const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
+  // Laad kleurenborden stock voor alle stockagelocaties
+  _kbsData={};
+  await Promise.all(stockLocs.map(async l=>{
+    try{_kbsData[l.id]=await api('GET','/kleurenborden-stock/'+l.id);}catch(e){_kbsData[l.id]=[];}
+  }));
+  let h='';
+  if(items.length) h+=`<div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">${items.length} gedeelde items (ovens, muziekboxen, tenten&#8230;) die tussen locaties bewegen.</div>`
     +items.map(item=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.375rem;background:var(--bg)">
       <span style="font-size:15px">🔧</span>
       <span style="font-weight:600;flex:1">${_escH(item.name)}</span>
       <span style="font-size:11px;color:var(--text3)">Totaal: ${item.totaal}</span>
     </div>`).join('');
+  // Kleurenborden blok
+  if(stockLocs.length){
+    h+=`<div style="margin-top:${items.length?'1.25rem':'0'}">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">🎨 Kleurenborden</div>
+      ${stockLocs.map(l=>`<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.75rem;overflow:hidden">
+        <div style="padding:8px 12px;background:var(--bg2);font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">
+          <span>📦</span><span>${_escH(l.name)}</span>
+        </div>
+        <div style="padding:10px 12px">
+          <div id="kbs-rows-${l.id}">${_kbsRowsHtml(l.id)}</div>
+          <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+            <input class="inp" id="kbs-new-kleur-${l.id}" placeholder="Nieuwe kleur…" style="flex:1;height:30px;font-size:12px" onkeydown="if(event.key==='Enter')kbsVoegToe(${l.id})">
+            <input type="number" id="kbs-new-aantal-${l.id}" placeholder="0" min="0" max="99" style="width:58px;height:30px;text-align:center;font-size:12px;border:.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text)">
+            <button class="btn-xs" onclick="kbsVoegToe(${l.id})">+ Kleur</button>
+          </div>
+          <button class="btn-g" style="margin-top:8px;height:30px;font-size:12px;width:100%" onclick="kbsOpslaan(${l.id})">💾 Opslaan</button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }
+  el.innerHTML=h||'<div class="empty">Geen gedeeld materiaal of stockagelocaties.</div>';
+}
+
+function _kbsRowsHtml(locId){
+  const rows=_kbsData[locId]||[];
+  if(!rows.length) return '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">Nog geen kleuren toegevoegd.</div>';
+  return rows.map(r=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px" id="kbs-row-${locId}-${_escH(r.kleur)}">
+    <span style="width:14px;height:14px;border-radius:3px;background:${_kleurBg(r.kleur)};border:.5px solid rgba(0,0,0,.2);flex-shrink:0"></span>
+    <span style="flex:1;font-size:13px;font-weight:500;text-transform:capitalize">${_escH(r.kleur.charAt(0)+r.kleur.slice(1).toLowerCase())}</span>
+    <input type="number" min="0" max="999" value="${r.aantal}" id="kbs-inp-${locId}-${_escH(r.kleur)}"
+      style="width:58px;height:28px;text-align:center;font-size:13px;border:.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text)">
+    <button class="bi" style="color:var(--red);font-size:13px" onclick="kbsVerwijder(${locId},'${_escH(r.kleur)}')" title="Verwijderen">🗑</button>
+  </div>`).join('');
+}
+
+function kbsVoegToe(locId){
+  const inp=document.getElementById('kbs-new-kleur-'+locId);
+  const nInp=document.getElementById('kbs-new-aantal-'+locId);
+  const kleur=(inp?.value||'').trim().toUpperCase();
+  const aantal=parseInt(nInp?.value)||0;
+  if(!kleur){showToast('Vul een kleurnaam in','warn');return;}
+  if(!_kbsData[locId])_kbsData[locId]=[];
+  const bestaand=_kbsData[locId].find(r=>r.kleur===kleur);
+  if(bestaand) bestaand.aantal+=aantal;
+  else _kbsData[locId].push({kleur,aantal});
+  if(inp)inp.value='';
+  if(nInp)nInp.value='';
+  document.getElementById('kbs-rows-'+locId).innerHTML=_kbsRowsHtml(locId);
+}
+
+function kbsVerwijder(locId,kleur){
+  _kbsData[locId]=(_kbsData[locId]||[]).filter(r=>r.kleur!==kleur);
+  document.getElementById('kbs-rows-'+locId).innerHTML=_kbsRowsHtml(locId);
+}
+
+async function kbsOpslaan(locId){
+  const rows=_kbsData[locId]||[];
+  // Lees huidige invoervelden uit (gebruiker kan aantallen hebben aangepast)
+  const kleuren=rows.map(r=>{
+    const inp=document.getElementById('kbs-inp-'+locId+'-'+_escH(r.kleur));
+    return {kleur:r.kleur, aantal:inp?parseInt(inp.value)||0:r.aantal};
+  }).filter(r=>r.aantal>0);
+  const res=await api('POST','/kleurenborden-stock/'+locId,{kleuren});
+  if(res?.ok){
+    _kbsData[locId]=kleuren;
+    showToast('Kleurenborden opgeslagen','success');
+  }
 }
 
 // ── VOORRAAD TAB ──
@@ -5552,6 +5629,29 @@ async function renderLocatieDetail(){
       </div>`;
     }
   }
+  // Kleurenborden stock (alleen stockagelocaties)
+  if(!isKamp){
+    let kbStock=[];
+    try{kbStock=await api('GET','/kleurenborden-stock/'+l.id);}catch(e){}
+    const kbMap={};
+    kbStock.forEach(k=>{kbMap[k.kleur]=k.aantal;});
+    h+=`<div class="card" style="margin-top:.75rem">
+      <div class="card-hd" style="margin-bottom:.6rem">🎨 Kleurenborden voorraad</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px">Hoeveel borden van elke kleur liggen hier?</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" id="kb-stock-grid-${l.id}">
+        ${_KLEUREN.map(k=>{
+          const n=kbMap[k]||0;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;border:.5px solid var(--border);background:${n>0?_kleurBg(k)+'1A':'var(--bg)'}">
+            <span style="width:14px;height:14px;border-radius:3px;background:${_kleurBg(k)};border:.5px solid rgba(0,0,0,.2);flex-shrink:0"></span>
+            <span style="flex:1;font-size:13px;font-weight:500">${k}</span>
+            <input type="number" min="0" max="99" value="${n}" id="kbs-${l.id}-${k}"
+              style="width:52px;height:28px;text-align:center;font-size:13px;border:.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text)">
+          </div>`;
+        }).join('')}
+      </div>
+      <button class="btn-g" style="margin-top:10px;height:32px;font-size:12px" onclick="saveKbStock(${l.id})">💾 Opslaan</button>
+    </div>`;
+  }
   // Log
   h+=`<div class="card" style="margin-top:.75rem">
     <div class="card-hd">📜 Activiteitenlog</div>
@@ -5945,6 +6045,33 @@ const _verbruikCatLbl={keuken:'🍳 Keuken',slaap:'🛏️ Slaap',sport:'⚽ Spo
 function _renderCatRow(item,stockLocs){
   const uid=item.type+'-'+item.raw_id;
   const ico=_catTypeIco[item.type]||'📦';
+  if(_catEditId===uid&&item.naam.toLowerCase().includes('kleurenbord')){
+    const locId=item.stockage_locatie_id;
+    const rows=_kbsData[locId]||[];
+    return `<tr class="mat-edit"><td colspan="9">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <span style="font-weight:600;font-size:13px">🎨 ${_escH(item.naam)}</span>
+        <span style="font-size:11px;color:var(--text3)">— kleuren &amp; aantallen</span>
+        <div style="flex:1"></div>
+        <button class="bi" onclick="_catEditId=null;renderCatalogusLijst()">✕</button>
+      </div>
+      <div id="kbs-cat-rows-${locId}" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;margin-bottom:8px">
+        ${rows.length?rows.map(r=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border:.5px solid var(--border);border-radius:6px;background:${_kleurBg(r.kleur)}1A">
+          <span style="width:12px;height:12px;border-radius:2px;background:${_kleurBg(r.kleur)};flex-shrink:0"></span>
+          <span style="flex:1;font-size:12px;font-weight:500">${_escH(r.kleur.charAt(0)+r.kleur.slice(1).toLowerCase())}</span>
+          <input type="number" min="0" max="999" value="${r.aantal}" id="kbs-cat-${locId}-${_escH(r.kleur)}"
+            style="width:52px;height:26px;text-align:center;font-size:12px;border:.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text)">
+          <button class="bi del" style="font-size:11px" onclick="kbsCatVerwijder(${locId},'${_escH(r.kleur)}')">🗑</button>
+        </div>`).join(''):'<div style="font-size:12px;color:var(--text3)">Nog geen kleuren.</div>'}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <input class="inp" id="kbs-cat-new-kleur-${locId}" placeholder="Nieuwe kleur…" style="flex:1;height:28px;font-size:12px" onkeydown="if(event.key==='Enter')kbsCatVoegToe(${locId})">
+        <input type="number" id="kbs-cat-new-aantal-${locId}" placeholder="0" min="0" max="999" style="width:58px;height:28px;text-align:center;font-size:12px;border:.5px solid var(--border2);border-radius:4px;background:var(--bg);color:var(--text)">
+        <button class="btn-xs" onclick="kbsCatVoegToe(${locId})">+ Kleur</button>
+      </div>
+      <button class="btn-g" style="height:30px;font-size:12px" onclick="kbsCatOpslaan(${locId})">💾 Opslaan</button>
+    </td></tr>`;
+  }
   if(_catEditId===uid){
     const hasQty=item.qty!==null&&item.type!=='sport'&&item.type!=='verbruik';
     const hasCat=item.type==='sport'||item.type==='gedeeld'||item.type==='verbruik';
@@ -6018,7 +6145,7 @@ function _renderCatRow(item,stockLocs){
     <td style="font-size:11px;color:var(--text2)">${huidigCell}</td>
     <td style="text-align:right;white-space:nowrap">
       ${canExpand?`<button class="bi" onclick="toggleCatExpand(${_q(uid)})" title="Locaties tonen">${expanded?'▲':'▼'}</button>`:''}
-      <button class="bi" onclick="_catEditId=${_q(uid)};renderCatalogusLijst()" title="Bewerken">&#x270F;&#xFE0F;</button>
+      <button class="bi" onclick="${item.naam.toLowerCase().includes('kleurenbord')?`openKbsCatEdit(${_q(uid)},${item.stockage_locatie_id||'null'})`:`_catEditId=${_q(uid)};renderCatalogusLijst()`}" title="Bewerken">&#x270F;&#xFE0F;</button>
       <button class="bi del" onclick="${delFn}" title="Verwijderen">&#128465;</button>
     </td>
   </tr>`;
@@ -8106,6 +8233,49 @@ async function saveKleurenborden(){
     showToast('Kleurenborden week '+_kbWeek+' opgeslagen','success');
     renderLocatieDetail();
   }
+}
+
+async function saveKbStock(locId){
+  const kleuren=_KLEUREN.map(k=>({kleur:k,aantal:parseInt(document.getElementById('kbs-'+locId+'-'+k)?.value)||0}));
+  const r=await api('POST','/kleurenborden-stock/'+locId,{kleuren});
+  if(r?.ok) showToast('Kleurenborden voorraad opgeslagen','success');
+}
+
+async function openKbsCatEdit(uid,locId){
+  if(locId&&!_kbsData[locId]){
+    try{_kbsData[locId]=await api('GET','/kleurenborden-stock/'+locId);}catch(e){_kbsData[locId]=[];}
+  }
+  _catEditId=uid;
+  renderCatalogusLijst();
+}
+
+function kbsCatVoegToe(locId){
+  const inp=document.getElementById('kbs-cat-new-kleur-'+locId);
+  const nInp=document.getElementById('kbs-cat-new-aantal-'+locId);
+  const kleur=(inp?.value||'').trim().toUpperCase();
+  const aantal=parseInt(nInp?.value)||0;
+  if(!kleur){showToast('Vul een kleurnaam in','warn');return;}
+  if(!_kbsData[locId])_kbsData[locId]=[];
+  const bestaand=_kbsData[locId].find(r=>r.kleur===kleur);
+  if(bestaand) bestaand.aantal+=aantal;
+  else _kbsData[locId].push({kleur,aantal});
+  if(inp)inp.value='';if(nInp)nInp.value='';
+  renderCatalogusLijst();
+}
+
+function kbsCatVerwijder(locId,kleur){
+  _kbsData[locId]=(_kbsData[locId]||[]).filter(r=>r.kleur!==kleur);
+  renderCatalogusLijst();
+}
+
+async function kbsCatOpslaan(locId){
+  const rows=_kbsData[locId]||[];
+  const kleuren=rows.map(r=>{
+    const inp=document.getElementById('kbs-cat-'+locId+'-'+_escH(r.kleur));
+    return {kleur:r.kleur,aantal:inp?parseInt(inp.value)||0:r.aantal};
+  }).filter(r=>r.aantal>0);
+  const res=await api('POST','/kleurenborden-stock/'+locId,{kleuren});
+  if(res?.ok){_kbsData[locId]=kleuren;_catEditId=null;showToast('Kleurenborden opgeslagen','success');renderCatalogusLijst();}
 }
 
 // ── RIT KLAARZETTEN — persistente verhuizer-checklist per rit ──

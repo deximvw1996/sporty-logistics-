@@ -87,6 +87,16 @@ function ins(sql, p=[]) { db.run(sql,p); const id=get('SELECT last_insert_rowid(
 function now() { return new Date().toLocaleString('nl-BE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
 function isoDate(d) { return d.toISOString().split('T')[0]; }
 function _genToken(len=10){const c='abcdefghijklmnopqrstuvwxyz0123456789';return Array.from({length:len},()=>c[Math.floor(Math.random()*c.length)]).join('');}
+// Centrale materiaalcatalogus: geeft altijd een item_types.id terug voor een naam.
+// Bestaat de naam nog niet (case-insensitive), dan wordt ze aangemaakt i.p.v. overgeslagen —
+// zo blijft élk materiaal-item, ook nieuwe spellingen, gekoppeld aan de catalogus.
+function resolveItemTypeId(naam, categorieHint) {
+  const schoon = (naam || '').toString().trim();
+  if (!schoon) return null;
+  const bestaand = get('SELECT id FROM item_types WHERE LOWER(naam)=LOWER(?)', [schoon]);
+  if (bestaand) return bestaand.id;
+  return ins('INSERT INTO item_types (naam,eenheid,categorie) VALUES (?,?,?)', [schoon, 'stuk', categorieHint || 'materiaal']);
+}
 function logAct(type, actie, beschrijving, locatie_id=null, locatie_naam=null) {
   try { run('INSERT INTO activiteiten_log (tijdstip,type,actie,beschrijving,locatie_id,locatie_naam) VALUES (?,?,?,?,?,?)',
     [now(),type,actie,beschrijving,locatie_id||null,locatie_naam||null]); }
@@ -1643,6 +1653,71 @@ async function startServer() {
     }
   }
 
+  // Migration 46: kleurenborden_stock — voorraad per kleur per stockagelocatie
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS kleurenborden_stock (
+    locatie_id INTEGER NOT NULL,
+    kleur TEXT NOT NULL,
+    aantal INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (locatie_id, kleur)
+  )`);
+
+  // Migration 47: consolidatie — item_types wordt de verplichte centrale materiaalcatalogus.
+  // Alle losse "naam"-tekstvelden in bak_items, vaste_bak_items, sport_items, gedeeld_items,
+  // materiaal_items, thema_materiaal, standaard_materiaal, locatie_materiaal, transport_regels
+  // en standaard_doos_items krijgen een item_type_id die verplicht naar item_types wijst.
+  // In tegenstelling tot de oude alias-only matching (migratie 30/31, die onbekende
+  // spellingen stilzwijgend oversloeg) wordt hier voor élke naam die nog niet in item_types
+  // bestaat automatisch een nieuwe catalogusrij aangemaakt — dus 100% dekking, geen weesitems.
+  {
+    const _koppelTabellen47 = [
+      ['bak_items','naam',undefined],
+      ['vaste_bak_items','naam',undefined],
+      ['sport_items','name','sport'],
+      ['gedeeld_items','name','gedeeld'],
+      ['materiaal_items','name',undefined],
+      ['thema_materiaal','name',undefined],
+      ['standaard_materiaal','name',undefined],
+      ['locatie_materiaal','name',undefined],
+      ['transport_regels','naam',undefined],
+      ['standaard_doos_items','naam',undefined],
+    ];
+    let _totaalGekoppeld47 = 0;
+    _koppelTabellen47.forEach(([tabel,kolom,categorieHint])=>{
+      addColumnIfMissing(tabel,'item_type_id','INTEGER');
+      let rijen;
+      try { rijen = all(`SELECT id,${kolom} as naam FROM ${tabel} WHERE item_type_id IS NULL`); }
+      catch(e){ console.error(`  Migratie 47 fout bij lezen ${tabel} (niet-fataal):`,e.message); return; }
+      rijen.forEach(r=>{
+        const typeId = resolveItemTypeId(r.naam, categorieHint);
+        if (typeId) { run(`UPDATE ${tabel} SET item_type_id=? WHERE id=?`,[typeId,r.id]); _totaalGekoppeld47++; }
+      });
+    });
+    if (_totaalGekoppeld47>0) console.log(`  Migratie 47: ${_totaalGekoppeld47} materiaalrijen gekoppeld aan item_types (centrale catalogus)`);
+  }
+
+  // Migration 48: chauffeurs → personeel consolidatie (twee losse "wie is chauffeur"-bronnen).
+  // chauffeurs blijft bestaan (ploeg_shifts verwijst er nog naar), maar elke chauffeur krijgt nu
+  // ook een gekoppelde personeel-rij zodat personeel dé volledige, centrale personen-catalogus is.
+  {
+    addColumnIfMissing('chauffeurs','personeel_id','INTEGER');
+    addColumnIfMissing('transport_ritten','personeel_id','INTEGER');
+    const _chauffeursZonderPersoneel = all('SELECT id,name FROM chauffeurs WHERE personeel_id IS NULL');
+    _chauffeursZonderPersoneel.forEach(c=>{
+      let p = get('SELECT id FROM personeel WHERE LOWER(naam)=LOWER(?) AND rol=?',[c.name,'chauffeur']);
+      if(!p) p = { id: ins('INSERT INTO personeel (naam,rol) VALUES (?,?)',[c.name,'chauffeur']) };
+      run('UPDATE chauffeurs SET personeel_id=? WHERE id=?',[p.id,c.id]);
+    });
+    if(_chauffeursZonderPersoneel.length>0) console.log(`  Migratie 48: ${_chauffeursZonderPersoneel.length} chauffeurs gekoppeld aan personeel`);
+    // transport_ritten.chauffeur is vrije tekst (naam) — koppel achteraf aan personeel via naam-match
+    const _ritten48 = all('SELECT id,chauffeur FROM transport_ritten WHERE personeel_id IS NULL AND chauffeur IS NOT NULL AND chauffeur<>\'\'');
+    let _rittenGekoppeld=0;
+    _ritten48.forEach(r=>{
+      const p = get('SELECT id FROM personeel WHERE LOWER(naam)=LOWER(?)',[r.chauffeur]);
+      if(p){ run('UPDATE transport_ritten SET personeel_id=? WHERE id=?',[p.id,r.id]); _rittenGekoppeld++; }
+    });
+    if(_rittenGekoppeld>0) console.log(`  Migratie 48: ${_rittenGekoppeld} transport_ritten gekoppeld aan personeel`);
+  }
+
   saveDb();
 
 
@@ -1765,7 +1840,7 @@ async function startServer() {
   app.post('/api/themas',(req,res)=>{const{name,color,categorie,leeftijdsgroep,thema_type}=req.body;if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});const id=ins('INSERT INTO themas (name,color,categorie,leeftijdsgroep,thema_type) VALUES (?,?,?,?,?)',[name.trim(),color||'#1D9E75',categorie||'',leeftijdsgroep||'',thema_type||'eigen_materiaal']);res.json({...get('SELECT * FROM themas WHERE id=?',[id]),materiaal:[]});});
   app.put('/api/themas/:id',(req,res)=>{const cur=get('SELECT * FROM themas WHERE id=?',[req.params.id]);if(!cur)return res.status(404).json({error:'Thema niet gevonden'});const{name,color,categorie,leeftijdsgroep,thema_type}=req.body;const nm=(name!==undefined&&name!==null)?name:cur.name;if(!nm||!nm.trim())return res.status(400).json({error:'Naam is verplicht'});run('UPDATE themas SET name=?,color=?,categorie=?,leeftijdsgroep=?,thema_type=? WHERE id=?',[nm.trim(),color||cur.color||'#1D9E75',categorie!==undefined?categorie:(cur.categorie||''),leeftijdsgroep!==undefined?leeftijdsgroep:(cur.leeftijdsgroep||''),thema_type||cur.thema_type||'eigen_materiaal',req.params.id]);res.json(get('SELECT * FROM themas WHERE id=?',[req.params.id]));});
   app.delete('/api/themas/:id',(req,res)=>{run('DELETE FROM thema_materiaal WHERE thema_id=?',[req.params.id]);run('DELETE FROM themas WHERE id=?',[req.params.id]);res.json({ok:true});});
-  app.post('/api/themas/:id/materiaal',(req,res)=>{const{name,qty,stockage_locatie_id,stockage_code}=req.body;const id=ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_locatie_id,stockage_code) VALUES (?,?,?,?,?)',[req.params.id,name,qty||1,stockage_locatie_id||null,stockage_code||'']);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[id]));});
+  app.post('/api/themas/:id/materiaal',(req,res)=>{const{name,qty,stockage_locatie_id,stockage_code}=req.body;const item_type_id=resolveItemTypeId(name);const id=ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_locatie_id,stockage_code,item_type_id) VALUES (?,?,?,?,?,?)',[req.params.id,name,qty||1,stockage_locatie_id||null,stockage_code||'',item_type_id]);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[id]));});
   app.put('/api/themas/:tid/materiaal/:mid',(req,res)=>{const{name,qty,stockage_locatie_id,stockage_code}=req.body;const cur=get('SELECT * FROM thema_materiaal WHERE id=?',[req.params.mid]);run('UPDATE thema_materiaal SET name=?,qty=?,stockage_locatie_id=?,stockage_code=? WHERE id=? AND thema_id=?',[name,qty,stockage_locatie_id||null,stockage_code!==undefined?stockage_code:(cur?cur.stockage_code||'':''),req.params.mid,req.params.tid]);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[req.params.mid]));});
   app.delete('/api/themas/:tid/materiaal/:mid',(req,res)=>{run('DELETE FROM thema_materiaal WHERE id=? AND thema_id=?',[req.params.mid,req.params.tid]);res.json({ok:true});});
 
@@ -1864,7 +1939,7 @@ async function startServer() {
 
   // ── STANDAARD MATERIAAL (globale template) ──
   app.get('/api/standaard',(req,res)=>res.json(all('SELECT * FROM standaard_materiaal ORDER BY cat,name')));
-  app.post('/api/standaard',(req,res)=>{const{name,qty,cat,stockage_locatie_id}=req.body;const id=ins('INSERT INTO standaard_materiaal (name,qty,cat,stockage_locatie_id) VALUES (?,?,?,?)',[name,qty||1,cat||'andere',stockage_locatie_id||null]);res.json(get('SELECT * FROM standaard_materiaal WHERE id=?',[id]));});
+  app.post('/api/standaard',(req,res)=>{const{name,qty,cat,stockage_locatie_id}=req.body;const item_type_id=resolveItemTypeId(name);const id=ins('INSERT INTO standaard_materiaal (name,qty,cat,stockage_locatie_id,item_type_id) VALUES (?,?,?,?,?)',[name,qty||1,cat||'andere',stockage_locatie_id||null,item_type_id]);res.json(get('SELECT * FROM standaard_materiaal WHERE id=?',[id]));});
   app.put('/api/standaard/:id',(req,res)=>{const{name,qty,cat,stockage_locatie_id}=req.body;run('UPDATE standaard_materiaal SET name=?,qty=?,cat=?,stockage_locatie_id=? WHERE id=?',[name,qty,cat,stockage_locatie_id||null,req.params.id]);res.json(get('SELECT * FROM standaard_materiaal WHERE id=?',[req.params.id]));});
   app.delete('/api/standaard/:id',(req,res)=>{run('DELETE FROM standaard_materiaal WHERE id=?',[req.params.id]);res.json({ok:true});});
 
@@ -1891,12 +1966,15 @@ async function startServer() {
   });
   app.post('/api/locaties/:id/materiaal',(req,res)=>{
     const{name,qty,cat}=req.body;
-    const id=ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[req.params.id,name,qty||1,cat||'andere']);
+    const item_type_id=resolveItemTypeId(name);
+    const id=ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat,item_type_id) VALUES (?,?,?,?,?)',[req.params.id,name,qty||1,cat||'andere',item_type_id]);
     res.json(get('SELECT * FROM locatie_materiaal WHERE id=?',[id]));
   });
   app.put('/api/locatie-materiaal/:id',(req,res)=>{
     const{name,qty,cat}=req.body;
-    run('UPDATE locatie_materiaal SET name=?,qty=?,cat=? WHERE id=?',[name,qty||1,cat||'andere',req.params.id]);
+    const cur=get('SELECT * FROM locatie_materiaal WHERE id=?',[req.params.id]);
+    const item_type_id=name&&name!==cur?.name?resolveItemTypeId(name):cur?.item_type_id;
+    run('UPDATE locatie_materiaal SET name=?,qty=?,cat=?,item_type_id=? WHERE id=?',[name,qty||1,cat||'andere',item_type_id,req.params.id]);
     res.json(get('SELECT * FROM locatie_materiaal WHERE id=?',[req.params.id]));
   });
   app.delete('/api/locatie-materiaal/:id',(req,res)=>{
@@ -1910,7 +1988,8 @@ async function startServer() {
     const added=[];
     std.forEach(s=>{
       if(!existing.includes(s.name)){
-        const id=ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat) VALUES (?,?,?,?)',[req.params.id,s.name,s.qty,s.cat||'andere']);
+        const item_type_id=s.item_type_id||resolveItemTypeId(s.name);
+        const id=ins('INSERT INTO locatie_materiaal (locatie_id,name,qty,cat,item_type_id) VALUES (?,?,?,?,?)',[req.params.id,s.name,s.qty,s.cat||'andere',item_type_id]);
         added.push(get('SELECT * FROM locatie_materiaal WHERE id=?',[id]));
       }
     });
@@ -2055,8 +2134,8 @@ async function startServer() {
 
   // ── MATERIAAL ──
   app.get('/api/materiaal',(req,res)=>{const items=all('SELECT * FROM materiaal_items ORDER BY cat,name');const eenheden=all('SELECT * FROM materiaal_eenheden');res.json(items.map(i=>({...i,eenheden:eenheden.filter(e=>e.item_id===i.id)})));});
-  app.post('/api/materiaal',(req,res)=>{const{name,tracking,cat}=req.body;const id=ins('INSERT INTO materiaal_items (name,tracking,cat,created_at) VALUES (?,?,?,?)',[name,tracking||'per_type',cat||'andere',now()]);res.json({...get('SELECT * FROM materiaal_items WHERE id=?',[id]),eenheden:[]});});
-  app.put('/api/materiaal/:id',(req,res)=>{const{name,tracking,cat}=req.body;run('UPDATE materiaal_items SET name=?,tracking=?,cat=? WHERE id=?',[name,tracking,cat,req.params.id]);res.json(get('SELECT * FROM materiaal_items WHERE id=?',[req.params.id]));});
+  app.post('/api/materiaal',(req,res)=>{const{name,tracking,cat}=req.body;const item_type_id=resolveItemTypeId(name);const id=ins('INSERT INTO materiaal_items (name,tracking,cat,created_at,item_type_id) VALUES (?,?,?,?,?)',[name,tracking||'per_type',cat||'andere',now(),item_type_id]);res.json({...get('SELECT * FROM materiaal_items WHERE id=?',[id]),eenheden:[]});});
+  app.put('/api/materiaal/:id',(req,res)=>{const{name,tracking,cat}=req.body;const cur=get('SELECT * FROM materiaal_items WHERE id=?',[req.params.id]);const item_type_id=name&&name!==cur?.name?resolveItemTypeId(name):cur?.item_type_id;run('UPDATE materiaal_items SET name=?,tracking=?,cat=?,item_type_id=? WHERE id=?',[name,tracking,cat,item_type_id,req.params.id]);res.json(get('SELECT * FROM materiaal_items WHERE id=?',[req.params.id]));});
   app.delete('/api/materiaal/:id',(req,res)=>{const ee=all('SELECT id FROM materiaal_eenheden WHERE item_id=?',[req.params.id]);ee.forEach(e=>run('DELETE FROM verplaatsingen WHERE eenheid_id=?',[e.id]));run('DELETE FROM materiaal_eenheden WHERE item_id=?',[req.params.id]);run('DELETE FROM materiaal_items WHERE id=?',[req.params.id]);res.json({ok:true});});
   app.post('/api/materiaal/:id/eenheden',(req,res)=>{const{label,qty,locatie_id}=req.body;const eid=ins('INSERT INTO materiaal_eenheden (item_id,label,qty,locatie_id) VALUES (?,?,?,?)',[req.params.id,label||'',qty||1,locatie_id]);ins('INSERT INTO verplaatsingen (eenheid_id,van_locatie_id,naar_locatie_id,qty,reden,datum) VALUES (?,?,?,?,?,?)',[eid,null,locatie_id,qty||1,'Initieel ingevoerd',now()]);res.json(get('SELECT * FROM materiaal_eenheden WHERE id=?',[eid]));});
   app.put('/api/eenheden/:id',(req,res)=>{const{label,qty}=req.body;run('UPDATE materiaal_eenheden SET label=?,qty=? WHERE id=?',[label,qty,req.params.id]);res.json(get('SELECT * FROM materiaal_eenheden WHERE id=?',[req.params.id]));});
@@ -2080,7 +2159,12 @@ async function startServer() {
   app.get('/api/chauffeurs',(req,res)=>res.json(all('SELECT * FROM chauffeurs ORDER BY name')));
   app.post('/api/chauffeurs',(req,res)=>{
     const{name}=req.body;if(!name)return res.status(400).json({error:'Naam vereist'});
-    try{const id=ins('INSERT INTO chauffeurs (name) VALUES (?)',[name]);res.json(get('SELECT * FROM chauffeurs WHERE id=?',[id]));}
+    try{
+      let p=get('SELECT id FROM personeel WHERE LOWER(naam)=LOWER(?) AND rol=?',[name,'chauffeur']);
+      if(!p) p={id:ins('INSERT INTO personeel (naam,rol) VALUES (?,?)',[name,'chauffeur'])};
+      const id=ins('INSERT INTO chauffeurs (name,personeel_id) VALUES (?,?)',[name,p.id]);
+      res.json(get('SELECT * FROM chauffeurs WHERE id=?',[id]));
+    }
     catch(e){res.status(400).json({error:'Naam bestaat al'});}
   });
   app.delete('/api/chauffeurs/:id',(req,res)=>{run('DELETE FROM chauffeurs WHERE id=?',[req.params.id]);res.json({ok:true});});
@@ -2447,7 +2531,7 @@ async function startServer() {
     ids.forEach(id=>{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);run('DELETE FROM transport_taken WHERE id=?',[id]);});
     saveDb();res.json({ok:true});
   });
-  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere']));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
+  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam)]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)run('DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
   app.put('/api/transport-taken/:id/status',(req,res)=>{
@@ -2487,7 +2571,7 @@ async function startServer() {
       else run('UPDATE transport_taken SET tijd=? WHERE id=?',[tijd||t.tijd,req.params.id]);
     }
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
-  app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taak_id,naam,qty||1,soort||'andere']);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
+  app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const item_type_id=resolveItemTypeId(naam);const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taak_id,naam,qty||1,soort||'andere',item_type_id]);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
   app.delete('/api/transport-regels/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE id=?',[req.params.id]);res.json({ok:true});});
 
   // ── TRANSPORT RITTEN ──
@@ -2621,18 +2705,21 @@ async function startServer() {
   // Bak-items CRUD
   app.post('/api/bakken/:id/items',(req,res)=>{
     const{naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie}=req.body;
-    const id=ins('INSERT INTO bak_items (bak_id,naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie) VALUES (?,?,?,?,?,?,?,?,?)',
-      [req.params.id,naam,qty||1,verbruik?1:0,qty_per_gebruik||1,eenheid||'stuks',qty_stock||0,qty_minimum||0,notitie||'']);
+    const item_type_id=resolveItemTypeId(naam);
+    const id=ins('INSERT INTO bak_items (bak_id,naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie,item_type_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [req.params.id,naam,qty||1,verbruik?1:0,qty_per_gebruik||1,eenheid||'stuks',qty_stock||0,qty_minimum||0,notitie||'',item_type_id]);
     res.json(get('SELECT * FROM bak_items WHERE id=?',[id]));
   });
   app.put('/api/bak-items/:id',(req,res)=>{
     const{naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie}=req.body;
     const cur=get('SELECT * FROM bak_items WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Item niet gevonden'});
-    run('UPDATE bak_items SET naam=?,qty=?,verbruik=?,qty_per_gebruik=?,eenheid=?,qty_stock=?,qty_minimum=?,notitie=? WHERE id=?',
-      [naam??cur.naam,qty??cur.qty,verbruik!==undefined?(verbruik?1:0):cur.verbruik,
+    const nieuweNaam=naam??cur.naam;
+    const item_type_id=nieuweNaam!==cur.naam?resolveItemTypeId(nieuweNaam):cur.item_type_id;
+    run('UPDATE bak_items SET naam=?,qty=?,verbruik=?,qty_per_gebruik=?,eenheid=?,qty_stock=?,qty_minimum=?,notitie=?,item_type_id=? WHERE id=?',
+      [nieuweNaam,qty??cur.qty,verbruik!==undefined?(verbruik?1:0):cur.verbruik,
        qty_per_gebruik??cur.qty_per_gebruik,eenheid??cur.eenheid,
-       qty_stock??cur.qty_stock,qty_minimum??cur.qty_minimum,notitie??cur.notitie,req.params.id]);
+       qty_stock??cur.qty_stock,qty_minimum??cur.qty_minimum,notitie??cur.notitie,item_type_id,req.params.id]);
     res.json(get('SELECT * FROM bak_items WHERE id=?',[req.params.id]));
   });
   app.delete('/api/bak-items/:id',(req,res)=>{run('DELETE FROM bak_items WHERE id=?',[req.params.id]);res.json({ok:true});});
@@ -2676,8 +2763,8 @@ async function startServer() {
     if(!alle_regels.length)return res.status(400).json({error:'Geen materiaalregels gevonden in deze rit'});
     run('DELETE FROM verhuis_checks WHERE rit_id=?',[rit_id]);
     alle_regels.forEach((r,i)=>{
-      ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order) VALUES (?,?,?,?,?,?)',
-        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i]);
+      ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id) VALUES (?,?,?,?,?,?,?)',
+        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i,r.item_type_id||resolveItemTypeId(r.naam)]);
     });
     const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY item_soort,sort_order',[rit_id]);
     res.json({ok:true,aangemaakt:checks.length,checks});
@@ -2748,6 +2835,21 @@ async function startServer() {
       ins('INSERT INTO locatie_kleuren (locatie_id,week,kleur,aantal) VALUES (?,?,?,?)',[locatie_id,week,(k.kleur+'').toUpperCase(),k.aantal]);
     });
     res.json({ok:true,opgeslagen:kleuren.length});
+  });
+
+  // Kleurenborden stock per stockagelocatie
+  app.get('/api/kleurenborden-stock/:locatie_id',(req,res)=>{
+    res.json(all('SELECT * FROM kleurenborden_stock WHERE locatie_id=? ORDER BY kleur',[req.params.locatie_id]));
+  });
+  app.post('/api/kleurenborden-stock/:locatie_id',(req,res)=>{
+    const{kleuren}=req.body;
+    if(!Array.isArray(kleuren))return res.status(400).json({error:'kleuren[] vereist'});
+    run('DELETE FROM kleurenborden_stock WHERE locatie_id=?',[req.params.locatie_id]);
+    kleuren.filter(k=>k.kleur&&k.aantal>0).forEach(k=>{
+      ins('INSERT INTO kleurenborden_stock (locatie_id,kleur,aantal) VALUES (?,?,?)',[req.params.locatie_id,(k.kleur+'').toUpperCase(),k.aantal]);
+    });
+    saveDb();
+    res.json({ok:true});
   });
 
   // Koppel een taak aan een rit (getal), of ontkoppel → nood (null)
@@ -3021,14 +3123,18 @@ async function startServer() {
     const{naam,qty,eenheid,is_verbruik,qty_minimum,notitie,item_type_id}=req.body;
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
     const maxOrd=(get('SELECT MAX(volgorde) as m FROM vaste_bak_items WHERE bak_id=?',[req.params.id])||{}).m||0;
+    const resolvedTypeId=item_type_id||resolveItemTypeId(naam);
     const id=ins('INSERT INTO vaste_bak_items (bak_id,naam,qty,eenheid,is_verbruik,qty_minimum,notitie,item_type_id,volgorde) VALUES (?,?,?,?,?,?,?,?,?)',
-      [req.params.id,naam.trim(),qty||1,eenheid||'stuk',is_verbruik?1:0,qty_minimum||0,notitie||'',item_type_id||null,maxOrd+10]);
+      [req.params.id,naam.trim(),qty||1,eenheid||'stuk',is_verbruik?1:0,qty_minimum||0,notitie||'',resolvedTypeId,maxOrd+10]);
     res.json(get('SELECT * FROM vaste_bak_items WHERE id=?',[id]));
   });
   app.put('/api/vaste-bak-items/:id',(req,res)=>{
     const{naam,qty,eenheid,is_verbruik,qty_stock,qty_minimum,notitie}=req.body;
-    run('UPDATE vaste_bak_items SET naam=?,qty=?,eenheid=?,is_verbruik=?,qty_stock=?,qty_minimum=?,notitie=? WHERE id=?',
-      [naam,qty||1,eenheid||'stuk',is_verbruik?1:0,qty_stock||0,qty_minimum||0,notitie||'',req.params.id]);
+    const cur=get('SELECT * FROM vaste_bak_items WHERE id=?',[req.params.id]);
+    if(!cur)return res.status(404).json({error:'Item niet gevonden'});
+    const item_type_id=naam&&naam!==cur.naam?resolveItemTypeId(naam):cur.item_type_id;
+    run('UPDATE vaste_bak_items SET naam=?,qty=?,eenheid=?,is_verbruik=?,qty_stock=?,qty_minimum=?,notitie=?,item_type_id=? WHERE id=?',
+      [naam,qty||1,eenheid||'stuk',is_verbruik?1:0,qty_stock||0,qty_minimum||0,notitie||'',item_type_id,req.params.id]);
     res.json(get('SELECT * FROM vaste_bak_items WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bak-items/:id',(req,res)=>{
@@ -3141,12 +3247,15 @@ async function startServer() {
   app.post('/api/sport', (req,res) => {
     const {name, cat, notities, stockage_locatie_id, locatie_id} = req.body;
     if (!name) return res.status(400).json({error: 'Naam vereist'});
-    const id = ins('INSERT INTO sport_items (name,cat,notities,stockage_locatie_id,locatie_id) VALUES (?,?,?,?,?)', [name, cat||'sport', notities||'', stockage_locatie_id||null, locatie_id||null]);
+    const item_type_id=resolveItemTypeId(name,'sport');
+    const id = ins('INSERT INTO sport_items (name,cat,notities,stockage_locatie_id,locatie_id,item_type_id) VALUES (?,?,?,?,?,?)', [name, cat||'sport', notities||'', stockage_locatie_id||null, locatie_id||null, item_type_id]);
     res.json({...get('SELECT si.*, l.name as locatie_name FROM sport_items si LEFT JOIN locaties l ON l.id=si.locatie_id WHERE si.id=?', [id]), sets: []});
   });
   app.put('/api/sport/:id', (req,res) => {
     const {name,cat,notities,stockage_locatie_id,locatie_id} = req.body;
-    run('UPDATE sport_items SET name=?,cat=?,notities=?,stockage_locatie_id=?,locatie_id=? WHERE id=?', [name,cat||'sport',notities||'',stockage_locatie_id||null,locatie_id||null,req.params.id]);
+    const cur=get('SELECT * FROM sport_items WHERE id=?',[req.params.id]);
+    const item_type_id=name&&name!==cur?.name?resolveItemTypeId(name,'sport'):cur?.item_type_id;
+    run('UPDATE sport_items SET name=?,cat=?,notities=?,stockage_locatie_id=?,locatie_id=?,item_type_id=? WHERE id=?', [name,cat||'sport',notities||'',stockage_locatie_id||null,locatie_id||null,item_type_id,req.params.id]);
     res.json(get('SELECT si.*, l.name as locatie_name FROM sport_items si LEFT JOIN locaties l ON l.id=si.locatie_id WHERE si.id=?', [req.params.id]));
   });
   app.delete('/api/sport/:id', (req,res) => {
@@ -3303,12 +3412,15 @@ async function startServer() {
   app.post('/api/gedeeld', (req,res) => {
     const {name, cat, totaal, notities, stockage_locatie_id} = req.body;
     if (!name) return res.status(400).json({error: 'Naam vereist'});
-    const id = ins('INSERT INTO gedeeld_items (name,cat,totaal,notities,stockage_locatie_id) VALUES (?,?,?,?,?)', [name, cat||'gedeeld', totaal||1, notities||'', stockage_locatie_id||null]);
+    const item_type_id=resolveItemTypeId(name,'gedeeld');
+    const id = ins('INSERT INTO gedeeld_items (name,cat,totaal,notities,stockage_locatie_id,item_type_id) VALUES (?,?,?,?,?,?)', [name, cat||'gedeeld', totaal||1, notities||'', stockage_locatie_id||null, item_type_id]);
     res.json({...get('SELECT * FROM gedeeld_items WHERE id=?', [id]), gebruik: [], weekConflicts: {}});
   });
   app.put('/api/gedeeld/:id', (req,res) => {
     const {name,cat,totaal,notities,stockage_locatie_id} = req.body;
-    run('UPDATE gedeeld_items SET name=?,cat=?,totaal=?,notities=?,stockage_locatie_id=? WHERE id=?', [name,cat||'gedeeld',totaal||1,notities||'',stockage_locatie_id||null,req.params.id]);
+    const cur=get('SELECT * FROM gedeeld_items WHERE id=?',[req.params.id]);
+    const item_type_id=name&&name!==cur?.name?resolveItemTypeId(name,'gedeeld'):cur?.item_type_id;
+    run('UPDATE gedeeld_items SET name=?,cat=?,totaal=?,notities=?,stockage_locatie_id=?,item_type_id=? WHERE id=?', [name,cat||'gedeeld',totaal||1,notities||'',stockage_locatie_id||null,item_type_id,req.params.id]);
     saveDb(); res.json(get('SELECT * FROM gedeeld_items WHERE id=?', [req.params.id]));
   });
   app.delete('/api/gedeeld/:id', (req,res) => {
@@ -3435,7 +3547,7 @@ async function startServer() {
     const taakId=ins(
       'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
       ['extra',spoedDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts,kind||'',ref_id||0,0,ritId]);
-    ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[taakId,naam,aantal,'spoed']);
+    ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam)]);
     saveDb();
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[taakId]));
   });
@@ -3602,6 +3714,36 @@ ${checks.length?'<div class="sec">Materiaallijst ('+checks.length+' items)</div>
       const heeftOph=get('SELECT id FROM transport_taken WHERE kampmoment_id=? AND type=?',[km.id,'ophaling']);
       if(!heeftOph)conflicten.push({type:'geen_ophaling',ernst:'laag',bericht:`Week ${km.week} — ${km.loc_nm}: nog geen ophaling gepland`});
     });
+    // 3. Materiaaltekort: als 2+ themas met dezelfde item_type_id-behoefte in dezelfde week
+    // draaien, kan de totale vraag de beschikbare voorraad overschrijden (via item_types-koppeling,
+    // nu mogelijk dankzij Migratie 47's consolidatie van bak_items/verbruik_stock naar item_types).
+    {
+      const bakBehoefte=all(`SELECT tb.thema_id, bi.item_type_id, bi.qty, it.naam AS item_naam
+        FROM bak_items bi JOIN thema_bakken tb ON tb.id=bi.bak_id JOIN item_types it ON it.id=bi.item_type_id
+        WHERE bi.item_type_id IS NOT NULL`);
+      const stockPerType={};
+      all(`SELECT item_type_id, SUM(qty) AS totaal FROM verbruik_stock WHERE item_type_id IS NOT NULL GROUP BY item_type_id`)
+        .forEach(r=>{stockPerType[r.item_type_id]=r.totaal;});
+      const maxWeek48=kampen.reduce((m,k)=>Math.max(m,k.week||0),0)||0;
+      for(let week=1;week<=maxWeek48;week++){
+        const kmsWeek=kampen.filter(k=>k.week===week);
+        if(kmsWeek.length<2)continue; // tekort kan enkel ontstaan bij overlap van 2+ locaties/thema's
+        const themaIdsWeek=new Set(kts.filter(r=>kmsWeek.some(km=>km.week===r.week)).map(r=>r.thema_id));
+        const perType={};
+        bakBehoefte.forEach(b=>{
+          if(!themaIdsWeek.has(b.thema_id))return;
+          perType[b.item_type_id]=perType[b.item_type_id]||{qty:0,naam:b.item_naam};
+          perType[b.item_type_id].qty+=b.qty||0;
+        });
+        Object.entries(perType).forEach(([typeId,info])=>{
+          const stock=stockPerType[typeId]||0;
+          if(stock>0&&info.qty>stock){
+            conflicten.push({type:'materiaal_tekort',ernst:'hoog',
+              bericht:`Week ${week}: "${info.naam}" — ${info.qty} nodig over alle kampen samen, maar ${stock} op voorraad`});
+          }
+        });
+      }
+    }
     res.json(conflicten);
   });
 
