@@ -2360,7 +2360,11 @@ async function startServer() {
     const kms=all('SELECT * FROM kampmomenten ORDER BY locatie_id, week');
     const locs=all('SELECT * FROM locaties');
     const themas=all('SELECT * FROM themas');
-    const thema_mat=all('SELECT * FROM thema_materiaal');
+    // Themamateriaal leeft nu in thema_bakken/bak_items (niet meer in de verlaten thema_materiaal-tabel).
+    // Themabakken hebben geen eigen stockagelocatie-veld — ze liggen allemaal op de centrale
+    // thema-stockageplaats (themaStockageId, hieronder bepaald), vandaar geen per-item fallback nodig.
+    const themaBakItems=all(`SELECT bi.*, tb.thema_id, tb.label AS bak_label, tb.code AS bak_code
+      FROM bak_items bi JOIN thema_bakken tb ON tb.id=bi.bak_id`);
     const allLocMat=all('SELECT * FROM locatie_materiaal');
     const standaard=all('SELECT * FROM standaard_materiaal');
     const kts=all('SELECT * FROM kampmoment_themas');
@@ -2412,7 +2416,7 @@ async function startServer() {
         // Thema-materiaal met per-item stockage (fallback: themaStockageId)
         const themaMatRegels=kmThemas.flatMap(kt=>{
           const th=themas.find(t=>t.id===kt.thema_id);
-          return thema_mat.filter(m=>m.thema_id===kt.thema_id).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema',stockage_id:m.stockage_locatie_id||themaStockageId}));
+          return themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));
         });
         // Basis-materiaal met per-item stockage (fallback: sportStockageId)
         const basisRegels=locMat.map(m=>({naam:m.name,qty:m.qty,soort:'basis',stockage_id:m.stockage_locatie_id||sportStockageId}));
@@ -2451,8 +2455,8 @@ async function startServer() {
             return !kwamVanAndereLocatie;
           });
           if(vertrekkende.length||aankomendeViaStockage.length){
-            const ophaalMat=vertrekkende.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return thema_mat.filter(m=>m.thema_id===kt.thema_id).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema',stockage_id:m.stockage_locatie_id||themaStockageId}));});
-            const leverMat=aankomendeViaStockage.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return thema_mat.filter(m=>m.thema_id===kt.thema_id).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema',stockage_id:m.stockage_locatie_id||themaStockageId}));});
+            const ophaalMat=vertrekkende.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));});
+            const leverMat=aankomendeViaStockage.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));});
             const prevOpen=getOpenDagen(prevKm);
             const wisseldatum=prevOpen.length?nextWorkday(prevOpen[prevOpen.length-1]):prevWorkday(openDagen[0]);
             Object.entries(byStockage(ophaalMat)).forEach(([sid,mat])=>{
@@ -2501,7 +2505,7 @@ async function startServer() {
         const openB=getOpenDagen(kmB);
         if(!openA.length||!openB.length)continue;
         const th=themas.find(t=>t.id===thId);
-        const thMat=thema_mat.filter(m=>m.thema_id===thId).map(m=>({naam:'['+(th?.name||'?')+'] '+m.name,qty:m.qty,soort:'thema'}));
+        const thMat=themaBakItems.filter(bi=>bi.thema_id===thId).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema'}));
         if(!thMat.length)continue;
         voorstellen.push({type:'levering',kampmoment_id:kmB.id,week:kmB.week,locatie:locB.name,locatie_id:locB.id,van_locatie_id:locA.id,datum:nextWorkday(openA[openA.length-1]),tijd:'10:00',materiaal:thMat,opmerking:'Thema-transfer: '+(th?.name||'?')+' van '+locA.name+' → '+locB.name});
       }
