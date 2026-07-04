@@ -668,15 +668,16 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   ═══════════════════════════════════════════════════════ -->
   <div class="sec" id="sec-materiaal">
     <div style="display:flex;gap:4px;margin-bottom:1rem;border-bottom:.5px solid var(--border);padding-bottom:.5rem;flex-wrap:wrap;align-items:center">
-      <button class="kal-subtab" onclick="setMatSubtab('catalogus',this)">&#128230; Alle artikelen</button>
-      <button class="kal-subtab" onclick="setMatSubtab('themabakken',this)">&#129082; Themabakken</button>
-      <button class="kal-subtab" onclick="setMatSubtab('vastebakken',this)">&#128451; Vaste bakken</button>
-      <button class="kal-subtab" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
-      <button class="kal-subtab" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
+      <!-- Tijdelijk verborgen (opkuis thema's/materiaal, wordt stuk per stuk teruggezet) -->
+      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('catalogus',this)">&#128230; Alle artikelen</button>
+      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('themabakken',this)">&#129082; Themabakken</button>
+      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('vastebakken',this)">&#128451; Vaste bakken</button>
+      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
+      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('sport',this)">&#9917; Sport</button>
-      <button class="kal-subtab" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken</button>
+      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken</button>
       <div style="flex:1"></div>
-      <button class="btn-o" style="font-size:11px;height:28px" onclick="setMatSubtab('themas',this)">&#9881;&#65039; Thema&apos;s beheer</button>
+      <button class="btn-o" style="display:none;font-size:11px;height:28px" onclick="setMatSubtab('themas',this)">&#9881;&#65039; Thema&apos;s beheer</button>
     </div>
 
     <!-- Themabakken: thema's met hun bakken en inhoud -->
@@ -2205,7 +2206,7 @@ function setPlanningSubtab(tab,btn){
 }
 
 // Materiaal subtabs
-let matSubtab='catalogus';
+let matSubtab='sport'; // tijdelijk enige zichtbare subtab tijdens opkuis thema's/materiaal
 function setMatSubtab(tab,btn){
   matSubtab=tab;
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
@@ -2654,9 +2655,9 @@ async function setSportPlan(setId,week,locatieIdStr){
 }
 
 function renderMateriaal(){
-  const activeTab=(['themabakken','vastebakken','gedeeld','voorraad','sport','themas','catalogus','standaard','voertuigen','nakijken'].includes(matSubtab)?matSubtab:'themabakken');
+  const activeTab=(['themabakken','vastebakken','gedeeld','voorraad','sport','themas','catalogus','standaard','voertuigen','nakijken'].includes(matSubtab)?matSubtab:'sport');
   matSubtab=activeTab;
-  setMatSubtab(activeTab, document.querySelector('#sec-materiaal .kal-subtab.active')||document.querySelector('#sec-materiaal .kal-subtab'));
+  setMatSubtab(activeTab, document.querySelector('#sec-materiaal .kal-subtab.active')||document.querySelector(`#sec-materiaal .kal-subtab[onclick*="'${activeTab}'"]`)||document.querySelector('#sec-materiaal .kal-subtab'));
 }
 
 // ── THEMABAKKEN ──
