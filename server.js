@@ -1299,6 +1299,10 @@ async function startServer() {
     }
   }
 
+  // verhuis_checks.item_type_id: kolom ontbrak (de checks-init-INSERT en Migratie 51 verwezen
+  // ernaar zonder dat ze ooit was aangemaakt → beide crashten). Moet vóór Migratie 51/52 staan.
+  addColumnIfMissing('verhuis_checks','item_type_id','INTEGER');
+
   // Migration 51: EENMALIGE opruimmigratie (S0.1) — wist de door de herseed-lekken (Mig 27/30/38,
   // nu gegate) per ongeluk teruggezaaide standaarddozen/vaste_bakken/item_types opnieuw, en ruimt
   // item_types op tot enkel nog levend gerefereerde rijen. Gegate: draait maar 1 keer.
@@ -1323,6 +1327,27 @@ async function startServer() {
         console.log('  Migratie 51: herseedde standaarddozen/vaste_bakken gewist, ongerefereerde item_types opgeruimd');
       }catch(e){ console.error('  Migratie 51 fout (niet-fataal):',e.message); }
       try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie51_klaar','1')");}catch(e){}
+    }
+  }
+
+  // Migration 52: herstel van Migratie 51 — die crashte op de toen nog ontbrekende kolom
+  // verhuis_checks.item_type_id maar zette zijn vlag toch, waardoor de item_types-opruiming
+  // nooit gebeurde. Zelfde opruiming, maar de vlag wordt ALLEEN bij succes gezet.
+  {
+    const _vlag52=get("SELECT naam FROM app_vlaggen WHERE naam='migratie52_klaar'");
+    if(!_vlag52){
+      try{
+        const _voor52=(get('SELECT COUNT(*) as n FROM item_types')||{}).n||0;
+        db.run(`DELETE FROM item_types WHERE id NOT IN (
+          SELECT item_type_id FROM bak_items WHERE item_type_id IS NOT NULL
+          UNION SELECT item_type_id FROM sport_items WHERE item_type_id IS NOT NULL
+          UNION SELECT item_type_id FROM transport_regels WHERE item_type_id IS NOT NULL
+          UNION SELECT item_type_id FROM verhuis_checks WHERE item_type_id IS NOT NULL
+        )`);
+        const _na52=(get('SELECT COUNT(*) as n FROM item_types')||{}).n||0;
+        console.log(`  Migratie 52: item_types opgeruimd ${_voor52} → ${_na52}`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie52_klaar','1')");
+      }catch(e){ console.error('  Migratie 52 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
     }
   }
 
