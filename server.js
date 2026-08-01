@@ -523,57 +523,7 @@ async function startServer() {
   const _mig21Done=get("SELECT id FROM kampmomenten WHERE type='kamp' LIMIT 1");
   const _kmCount21=(get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
   if(!_mig21Vlag && (!_mig21Done || _kmCount21<50)){
-    try {
-      // Alle afhankelijke data wissen (volgorde: children eerst)
-      const _tClear=['kampmoment_themas','kampmoment_themas',
-        'thema_materiaal','themas','thema_categorieen',
-        'standaard_materiaal','gedeeld_gebruik','gedeeld_stock','gedeeld_items',
-        'verplaatsingen','materiaal_eenheden','materiaal_items',
-        'terugkomst_regels','terugkomst_rapporten','spoedmeldingen','activiteiten_log',
-        'set_planning','sport_planning','sport_sets','verbruik_log','verbruik_stock'];
-      _tClear.forEach(t=>{try{run(`DELETE FROM ${t}`);}catch(e){}});
-      // Kampmomenten apart (na kampmoment_themas)
-      try{run('DELETE FROM kampmomenten');}catch(e){}
-
-      // Ontbrekende locaties
-      const _uL=(n,a)=>{if(!get('SELECT id FROM locaties WHERE name=? AND (parent_id IS NULL OR parent_id=0)',[n]))ins('INSERT INTO locaties (name,addr,type,stockage_rol) VALUES (?,?,?,?)',[n,a||'','kamp','beide']);};
-      _uL('Rotselaar','Rotselaar');_uL('Betekom','Betekom');
-      _uL('Grasmus','Grasmus, Leuven');_uL('Boutersem','Boutersem');
-      _uL('Gemeenteschool Bertem','Bertem');
-
-      // Mig22 alvast hier: Verkeerspark hernomen naar Woudlucht (voor de locatie-lookup hieronder)
-      const _vp22=get("SELECT id FROM locaties WHERE name='Verkeerspark Heverlee'");
-      if(_vp22) run("UPDATE locaties SET name='Woudlucht' WHERE id=?",[_vp22.id]);
-      // Verwijder eventueel los Woudlucht duplicaat
-      const _wlDup=get("SELECT id FROM locaties WHERE name='Woudlucht' AND id!=? AND (parent_id IS NULL OR parent_id=0)",[(_vp22||{}).id||0]);
-      if(_wlDup) try{run('DELETE FROM locaties WHERE id=?',[_wlDup.id]);}catch(e){}
-
-      // Kampmomenten per locatie per week (Woudlucht = hernoemde Verkeerspark)
-      const _lkm={
-        'Sporthal Kessel-Lo':[1,2,3,4,5,6,7,8,9],'Abdijschool Vlierbeek':[1,2,3,4,5,6,7,8],
-        'Syntra':[1,2,8,9],'Woudlucht':[2,3],'Sporthal Heverlee':[8,9],
-        'Scoutslokalen Vlierbeek':[1,2,3,8,9],'De Bosstraat':[1,2,6,7,8],
-        'De Waaier':[4,5,6,7,8],'De Kring':[1,2,7,8,9],'De Ark 3':[3,4,5,6],
-        'De Kraal':[1,2,3,6,8],'Rotselaar':[1,2,7,8,9],'Betekom':[2,9],
-        'De Wijzer Oud-Heverlee':[1,2,7,8],'De Mozaiek':[1,2,3,4,5,6,7,8,9],
-        'Sportschuur':[8,9],'Grasmus':[1,2,3,4,5,6,7,8],'Terbank':[2,3,4,5,6,7,8],
-        'Fablab KUL':[2,3,9],'Campus GroepT':[1],'Boutersem':[2,3,6,7,8],
-        'Gemeenteschool Bertem':[9],'Klare Bron':[1,2,3,4,5,6,7,8],
-      };
-      const _pid21=(get('SELECT id FROM vakantieperiodes LIMIT 1')||{}).id||1;
-      let _kmAan=0;
-      Object.entries(_lkm).forEach(([naam,weken])=>{
-        const _l=get('SELECT id FROM locaties WHERE name=? AND (parent_id IS NULL OR parent_id=0)',[naam]);
-        if(!_l) return;
-        weken.forEach(w=>{
-          try{
-            run('INSERT OR IGNORE INTO kampmomenten (locatie_id,week,type,periode_id) VALUES (?,?,?,?)',[_l.id,w,'kamp',_pid21]);
-            _kmAan++;
-          }catch(e){}
-        });
-      });
-      console.log(`  Migratie 21+22: ${_kmAan} kampmomenten aangemaakt`);
-    } catch(e) { console.error('  Migratie 21+22 fout (niet-fataal):', e.message); }
+    // Migratie 21/22: body verwijderd, zie git-historie; vlag migratie21_klaar blijft als guard
   }
   if(!_mig21Vlag) try{ins('INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES (\'migratie21_klaar\',\'1\')');}catch(e){}
 
@@ -600,36 +550,7 @@ async function startServer() {
   // Migration 25: 4 thema's week 1 Abdijschool toevoegen
   // Guard: sla over als de 4 themas al correct gekoppeld zijn (was vroeger zonder guard → groeiende duplicaten)
   if(!_migratie49AlKlaar) {
-    const _themas25=[
-      {name:'Op schattenjacht met Zino Balino',color:'#F59E0B',leeftijdsgroep:'kleuters'},
-      {name:'We slaan in het rond',color:'#EF4444',leeftijdsgroep:'kleuters'},
-      {name:'Lego Legends',color:'#3B82F6',leeftijdsgroep:'lagere school'},
-      {name:'Modemakers',color:'#EC4899',leeftijdsgroep:'lagere school'},
-    ];
-    const _upsertThema=(t)=>{
-      const ex=get('SELECT id FROM themas WHERE name=?',[t.name]);
-      if(ex) return ex.id;
-      return ins('INSERT INTO themas (name,color,leeftijdsgroep) VALUES (?,?,?)',[t.name,t.color,t.leeftijdsgroep]);
-    };
-    const _abdLoc=get("SELECT id FROM locaties WHERE name='Abdijschool Vlierbeek'")||get("SELECT id FROM locaties WHERE name='Abdijschool'");
-    const _km25=_abdLoc?get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=1',[_abdLoc.id]):null;
-    if(_km25){
-      // Eerst: verwijder duplicaten (rijen met zelfde kampmoment_id+thema_id, hou laagste id)
-      try{
-        db.run(`DELETE FROM kampmoment_themas WHERE id NOT IN (
-          SELECT MIN(id) FROM kampmoment_themas GROUP BY kampmoment_id, thema_id
-        )`);
-      }catch(e){}
-      // Dan: zorg dat de 4 correcte themas gekoppeld zijn
-      const _kt25count=(get('SELECT COUNT(*) as n FROM kampmoment_themas WHERE kampmoment_id=?',[_km25.id])||{}).n||0;
-      if(_kt25count<4){
-        _themas25.forEach(t=>{
-          const tid=_upsertThema(t);
-          try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[_km25.id,tid]);}catch(e){}
-        });
-        console.log('  Migratie 25: 4 themas week 1 Abdijschool aangemaakt');
-      }
-    }
+    // Migratie 25: body verwijderd, zie git-historie; vlag migratie49_klaar blijft als guard
   }
 
   // Migration 40: opruimen kampmoment_themas
@@ -656,157 +577,8 @@ async function startServer() {
   // Bestaande week-1 themas updaten naar correct type (geen eigen themabundel = eigen_standaard)
   run("UPDATE themas SET thema_type='eigen_standaard' WHERE name IN ('Op schattenjacht met Zino Balino','We slaan in het rond','Lego Legends','Modemakers') AND thema_type='eigen_materiaal'");
   if(!_migratie49AlKlaar) {
-    // Helper: thema ophalen of aanmaken
-    const _uT=(name,kleur,lgr,type)=>{
-      const ex=get('SELECT id FROM themas WHERE name=?',[name]);
-      if(ex) return ex.id;
-      return ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',[name,kleur,lgr,type]);
-    };
-    // Helper: bak aanmaken (parent_id=null)
-    const _uBak=(tid,label,code,locId,so)=>{
-      const ex=get('SELECT id FROM thema_materiaal WHERE thema_id=? AND name=? AND parent_id IS NULL',[tid,label]);
-      if(ex) return ex.id;
-      return ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_code,stockage_locatie_id,sort_order,is_verbruik) VALUES (?,?,1,?,?,?,0)',[tid,label,code||'',locId||null,so||0]);
-    };
-    // Helper: item in bak aanmaken (parent_id=bakId)
-    const _uItem=(tid,bakId,name,qty,verbruik,so)=>{
-      const ex=get('SELECT id FROM thema_materiaal WHERE thema_id=? AND parent_id=? AND name=?',[tid,bakId,name]);
-      if(ex) return ex.id;
-      return ins('INSERT INTO thema_materiaal (thema_id,parent_id,name,qty,sort_order,is_verbruik) VALUES (?,?,?,?,?,?)',[tid,bakId,name,qty||1,so||0,verbruik?1:0]);
-    };
-
-    const KT=4; // Kantoor id
-    const RW=7; // Rozenweg id
-
-    // ── 1001 BALLEN EN BELLEN ──
-    const _bb=_uT('1001 Ballen en Bellen','#10B981','kleuters','eigen_materiaal');
-    // Themabak 1/4 – N20
-    const _bb1=_uBak(_bb,'Themabak 1/4','N20',KT,10);
-    _uItem(_bb,_bb1,'Voetballen',10,false,1);
-    _uItem(_bb,_bb1,'Basketballen',10,false,2);
-    _uItem(_bb,_bb1,'Mousse balletjes',20,false,3);
-    // Themabak 2/4 – H53
-    const _bb2=_uBak(_bb,'Themabak 2/4','H53',KT,20);
-    _uItem(_bb,_bb2,'Bubble rocket',6,false,1);
-    _uItem(_bb,_bb2,'Geplastificeerde handleiding bubble rocket',2,false,2);
-    _uItem(_bb,_bb2,'Kleine bellenblazers',20,false,3);
-    _uItem(_bb,_bb2,'Wasteilen',3,false,4);
-    _uItem(_bb,_bb2,'Waterpistolen',6,false,5);
-    _uItem(_bb,_bb2,'Mouse watershooter',8,false,6);
-    _uItem(_bb,_bb2,'Multiblaasring',3,false,7);
-    _uItem(_bb,_bb2,'Windmolen met bellenblaas',5,false,8);
-    // Themabak 3/4 – H55 (vast materiaal)
-    const _bb3=_uBak(_bb,'Themabak 3/4 (vast)','H55',KT,30);
-    _uItem(_bb,_bb3,'Trechters',2,false,1);
-    _uItem(_bb,_bb3,'Vierkant stuk stof',1,false,2);
-    _uItem(_bb,_bb3,'Plastic borden',5,false,3);
-    _uItem(_bb,_bb3,'Plastic kommetjes',8,false,4);
-    _uItem(_bb,_bb3,'Handleiding Bubble tennis',1,false,5);
-    // Themabak 3/4 – H55 (verbruiksmateriaal)
-    const _bb3v=_uBak(_bb,'Themabak 3/4 (verbruik)','H55',KT,35);
-    _uItem(_bb,_bb3v,'Afwasmiddel',1,true,1);
-    _uItem(_bb,_bb3v,'Glycerine',1,true,2);
-    _uItem(_bb,_bb3v,'Bellenblaasmiddel (Action, 4 liter)',1,true,3);
-    _uItem(_bb,_bb3v,'Rietjes',1,true,4);
-    _uItem(_bb,_bb3v,'Pijpenragers (1/kind)',1,true,5);
-    _uItem(_bb,_bb3v,'Kralen',1,true,6);
-    _uItem(_bb,_bb3v,'Ballonnen met stokje',1,true,7);
-    _uItem(_bb,_bb3v,'Papiersnippers',1,true,8);
-    _uItem(_bb,_bb3v,'Pompons',1,true,9);
-    _uItem(_bb,_bb3v,'Crêpepapier',1,true,10);
-    // Themabak 4/4 – H57
-    const _bb4=_uBak(_bb,'Themabak 4/4','H57',KT,40);
-    _uItem(_bb,_bb4,'PET-fles met rietjes',3,false,1);
-    _uItem(_bb,_bb4,'PET-fles met sok',3,false,2);
-    _uItem(_bb,_bb4,'PET-fles (afgesneden)',3,false,3);
-    _uItem(_bb,_bb4,'Katapult voor waterballonnen + waterballonnen',5,false,4);
-    _uItem(_bb,_bb4,'Bubble wand',6,false,5);
-    _uItem(_bb,_bb4,'Bubble tennis set',1,false,6);
-    _uItem(_bb,_bb4,'Bellenblaas hout en touw',5,false,7);
-    // Sportmateriaal (aparte items/zakken)
-    const _bbs=_uBak(_bb,'Sportmateriaal','',KT,50);
-    _uItem(_bb,_bbs,'Handbalpakket – 10 ballen (Gele zak H70)',1,false,1);
-    _uItem(_bb,_bbs,'Kinball – 1 bal + pomp (LS Bak H70)',1,false,2);
-    _uItem(_bb,_bbs,'Zweefbal – 3 zeefballen + pomp (LS Bak H70)',1,false,3);
-    _uItem(_bb,_bbs,'Minitennis – 20 racketjes + 20 balletjes (Zwarte curver H26)',1,false,4);
-    _uItem(_bb,_bbs,'Mini rugby – 10 ballen (Gele zak H70)',1,false,5);
-
-    // ── ALICE IN WONDERLAND ──
-    const _aw=_uT('Alice in Wonderland','#8B5CF6','kleuters','eigen_materiaal');
-    // Decor/los
-    const _awLos=_uBak(_aw,'Los decor','',KT,0);
-    _uItem(_aw,_awLos,'Decor Alice in Wonderland',1,false,1);
-    _uItem(_aw,_awLos,'Croquet doelen',1,false,2);
-    _uItem(_aw,_awLos,'Verkleedkledij (set)',1,false,3);
-    // Themabak 1/2 – N08
-    const _aw1=_uBak(_aw,'Themabak 1/2','N08',KT,10);
-    _uItem(_aw,_aw1,'Verkleedkledij Alice (kleedje)',1,false,1);
-    _uItem(_aw,_aw1,'Verkleedkledij Konijn (broek, vest, hoed, handschoenen, horloge)',1,false,2);
-    _uItem(_aw,_aw1,'Breekmes',1,false,3);
-    _uItem(_aw,_aw1,'Taartstandaard',2,false,4);
-    _uItem(_aw,_aw1,'Theekopjes',16,false,5);
-    _uItem(_aw,_aw1,'Kleine bordjes',16,false,6);
-    _uItem(_aw,_aw1,'Lepels',16,false,7);
-    _uItem(_aw,_aw1,'Kannetjes',4,false,8);
-    _uItem(_aw,_aw1,'Theepotten',4,false,9);
-    _uItem(_aw,_aw1,'Taartschep',2,false,10);
-    _uItem(_aw,_aw1,'Voorbeelden sponstaartjes',1,false,11);
-    _uItem(_aw,_aw1,'Plantenspuit',6,false,12);
-    _uItem(_aw,_aw1,'Kaartjes theebingo',15,false,13);
-    _uItem(_aw,_aw1,'Bingokaarten theebingo',16,false,14);
-    _uItem(_aw,_aw1,'Puzzels de gekke hoedenmaker',5,false,15);
-    _uItem(_aw,_aw1,'Aanwijzingen de gekke hoedenmaker (10/set)',5,false,16);
-    _uItem(_aw,_aw1,'Hoeden',16,false,17);
-    _uItem(_aw,_aw1,'Memory kaartjes',24,false,18);
-    _uItem(_aw,_aw1,'Croquet sticks',8,false,19);
-    _uItem(_aw,_aw1,'Moppenkat',4,false,20);
-    _uItem(_aw,_aw1,'Dierenafbeeldingen (Dieren naar de overkant)',11,false,21);
-    _uItem(_aw,_aw1,'Kaartjes Wit zoekt rood',18,false,22);
-    _uItem(_aw,_aw1,'Pittenzak werpspel',1,false,23);
-    _uItem(_aw,_aw1,'Ringenwerpspel',1,false,24);
-    _uItem(_aw,_aw1,'Blinddoeken',2,false,25);
-    _uItem(_aw,_aw1,'Blikkenspel (6 blikken + 3 balletjes)',1,false,26);
-    _uItem(_aw,_aw1,'Yogakaarten dobbelsteen',1,false,27);
-    _uItem(_aw,_aw1,'Creatieve dobbelsteen',1,false,28);
-    _uItem(_aw,_aw1,'A3 kaart yoga (Gooi en beweeg)',1,false,29);
-    _uItem(_aw,_aw1,'Glimlach moppenkat',4,false,30);
-    _uItem(_aw,_aw1,'Kaartjes dierengeluiden klein',18,false,31);
-    _uItem(_aw,_aw1,'Kaartjes dierengeluiden groot',9,false,32);
-    _uItem(_aw,_aw1,'Boekje Alice in Wonderland',1,false,33);
-    _uItem(_aw,_aw1,'Flesje Drink mij',1,false,34);
-    _uItem(_aw,_aw1,'Voorbeelden gekke hoeden',1,false,35);
-    _uItem(_aw,_aw1,'Doos PlayMais',1,false,36);
-    // Themabak 2/2 – E26 (verbruik)
-    const _aw2=_uBak(_aw,'Themabak 2/2 (verbruik)','E26',KT,20);
-    _uItem(_aw,_aw2,'Sponsen in verschillende kleuren/vormen (±2/kind)',1,true,1);
-    _uItem(_aw,_aw2,'Foampapier in verschillende kleuren (±20 vellen)',1,true,2);
-    _uItem(_aw,_aw2,'Pompons (8 zakjes)',1,true,3);
-    _uItem(_aw,_aw2,'Potje glitter',1,true,4);
-    _uItem(_aw,_aw2,'Knutsellijm (4 flesjes)',1,true,5);
-    _uItem(_aw,_aw2,'Appelsap (4 liter)',1,true,6);
-    _uItem(_aw,_aw2,'Aquarelpapier (1/kind)',1,true,7);
-    _uItem(_aw,_aw2,'Theezakjes in verschillende kleuren (±70)',1,true,8);
-    _uItem(_aw,_aw2,'Whiteboardstiften',10,true,9);
-    _uItem(_aw,_aw2,'Wit A3 papier',32,true,10);
-    _uItem(_aw,_aw2,'Doorzichtige plakband/tape',1,true,11);
-    _uItem(_aw,_aw2,'Pijpenragers (±160)',1,true,12);
-    _uItem(_aw,_aw2,'Stroken gekleurd papier breed (±2-3 cm)',1,true,13);
-    _uItem(_aw,_aw2,'Stroken gekleurd papier smal (±1 cm)',1,true,14);
-    _uItem(_aw,_aw2,'Grote kartonnen bordjes met gat',16,true,15);
-    _uItem(_aw,_aw2,'Kleine kartonnen bordjes met gat',32,true,16);
-    _uItem(_aw,_aw2,'Lint',1,true,17);
-    _uItem(_aw,_aw2,'Wattenstaafjes',60,true,18);
-    _uItem(_aw,_aw2,'Print witte rozen (1/kind)',1,true,19);
-    _uItem(_aw,_aw2,'Groene velcro',1,true,20);
-    _uItem(_aw,_aw2,'Rode verf (bus)',1,true,21);
-    _uItem(_aw,_aw2,'Roze verf (bus)',1,true,22);
-    _uItem(_aw,_aw2,'Pluimen (2 zakjes)',1,true,23);
-    _uItem(_aw,_aw2,'Crêpepapier (1 pak)',1,true,24);
-    _uItem(_aw,_aw2,'Wol in verschillende kleuren (5 bollen)',1,true,25);
-    _uItem(_aw,_aw2,'Kralen (1 doos)',1,true,26);
-    _uItem(_aw,_aw2,'Ballonnen (1 zakje)',1,true,27);
-
-    console.log('  Migratie 26: 1001BB + Alice volledig ingevoegd');
+    // Migratie 26: body verwijderd (incl. 1001BB/Alice-seeddata), zie git-historie;
+    // vlag migratie49_klaar blijft als guard
   }
 
   // Migration 27: item_types (centrale catalogus) + vaste_bakken + vaste_bak_items
@@ -889,26 +661,8 @@ async function startServer() {
     const _tbCount=(get('SELECT COUNT(*) as n FROM thema_bakken')||{}).n||0;
     const _tmCount=(get('SELECT COUNT(*) as n FROM thema_materiaal WHERE parent_id IS NULL')||{}).n||0;
     if(_tbCount===0&&_tmCount>0){
-      try{
-        // Haal alle top-level thema_materiaal rijen op (= bakken)
-        const _bakRows=all('SELECT * FROM thema_materiaal WHERE parent_id IS NULL ORDER BY thema_id,sort_order,id');
-        // Map: thema_materiaal.id → thema_bakken.id
-        const _bakMap={};
-        _bakRows.forEach(bak=>{
-          const newId=ins(`INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde)
-            VALUES (?,?,?,?,?)`,[bak.thema_id,bak.name||'',bak.stockage_code||'','',bak.sort_order||0]);
-          _bakMap[bak.id]=newId;
-        });
-        // Haal alle kind-rijen op (= items in bakken)
-        const _itemRows=all('SELECT * FROM thema_materiaal WHERE parent_id IS NOT NULL ORDER BY thema_id,sort_order,id');
-        _itemRows.forEach(item=>{
-          const bakId=_bakMap[item.parent_id];
-          if(!bakId)return;
-          ins(`INSERT INTO bak_items (bak_id,naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum)
-            VALUES (?,?,?,?,1,'stuks',0,?)`,[bakId,item.name||'',item.qty||1,item.is_verbruik?1:0,item.is_verbruik?(item.qty||1):0]);
-        });
-        console.log(`  Migratie 29: ${Object.keys(_bakMap).length} bakken + ${_itemRows.length} items gemigreerd naar thema_bakken`);
-      }catch(e){console.error('  Migratie 29 fout (niet-fataal):',e.message);}
+      // Migratie 29: body verwijderd, zie git-historie; guard (thema_bakken leeg + thema_materiaal
+      // niet leeg) blijft staan — thema_materiaal wordt sinds Migratie 49 altijd leeg gehouden
     }
   }
 
@@ -1126,48 +880,7 @@ async function startServer() {
   addColumnIfMissing('themas','leeftijdsgroep','TEXT DEFAULT \'\'');
   addColumnIfMissing('themas','thema_type','TEXT DEFAULT \'eigen\'');
   if(!_migratie49AlKlaar) {
-    const _seedPath=path.join(__dirname,'data','themas-seed.json');
-    if(fs.existsSync(_seedPath)){
-      let _tSeed=[];
-      try{_tSeed=JSON.parse(fs.readFileSync(_seedPath,'utf8'));}catch(e){console.error('  Migratie 32: seed JSON onleesbaar:',e.message);}
-      const _itMap2={};
-      all('SELECT id,naam FROM item_types').forEach(t=>{_itMap2[t.naam.toLowerCase()]=t.id;});
-      let _tAdded=0,_tSkipped=0,_biAdded=0;
-      for(const t of _tSeed){
-        const bestaand=get('SELECT id FROM themas WHERE name=?',[t.naam]);
-        let tId,bakId;
-        if(bestaand){
-          tId=bestaand.id;
-          // Zoek bestaande Materiaallijst-bak
-          const bestaandeBak=get('SELECT id FROM thema_bakken WHERE thema_id=? AND label=?',[tId,'Materiaallijst']);
-          if(bestaandeBak){
-            bakId=bestaandeBak.id;
-            // Alleen items toevoegen als de bak leeg is
-            const aantalItems=(get('SELECT COUNT(*) as n FROM bak_items WHERE bak_id=?',[bakId])||{}).n||0;
-            if(aantalItems>0){_tSkipped++;continue;}
-          } else {
-            bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
-              [tId,'Materiaallijst','',t.leeftijdsgroep||'',0]);
-          }
-        } else {
-          tId=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
-            [t.naam,t.color||'#3498DB',t.leeftijdsgroep||'',t.thema_type||'eigen']);
-          bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
-            [tId,'Materiaallijst','',t.leeftijdsgroep||'',0]);
-          _tAdded++;
-        }
-        if(Array.isArray(t.items)){
-          t.items.forEach((itNaam)=>{
-            const typeId=_itMap2[itNaam.toLowerCase()]||null;
-            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,?,?,?,0,1,0,0)',
-              [bakId,itNaam,1,'stuk',typeId]);
-            _biAdded++;
-          });
-        }
-      }
-      if(_tAdded>0||_biAdded>0)
-        console.log(`  Migratie 32: ${_tAdded} themas gezaaid (${_tSkipped} al aanwezig), ${_biAdded} items ingevoegd`);
-    }
+    // Migratie 32: body verwijderd, zie git-historie; vlag migratie49_klaar blijft als guard
   }
 
   // Migration 33: verwijder nep-themas (thema_type 'eigen'/'eigen_standaard' van de oude seed),
@@ -1176,49 +889,7 @@ async function startServer() {
     const _vlag33=get("SELECT naam FROM app_vlaggen WHERE naam='migratie33_klaar'");
     if(_vlag33){console.log('  Migratie 33: al uitgevoerd, overgeslagen');}
     else{
-    // Stap 1: verwijder alle themas die door de nep-seed zijn aangemaakt
-    // Originele 5 themas hebben thema_type='' (lege string, voor de kolom bestond)
-    // Nep-seed heeft thema_type='eigen' of 'eigen_standaard'
-    const _nepIds=all("SELECT id FROM themas WHERE thema_type IN ('eigen','eigen_standaard')").map(r=>r.id);
-    if(_nepIds.length>0){
-      const _placeholders=_nepIds.map(()=>'?').join(',');
-      // Verwijder bak_items voor deze themas
-      const _bakIds=all(`SELECT id FROM thema_bakken WHERE thema_id IN (${_placeholders})`,_nepIds).map(r=>r.id);
-      if(_bakIds.length>0){
-        const _bp=_bakIds.map(()=>'?').join(',');
-        run(`DELETE FROM bak_items WHERE bak_id IN (${_bp})`,_bakIds);
-      }
-      run(`DELETE FROM thema_bakken WHERE thema_id IN (${_placeholders})`,_nepIds);
-      run(`DELETE FROM themas WHERE id IN (${_placeholders})`,_nepIds);
-      console.log(`  Migratie 33: ${_nepIds.length} nep-themas verwijderd`);
-    }
-    // Stap 2: voeg echte themas toe (zelfde seed-logica als migration 32)
-    const _seedPath33=path.join(__dirname,'data','themas-seed.json');
-    if(fs.existsSync(_seedPath33)){
-      let _tSeed33=[];
-      try{_tSeed33=JSON.parse(fs.readFileSync(_seedPath33,'utf8'));}catch(e){console.error('  Migratie 33: seed JSON onleesbaar:',e.message);}
-      const _itMap33={};
-      all('SELECT id,naam FROM item_types').forEach(t=>{_itMap33[t.naam.toLowerCase()]=t.id;});
-      let _tAdded33=0,_biAdded33=0;
-      for(const t of _tSeed33){
-        const bestaand33=get('SELECT id FROM themas WHERE name=?',[t.naam]);
-        if(bestaand33) continue;
-        const tId33=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
-          [t.naam,t.color||'#3498DB',t.leeftijdsgroep||'',t.thema_type||'eigen']);
-        const bakId33=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
-          [tId33,'Materiaallijst','',t.leeftijdsgroep||'',0]);
-        _tAdded33++;
-        if(Array.isArray(t.items)){
-          t.items.forEach((itNaam)=>{
-            const typeId33=_itMap33[itNaam.toLowerCase()]||null;
-            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,?,?,?,0,1,0,0)',
-              [bakId33,itNaam,1,'stuk',typeId33]);
-            _biAdded33++;
-          });
-        }
-      }
-      if(_tAdded33>0)console.log(`  Migratie 33: ${_tAdded33} echte themas gezaaid, ${_biAdded33} items ingevoegd`);
-    }
+    // Migratie 33: body verwijderd, zie git-historie; vlag migratie33_klaar blijft als guard
     try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie33_klaar','1')");}catch(e){}
     } // end if(!_vlag33)
   }
@@ -1239,65 +910,16 @@ async function startServer() {
     }
   }
 
-  // Migration 35: update leeftijdsgroep + thema_type voor alle themas uit de seed (ook bestaande)
-  {
-    const _seedPath35=path.join(__dirname,'data','themas-seed.json');
-    if(fs.existsSync(_seedPath35)){
-      let _tSeed35=[];
-      try{_tSeed35=JSON.parse(fs.readFileSync(_seedPath35,'utf8'));}catch(e){}
-      let _upd35=0;
-      for(const t of _tSeed35){
-        const res=get('SELECT id,leeftijdsgroep,thema_type FROM themas WHERE name=?',[t.naam]);
-        if(res){
-          const needsUpdate=(res.leeftijdsgroep!==t.leeftijdsgroep)||(res.thema_type!==t.thema_type);
-          if(needsUpdate){
-            run('UPDATE themas SET leeftijdsgroep=?,thema_type=? WHERE id=?',[t.leeftijdsgroep||'',t.thema_type||'eigen',res.id]);
-            _upd35++;
-          }
-        }
-      }
-      if(_upd35>0)console.log(`  Migratie 35: ${_upd35} themas bijgewerkt (leeftijdsgroep/thema_type)`);
-    }
-  }
+  // Migration 35: body verwijderd, zie git-historie (was ongegate maar effectief een no-op
+  // sinds Migratie 49 themas altijd leeg houdt)
+  {}
 
   // Migration 36: echte bakken + items uit PDF-bundels zaaien (vervangt nep-items)
   {
     const _vlag36=get("SELECT naam FROM app_vlaggen WHERE naam='migratie36_klaar'");
     if(_vlag36){console.log('  Migratie 36: al uitgevoerd, overgeslagen');}
     else{
-    const _sp36=path.join(__dirname,'data','thema-bakken-seed.json');
-    if(fs.existsSync(_sp36)){
-      let _seed36=[];
-      try{_seed36=JSON.parse(fs.readFileSync(_sp36,'utf8'));}catch(e){console.error('  Migratie 36: JSON onleesbaar:',e.message);}
-      let _tUpd36=0,_bAdded36=0,_iAdded36=0;
-      for(const t of _seed36){
-        const tRow=get('SELECT id FROM themas WHERE name=?',[t.naam]);
-        if(!tRow) continue;
-        // Wis altijd bestaande bakken + items voor dit thema (ook als geen PDF bestaat)
-        const _bestaandeBakken=all('SELECT id FROM thema_bakken WHERE thema_id=?',[tRow.id]);
-        if(_bestaandeBakken.length>0){
-          const _bIds=_bestaandeBakken.map(r=>r.id);
-          const _bPh=_bIds.map(()=>'?').join(',');
-          run(`DELETE FROM bak_items WHERE bak_id IN (${_bPh})`,_bIds);
-          run(`DELETE FROM thema_bakken WHERE thema_id=?`,[tRow.id]);
-        }
-        if(!Array.isArray(t.bakken)||t.bakken.length===0){_tUpd36++;continue;}
-        // Voeg echte bakken in
-        t.bakken.forEach((bak,idx)=>{
-          const bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
-            [tRow.id,bak.label||'',bak.code||'',t.leeftijdsgroep||'',idx]);
-          _bAdded36++;
-          (bak.items||[]).forEach(itNaam=>{
-            if(!itNaam||!itNaam.trim()) return;
-            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,1,\'stuk\',null,0,1,0,0)',
-              [bakId,itNaam.trim()]);
-            _iAdded36++;
-          });
-        });
-        _tUpd36++;
-      }
-      if(_tUpd36>0)console.log(`  Migratie 36: ${_tUpd36} themas bijgewerkt met echte bakken (${_bAdded36} bakken, ${_iAdded36} items)`);
-    }
+    // Migratie 36: body verwijderd, zie git-historie; vlag migratie36_klaar blijft als guard
     try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie36_klaar','1')");}catch(e){}
     } // end if(!_vlag36)
   }
@@ -1307,41 +929,7 @@ async function startServer() {
     const _vlag37=get("SELECT naam FROM app_vlaggen WHERE naam='migratie37_klaar'");
     if(_vlag37){console.log('  Migratie 37: al uitgevoerd, overgeslagen');}
     else{
-    const _sp37=path.join(__dirname,'data','themedagen-bakken-seed.json');
-    if(fs.existsSync(_sp37)){
-      let _seed37=[];
-      try{_seed37=JSON.parse(fs.readFileSync(_sp37,'utf8'));}catch(e){console.error('  Migratie 37: JSON onleesbaar:',e.message);}
-      let _tAdded37=0,_bAdded37=0,_iAdded37=0;
-      for(const t of _seed37){
-        if(!t.thema_naam||!t.thema_naam.trim()) continue;
-        let tRow=get('SELECT id FROM themas WHERE name=? AND thema_type=?',[t.thema_naam,'themadag']);
-        if(!tRow){
-          const tId=ins('INSERT INTO themas (name,color,leeftijdsgroep,thema_type) VALUES (?,?,?,?)',
-            [t.thema_naam,'#8E44AD',t.leeftijdsgroep||'','themadag']);
-          tRow={id:tId};
-          _tAdded37++;
-        }
-        // Wis bestaande bakken
-        const _bb37=all('SELECT id FROM thema_bakken WHERE thema_id=?',[tRow.id]);
-        if(_bb37.length>0){
-          const _bIds=_bb37.map(r=>r.id);
-          run(`DELETE FROM bak_items WHERE bak_id IN (${_bIds.map(()=>'?').join(',')})`,_bIds);
-          run('DELETE FROM thema_bakken WHERE thema_id=?',[tRow.id]);
-        }
-        (t.bakken||[]).forEach((bak,idx)=>{
-          const bakId=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
-            [tRow.id,bak.label||'',bak.code||'',t.leeftijdsgroep||'',idx]);
-          _bAdded37++;
-          (bak.items||[]).forEach(itNaam=>{
-            if(!itNaam||!itNaam.trim()) return;
-            ins('INSERT INTO bak_items (bak_id,naam,qty,eenheid,item_type_id,verbruik,qty_per_gebruik,qty_stock,qty_minimum) VALUES (?,?,1,\'stuk\',null,0,1,0,0)',
-              [bakId,itNaam.trim()]);
-            _iAdded37++;
-          });
-        });
-      }
-      if(_tAdded37>0)console.log(`  Migratie 37: ${_tAdded37} themadagen gezaaid (${_bAdded37} bakken, ${_iAdded37} items)`);
-    }
+    // Migratie 37: body verwijderd, zie git-historie; vlag migratie37_klaar blijft als guard
     try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie37_klaar','1')");}catch(e){}
     } // end if(!_vlag37)
   }
@@ -1405,29 +993,7 @@ async function startServer() {
 
   // Migration 44: ontbrekende themas aanmaken + koppelen aan week 1
   if(!_migratie49AlKlaar) {
-    const _nieuwW1=[
-      {name:'Ingenieus Zomerkamp',             leeftijdsgroep:'tieners',    color:'#8E44AD', loc:'Campus GroepT'},
-      {name:'Meisjes en Wetenschap',           leeftijdsgroep:'tieners',    color:'#E91E63', loc:'Campus GroepT'},
-      {name:'Beestige Natuur 3-daagse',        leeftijdsgroep:'kleuters',   color:'#27AE60', loc:'De Wijzer Oud-Heverlee'},
-      {name:'Ervaring met Zwemmen',            leeftijdsgroep:'lagere school',color:'#2980B9',loc:'Sporthal Kessel-Lo'},
-      {name:'Ropeskipping Kamp',               leeftijdsgroep:'lagere school',color:'#E67E22',loc:'Sporthal Kessel-Lo'},
-      {name:'Sportkamp Water & Balsport',      leeftijdsgroep:'lagere school',color:'#16A085',loc:'Sporthal Kessel-Lo'},
-      {name:'Play a Game',                     leeftijdsgroep:'lagere school',color:'#F39C12',loc:'Scoutslokalen Vlierbeek'},
-      {name:'Kickx 3-daagse',                  leeftijdsgroep:'tieners',    color:'#C0392B', loc:'Scoutslokalen Vlierbeek'},
-    ];
-    for(const entry of _nieuwW1){
-      const exists=get('SELECT id FROM themas WHERE LOWER(name)=LOWER(?)',[entry.name]);
-      if(!exists) ins('INSERT INTO themas (name,leeftijdsgroep,color,thema_type) VALUES (?,?,?,?)',[entry.name,entry.leeftijdsgroep,entry.color,'eigen']);
-      const th=get('SELECT id FROM themas WHERE LOWER(name)=LOWER(?)',[entry.name]);
-      if(!th) continue;
-      const loc=get('SELECT id FROM locaties WHERE name=?',[entry.loc]);
-      if(!loc) continue;
-      const km=get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=1',[loc.id]);
-      if(!km) continue;
-      try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[km.id,th.id]);}catch(e){}
-    }
-    const _n44=(get('SELECT COUNT(*) as n FROM themas WHERE name IN (\'Ingenieus Zomerkamp\',\'Meisjes en Wetenschap\',\'Beestige Natuur 3-daagse\')')||{}).n||0;
-    if(_n44>0)console.log(`  Migratie 44: ${_n44} nieuwe themas aangemaakt + gekoppeld aan week 1`);
+    // Migratie 44: body verwijderd, zie git-historie; vlag migratie49_klaar blijft als guard
   }
 
   // Migration 45: kampplanner volledig leegmaken op uitdrukkelijk verzoek (eenmalig!)
@@ -1436,56 +1002,14 @@ async function startServer() {
   {
     const _vlag45=get("SELECT naam FROM app_vlaggen WHERE naam='kampplanner_leeggemaakt'");
     if(!_vlag45){
-      const _kmAantal45=(get('SELECT COUNT(*) as n FROM kampmomenten')||{}).n||0;
-      if(_kmAantal45>0){
-        const _tIds45=all('SELECT id FROM transport_taken WHERE kampmoment_id IS NOT NULL').map(t=>t.id);
-        _tIds45.forEach(id=>{try{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);}catch(e){}});
-        try{run('DELETE FROM transport_taken WHERE kampmoment_id IS NOT NULL');}catch(e){}
-        try{run('DELETE FROM kampmoment_themas');}catch(e){}
-        try{run('DELETE FROM kampmomenten');}catch(e){}
-        console.log(`  Migratie 45: kampplanner leeggemaakt (${_kmAantal45} kampmomenten, ${_tIds45.length} gekoppelde transporten verwijderd) — themas/locaties/sportplanning ongemoeid`);
-      }
+      // Migratie 45: body verwijderd, zie git-historie; vlag kampplanner_leeggemaakt blijft als guard
       try{ins('INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES (\'kampplanner_leeggemaakt\',\'1\')');}catch(e){}
     }
   }
 
-  // Migration 43: themas koppelen aan kampmomenten week 1
-  {
-    {
-      const _planW1=[
-        {loc:'Abdijschool Vlierbeek',    th:['Op Schattenjacht met Zino Balino','We slaan in het rond','LegoLegends','Modemakers']},
-        {loc:'De Bosstraat',             th:['Reis rond de Wereld','Ambachtenacademie','Geef Acht!']},
-        {loc:'De Wijzer Oud-Heverlee',   th:['1001 Ballen en Bellen']},
-        {loc:'Grasmus',                  th:['Sprookjesland','Wie Wordt Homo Universalis']},
-        {loc:'Klare Bron',               th:['Alle Kleuren van de Regenboog']},
-        {loc:'De Kraal',                 th:['Feestje Bouwen','Fit & Fun Kamp']},
-        {loc:'De Mozaiek',               th:['Kriebelbeestjes','Atleet voor een Dag']},
-        {loc:'Rotselaar',                th:['Later als ik Groot Ben','Expeditie Survival']},
-        {loc:'Scoutslokalen Vlierbeek',  th:['Zeepkistenrace','Zoete Toetjes']},
-        {loc:'Sporthal Kessel-Lo',       th:['Mini Splash','De Beweegplaneet']},
-        {loc:'Syntra',                   th:['Hoera \'t is Feest','Koekjesatelier']},
-      ];
-      // Rotselaar: 'Balanceren op één been' heeft speciale tekens → zoek met LIKE
-      const _rotBal=get("SELECT id FROM themas WHERE name LIKE '%alanceren%been%'");
-      if(_rotBal) _planW1.find(p=>p.loc==='Rotselaar').th.push('__id:'+_rotBal.id);
-      let _add43=0,_skip43=new Set();
-      for(const entry of _planW1){
-        const _loc=get('SELECT id FROM locaties WHERE name=?',[entry.loc]);
-        if(!_loc){_skip43.add('LOC:'+entry.loc);continue;}
-        const _km=get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=1',[_loc.id]);
-        if(!_km){_skip43.add('KM:'+entry.loc);continue;}
-        for(const tRef of entry.th){
-          let thId;
-          if(tRef.startsWith('__id:')){thId=parseInt(tRef.slice(5));}
-          else{const th=get('SELECT id FROM themas WHERE LOWER(name)=LOWER(?)',[tRef]);thId=th?.id;}
-          if(!thId){_skip43.add('T:'+tRef);continue;}
-          try{run('INSERT OR IGNORE INTO kampmoment_themas (kampmoment_id,thema_id) VALUES (?,?)',[_km.id,thId]);_add43++;}catch(e){}
-        }
-      }
-      if(_add43>0)console.log(`  Migratie 43: ${_add43} thema-koppelingen week 1`);
-      if(_skip43.size>0)console.log('  Migratie 43 overgeslagen:',JSON.stringify([..._skip43]));
-    }
-  }
+  // Migration 43: body verwijderd, zie git-historie (was ongegate maar effectief een no-op
+  // sinds Migratie 49 themas altijd leeg houdt)
+  {}
 
   // Migration 38: standaarddozen + locatie-eigenschappen
   {
@@ -1659,15 +1183,7 @@ async function startServer() {
   {
     const _vlag23=get("SELECT naam FROM app_vlaggen WHERE naam='migratie23_klaar'");
     if(!_vlag23){
-      const _trCount=(get('SELECT COUNT(*) as n FROM transport_ritten')||{}).n||0;
-      const _ttCount=(get('SELECT COUNT(*) as n FROM transport_taken')||{}).n||0;
-      if(_trCount>0||_ttCount>0){
-        try{
-          ['verhuis_checks','transport_regels','transport_taken','transport_ritten','verplaatsingen']
-            .forEach(t=>{try{run(`DELETE FROM ${t}`);}catch(e){}});
-          console.log('  Migratie 23: transport- en verplaatsingsdata gewist');
-        }catch(e){console.error('  Migratie 23 fout (niet-fataal):',e.message);}
-      }
+      // Migratie 23: body verwijderd, zie git-historie; vlag migratie23_klaar blijft als guard
       try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie23_klaar','1')");}catch(e){}
     }
   }
