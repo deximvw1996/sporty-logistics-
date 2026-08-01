@@ -461,9 +461,14 @@ async function startServer() {
   }
 
   // Sport_items seeding: vervang oude foutieve data (≤15 items of verouderde namen)
+  // Gegate via app_vlaggen 'migratie20_klaar' — de seed is al lang gebeurd en mag nooit meer
+  // draaien (was een tijdbom: draaide destructief telkens de tabel toevallig ≤15 rijen had).
+  createTableIfMissing('CREATE TABLE IF NOT EXISTS app_vlaggen (naam TEXT PRIMARY KEY, waarde TEXT)');
+  const _mig20Vlag=get("SELECT naam FROM app_vlaggen WHERE naam='migratie20_klaar'");
   const _sportCount = (get('SELECT COUNT(*) as n FROM sport_items') || {}).n || 0;
   const _heeftOud = get("SELECT id FROM sport_items WHERE name='Cirkus A' OR name='Basket A'");
-  if (_kantoor && _rozenweg && (_sportCount <= 15 || _heeftOud)) {
+  if (!_mig20Vlag) try{ins('INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES (\'migratie20_klaar\',\'1\')');}catch(e){}
+  if (!_mig20Vlag && _kantoor && _rozenweg && (_sportCount <= 15 || _heeftOud)) {
     run('DELETE FROM sport_sets'); run('DELETE FROM sport_planning'); run('DELETE FROM sport_items');
     const _rw = [
       'Sportkoffer LS','Archery tag A','Archery tag B','Baseball variaties','Bumperball',
@@ -834,7 +839,9 @@ async function startServer() {
     volgorde INTEGER DEFAULT 0
   )`);
   // Seed standaard vaste bakken als ze nog niet bestaan
-  if(!(get('SELECT id FROM vaste_bakken LIMIT 1'))){
+  // Gegate op _migratie49AlKlaar (S0.1): anders herseedt dit de vaste_bakken die Migratie 49/51
+  // bewust gewist heeft, telkens de tabel na het wissen leeg is.
+  if(!_migratie49AlKlaar && !(get('SELECT id FROM vaste_bakken LIMIT 1'))){
     const _vb=[
       ['EHBO koffer','EHBO','vast'],
       ['Sportkoffer KLS','SPORT-KLS','vast'],
@@ -909,8 +916,10 @@ async function startServer() {
   addColumnIfMissing('bak_items','item_type_id','INTEGER');
   addColumnIfMissing('vaste_bak_items','item_type_id','INTEGER'); // al aanwezig maar voor zekerheid
   {
+    // Gegate op _migratie49AlKlaar (S0.1): anders herseedt dit de ±95 generieke item_types
+    // die Migratie 49/51 bewust gewist heeft, telkens de tabel na het wissen leeg is.
     const _itCount=(get('SELECT COUNT(*) as n FROM item_types')||{}).n||0;
-    if(_itCount===0){
+    if(!_migratie49AlKlaar && _itCount===0){
       const _seed=[
         // [categorie, naam, eenheid]
         // ── Sport ──
@@ -1358,9 +1367,13 @@ async function startServer() {
   }
 
   // Migration 42: sport_planning seeden vanuit data/sport-planning-seed.json
+  // Gegate via app_vlaggen 'migratie42_klaar' — was een tijdbom (herseedde telkens de tabel
+  // toevallig <100 rijen had, bv. na een bewuste opkuis). Draait nooit meer na de eerste keer.
   {
+    const _mig42Vlag=get("SELECT naam FROM app_vlaggen WHERE naam='migratie42_klaar'");
     const _sp42=path.join(__dirname,'data','sport-planning-seed.json');
-    if(fs.existsSync(_sp42)){
+    if(!_mig42Vlag) try{ins('INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES (\'migratie42_klaar\',\'1\')');}catch(e){}
+    if(!_mig42Vlag && fs.existsSync(_sp42)){
       const _bestaand=(get('SELECT COUNT(*) as n FROM sport_planning')||{}).n||0;
       if(_bestaand<100){
         let _seed42=[];
@@ -1625,7 +1638,9 @@ async function startServer() {
         {naam:'Emmer plasticine',qty:1,eenheid:'emmer',verbruik:0,was_item:0},
       ]},
     ];
-    for(const doos of _dozen38){
+    // Gegate op _migratie49AlKlaar (S0.1): anders herseedt dit de 7 standaarddozen die
+    // Migratie 49/51 bewust gewist heeft, telkens een doos-naam toevallig niet meer bestaat.
+    for(const doos of (_migratie49AlKlaar?[]:_dozen38)){
       let doosRow=get('SELECT id FROM standaard_dozen WHERE naam=?',[doos.naam]);
       if(!doosRow){
         const doosId=ins('INSERT INTO standaard_dozen (naam,opslagcode,conditie_type,conditie_waarde,qty_default,volgorde) VALUES (?,?,?,?,?,?)',
@@ -1765,6 +1780,33 @@ async function startServer() {
       _wisTabellen50.forEach(t=>{ try{ db.run(`DELETE FROM ${t}`); }catch(e){console.error(`  Migratie 50 fout bij wissen ${t} (niet-fataal):`,e.message);} });
       console.log('  Migratie 50: resterende thema-data na Migratie 49 nogmaals opgeruimd');
       try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie50_klaar','1')");}catch(e){}
+    }
+  }
+
+  // Migration 51: EENMALIGE opruimmigratie (S0.1) — wist de door de herseed-lekken (Mig 27/30/38,
+  // nu gegate) per ongeluk teruggezaaide standaarddozen/vaste_bakken/item_types opnieuw, en ruimt
+  // item_types op tot enkel nog levend gerefereerde rijen. Gegate: draait maar 1 keer.
+  {
+    const _vlag51=get("SELECT naam FROM app_vlaggen WHERE naam='migratie51_klaar'");
+    if(!_vlag51){
+      try{
+        // Children eerst, dan parents
+        run('DELETE FROM standaard_doos_items');
+        run('DELETE FROM locatie_doos_config');
+        run('DELETE FROM standaard_dozen');
+        run('DELETE FROM vaste_bak_items');
+        run('DELETE FROM vaste_bakken');
+        // item_types: enkel rijen zonder enige levende verwijzing verwijderen.
+        // vaste_bak_items telt hier NIET mee — die tabel is hierboven al leeggemaakt.
+        db.run(`DELETE FROM item_types WHERE id NOT IN (
+          SELECT item_type_id FROM bak_items WHERE item_type_id IS NOT NULL
+          UNION SELECT item_type_id FROM sport_items WHERE item_type_id IS NOT NULL
+          UNION SELECT item_type_id FROM transport_regels WHERE item_type_id IS NOT NULL
+          UNION SELECT item_type_id FROM verhuis_checks WHERE item_type_id IS NOT NULL
+        )`);
+        console.log('  Migratie 51: herseedde standaarddozen/vaste_bakken gewist, ongerefereerde item_types opgeruimd');
+      }catch(e){ console.error('  Migratie 51 fout (niet-fataal):',e.message); }
+      try{ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie51_klaar','1')");}catch(e){}
     }
   }
 
