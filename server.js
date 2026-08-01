@@ -1351,6 +1351,147 @@ async function startServer() {
     }
   }
 
+  // ── S2.1: uniforme bakken-tabel + thema_bak koppeltabel ──
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS bakken (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    naam TEXT NOT NULL DEFAULT '',
+    code TEXT DEFAULT '',
+    soort TEXT NOT NULL DEFAULT 'thema',
+    vast_type TEXT DEFAULT '',
+    thuislocatie_id INTEGER,
+    huidige_locatie_id INTEGER,
+    status TEXT DEFAULT 'thuis',
+    volgorde INTEGER DEFAULT 0
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS thema_bak (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thema_id INTEGER NOT NULL,
+    bak_id INTEGER NOT NULL,
+    UNIQUE(thema_id, bak_id)
+  )`);
+  addColumnIfMissing('bakken','naam',"TEXT DEFAULT ''");
+
+  // ── S2.2: attributen + thema_attribuut koppeltabel ──
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS attributen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    naam TEXT NOT NULL DEFAULT '',
+    code TEXT DEFAULT '',
+    thuislocatie_id INTEGER,
+    huidige_locatie_id INTEGER,
+    status TEXT DEFAULT 'thuis',
+    foto_data TEXT DEFAULT '',
+    notitie TEXT DEFAULT ''
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS thema_attribuut (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thema_id INTEGER NOT NULL,
+    attribuut_id INTEGER NOT NULL,
+    UNIQUE(thema_id, attribuut_id)
+  )`);
+
+  // ── S2.3: voorraad per item_type per stockagelocatie ──
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS item_type_stock (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_type_id INTEGER NOT NULL,
+    locatie_id INTEGER NOT NULL,
+    qty REAL DEFAULT 0,
+    minimum REAL DEFAULT 0,
+    UNIQUE(item_type_id, locatie_id)
+  )`);
+
+  // ── S2.5: locatieconfig (vaste_type per kamplocatie) ──
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS locatie_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kamplocatie_id INTEGER NOT NULL,
+    vast_type TEXT NOT NULL DEFAULT '',
+    aantal INTEGER DEFAULT 1,
+    conditie_type TEXT DEFAULT 'altijd',
+    conditie_waarde TEXT DEFAULT '',
+    UNIQUE(kamplocatie_id, vast_type)
+  )`);
+  addColumnIfMissing('transport_regels','bak_id','INTEGER');
+  addColumnIfMissing('transport_regels','attribuut_id','INTEGER');
+  addColumnIfMissing('verhuis_checks','bak_id','INTEGER');
+  addColumnIfMissing('verhuis_checks','attribuut_id','INTEGER');
+
+  // Migratie 53: thema_bakken → bakken (soort='thema', id hergebruikt) + thema_bak-koppeling.
+  // bak_items.bak_id blijft ongewijzigd geldig omdat de id's hergebruikt worden.
+  // Gate: enkel draaien als bakken nog leeg is maar thema_bakken data heeft — idempotent zonder vlag nodig,
+  // maar we gebruiken toch een expliciete vlag zodat handmatig aangemaakte nieuwe bakken (na migratie,
+  // met een lege thema_bakken) deze migratie niet per ongeluk opnieuw triggeren.
+  {
+    const _vlag53=get("SELECT naam FROM app_vlaggen WHERE naam='migratie53_klaar'");
+    if(!_vlag53){
+      try{
+        const _rzw=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0)")
+          || get("SELECT id FROM locaties WHERE type='stockage' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
+        const _thuisId=_rzw?_rzw.id:null;
+        const _oudeBakken=all('SELECT * FROM thema_bakken');
+        let _gemigreerd=0;
+        _oudeBakken.forEach(b=>{
+          const _bestaat=get('SELECT id FROM bakken WHERE id=?',[b.id]);
+          if(!_bestaat){
+            db.run('INSERT INTO bakken (id,naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status,volgorde) VALUES (?,?,?,?,?,?,?,?,?)',
+              [b.id, b.label||'', b.code||'', 'thema', '', _thuisId, _thuisId, 'thuis', b.volgorde||0]);
+          }
+          const _gekoppeld=get('SELECT id FROM thema_bak WHERE thema_id=? AND bak_id=?',[b.thema_id,b.id]);
+          if(!_gekoppeld) ins('INSERT INTO thema_bak (thema_id,bak_id) VALUES (?,?)',[b.thema_id,b.id]);
+          _gemigreerd++;
+        });
+        // bak_items had een FK naar thema_bakken(id); met foreign_keys=ON zou een insert voor een
+        // NIEUWE (vast/thema) bak die niet in thema_bakken bestaat falen. Tabel herbouwen met FK naar bakken(id).
+        db.run(`CREATE TABLE bak_items_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bak_id INTEGER NOT NULL,
+          naam TEXT NOT NULL,
+          qty REAL DEFAULT 1,
+          verbruik INTEGER DEFAULT 0,
+          qty_per_gebruik REAL DEFAULT 1,
+          eenheid TEXT DEFAULT 'stuks',
+          qty_stock REAL DEFAULT 0,
+          qty_minimum REAL DEFAULT 0,
+          notitie TEXT DEFAULT '',
+          item_type_id INTEGER,
+          FOREIGN KEY(bak_id) REFERENCES bakken(id) ON DELETE CASCADE
+        )`);
+        db.run(`INSERT INTO bak_items_new (id,bak_id,naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie,item_type_id)
+          SELECT id,bak_id,naam,qty,verbruik,qty_per_gebruik,eenheid,qty_stock,qty_minimum,notitie,item_type_id FROM bak_items`);
+        db.run('DROP TABLE bak_items');
+        db.run('ALTER TABLE bak_items_new RENAME TO bak_items');
+        // Zelfde probleem voor bak_nakijk_log (FK naar thema_bakken(id))
+        db.run(`CREATE TABLE bak_nakijk_log_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bak_id INTEGER NOT NULL,
+          tijdstip TEXT NOT NULL,
+          wie TEXT DEFAULT '',
+          resultaat TEXT DEFAULT 'ok',
+          notitie TEXT DEFAULT '',
+          FOREIGN KEY(bak_id) REFERENCES bakken(id) ON DELETE CASCADE
+        )`);
+        db.run(`INSERT INTO bak_nakijk_log_new (id,bak_id,tijdstip,wie,resultaat,notitie)
+          SELECT id,bak_id,tijdstip,wie,resultaat,notitie FROM bak_nakijk_log`);
+        db.run('DROP TABLE bak_nakijk_log');
+        db.run('ALTER TABLE bak_nakijk_log_new RENAME TO bak_nakijk_log');
+        // Zelfde probleem voor bak_fotos (FK naar thema_bakken(id))
+        db.run(`CREATE TABLE bak_fotos_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bak_id INTEGER NOT NULL,
+          tijdstip TEXT NOT NULL,
+          wie TEXT DEFAULT '',
+          beschrijving TEXT DEFAULT '',
+          foto_data TEXT DEFAULT '',
+          FOREIGN KEY(bak_id) REFERENCES bakken(id) ON DELETE CASCADE
+        )`);
+        db.run(`INSERT INTO bak_fotos_new (id,bak_id,tijdstip,wie,beschrijving,foto_data)
+          SELECT id,bak_id,tijdstip,wie,beschrijving,foto_data FROM bak_fotos`);
+        db.run('DROP TABLE bak_fotos');
+        db.run('ALTER TABLE bak_fotos_new RENAME TO bak_fotos');
+        console.log(`  Migratie 53: ${_gemigreerd} thema_bakken-rijen gemigreerd naar bakken (soort=thema) + thema_bak-koppeling; thuislocatie=${_thuisId}; bak_items FK herbouwd naar bakken(id)`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie53_klaar','1')");
+      }catch(e){ console.error('  Migratie 53 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
   saveDb();
 
 
@@ -1864,8 +2005,12 @@ async function startServer() {
     // Themamateriaal leeft nu in thema_bakken/bak_items (niet meer in de verlaten thema_materiaal-tabel).
     // Themabakken hebben geen eigen stockagelocatie-veld — ze liggen allemaal op de centrale
     // thema-stockageplaats (themaStockageId, hieronder bepaald), vandaar geen per-item fallback nodig.
-    const themaBakItems=all(`SELECT bi.*, tb.thema_id, tb.label AS bak_label, tb.code AS bak_code
-      FROM bak_items bi JOIN thema_bakken tb ON tb.id=bi.bak_id`);
+    const themaBakItems=all(`SELECT bi.*, tb.thema_id, b.naam AS bak_label, b.code AS bak_code
+      FROM bak_items bi JOIN bakken b ON b.id=bi.bak_id JOIN thema_bak tb ON tb.bak_id=b.id`);
+    // S2.2/S2.6 (gedeeltelijk): attributen per thema — worden als losse "regel" (qty 1, geen item-detail)
+    // meegenomen in de thema-materiaallijst zodat ze niet vergeten worden bij transport.
+    const themaAttrRegels=all(`SELECT a.naam, a.code, ta.thema_id
+      FROM attributen a JOIN thema_attribuut ta ON ta.attribuut_id=a.id`);
     const allLocMat=all('SELECT * FROM locatie_materiaal');
     const standaard=all('SELECT * FROM standaard_materiaal');
     const kts=all('SELECT * FROM kampmoment_themas');
@@ -1924,7 +2069,9 @@ async function startServer() {
         // Thema-materiaal met per-item stockage (fallback: themaStockageId)
         const themaMatRegels=kmThemas.flatMap(kt=>{
           const th=themas.find(t=>t.id===kt.thema_id);
-          return themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));
+          const bakRegels=themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));
+          const attrRegels=themaAttrRegels.filter(a=>a.thema_id===kt.thema_id).map(a=>({naam:'['+(th?.name||'?')+'] Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:themaStockageId}));
+          return [...bakRegels,...attrRegels];
         });
         // Basis-materiaal met per-item stockage (fallback: sportStockageId)
         const basisRegels=locMat.map(m=>({naam:m.name,qty:m.qty,soort:'basis',stockage_id:m.stockage_locatie_id||sportStockageId}));
@@ -2118,6 +2265,23 @@ async function startServer() {
         });
         saveDb();
       }
+      // S2.4: bakken/attributen in deze taak (via transport_regels.bak_id/attribuut_id) volgen
+      // automatisch mee naar naar_locatie_id; status 'thuis' als dat hun thuislocatie is.
+      if(taak&&taak.naar_locatie_id&&oudStatus!=='gedaan'){
+        const regels=all('SELECT bak_id,attribuut_id FROM transport_regels WHERE taak_id=?',[req.params.id]);
+        regels.forEach(r=>{
+          if(r.bak_id){
+            const b=get('SELECT * FROM bakken WHERE id=?',[r.bak_id]);
+            if(b){const st=taak.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
+              run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id]);}
+          }
+          if(r.attribuut_id){
+            const a=get('SELECT * FROM attributen WHERE id=?',[r.attribuut_id]);
+            if(a){const st=taak.naar_locatie_id==a.thuislocatie_id?'thuis':'op_locatie';
+              run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.attribuut_id]);}
+          }
+        });
+      }
     }
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));
   });
@@ -2235,10 +2399,22 @@ async function startServer() {
   });
   app.delete('/api/voertuig-types/:id',(req,res)=>{run('DELETE FROM voertuig_types WHERE id=?',[req.params.id]);res.json({ok:true});});
 
-  // ── THEMA BAKKEN ──
+  // ── THEMA BAKKEN (S2.1: uniforme bakken-tabel, deelbaar via thema_bak) ──
+  function _rozenwegId(){
+    const r=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0)")
+      || get("SELECT id FROM locaties WHERE type='stockage' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
+    return r?r.id:null;
+  }
   function _bakkenVanThema(thema_id){
-    const bakken=all('SELECT * FROM thema_bakken WHERE thema_id=? ORDER BY volgorde,id',[thema_id]);
-    return bakken.map(b=>({...b,items:all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[b.id]),log:all('SELECT * FROM bak_nakijk_log WHERE bak_id=? ORDER BY tijdstip DESC LIMIT 5',[b.id])}));
+    const bakken=all(`SELECT b.* FROM bakken b JOIN thema_bak tb ON tb.bak_id=b.id
+      WHERE tb.thema_id=? AND b.soort='thema' ORDER BY b.volgorde,b.id`,[thema_id]);
+    return bakken.map(b=>{
+      const andereThemas=all(`SELECT t.id,t.name FROM thema_bak tb2 JOIN themas t ON t.id=tb2.thema_id
+        WHERE tb2.bak_id=? AND tb2.thema_id!=?`,[b.id,thema_id]);
+      return {...b,label:b.naam,items:all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[b.id]),
+        log:all('SELECT * FROM bak_nakijk_log WHERE bak_id=? ORDER BY tijdstip DESC LIMIT 5',[b.id]),
+        gedeeld_met:andereThemas};
+    });
   }
   app.get('/api/themas/:id/bakken',(req,res)=>res.json(_bakkenVanThema(req.params.id)));
   // Alle bakken van alle themas in één call (voor Themabakken-tab)
@@ -2246,22 +2422,41 @@ async function startServer() {
     const themas=all('SELECT * FROM themas ORDER BY name');
     res.json(themas.map(t=>({...t,bakken:_bakkenVanThema(t.id)})));
   });
+  // POST: koppel een bestaande bak (bak_id) OF maak een nieuwe bak+koppel (label/code/...)
   app.post('/api/themas/:id/bakken',(req,res)=>{
-    const{label,code,leeftijdsgroep,volgorde}=req.body;
-    const id=ins('INSERT INTO thema_bakken (thema_id,label,code,leeftijdsgroep,volgorde) VALUES (?,?,?,?,?)',
-      [req.params.id,label||'',code||'',leeftijdsgroep||'',volgorde||0]);
-    res.json({...get('SELECT * FROM thema_bakken WHERE id=?',[id]),items:[],log:[]});
+    const{bak_id,label,code,leeftijdsgroep,volgorde}=req.body;
+    let id=bak_id;
+    if(!id){
+      const dubbeleCode=code&&get('SELECT id FROM bakken WHERE code=? AND code!=\'\'',[code]);
+      id=ins('INSERT INTO bakken (naam,code,soort,thuislocatie_id,huidige_locatie_id,status,volgorde) VALUES (?,?,?,?,?,?,?)',
+        [label||'',code||'','thema',_rozenwegId(),_rozenwegId(),'thuis',volgorde||0]);
+      if(dubbeleCode) console.warn(`  Waarschuwing: code "${code}" bestaat al op een andere bak/attribuut (niet-blokkerend)`);
+    }
+    const bestaat=get('SELECT id FROM thema_bak WHERE thema_id=? AND bak_id=?',[req.params.id,id]);
+    if(!bestaat) ins('INSERT INTO thema_bak (thema_id,bak_id) VALUES (?,?)',[req.params.id,id]);
+    const b=get('SELECT * FROM bakken WHERE id=?',[id]);
+    res.json({...b,label:b.naam,items:[],log:[]});
+  });
+  // Ontkoppel een bak van een thema (bak zelf blijft bestaan, kan aan andere thema's hangen)
+  app.delete('/api/themas/:themaId/bakken/:bakId',(req,res)=>{
+    run('DELETE FROM thema_bak WHERE thema_id=? AND bak_id=?',[req.params.themaId,req.params.bakId]);
+    res.json({ok:true});
   });
   app.put('/api/bakken/:id',(req,res)=>{
-    const{label,code,leeftijdsgroep,volgorde}=req.body;
-    run('UPDATE thema_bakken SET label=?,code=?,leeftijdsgroep=?,volgorde=? WHERE id=?',
-      [label||'',code||'',leeftijdsgroep||'',volgorde||0,req.params.id]);
-    res.json(get('SELECT * FROM thema_bakken WHERE id=?',[req.params.id]));
+    const{label,naam,code,volgorde,vast_type,thuislocatie_id,status}=req.body;
+    const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
+    if(!cur)return res.status(404).json({error:'Bak niet gevonden'});
+    const nieuweNaam=(naam??label)??cur.naam;
+    run('UPDATE bakken SET naam=?,code=?,volgorde=?,vast_type=?,thuislocatie_id=?,status=? WHERE id=?',
+      [nieuweNaam,code??cur.code,volgorde??cur.volgorde,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,req.params.id]);
+    const b=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
+    res.json({...b,label:b.naam});
   });
   app.delete('/api/bakken/:id',(req,res)=>{
     run('DELETE FROM bak_items WHERE bak_id=?',[req.params.id]);
     run('DELETE FROM bak_nakijk_log WHERE bak_id=?',[req.params.id]);
-    run('DELETE FROM thema_bakken WHERE id=?',[req.params.id]);
+    run('DELETE FROM thema_bak WHERE bak_id=?',[req.params.id]);
+    run('DELETE FROM bakken WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
   // Bak-items CRUD
@@ -2589,21 +2784,18 @@ async function startServer() {
   app.get('/api/stock-overzicht',(req,res)=>{
     const types=all('SELECT * FROM item_types ORDER BY categorie,naam');
     const bakItems=all(`SELECT bi.item_type_id, bi.naam, bi.qty, bi.verbruik, bi.qty_stock, bi.qty_minimum,
-      tb.label as bak_label, tb.code as bak_code, t.name as thema_naam, t.color as thema_color, t.id as thema_id
+      b.naam as bak_label, b.code as bak_code, t.name as thema_naam, t.color as thema_color, t.id as thema_id
       FROM bak_items bi
-      JOIN thema_bakken tb ON tb.id=bi.bak_id
+      JOIN bakken b ON b.id=bi.bak_id
+      JOIN thema_bak tb ON tb.bak_id=b.id
       JOIN themas t ON t.id=tb.thema_id
       WHERE bi.item_type_id IS NOT NULL`);
-    const vasteBakItems=all(`SELECT vbi.item_type_id, vbi.naam, vbi.qty, vbi.is_verbruik as verbruik,
-      vbi.qty_stock, vbi.qty_minimum, vb.naam as bak_label, vb.code as bak_code, 'Vaste bak' as thema_naam, '#6B7280' as thema_color, NULL as thema_id
-      FROM vaste_bak_items vbi JOIN vaste_bakken vb ON vb.id=vbi.bak_id
-      WHERE vbi.item_type_id IS NOT NULL`);
-    const stockRows=all(`SELECT vs.item_type_id, vs.qty, vs.minimum, vs.eenheid,
+    const stockRows=all(`SELECT s.item_type_id, s.qty, s.minimum, it.eenheid,
       l.name as locatie_naam, l.id as locatie_id
-      FROM verbruik_stock vs JOIN locaties l ON l.id=vs.locatie_id
-      WHERE vs.item_type_id IS NOT NULL`);
+      FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id JOIN item_types it ON it.id=s.item_type_id
+      WHERE s.item_type_id IS NOT NULL`);
     res.json(types.map(t=>{
-      const allBakken=[...bakItems,...vasteBakItems].filter(b=>b.item_type_id===t.id);
+      const allBakken=[...bakItems].filter(b=>b.item_type_id===t.id);
       const stock=stockRows.filter(s=>s.item_type_id===t.id);
       const totaalStock=stock.reduce((s,r)=>s+r.qty,0);
       const totaalNodig=allBakken.reduce((s,b)=>s+b.qty,0);
@@ -2660,25 +2852,30 @@ async function startServer() {
     res.json(rows);
   });
 
-  // ── VASTE BAKKEN ──
+  // ── VASTE BAKKEN (S2.1: nu backed door de uniforme bakken-tabel, soort='vast') ──
+  // Fysieke exemplaren (EHBO-koffer #1, #2...) gegroepeerd per vast_type. Geen itemlijst
+  // (de oude vaste_bak_items-tabel/route blijft bestaan maar wordt hier niet meer gevoed).
   app.get('/api/vaste-bakken',(req,res)=>{
-    const bakken=all('SELECT * FROM vaste_bakken ORDER BY volgorde,naam');
-    const items=all('SELECT vbi.*, it.eenheid as it_eenheid FROM vaste_bak_items vbi LEFT JOIN item_types it ON it.id=vbi.item_type_id ORDER BY vbi.bak_id,vbi.volgorde,vbi.id');
-    res.json(bakken.map(b=>({...b,items:items.filter(i=>i.bak_id===b.id)})));
+    res.json(all("SELECT * FROM bakken WHERE soort='vast' ORDER BY vast_type,volgorde,naam"));
   });
   app.post('/api/vaste-bakken',(req,res)=>{
-    const{naam,code,type,notities}=req.body;
+    const{naam,code,vast_type,thuislocatie_id}=req.body;
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
-    const id=ins('INSERT INTO vaste_bakken (naam,code,type,notities) VALUES (?,?,?,?)',[naam.trim(),code||'',type||'vast',notities||'']);
-    res.json({...get('SELECT * FROM vaste_bakken WHERE id=?',[id]),items:[]});
+    const thuis=thuislocatie_id||_rozenwegId();
+    const id=ins('INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status) VALUES (?,?,?,?,?,?,?)',
+      [naam.trim(),code||'','vast',vast_type||'',thuis,thuis,'thuis']);
+    res.json(get('SELECT * FROM bakken WHERE id=?',[id]));
   });
   app.put('/api/vaste-bakken/:id',(req,res)=>{
-    const{naam,code,type,notities}=req.body;
-    run('UPDATE vaste_bakken SET naam=?,code=?,type=?,notities=? WHERE id=?',[naam,code||'',type||'vast',notities||'',req.params.id]);
-    res.json(get('SELECT * FROM vaste_bakken WHERE id=?',[req.params.id]));
+    const{naam,code,vast_type,thuislocatie_id,status}=req.body;
+    const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
+    if(!cur)return res.status(404).json({error:'Niet gevonden'});
+    run('UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=? WHERE id=?',
+      [naam??cur.naam,code??cur.code,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,req.params.id]);
+    res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id',(req,res)=>{
-    run('DELETE FROM vaste_bakken WHERE id=?',[req.params.id]);
+    run('DELETE FROM bakken WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
   app.post('/api/vaste-bakken/:id/items',(req,res)=>{
@@ -2702,6 +2899,114 @@ async function startServer() {
   app.delete('/api/vaste-bak-items/:id',(req,res)=>{
     run('DELETE FROM vaste_bak_items WHERE id=?',[req.params.id]);
     res.json({ok:true});
+  });
+
+  // ── ATTRIBUTEN (S2.2: los concept naast bakken, geen itemlijst, deelbaar over thema's) ──
+  function _attributenVanThema(thema_id){
+    const attrs=all(`SELECT a.* FROM attributen a JOIN thema_attribuut ta ON ta.attribuut_id=a.id
+      WHERE ta.thema_id=? ORDER BY a.naam`,[thema_id]);
+    return attrs.map(a=>{
+      const andereThemas=all(`SELECT t.id,t.name FROM thema_attribuut ta2 JOIN themas t ON t.id=ta2.thema_id
+        WHERE ta2.attribuut_id=? AND ta2.thema_id!=?`,[a.id,thema_id]);
+      return {...a,gedeeld_met:andereThemas};
+    });
+  }
+  app.get('/api/attributen',(req,res)=>res.json(all('SELECT * FROM attributen ORDER BY naam')));
+  app.get('/api/themas/:id/attributen',(req,res)=>res.json(_attributenVanThema(req.params.id)));
+  app.post('/api/attributen',(req,res)=>{
+    const{naam,code,thuislocatie_id,notitie,foto_data}=req.body;
+    if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
+    const dubbeleCode=code&&get('SELECT id FROM bakken WHERE code=? AND code!=\'\' UNION SELECT id FROM attributen WHERE code=? AND code!=\'\'',[code,code]);
+    const thuis=thuislocatie_id||_rozenwegId();
+    const id=ins('INSERT INTO attributen (naam,code,thuislocatie_id,huidige_locatie_id,status,foto_data,notitie) VALUES (?,?,?,?,?,?,?)',
+      [naam.trim(),code||'',thuis,thuis,'thuis',foto_data||'',notitie||'']);
+    if(dubbeleCode) console.warn(`  Waarschuwing: code "${code}" bestaat al op een andere bak/attribuut (niet-blokkerend)`);
+    res.json(get('SELECT * FROM attributen WHERE id=?',[id]));
+  });
+  app.put('/api/attributen/:id',(req,res)=>{
+    const{naam,code,thuislocatie_id,status,notitie,foto_data}=req.body;
+    const cur=get('SELECT * FROM attributen WHERE id=?',[req.params.id]);
+    if(!cur)return res.status(404).json({error:'Niet gevonden'});
+    run('UPDATE attributen SET naam=?,code=?,thuislocatie_id=?,status=?,notitie=?,foto_data=? WHERE id=?',
+      [naam??cur.naam,code??cur.code,thuislocatie_id??cur.thuislocatie_id,status??cur.status,notitie??cur.notitie,foto_data??cur.foto_data,req.params.id]);
+    res.json(get('SELECT * FROM attributen WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/attributen/:id',(req,res)=>{
+    run('DELETE FROM thema_attribuut WHERE attribuut_id=?',[req.params.id]);
+    run('DELETE FROM attributen WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
+  app.post('/api/themas/:id/attributen',(req,res)=>{
+    const{attribuut_id}=req.body;
+    if(!attribuut_id)return res.status(400).json({error:'attribuut_id vereist'});
+    const bestaat=get('SELECT id FROM thema_attribuut WHERE thema_id=? AND attribuut_id=?',[req.params.id,attribuut_id]);
+    if(!bestaat) ins('INSERT INTO thema_attribuut (thema_id,attribuut_id) VALUES (?,?)',[req.params.id,attribuut_id]);
+    res.json({ok:true});
+  });
+  app.delete('/api/themas/:themaId/attributen/:attrId',(req,res)=>{
+    run('DELETE FROM thema_attribuut WHERE thema_id=? AND attribuut_id=?',[req.params.themaId,req.params.attrId]);
+    res.json({ok:true});
+  });
+
+  // ── VOORRAAD / BESTELLIJST (S2.3) ──
+  app.get('/api/voorraad',(req,res)=>{
+    const rows=all(`SELECT s.*, it.naam as item_naam, it.eenheid, it.categorie, l.name as locatie_naam
+      FROM item_type_stock s JOIN item_types it ON it.id=s.item_type_id JOIN locaties l ON l.id=s.locatie_id
+      ORDER BY l.name, it.categorie, it.naam`);
+    res.json(rows);
+  });
+  app.post('/api/voorraad',(req,res)=>{
+    const{item_type_id,locatie_id,qty,minimum}=req.body;
+    if(!item_type_id||!locatie_id)return res.status(400).json({error:'item_type_id en locatie_id vereist'});
+    const cur=get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[item_type_id,locatie_id]);
+    if(cur){
+      run('UPDATE item_type_stock SET qty=?,minimum=? WHERE id=?',[qty??cur.qty,minimum??cur.minimum,cur.id]);
+    } else {
+      ins('INSERT INTO item_type_stock (item_type_id,locatie_id,qty,minimum) VALUES (?,?,?,?)',[item_type_id,locatie_id,qty||0,minimum||0]);
+    }
+    res.json(get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[item_type_id,locatie_id]));
+  });
+  app.get('/api/bestellijst',(req,res)=>{
+    const rows=all(`SELECT s.*, it.naam as item_naam, it.eenheid, it.categorie, l.name as locatie_naam
+      FROM item_type_stock s JOIN item_types it ON it.id=s.item_type_id JOIN locaties l ON l.id=s.locatie_id
+      WHERE s.qty < s.minimum ORDER BY l.name, it.naam`);
+    res.json(rows);
+  });
+
+  // ── S2.4: BAK/ATTRIBUUT-STATUS, HANDMATIGE VERPLAATSING, ZOEKEN ──
+  app.post('/api/bakken/:id/verplaats',(req,res)=>{
+    const{naar_locatie_id,reden}=req.body;
+    if(!naar_locatie_id||!reden?.trim())return res.status(400).json({error:'naar_locatie_id en reden zijn verplicht'});
+    const b=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
+    if(!b)return res.status(404).json({error:'Bak niet gevonden'});
+    const nieuweStatus=naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
+    run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[naar_locatie_id,nieuweStatus,req.params.id]);
+    const loc=get('SELECT name FROM locaties WHERE id=?',[naar_locatie_id]);
+    logAct('bak','verplaatst',`Bak "${b.naam}" (${b.code||'-'}) handmatig verplaatst naar ${loc?.name||naar_locatie_id} — reden: ${reden.trim()}`,naar_locatie_id,loc?.name);
+    res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
+  });
+  app.post('/api/attributen/:id/verplaats',(req,res)=>{
+    const{naar_locatie_id,reden}=req.body;
+    if(!naar_locatie_id||!reden?.trim())return res.status(400).json({error:'naar_locatie_id en reden zijn verplicht'});
+    const a=get('SELECT * FROM attributen WHERE id=?',[req.params.id]);
+    if(!a)return res.status(404).json({error:'Attribuut niet gevonden'});
+    const nieuweStatus=naar_locatie_id==a.thuislocatie_id?'thuis':'op_locatie';
+    run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[naar_locatie_id,nieuweStatus,req.params.id]);
+    const loc=get('SELECT name FROM locaties WHERE id=?',[naar_locatie_id]);
+    logAct('attribuut','verplaatst',`Attribuut "${a.naam}" (${a.code||'-'}) handmatig verplaatst naar ${loc?.name||naar_locatie_id} — reden: ${reden.trim()}`,naar_locatie_id,loc?.name);
+    res.json(get('SELECT * FROM attributen WHERE id=?',[req.params.id]));
+  });
+  app.get('/api/waar-is',(req,res)=>{
+    const q='%'+(req.query.q||'')+'%';
+    const bakken=all("SELECT id,naam,code,'bak' as soort,huidige_locatie_id,status FROM bakken WHERE naam LIKE ? OR code LIKE ?",[q,q]);
+    const attrs=all("SELECT id,naam,code,'attribuut' as soort,huidige_locatie_id,status FROM attributen WHERE naam LIKE ? OR code LIKE ?",[q,q]);
+    const resultaten=[...bakken,...attrs].map(r=>{
+      const loc=get('SELECT name FROM locaties WHERE id=?',[r.huidige_locatie_id]);
+      const bewegingen=all(`SELECT * FROM activiteiten_log WHERE (type=? AND beschrijving LIKE ?) ORDER BY id DESC LIMIT 5`,
+        [r.soort,'%"'+r.naam+'"%']);
+      return {...r,huidige_locatie_naam:loc?.name||null,laatste_bewegingen:bewegingen};
+    });
+    res.json(resultaten);
   });
 
   // ── NAKIJKEN ──
@@ -3186,11 +3491,11 @@ ${checks.length?'<div class="sec">Materiaallijst ('+checks.length+' items)</div>
     // draaien, kan de totale vraag de beschikbare voorraad overschrijden (via item_types-koppeling,
     // nu mogelijk dankzij Migratie 47's consolidatie van bak_items/verbruik_stock naar item_types).
     {
-      const bakBehoefte=all(`SELECT tb.thema_id, bi.item_type_id, bi.qty, it.naam AS item_naam
-        FROM bak_items bi JOIN thema_bakken tb ON tb.id=bi.bak_id JOIN item_types it ON it.id=bi.item_type_id
+      const bakBehoefte=all(`SELECT tb2.thema_id, bi.item_type_id, bi.qty, it.naam AS item_naam
+        FROM bak_items bi JOIN bakken b ON b.id=bi.bak_id JOIN thema_bak tb2 ON tb2.bak_id=b.id JOIN item_types it ON it.id=bi.item_type_id
         WHERE bi.item_type_id IS NOT NULL`);
       const stockPerType={};
-      all(`SELECT item_type_id, SUM(qty) AS totaal FROM verbruik_stock WHERE item_type_id IS NOT NULL GROUP BY item_type_id`)
+      all(`SELECT item_type_id, SUM(qty) AS totaal FROM item_type_stock WHERE item_type_id IS NOT NULL GROUP BY item_type_id`)
         .forEach(r=>{stockPerType[r.item_type_id]=r.totaal;});
       const maxWeek48=kampen.reduce((m,k)=>Math.max(m,k.week||0),0)||0;
       for(let week=1;week<=maxWeek48;week++){
@@ -3211,6 +3516,37 @@ ${checks.length?'<div class="sec">Materiaallijst ('+checks.length+' items)</div>
           }
         });
       }
+    }
+    // 4. Dubbelboeking bak/attribuut: bak/attribuut nodig voor 2 kampen in dezelfde week
+    // (via thema_bak/thema_attribuut + kampmoment_themas — een bak/attribuut kan bij meerdere
+    // thema's horen, dus dit is onafhankelijk van conflict #1 "dubbel thema").
+    {
+      const bakLinks=all(`SELECT b.id AS bak_id, b.naam, b.code, tb.thema_id FROM bakken b JOIN thema_bak tb ON tb.bak_id=b.id WHERE b.soort='thema'`);
+      const attrLinks=all(`SELECT a.id AS attr_id, a.naam, a.code, ta.thema_id FROM attributen a JOIN thema_attribuut ta ON ta.attribuut_id=a.id`);
+      function weekBoekingen(links, idField){
+        const perWeek={};
+        links.forEach(l=>{
+          kts.filter(kt=>kt.thema_id===l.thema_id).forEach(kt=>{
+            const key=l[idField]+'|'+kt.week;
+            (perWeek[key]=perWeek[key]||{item:l,weeks:new Set()}).weeks.add(kt.loc_nm+'@'+kt.week);
+          });
+        });
+        return perWeek;
+      }
+      const bakWeek=weekBoekingen(bakLinks,'bak_id');
+      Object.values(bakWeek).forEach(v=>{
+        if(v.weeks.size>1){
+          conflicten.push({type:'dubbelboeking_bak',ernst:'hoog',
+            bericht:`Bak "${v.item.naam}" (${v.item.code||'-'}) is in dezelfde week nodig op meerdere plekken: ${[...v.weeks].join(', ')}`});
+        }
+      });
+      const attrWeek=weekBoekingen(attrLinks,'attr_id');
+      Object.values(attrWeek).forEach(v=>{
+        if(v.weeks.size>1){
+          conflicten.push({type:'dubbelboeking_attribuut',ernst:'hoog',
+            bericht:`Attribuut "${v.item.naam}" (${v.item.code||'-'}) is in dezelfde week nodig op meerdere plekken: ${[...v.weeks].join(', ')}`});
+        }
+      });
     }
     res.json(conflicten);
   });
