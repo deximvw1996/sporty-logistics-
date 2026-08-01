@@ -1964,6 +1964,7 @@ async function startServer() {
     return order.map(k=>map.get(k));
   }
   app.get('/api/import-themas/preview',(req,res)=>{
+    return res.status(410).json({error:'Uitgeschakeld — wordt vervangen door de nieuwe thema-invoerflow (zie MASTERPLAN S4)'});
     try{
       const lijst=_laadImportThemas();
       const bestaand=new Set(all('SELECT name FROM themas').map(t=>(t.name||'').trim().toLowerCase()));
@@ -1973,6 +1974,7 @@ async function startServer() {
     }catch(e){ res.status(500).json({error:e.message}); }
   });
   app.post('/api/import-themas',(req,res)=>{
+    return res.status(410).json({error:'Uitgeschakeld — wordt vervangen door de nieuwe thema-invoerflow (zie MASTERPLAN S4)'});
     try{
       const lijst=_laadImportThemas();
       const bestaand=new Set(all('SELECT name FROM themas').map(t=>(t.name||'').trim().toLowerCase()));
@@ -2008,6 +2010,7 @@ async function startServer() {
     return order.map(k=>map.get(k));
   }
   app.post('/api/import-themas/data',(req,res)=>{
+    return res.status(410).json({error:'Uitgeschakeld — wordt vervangen door de nieuwe thema-invoerflow (zie MASTERPLAN S4)'});
     try{
       const body=req.body||{};
       const raw=Array.isArray(body)?body:(body.themas||body.lijst||[]);
