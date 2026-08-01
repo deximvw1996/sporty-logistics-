@@ -95,13 +95,23 @@ Klein, urgent, vóór al de rest.
 - **Bewijs:** app start zonder fouten; elke bestaande zichtbare feature werkt nog (regressielijst per tab afvinken); regeltelling voor/na.
 
 ### FASE S2 — Datamodel-fundament 🏗️
-- [ ] S2.1 **Attributen**: `thema_bakken.soort` ('bak' | 'attribuut') of aparte tabel; attributen hebben code + optionele foto, geen itemlijst verplicht
-- [ ] S2.2 **Magazijncode-registry**: tabel `stockage_plaatsen` (locatie_id → code, bv. Rozenweg → G11); bak/attribuut-code wordt FK i.p.v. vrije tekst; transport-genereer routeert via registry i.p.v. hardcoded namen
-- [ ] S2.3 **Voorraad per item_type per stockagelocatie**: `item_type_stock(item_type_id, locatie_id, qty, minimum)`; stock-overzicht, conflictdetectie, spoed-effect en tekortenoverzicht hierop laten steunen; `bak_items.qty_stock` blijft "wat zit er nu in deze bak" (KV-telling)
-- [ ] S2.4 **Bak-status/actuele locatie**: veld op bak/attribuut ("in magazijn / op locatie X / onderweg"), bijgewerkt door transport-status; basis voor "waar is bak N08?" en historiek
-- [ ] S2.5 **Locatieconfig op vaste_bakken**: `locatie_vaste_bak_config(kamplocatie_id, vaste_bak_id, aantal)`; standaard_dozen-tabellen en -routes verwijderen; conditielogica (leeftijdsgroep/koken) meenemen als optioneel veld op de config
-- [ ] S2.6 Transport-genereer herschrijven op het nieuwe fundament: chauffeurslijst = bakken+attributen (met code), gegroepeerd per rit; locatieconfig automatisch mee bij eerste levering
-- **Bewijs:** het Alice/atletiek-scenario uit de testcase volledig herdraaid via API: kamp plannen → genereer → chauffeurslijst bevat exact G11+D17+G00+locatieconfig; conflict "materiaaltekort" vuurt op een bewust laag gezette voorraad.
+
+**Ontwerpbeslissingen (brainstorm met Maxim, 2026-08-01) — bindend:**
+1. **Attribuut = apart concept** naast bakken: naam, optionele code, optionele foto, thuislocatie; géén itemlijst. KV-check bij attributen = enkel "aanwezig/heel". Grensregel: **telbaar = bak** (de noodles-doos blijft dus een bak; decor/croquet-doelen/muziekbox worden attributen).
+2. **Bakken én attributen zijn deelbaar over meerdere thema's** (koppeltabellen). Conflictdetectie waarschuwt als twee kampen in dezelfde week dezelfde bak/hetzelfde attribuut nodig hebben.
+3. **Codes**: structuur letter=rek, cijfer=plek (G11 = rek G, plek 11) — app groepeert/sorteert per rek en waarschuwt bij dubbele codes, maar code blijft vrij invulbaar (geen registry). Elke bak/attribuut heeft een **verplichte thuislocatie** (default Rozenweg, per stuk instelbaar).
+4. **Voorraad**: `item_type_stock(item_type_id, locatie_id, qty, minimum)` — per stockagelocatie. Automatische **bestellijst** (alles onder minimum). Afboeking automatisch bij de aanvul-actie van kantoor.
+5. **Bak-status**: actuele locatie automatisch via transportstatus (geladen→onderweg, gelost→op locatie, retour→thuis); handmatige correctie mogelijk mét verplichte reden; historiek uit transportdata ("waar is bak N08?").
+6. **Vaste bakken = fysieke exemplaren** (EHBO-koffer #1, #2... elk eigen code/status) gegroepeerd per type. **Locatieconfig** = per kamplocatie: welk type, hoeveel, met optionele conditie (altijd / enkel bij leeftijdsgroep X / enkel bij kookthema). Transport kiest vrije exemplaren.
+
+**Taken:**
+- [ ] S2.1 Uniforme `bakken`-tabel (soort 'thema'|'vast', vast_type voor exemplaar-groepering, code, thuislocatie_id, huidige_locatie_id, status) + koppeltabel `thema_bak`; migratie van thema_bakken + vaste_bakken
+- [ ] S2.2 `attributen` + koppeltabel `thema_attribuut`; beheer-UI in Materiaal-tab
+- [ ] S2.3 `item_type_stock` + Voorraad-subtab terug zichtbaar + bestellijst-scherm
+- [ ] S2.4 Bak/attribuut-status gekoppeld aan transportstatus + handmatige correctie + "waar is X?"-zoek
+- [ ] S2.5 `locatie_config` (type, aantal, conditie) op het exemplaren-model; standaard_dozen-tabellen/routes/UI definitief weg
+- [ ] S2.6 Transport-genereer op het nieuwe fundament: chauffeurslijst = bakken+attributen met code gegroepeerd per rek; locatieconfig automatisch mee; dubbelboeking-conflict
+- **Bewijs:** het atletiek-scenario volledig herdraaid via API: kamp plannen → genereer → chauffeurslijst bevat exact G11+D17+G00+locatieconfig-exemplaren; status van bak G11 verandert mee met de rit; "materiaaltekort" en "dubbelboeking bak" vuren op bewust geconstrueerde testgevallen.
 
 ### FASE S3 — Rollen & toegang 🔐
 - [ ] S3.1 Login: personeel-gebaseerd (naam kiezen + per-persoon pincode of wachtwoord), sessie in localStorage + server-side token; APP_PASSWORD blijft als buitenmuur
