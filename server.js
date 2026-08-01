@@ -2232,11 +2232,6 @@ async function startServer() {
   app.post('/api/materiaal',(req,res)=>{const{name,tracking,cat}=req.body;const item_type_id=resolveItemTypeId(name);const id=ins('INSERT INTO materiaal_items (name,tracking,cat,created_at,item_type_id) VALUES (?,?,?,?,?)',[name,tracking||'per_type',cat||'andere',now(),item_type_id]);res.json({...get('SELECT * FROM materiaal_items WHERE id=?',[id]),eenheden:[]});});
   app.put('/api/materiaal/:id',(req,res)=>{const{name,tracking,cat}=req.body;const cur=get('SELECT * FROM materiaal_items WHERE id=?',[req.params.id]);const item_type_id=name&&name!==cur?.name?resolveItemTypeId(name):cur?.item_type_id;run('UPDATE materiaal_items SET name=?,tracking=?,cat=?,item_type_id=? WHERE id=?',[name,tracking,cat,item_type_id,req.params.id]);res.json(get('SELECT * FROM materiaal_items WHERE id=?',[req.params.id]));});
   app.delete('/api/materiaal/:id',(req,res)=>{const ee=all('SELECT id FROM materiaal_eenheden WHERE item_id=?',[req.params.id]);ee.forEach(e=>run('DELETE FROM verplaatsingen WHERE eenheid_id=?',[e.id]));run('DELETE FROM materiaal_eenheden WHERE item_id=?',[req.params.id]);run('DELETE FROM materiaal_items WHERE id=?',[req.params.id]);res.json({ok:true});});
-  app.post('/api/materiaal/:id/eenheden',(req,res)=>{const{label,qty,locatie_id}=req.body;const eid=ins('INSERT INTO materiaal_eenheden (item_id,label,qty,locatie_id) VALUES (?,?,?,?)',[req.params.id,label||'',qty||1,locatie_id]);ins('INSERT INTO verplaatsingen (eenheid_id,van_locatie_id,naar_locatie_id,qty,reden,datum) VALUES (?,?,?,?,?,?)',[eid,null,locatie_id,qty||1,'Initieel ingevoerd',now()]);res.json(get('SELECT * FROM materiaal_eenheden WHERE id=?',[eid]));});
-  app.put('/api/eenheden/:id',(req,res)=>{const{label,qty}=req.body;run('UPDATE materiaal_eenheden SET label=?,qty=? WHERE id=?',[label,qty,req.params.id]);res.json(get('SELECT * FROM materiaal_eenheden WHERE id=?',[req.params.id]));});
-  app.delete('/api/eenheden/:id',(req,res)=>{run('DELETE FROM verplaatsingen WHERE eenheid_id=?',[req.params.id]);run('DELETE FROM materiaal_eenheden WHERE id=?',[req.params.id]);res.json({ok:true});});
-  app.get('/api/eenheden/:id/verplaatsingen',(req,res)=>res.json(all('SELECT * FROM verplaatsingen WHERE eenheid_id=? ORDER BY id DESC',[req.params.id])));
-  app.post('/api/eenheden/:id/verplaats',(req,res)=>{const{naar_locatie_id,qty,reden}=req.body;const e=get('SELECT * FROM materiaal_eenheden WHERE id=?',[req.params.id]);if(!e)return res.status(404).json({error:'Niet gevonden'});ins('INSERT INTO verplaatsingen (eenheid_id,van_locatie_id,naar_locatie_id,qty,reden,datum) VALUES (?,?,?,?,?,?)',[req.params.id,e.locatie_id,naar_locatie_id,qty||e.qty,reden||'',now()]);run('UPDATE materiaal_eenheden SET locatie_id=? WHERE id=?',[naar_locatie_id,req.params.id]);res.json(get('SELECT * FROM materiaal_eenheden WHERE id=?',[req.params.id]));});
   app.get('/api/overzicht',(req,res)=>{const locs=all('SELECT * FROM locaties ORDER BY type,name');const items=all('SELECT * FROM materiaal_items');const eenheden=all('SELECT * FROM materiaal_eenheden');res.json(locs.map(l=>({...l,eenheden:eenheden.filter(e=>e.locatie_id===l.id).map(e=>({...e,item:items.find(i=>i.id===e.item_id)||{}}))})));});
 
   // ── THEMA CATEGORIEËN ──
@@ -2292,66 +2287,6 @@ async function startServer() {
     res.json({ok:true});
   });
 
-  // ── THEMA-SETS INVENTARIS ──
-  // Get full inventaris: all items with tracking='per_stuk', with their sets and current locations
-  app.get('/api/inventaris/sets', (req,res)=>{
-    const items = all("SELECT * FROM materiaal_items WHERE tracking='per_stuk' ORDER BY cat,name");
-    const eenheden = all('SELECT me.*, l.name as locatie_name FROM materiaal_eenheden me LEFT JOIN locaties l ON l.id=me.locatie_id ORDER BY me.item_id, me.label');
-    const planning = all('SELECT sp.*, l.name as locatie_name FROM set_planning sp LEFT JOIN locaties l ON l.id=sp.locatie_id ORDER BY sp.week');
-    const verpl = all('SELECT v.*, vl.name as van_naam, nl.name as naar_naam FROM verplaatsingen v LEFT JOIN locaties vl ON vl.id=v.van_locatie_id LEFT JOIN locaties nl ON nl.id=v.naar_locatie_id ORDER BY v.datum DESC LIMIT 200');
-    res.json(items.map(item=>({
-      ...item,
-      sets: eenheden.filter(e=>e.item_id===item.id).map(e=>({
-        ...e,
-        planning: planning.filter(p=>p.eenheid_id===e.id),
-        verplaatsingen: verpl.filter(v=>v.eenheid_id===e.id)
-      }))
-    })));
-  });
-
-  // Move a set to a new location
-  app.post('/api/inventaris/sets/:id/verplaats', (req,res)=>{
-    const {naar_locatie_id, reden, datum} = req.body;
-    const eenheid = get('SELECT * FROM materiaal_eenheden WHERE id=?',[req.params.id]);
-    if(!eenheid) return res.status(404).json({error:'Set niet gevonden'});
-    const van = eenheid.locatie_id;
-    run('UPDATE materiaal_eenheden SET locatie_id=? WHERE id=?',[naar_locatie_id, req.params.id]);
-    ins('INSERT INTO verplaatsingen(eenheid_id,van_locatie_id,naar_locatie_id,qty,reden,datum) VALUES(?,?,?,1,?,?)',
-      [req.params.id, van, naar_locatie_id, reden||'', datum||isoDate(new Date())]);
-    saveDb();
-    res.json(get('SELECT me.*, l.name as locatie_name FROM materiaal_eenheden me LEFT JOIN locaties l ON l.id=me.locatie_id WHERE me.id=?',[req.params.id]));
-  });
-
-  // Add/update set planning (which week should this set be where)
-  app.post('/api/inventaris/sets/:id/plan', (req,res)=>{
-    const {week, locatie_id} = req.body;
-    if(locatie_id===null||locatie_id===undefined){
-      run('DELETE FROM set_planning WHERE eenheid_id=? AND week=?',[req.params.id,week]);
-    } else {
-      run('INSERT OR REPLACE INTO set_planning(eenheid_id,locatie_id,week) VALUES(?,?,?)',[req.params.id,locatie_id,week]);
-    }
-    saveDb();
-    res.json({ok:true});
-  });
-
-  // CRUD for sets (eenheden)
-  app.post('/api/materiaal/:id/eenheden', (req,res)=>{
-    const{label,locatie_id}=req.body;
-    const id=ins('INSERT INTO materiaal_eenheden(item_id,label,qty,locatie_id)VALUES(?,?,1,?)',[req.params.id,label||'',locatie_id||null]);
-    res.json(get('SELECT me.*,l.name as locatie_name FROM materiaal_eenheden me LEFT JOIN locaties l ON l.id=me.locatie_id WHERE me.id=?',[id]));
-  });
-  app.put('/api/eenheden/:id', (req,res)=>{
-    const{label,locatie_id,qty}=req.body;
-    run('UPDATE materiaal_eenheden SET label=?,locatie_id=?,qty=? WHERE id=?',[label,locatie_id||null,qty||1,req.params.id]);
-    res.json(get('SELECT me.*,l.name as locatie_name FROM materiaal_eenheden me LEFT JOIN locaties l ON l.id=me.locatie_id WHERE me.id=?',[req.params.id]));
-  });
-  app.delete('/api/eenheden/:id',(req,res)=>{
-    run('DELETE FROM set_planning WHERE eenheid_id=?',[req.params.id]);
-    run('DELETE FROM verplaatsingen WHERE eenheid_id=?',[req.params.id]);
-    run('DELETE FROM materiaal_eenheden WHERE id=?',[req.params.id]);
-    saveDb();res.json({ok:true});
-  });
-
   // ── VERBRUIKSSTOCK ──
   app.get('/api/verbruik', (req,res)=>{
     const items = all("SELECT * FROM materiaal_items WHERE tracking='verbruik' ORDER BY cat,name");
@@ -2375,26 +2310,6 @@ async function startServer() {
     res.json(get('SELECT vs.*,l.name as locatie_name FROM verbruik_stock vs LEFT JOIN locaties l ON l.id=vs.locatie_id WHERE vs.item_id=? AND vs.locatie_id=?',[req.params.id,locatie_id]));
   });
 
-  // Mutatie: verbruik of aanvulling
-  app.post('/api/verbruik/:id/mutatie', (req,res)=>{
-    const{locatie_id,delta,reden,wie,transport_id}=req.body;
-    const datum=isoDate(new Date());
-    const created_at=new Date().toISOString();
-    // Update stock
-    run('INSERT OR IGNORE INTO verbruik_stock(item_id,locatie_id,qty,minimum,eenheid) VALUES(?,?,0,0,\'stuks\')',[req.params.id,locatie_id]);
-    run('UPDATE verbruik_stock SET qty=MAX(0,qty+?) WHERE item_id=? AND locatie_id=?',[delta,req.params.id,locatie_id]);
-    // Log
-    ins('INSERT INTO verbruik_log(item_id,locatie_id,delta,reden,wie,transport_id,datum,created_at) VALUES(?,?,?,?,?,?,?,?)',
-      [req.params.id,locatie_id,delta,reden||'',wie||'',transport_id||null,datum,created_at]);
-    saveDb();
-    const newStock=get('SELECT * FROM verbruik_stock WHERE item_id=? AND locatie_id=?',[req.params.id,locatie_id]);
-    // Check alarm
-    if(newStock&&newStock.minimum>0&&newStock.qty<=newStock.minimum){
-      const item=get('SELECT name FROM materiaal_items WHERE id=?',[req.params.id]);
-      console.log(`ALARM: ${item?.name} op ${locatie_id} onder minimum (${newStock.qty} <= ${newStock.minimum})`);
-    }
-    res.json({ok:true,stock:newStock});
-  });
 
   // ── TRANSPORT ──
   app.get('/api/transport-taken',(req,res)=>{const taken=all('SELECT * FROM transport_taken ORDER BY datum,tijd');const regels=all('SELECT * FROM transport_regels');res.json(taken.map(t=>({...t,regels:regels.filter(r=>r.taak_id===t.id)})));});
@@ -3548,95 +3463,6 @@ async function startServer() {
     saveDb(); res.json({ok:true});
   });
 
-  // ── CONVERSIE: losse thema-materialen -> gedeelde items ──
-  // Leest data/gedeeld_items.json: lijst van {naam, totaal, cat, aliassen}.
-  // Voor elk item: maak/vind het gedeeld_item, koppel elk thema dat een
-  // materiaalregel met een matchende (hoofdletterongevoelige) alias heeft,
-  // en verwijder daarna die losse thema_materiaal-regels.
-  // - Twee passes: eerst alles koppelen, dan pas verwijderen. Zo kan één
-  //   bronregel (bv. "Lasershoot en obstakels") naar meerdere gedeelde items
-  //   gekoppeld worden voordat ze weg is.
-  // - Idempotent: meermaals draaien is veilig (al gekoppelde regels zijn weg).
-  // - Dry-run: POST /api/gedeeld/converteer?dryrun=1  toont enkel wat er ZOU
-  //   gebeuren, zonder iets te wijzigen.
-  function _laadGedeeldConfig(){
-    const fsx=require('fs'); const px=require('path');
-    const f=px.join(__dirname,'data','gedeeld_items.json');
-    if(!fsx.existsSync(f)) return null;
-    try { return JSON.parse(fsx.readFileSync(f,'utf8')); } catch(e){ return null; }
-  }
-  app.post('/api/gedeeld/converteer',(req,res)=>{
-    try{
-      const config=_laadGedeeldConfig();
-      if(!config||!config.length) return res.status(400).json({error:'data/gedeeld_items.json ontbreekt of is leeg'});
-      const dryRun = req.query.dryrun==='1' || (req.body && req.body.dryRun===true);
-      const norm=s=>String(s==null?'':s).trim().toLowerCase();
-      const matRows=all('SELECT id,thema_id,name FROM thema_materiaal');
-      const teVerwijderen=new Set();
-      const rapport=[];
-      // Pass 1: items aanmaken/bijwerken + thema's koppelen (nog niet verwijderen)
-      for(const def of config){
-        const naam=(def.naam||'').trim(); if(!naam) continue;
-        const aliassen=new Set((def.aliassen && def.aliassen.length ? def.aliassen : [naam]).map(norm));
-        let item=get('SELECT * FROM gedeeld_items WHERE LOWER(name)=?',[norm(naam)]);
-        let aangemaakt=false, itemId=item?item.id:null;
-        if(!dryRun){
-          if(!item){
-            db.run('INSERT INTO gedeeld_items (name,cat,totaal,notities) VALUES (?,?,?,?)',[naam,def.cat||'gedeeld',def.totaal||1,'']);
-            itemId=get('SELECT last_insert_rowid() as id').id; aangemaakt=true;
-          } else if(def.totaal && item.totaal!==def.totaal){
-            db.run('UPDATE gedeeld_items SET totaal=? WHERE id=?',[def.totaal,item.id]);
-          }
-        } else { aangemaakt=!item; }
-        const matches=matRows.filter(m=>aliassen.has(norm(m.name)));
-        const themas=new Set();
-        for(const m of matches){ themas.add(m.thema_id); teVerwijderen.add(m.id); }
-        if(!dryRun && itemId){
-          for(const tid of themas){ db.run('INSERT OR REPLACE INTO gedeeld_gebruik (item_id,thema_id,qty) VALUES (?,?,1)',[itemId,tid]); }
-        }
-        rapport.push({item:naam, totaal:def.totaal||1, aangemaakt, themas_gekoppeld:themas.size, regels:matches.length});
-      }
-      // Pass 2: de losse thema_materiaal-regels verwijderen
-      let verwijderd=teVerwijderen.size;
-      if(!dryRun){
-        for(const id of teVerwijderen){ db.run('DELETE FROM thema_materiaal WHERE id=?',[id]); }
-        saveDb();
-        logAct('thema','gedeeld-conversie',`Conversie: ${rapport.length} gedeelde items, ${verwijderd} losse regels omgezet`,null,'');
-      }
-      res.json({ok:true, dryRun, gedeelde_items:rapport.length, regels_omgezet:verwijderd, detail:rapport});
-    }catch(e){ res.status(500).json({error:e.message}); }
-  });
-
-  // ── MIGRATIE: stockage_code splitsen in gebouw (Locatie) + code (Opslag) ──
-  // Regel (gekozen door gebruiker): "kantoor" -> Kantoor; "rozenweg" -> Rozenweg;
-  // elke andere (rek)code -> Rozenweg, met de code bewaard als Opslag-plek.
-  // Alleen thema_materiaal-regels die nog GEEN gebouw (stockage_locatie_id) hebben.
-  // ?dryrun=1 toont enkel wat er zou gebeuren.
-  app.post('/api/migratie/stockage',(req,res)=>{
-    try{
-      const dryRun = req.query.dryrun==='1' || (req.body && req.body.dryRun===true);
-      const stk = all("SELECT id,name FROM locaties WHERE type='stockage'");
-      const findLoc = naam => { const x=stk.find(l=>(l.name||'').trim().toLowerCase()===naam); return x?x.id:null; };
-      const kantoorId=findLoc('kantoor'), rozenwegId=findLoc('rozenweg');
-      if(!rozenwegId) return res.status(400).json({error:'Stockage-locatie "Rozenweg" niet gevonden'});
-      const rows = all('SELECT id,stockage_code,stockage_locatie_id FROM thema_materiaal');
-      let naarKantoor=0, naarRozenweg=0, overgeslagen=0;
-      for(const r of rows){
-        if(r.stockage_locatie_id){ overgeslagen++; continue; }
-        const code=(r.stockage_code||'').trim();
-        if(!code){ overgeslagen++; continue; }
-        const cl=code.toLowerCase();
-        let locId, newCode;
-        if(cl==='kantoor'){ locId=kantoorId||rozenwegId; newCode=''; naarKantoor++; }
-        else if(cl==='rozenweg'){ locId=rozenwegId; newCode=''; naarRozenweg++; }
-        else { locId=rozenwegId; newCode=code; naarRozenweg++; }
-        if(!dryRun) db.run('UPDATE thema_materiaal SET stockage_locatie_id=?,stockage_code=? WHERE id=?',[locId,newCode,r.id]);
-      }
-      if(!dryRun){ saveDb(); logAct('thema','stockage-migratie',`Stockage gesplitst: ${naarKantoor} naar Kantoor, ${naarRozenweg} naar Rozenweg`,null,''); }
-      res.json({ok:true, dryRun, naarKantoor, naarRozenweg, overgeslagen});
-    }catch(e){ res.status(500).json({error:e.message}); }
-  });
-
   // ── SPOEDTRANSPORT ──
   // Maakt een dringend transport. Voorraad wordt pas aangepast bij status "gedaan".
   app.post('/api/spoedtransport',(req,res)=>{
@@ -3696,15 +3522,10 @@ async function startServer() {
       if(item){
         extra.sets=all('SELECT ss.*,l.name AS loc_naam FROM sport_sets ss LEFT JOIN locaties l ON ss.locatie_id=l.id WHERE ss.item_id=? ORDER BY ss.label',[id]);
       }
-    } else if(type==='thema'){
-      item=get('SELECT mi.*,t.name AS thema_naam,t.color AS thema_color FROM materiaal_items mi JOIN themas t ON mi.thema_id=t.id WHERE mi.id=? AND mi.tracking=?',[id,'thema']);
-    } else if(type==='standaard'){
-      item=get('SELECT mi.*,l.name AS loc_naam FROM materiaal_items mi LEFT JOIN locaties l ON mi.locatie_id=l.id WHERE mi.id=? AND mi.tracking=?',[id,'standaard']);
     } else if(type==='gedeeld'){
       item=get('SELECT * FROM gedeeld_items WHERE id=?',[id]);
       if(item){
         extra.stock=all('SELECT gs.*,l.name AS locatie_name FROM gedeeld_stock gs JOIN locaties l ON gs.locatie_id=l.id WHERE gs.gedeeld_id=? ORDER BY l.name',[id]);
-        extra.gebruik=all('SELECT gg.*,t.name AS thema_name,t.color FROM gedeeld_gebruik gg JOIN themas t ON gg.thema_id=t.id WHERE gg.gedeeld_id=?',[id]);
       }
     } else if(type==='verbruik'){
       item=get('SELECT * FROM materiaal_items WHERE id=? AND tracking=?',[id,'verbruik']);
