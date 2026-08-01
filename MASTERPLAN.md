@@ -160,4 +160,9 @@ De werkstroom waarmee Maxim en Claude alle thema's stuk per stuk terugzetten.
 | 2026-07-04 | Transport-genereer leest thema_bakken + Rozenweg-routering | ✅ | prod-call: "van Rozenweg", 19 items |
 | 2026-07-04 | Kampmoment verwijderbaar + sportpakketten bij aanmaken | ✅ | lokaal getest, prod gedeployed |
 | 2026-08-01 | Volledige doorlichting (backend + frontend) | ✅ | dit document |
-| | S0.1 t/m S0.4 | ⬜ | |
+| 2026-08-01 | S0.1–S0.4 noodfixes (Chat A, review Fable) | ✅ | prod: standaard_dozen 0, vaste_bakken 0, item_types 319→131 (=112 sport+19 atletiek, exact), atletiek intact G11/D17/G00, import-themas 410 |
+| 2026-08-01 | S1.1+S1.2 backend-opkuis (Chat A) | ✅ | server.js 3.885→3.135 regels; 9 levende endpoints 200; 3 herstarts zonder seeds |
+| 2026-08-01 | S1.3 frontend-opkuis (Chat B) | ✅ | index.html 9.833→8.275; alle 9 tabs zonder console-errors |
+| 2026-08-01 | Reviewfix: verhuis_checks.item_type_id ontbrak (checks-init + Mig 51 crashten) → kolom + Mig 52 | ✅ | item_types 207→19 lokaal; checks-init eind-tot-eind getest |
+| | S1.4 (personen-consolidatie), S1.5 (spoed-consolidatie), S1.6 (export/import) | ⬜ | volgende bouwronde |
+| | S2 brainstorm (datamodel) + S3 (rollen) | ⬜ | ontwerpsessie met Maxim |
