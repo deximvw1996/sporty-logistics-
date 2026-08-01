@@ -267,7 +267,6 @@ button:disabled{opacity:.45;cursor:not-allowed;}
 .tk-regel:last-child{border-bottom:none;}
 .tk-status-lbl{display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;cursor:pointer;font-size:12px;border:.5px solid var(--border);}
 input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--green-dk);background:var(--green-bg);}
-@media print{body>*:not(#modal-qr){display:none!important}#modal-qr{position:static!important;display:block!important;background:transparent!important;box-shadow:none!important;}}
 @media(max-width:700px){
   .metrics{grid-template-columns:repeat(2,1fr);}
   .ov-dag-detail{grid-template-columns:1fr;}
@@ -522,7 +521,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         </div>
       </div>
     </div>
-    <div id="plan-sub-sport-content" style="display:none"></div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════
@@ -2164,8 +2162,6 @@ function setPlanSubtab(tab,btn){
   document.querySelectorAll('#sec-planning .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   document.getElementById('plan-sub-locaties-content').style.display=tab==='locaties'?'':'none';
-  document.getElementById('plan-sub-sport-content').style.display=tab==='sport'?'':'none';
-  if(tab==='sport') renderSportPlanningGrid();
 }
 async function renderPlanning(){
   renderLocatiesTab();
@@ -3266,7 +3262,6 @@ let S_chauffeurs=[];
 let editingLoc=null,editingLocMat=null,openThId=null,editingThId=null,editingThMat={};
 let editingThema=null,editingThemaMat=null;
 let spoedFilter='alle',vFilter='alle',plannerFilter='alle';
-let mvEenheidId=null,addEenheidItemId=null,addEenheidIsPerStuk=false;
 let editingTpId=null,tpRegels=[],tpVoorstellen=[],plannerTaken=[];
 
 let _lastNetErr=0;
@@ -4421,9 +4416,6 @@ async function addThema(){
 }
 async function saveThNm(id){const r=await api('PUT','/themas/'+id,{name:document.getElementById('eth-n-'+id).value.trim(),color:document.getElementById('eth-c-'+id).value});S.themas=S.themas.map(t=>t.id===id?{...t,...r}:t);editingThId=null;renderThemas();}
 async function deleteThema(id){if(!confirm('Thema verwijderen?'))return;await api('DELETE','/themas/'+id);S.themas=S.themas.filter(t=>t.id!==id);if(openThId===id)openThId=null;S.kampmomenten=await api('GET','/kampmomenten');renderThemas();}
-async function addThMat(thId){const name=document.getElementById('thm-n-'+thId).value.trim();if(!name)return;const qty=Math.max(1,parseInt(document.getElementById('thm-q-'+thId).value)||1);const r=await api('POST','/themas/'+thId+'/materiaal',{name,qty});const th=S.themas.find(t=>t.id===thId);if(th){th.mat=th.mat||[];th.mat.push(r);}renderThemas();}
-async function saveThMat(thId,mId){const qty=Math.max(1,parseInt(document.getElementById('etm-q-'+thId+'-'+mId).value)||1);const name=document.getElementById('etm-n-'+thId+'-'+mId).value.trim();const r=await api('PUT','/themas/'+thId+'/materiaal/'+mId,{name,qty});const th=S.themas.find(t=>t.id===thId);if(th)th.mat=th.mat.map(m=>m.id===mId?r:m);delete editingThMat[thId];renderThemas();}
-async function deleteThMat(thId,mId){await api('DELETE','/themas/'+thId+'/materiaal/'+mId);const th=S.themas.find(t=>t.id===thId);if(th)th.mat=th.mat.filter(m=>m.id!==mId);renderThemas();}
 
 // STANDAARD — materiaal per kamplocatie
 let _stdLocId=null;
@@ -5956,77 +5948,6 @@ async function openLocGeschiedenis(locId,locNaam){
   _renderLogEntries(entries,el);
 }
 
-// ── FOTO UPLOAD ──
-let _fotoUploadItemId=null;
-
-function openFotoUpload(itemId,itemNaam){
-  openModal('modal-foto-upload');
-  _fotoUploadItemId=itemId;
-  document.getElementById('fu-titel').textContent='📷 '+itemNaam;
-  document.getElementById('fu-preview').style.display='none';
-  document.getElementById('fu-file').value='';
-  const item=(_invSport||[]).find(i=>i.id===itemId);
-  const cur=document.getElementById('fu-current');
-  if(item&&item.foto_path){
-    cur.innerHTML='<img src="/uploads/'+item.foto_path+'" style="max-width:100%;max-height:150px;object-fit:contain;border-radius:6px"><br>'
-      +'<button class="btn-o" style="font-size:11px;margin-top:6px" onclick="deleteFoto('+itemId+')">&#128465; Foto verwijderen</button>';
-  } else {
-    cur.innerHTML='<div style="font-size:12px;color:var(--text2);padding:8px">Nog geen foto voor dit artikel.</div>';
-  }
-}
-
-function _onFotoFileChange(){
-  const file=document.getElementById('fu-file').files[0];
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{const p=document.getElementById('fu-preview');p.src=e.target.result;p.style.display='block';};
-  reader.readAsDataURL(file);
-}
-
-async function _resizeImage(file,maxW=900,quality=0.78){
-  return new Promise(resolve=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const img=new Image();
-      img.onload=()=>{
-        const canvas=document.createElement('canvas');
-        const scale=Math.min(1,maxW/img.width);
-        canvas.width=Math.round(img.width*scale);
-        canvas.height=Math.round(img.height*scale);
-        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-        resolve(canvas.toDataURL('image/jpeg',quality).split(',')[1]);
-      };
-      img.src=e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-async function uploadFoto(){
-  const file=document.getElementById('fu-file').files[0];
-  if(!file){showToast('Kies eerst een foto','warn');return;}
-  showToast('Foto verwerken…','info');
-  try{
-    const base64=await _resizeImage(file);
-    const r=await api('POST','/sport/'+_fotoUploadItemId+'/foto',{data:base64,ext:'jpg'});
-    if(r.error)return;
-    const item=(_invSport||[]).find(i=>i.id===_fotoUploadItemId);
-    if(item)item.foto_path=r.foto_path;
-    showToast('Foto opgeslagen','success');
-    closeModal('modal-foto-upload');
-    _renderInv();
-  }catch(e){showToast('Upload mislukt','error');}
-}
-
-async function deleteFoto(itemId){
-  await api('DELETE','/sport/'+itemId+'/foto');
-  const item=(_invSport||[]).find(i=>i.id===itemId);
-  if(item)item.foto_path='';
-  closeModal('modal-foto-upload');
-  _renderInv();
-  showToast('Foto verwijderd','success');
-}
-
 // ── TERUGKOMST FLOW ──
 let _terugkomstKmId=null;
 
@@ -6054,7 +5975,7 @@ function openTerugkomst(kmId){
   // Thema-materiaal gekoppeld aan dit kampmoment
   const themaItems=[];
   (km.themas||[]).forEach(th=>{
-    (th.mat||[]).forEach(m=>{
+    (th.materiaal||[]).forEach(m=>{
       themaItems.push({id:'t'+th.id+'m'+m.id,set_id:null,naam:th.name+' — '+m.name+(m.qty>1?' (×'+m.qty+')':''),type:'thema'});
     });
   });
@@ -6267,23 +6188,6 @@ async function geocodeAddr(addrVal,latId,lngId){
     showToast('📍 Coördinaten gevonden: '+lat+', '+lng,'success');
   }catch(e){showToast('Geocoding mislukt','error');}
 }
-
-// ── QR CODES ──
-function openQR(type,id,naam,sublabel){
-  openModal('modal-qr');
-  document.getElementById('qr-naam').textContent=naam||'Item';
-  document.getElementById('qr-sub').textContent=sublabel||'';
-  const payload=window.location.origin+window.location.pathname+'?qr='+type+'-'+id;
-  document.getElementById('qr-url').textContent=payload;
-  const img=document.getElementById('qr-canvas');
-  img.src='';
-  img.alt='QR laden…';
-  img.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data='+encodeURIComponent(payload);
-  img.onload=function(){img.alt='QR code';};
-  img.onerror=function(){img.alt='QR genereren mislukt';showToast('QR genereren mislukt – check internetverbinding','warn');};
-}
-
-function _printQR(){window.print();}
 
 function handleQrScan(){
   const p=new URLSearchParams(window.location.search);
@@ -8204,101 +8108,6 @@ function toggleDarkMode(){
 </div>
 
 
-<!-- MODAL: Nieuw materiaalitem -->
-<div class="modal-bg" id="modal-nieuw-mat">
-  <div class="modal" style="width:440px">
-    <div class="modal-title">
-      <span id="modal-nieuw-mat-titel">Nieuw artikel</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-nieuw-mat')">&#x2715;</button>
-    </div>
-    <div class="fr">
-      <div class="fg grow"><label for="nm-name">Naam <span class="req">*</span></label>
-        <input class="inp" type="text" id="nm-name" placeholder="bv. Zak basketballen, Verplaatsbare oven...">
-      </div>
-    </div>
-    <div class="fr">
-      <div class="fg md"><label for="nm-cat">Categorie</label>
-        <select class="sel" id="nm-cat">
-          <option value="sport">&#9917; Sport</option>
-          <option value="keuken">&#127859; Keuken</option>
-          <option value="audio">&#128266; Audio</option>
-          <option value="slaap">&#128719; Slaap</option>
-          <option value="ehbo">&#127973; EHBO</option>
-          <option value="andere">&#128230; Andere</option>
-        </select>
-      </div>
-      <div class="fg sm" id="nm-eenheid-wrap" style="display:none">
-        <label for="nm-eenheid">Eenheid</label>
-        <input class="inp" type="text" id="nm-eenheid" placeholder="pakken, liter..." value="stuks">
-      </div>
-      <div class="fg sm" id="nm-min-wrap" style="display:none">
-        <label for="nm-minimum">Alarm onder</label>
-        <input class="inp" type="number" id="nm-minimum" value="0" min="0" step="0.5">
-      </div>
-    </div>
-    <input type="hidden" id="nm-tracking">
-    <div style="display:flex;gap:8px;margin-top:.75rem">
-      <button class="btn-g" style="flex:1" onclick="saveNieuwMateriaalItem()">&#x1F4BE; Aanmaken</button>
-      <button class="btn-o" onclick="closeModal('modal-nieuw-mat')">Annuleren</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Verbruik mutatie -->
-<div class="modal-bg" id="modal-mutatie">
-  <div class="modal" style="width:420px">
-    <div class="modal-title">
-      <span id="mutatie-titel">Voorraad aanpassen</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-mutatie')">&#x2715;</button>
-    </div>
-    <div class="fr">
-      <div class="fg md"><label for="mut-actie">Actie</label>
-        <select class="sel" id="mut-actie" onchange="updateMutatieSign()">
-          <option value="-1">&#8600; Verbruik / meegeven</option>
-          <option value="1">&#8599; Aanvulling / ontvangen</option>
-          <option value="0">&#9636; Correctie (stel exact in)</option>
-        </select>
-      </div>
-      <div class="fg sm"><label for="mut-qty">Aantal</label>
-        <input class="inp" type="number" id="mut-qty" value="1" min="0" step="0.5">
-      </div>
-    </div>
-    <div class="fr">
-      <div class="fg md"><label for="mut-loc">Locatie</label>
-        <select class="sel" id="mut-loc"></select>
-      </div>
-      <div class="fg grow"><label for="mut-reden">Reden / wie</label>
-        <input class="inp" type="text" id="mut-reden" placeholder="bv. Jan, weeklevering...">
-      </div>
-    </div>
-    <input type="hidden" id="mut-item-id">
-    <input type="hidden" id="mut-current-qty">
-    <div style="display:flex;gap:8px;margin-top:.75rem">
-      <button class="btn-g" style="flex:1" onclick="saveMutatie()">&#x2713; Opslaan</button>
-      <button class="btn-o" onclick="closeModal('modal-mutatie')">Annuleren</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: QR Code tonen -->
-<div class="modal-bg" id="modal-qr">
-  <div class="modal" style="width:340px;text-align:center">
-    <div class="modal-title">
-      <span>&#128247; QR Code</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-qr')">&#x2715;</button>
-    </div>
-    <div id="qr-print-area" class="qr-print-wrap" style="padding:.5rem">
-      <div id="qr-naam" style="font-size:14px;font-weight:600;margin-bottom:2px"></div>
-      <div id="qr-sub" style="font-size:11px;color:var(--text2);margin-bottom:.75rem"></div>
-      <img id="qr-canvas" style="width:220px;height:220px;border-radius:8px;border:.5px solid var(--border)" alt="QR code">
-      <div id="qr-url" style="font-size:9px;color:var(--text3);word-break:break-all;max-width:240px;margin-top:.25rem"></div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:center;margin-top:1rem">
-      <button class="btn-b" onclick="_printQR()">&#128438; Afdrukken</button>
-      <button class="btn-o" onclick="closeModal('modal-qr')">Sluiten</button>
-    </div>
-  </div>
-</div>
 
 <!-- MODAL: QR scan — locatie bijwerken -->
 <div class="modal-bg" id="modal-scan">
@@ -8317,26 +8126,6 @@ function toggleDarkMode(){
     <div style="display:flex;gap:8px;margin-top:.75rem">
       <button class="btn-g" style="flex:1" onclick="doScanVerplaats()">&#10003; Locatie bijwerken</button>
       <button class="btn-o" onclick="closeModal('modal-scan')">Annuleren</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Foto uploaden -->
-<div class="modal-bg" id="modal-foto-upload">
-  <div class="modal" style="width:400px">
-    <div class="modal-title">
-      <span id="fu-titel">&#128247; Foto beheren</span>
-      <button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-foto-upload')">&#x2715;</button>
-    </div>
-    <div id="fu-current" style="margin-bottom:.75rem;text-align:center"></div>
-    <div style="border:.5px solid var(--border);border-radius:var(--r);padding:.75rem;background:var(--bg2);margin-bottom:.75rem">
-      <label for="fu-file" style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">Nieuwe foto kiezen</label>
-      <input type="file" id="fu-file" accept="image/*" capture="environment" onchange="_onFotoFileChange()" style="font-size:12px;width:100%">
-      <img id="fu-preview" style="display:none;max-width:100%;max-height:160px;object-fit:contain;border-radius:6px;margin-top:8px">
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-g" style="flex:1" onclick="uploadFoto()">&#128190; Opslaan</button>
-      <button class="btn-o" onclick="closeModal('modal-foto-upload')">Annuleren</button>
     </div>
   </div>
 </div>
@@ -8518,158 +8307,6 @@ function _renderCatDetail(d){
   }
 
   el.innerHTML=html;
-}
-
-// ── NAKIJKEN & AANVULLEN ──
-let _nakijkenData=[];
-let _nakijkenFilter='alle';
-
-async function renderNakijkenVoorraad(){
-  const el=document.getElementById('nak-voorraad-lijst');
-  if(!el)return;
-  el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:1rem 0">Laden…</div>';
-  const data=await api('GET','/voorraad/nakijken');
-  if(!Array.isArray(data)){el.innerHTML='<p style="color:var(--text3)">Fout bij laden.</p>';return;}
-  _nakijkenData=data;
-  renderNakijkenLijst();
-}
-
-function setNakijkenFilter(f,btn){
-  _nakijkenFilter=f;
-  document.querySelectorAll('#mat-sub-nakijken .ov-view-btn').forEach(b=>b.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  renderNakijkenLijst();
-}
-
-function renderNakijkenLijst(){
-  const el=document.getElementById('nak-voorraad-lijst');
-  if(!el)return;
-  const zoek=(document.getElementById('nak-zoek')?.value||'').toLowerCase();
-  let items=_nakijkenData;
-
-  // Filter
-  if(_nakijkenFilter==='tekort') items=items.filter(i=>i.qty_minimum>0&&i.qty_stock<=i.qty_minimum);
-  else if(_nakijkenFilter==='ok') items=items.filter(i=>!(i.qty_minimum>0&&i.qty_stock<=i.qty_minimum));
-  if(zoek) items=items.filter(i=>(i.naam||'').toLowerCase().includes(zoek)||(i.thema_naam||'').toLowerCase().includes(zoek)||(i.bak_label||'').toLowerCase().includes(zoek));
-
-  const tekortCount=_nakijkenData.filter(i=>i.qty_minimum>0&&i.qty_stock<=i.qty_minimum).length;
-  const teller=document.getElementById('nak-teller');
-  if(teller) teller.textContent=tekortCount>0?`⚠️ ${tekortCount} item${tekortCount!==1?'s':''} onder minimum`:'✅ Alles op peil';
-
-  if(!items.length){
-    el.innerHTML='<div style="color:var(--text3);font-size:13px;padding:1.5rem 0;text-align:center">'
-      +(_nakijkenFilter==='tekort'?'✅ Geen tekorten — alles aangevuld!':'Geen items gevonden.')+'</div>';
-    return;
-  }
-
-  // Groepeer per thema
-  const perThema={};
-  items.forEach(i=>{
-    const key=i.thema_id;
-    if(!perThema[key])perThema[key]={naam:i.thema_naam,color:i.thema_color,items:[]};
-    perThema[key].items.push(i);
-  });
-
-  el.innerHTML=Object.values(perThema).map(groep=>{
-    const tekort=groep.items.filter(i=>i.qty_minimum>0&&i.qty_stock<=i.qty_minimum).length;
-    const accentKleur=groep.color||'#2563eb';
-    return `<div style="margin-bottom:1.5rem">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem">
-        <div style="width:10px;height:10px;border-radius:50%;background:${accentKleur};flex-shrink:0"></div>
-        <span style="font-size:13px;font-weight:700">${_escH(groep.naam)}</span>
-        ${tekort?`<span style="font-size:10px;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:999px;font-weight:700">⚠️ ${tekort} tekort${tekort!==1?'en':''}</span>`:''}
-      </div>
-      ${groep.items.map(i=>_nakijkenItemHtml(i)).join('')}
-    </div>`;
-  }).join('');
-}
-
-function _nakijkenItemHtml(i){
-  const tekort=i.qty_minimum>0&&i.qty_stock<=i.qty_minimum;
-  const bc=tekort?'#fca5a5':'var(--border)';
-  const bg=tekort?'#fff7f7':'var(--bg)';
-  const pct=i.qty_minimum>0?Math.min(100,Math.round((i.qty_stock/i.qty_minimum)*100)):100;
-  const barKleur=tekort?'#ef4444':pct<80?'#f59e0b':'#22c55e';
-  const bakInfo=(i.bak_label||i.bak_code)?`<span style="font-size:10px;color:var(--text3);margin-left:4px">${_escH((i.bak_code||'')+' '+(i.bak_label||'')).trim()}</span>`:'';
-  return `<div id="nak-item-${i.id}" style="border:.5px solid ${bc};background:${bg};border-radius:8px;padding:10px 12px;margin-bottom:6px">
-    <div style="display:flex;align-items:flex-start;gap:10px">
-      <!-- Links: naam + bak + balk -->
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
-          <span style="font-size:14px;font-weight:600">${_escH(i.naam)}</span>
-          ${bakInfo}
-          ${tekort?'<span style="font-size:10px;color:#b91c1c;font-weight:700">⚠️ TEKORT</span>':''}
-        </div>
-        <!-- Voortgangsbalk -->
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="flex:1;background:var(--bg2);border-radius:999px;height:6px;overflow:hidden">
-            <div style="height:100%;background:${barKleur};width:${pct}%;transition:width .4s;border-radius:999px"></div>
-          </div>
-          <span style="font-size:11px;color:var(--text2);white-space:nowrap;min-width:80px;text-align:right">
-            ${i.qty_stock} / ${i.qty_minimum>0?i.qty_minimum+'&nbsp;min':'?'} ${_escH(i.eenheid||'stuks')}
-          </span>
-        </div>
-        ${i.laatste_nakijk?`<div style="font-size:10px;color:var(--text3);margin-top:3px">Laatste nakijk: ${_escH(i.laatste_nakijk)}</div>`:''}
-      </div>
-      <!-- Rechts: aanvul-knop -->
-      <button onclick="_openAanvullen(${i.id})" style="border:.5px solid var(--border2);background:var(--bg2);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;color:var(--text)">
-        ✏️ Aanvullen
-      </button>
-    </div>
-    <!-- Inline aanvullen panel (verborgen) -->
-    <div id="nak-aanvul-${i.id}" style="display:none;margin-top:10px;border-top:.5px solid var(--border2);padding-top:10px">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:6px">Nieuwe voorraad instellen (${_escH(i.eenheid||'stuks')}):</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <!-- Snelknoppen -->
-        <button onclick="_setNakStock(${i.id},0)" style="border:.5px solid var(--border2);background:var(--bg2);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">0</button>
-        ${i.qty_minimum>0?`<button onclick="_setNakStock(${i.id},${i.qty_minimum})" style="border:.5px solid var(--green);background:var(--green-bg);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--green-dk)">✅ Min (${i.qty_minimum})</button>`:''}
-        ${i.qty_minimum>0?`<button onclick="_setNakStock(${i.id},${Math.round(i.qty_minimum*2)})" style="border:.5px solid var(--border2);background:var(--bg2);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">2× min</button>`:''}
-        <!-- Vrij invullen -->
-        <input type="number" id="nak-stock-vrij-${i.id}" value="${i.qty_stock}" min="0" step="0.5"
-          style="width:80px;height:36px;font-size:14px;text-align:center;border:.5px solid var(--border2);border-radius:6px;padding:0 8px">
-        <button onclick="_slaaNakStockOp(${i.id})" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:0 14px;height:36px;font-size:13px;font-weight:600;cursor:pointer">Opslaan</button>
-        <button onclick="_sluitAanvullen(${i.id})" style="border:none;background:transparent;cursor:pointer;color:var(--text3);font-size:12px">Annuleer</button>
-      </div>
-      <textarea id="nak-notitie-${i.id}" placeholder="Notitie (optioneel, bv. 'nieuwe doos geopend')…"
-        style="width:100%;margin-top:8px;height:54px;font-size:12px;border:.5px solid var(--border2);border-radius:6px;padding:6px 8px;resize:vertical;box-sizing:border-box;font-family:inherit;color:var(--text);background:var(--bg)"></textarea>
-    </div>
-  </div>`;
-}
-
-function _openAanvullen(itemId){
-  // Sluit andere open panels
-  document.querySelectorAll('[id^="nak-aanvul-"]').forEach(el=>{if(el.id!=='nak-aanvul-'+itemId)el.style.display='none';});
-  const panel=document.getElementById('nak-aanvul-'+itemId);
-  if(!panel)return;
-  const open=panel.style.display==='block';
-  panel.style.display=open?'none':'block';
-  if(!open){
-    const inp=document.getElementById('nak-stock-vrij-'+itemId);
-    if(inp){inp.focus();inp.select();}
-  }
-}
-function _sluitAanvullen(itemId){
-  const panel=document.getElementById('nak-aanvul-'+itemId);
-  if(panel)panel.style.display='none';
-}
-function _setNakStock(itemId,val){
-  const inp=document.getElementById('nak-stock-vrij-'+itemId);
-  if(inp){inp.value=val;inp.focus();}
-}
-async function _slaaNakStockOp(itemId){
-  const inp=document.getElementById('nak-stock-vrij-'+itemId);
-  const notEl=document.getElementById('nak-notitie-'+itemId);
-  if(!inp)return;
-  const qty=parseFloat(inp.value)||0;
-  const notitie=notEl?notEl.value.trim():'';
-  const r=await api('PUT','/bak-items/'+itemId,{qty_stock:qty,notitie});
-  if(!r||r.error){showToast('Opslaan mislukt','error');return;}
-  // Update lokale data
-  const idx=_nakijkenData.findIndex(i=>i.id===itemId);
-  if(idx>=0){_nakijkenData[idx].qty_stock=qty;if(notitie)_nakijkenData[idx].notitie=notitie;}
-  showToast('Voorraad bijgewerkt','success');
-  _sluitAanvullen(itemId);
-  renderNakijkenLijst();
 }
 
 // ── NAKIJKEN v2 (bak-gebaseerd, twee stappen: KV + kantoor) ──
@@ -9130,21 +8767,6 @@ async function controleerConflicten(){
       }).join('')
       +'</div>';
   }catch(e){/* stil falen */}
-}
-
-// ── RETOUR STATUS ──
-async function setRetourStatus(ktId,themaId){
-  const opties=['','nakijken','beschikbaar','weg'];
-  const labels=['— Geen status —','⚠️ Nakijken nodig','✅ Beschikbaar voor hergebruik','❌ Weg/verloren'];
-  const huidig=opties.indexOf(arguments[2]||'');
-  const keuze=prompt('Retour-status voor dit thema:\n\n'+labels.map((l,i)=>(i===huidig?'► ':'')+i+'. '+l).join('\n')+'\n\nVoer nummer in (0-3):');
-  if(keuze===null)return;
-  const idx=parseInt(keuze);
-  if(isNaN(idx)||idx<0||idx>3)return;
-  await api('PUT','/kampmoment-themas/'+ktId+'/retour',{retour_status:opties[idx]});
-  showToast('Retour-status bijgewerkt','success');
-  // Herlaad S.kampmomenten voor visuele update
-  S.kampmomenten=await api('GET','/kampmomenten');
 }
 
 // ── SEIZOENSOVERZICHT ──
