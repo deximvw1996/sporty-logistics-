@@ -671,7 +671,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" onclick="setMatSubtab('themabakken',this)">&#129082; Themabakken</button>
       <button class="kal-subtab" style="display:none" onclick="setMatSubtab('vastebakken',this)">&#128451; Vaste bakken</button>
       <button class="kal-subtab" style="display:none" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
-      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
+      <button class="kal-subtab" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('sport',this)">&#9917; Sport</button>
       <button class="kal-subtab" style="display:none" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken</button>
       <div style="flex:1"></div>
@@ -680,6 +680,13 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 
     <!-- Themabakken: thema's met hun bakken en inhoud -->
     <div id="mat-sub-themabakken">
+      <div class="card" style="margin-bottom:.75rem">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="inp" id="wi-zoek" placeholder="&#128269; Waar is&#8230;? (naam of code)" style="flex:1" onkeydown="if(event.key==='Enter')renderWaarIs()">
+          <button class="btn-g" onclick="renderWaarIs()">Zoek</button>
+        </div>
+        <div id="wi-resultaat" style="margin-top:8px"></div>
+      </div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
         <input class="inp" id="tb-zoek" placeholder="&#128269; Thema zoeken&#8230;" oninput="renderThemabakken()" style="flex:1;min-width:160px;max-width:300px">
         <select class="sel" id="tb-filter-lg" onchange="renderThemabakken()" style="height:32px;font-size:12px">
@@ -742,6 +749,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <button class="btn-o" onclick="_vrdVernieuwen()">↺ Vernieuwen</button>
         <span id="vrd-stats" style="font-size:11px;color:var(--text3)"></span>
       </div>
+      <div id="vrd-bestellijst" style="margin-bottom:1rem"></div>
       <div id="voorraad-content"><div class="loading">Laden…</div></div>
     </div>
 
@@ -1495,9 +1503,6 @@ async function selectKpCell(kmId){
   panel.style.display='block';
   panel.innerHTML='<div class="loading">Laden…</div>';
   try {
-    const [dozen] = await Promise.all([
-      api('GET',`/kampmoment-dozen/${kmId}`)
-    ]);
     const km=(S.kampmomenten||[]).find(k=>k.id===kmId);
     const loc=(S.locaties||[]).find(l=>l.id===km?.locatie_id);
     const ths=km?.themas||[];
@@ -1553,17 +1558,13 @@ async function saveLocEigenschap(locId, veld, val){
   if(_kpSelKmId) selectKpCell(_kpSelKmId);
 }
 
-async function toggleDoos(locId, doosId, actief, kmId){
-  await api('POST','/locatie-doos-config',{locatie_id:locId,doos_id:doosId,actief});
-  if(kmId) selectKpCell(kmId);
+async function saveLocatieConfig(locId, vastType, aantal, conditieType, conditieWaarde){
+  await api('POST','/locatie-config',{kamplocatie_id:locId,vast_type:vastType,aantal:parseInt(aantal)||1,conditie_type:conditieType,conditie_waarde:conditieWaarde||''});
+  if(typeof renderLocatieDetail==='function') renderLocatieDetail();
 }
-
-async function toggleDoosLocatie(locId, doosId, actief){
-  await api('POST','/locatie-doos-config',{locatie_id:locId,doos_id:doosId,actief});
-}
-
-async function setDoosQty(locId, doosId, qty){
-  await api('POST','/locatie-doos-config',{locatie_id:locId,doos_id:doosId,qty:parseInt(qty)||1,actief:1});
+async function verwijderLocatieConfig(cfgId){
+  await api('DELETE','/locatie-config/'+cfgId);
+  if(typeof renderLocatieDetail==='function') renderLocatieDetail();
 }
 
 
@@ -2486,6 +2487,23 @@ async function renderThemabakken(){
     </div>`;
   }).join('');
 }
+async function renderWaarIs(){
+  const el=document.getElementById('wi-resultaat'); if(!el)return;
+  const q=(document.getElementById('wi-zoek')?.value||'').trim();
+  if(!q){el.innerHTML='';return;}
+  el.innerHTML='<div class="loading">Zoeken…</div>';
+  let res=[];
+  try{res=await api('GET','/waar-is?q='+encodeURIComponent(q));}catch(e){el.innerHTML='<div class="empty">Fout bij zoeken.</div>';return;}
+  if(!res.length){el.innerHTML='<div style="font-size:12px;color:var(--text3)">Niets gevonden voor "'+_escH(q)+'".</div>';return;}
+  el.innerHTML=res.map(r=>`<div style="border:.5px solid var(--border);border-radius:var(--r);padding:8px 10px;margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-weight:600;font-size:13px">${r.soort==='attribuut'?'🎭':'📦'} ${_escH(r.naam)}</span>
+      ${r.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(r.code)}</span>`:''}
+      <span style="font-size:11px;color:var(--text3);margin-left:auto">${_escH(r.huidige_locatie_naam||'?')} · ${_escH(r.status||'')}</span>
+    </div>
+    ${(r.laatste_bewegingen||[]).length?`<div style="margin-top:6px">${r.laatste_bewegingen.map(b=>`<div style="font-size:11px;color:var(--text3);padding:2px 0">${_escH(b.tijdstip||'')} — ${_escH(b.beschrijving||'')}</div>`).join('')}</div>`:''}
+  </div>`).join('');
+}
 function _tbToggle(tid){_tbOpen[tid]=!_tbOpen[tid];renderThemabakken();}
 async function _tbVernieuwen(){_tbData=[];await renderThemabakken();}
 function _renderThemaBakkenInhoud(thema,bakken){
@@ -2495,6 +2513,8 @@ function _renderThemaBakkenInhoud(thema,bakken){
     const vastItems=items.filter(i=>!i.verbruik);
     const verbruikItems=items.filter(i=>i.verbruik);
     const code=bak.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.code)}</span>`:'';
+    const statusLabel={thuis:'🏠 thuis',op_locatie:'📍 op locatie',onderweg:'🚚 onderweg'}[bak.status]||bak.status||'';
+    const gedeeldMet=(bak.gedeeld_met||[]).length?`<span style="font-size:10px;background:var(--amber-bg);color:var(--amber-dk);border-radius:4px;padding:1px 6px" title="${_attrH((bak.gedeeld_met||[]).map(t=>t.name).join(', '))}">🔗 gedeeld met ${bak.gedeeld_met.length}</span>`:'';
     const log=bak.log||[];
     const lastCheck=log[0];
     const checkInfo=lastCheck?`<span style="font-size:10px;color:var(--text3)">✓ ${lastCheck.tijdstip?.substring(0,10)} door ${_escH(lastCheck.wie||'?')}</span>`:'<span style="font-size:10px;color:var(--text3)">Nog niet nagekeken</span>';
@@ -2503,6 +2523,8 @@ function _renderThemaBakkenInhoud(thema,bakken){
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-weight:600;font-size:13px">📦 ${_escH(bak.label||'')}</span>
         ${code}
+        <span style="font-size:10px;color:var(--text3)">${statusLabel}</span>
+        ${gedeeldMet}
         ${tekort?`<span style="font-size:10px;color:#B91C1C;font-weight:700">⚠️ ${tekort} tekort</span>`:''}
         <span style="font-size:11px;color:var(--text3)">${items.length} items</span>
         <span style="margin-left:auto">${checkInfo}</span>
@@ -2687,6 +2709,19 @@ async function renderVoorraadTab(){
     el.innerHTML='<div class="loading">Laden…</div>';
     try{_vrdData=await api('GET','/stock-overzicht');}catch(e){el.innerHTML='<div class="empty">Fout bij laden.</div>';return;}
   }
+  const bEl=document.getElementById('vrd-bestellijst');
+  if(bEl){
+    try{
+      const best=await api('GET','/bestellijst');
+      bEl.innerHTML=best.length?`<div class="card" style="border-color:#F09595">
+        <div class="card-hd">🛒 Bestellijst (${best.length} onder minimum)</div>
+        ${best.map(b=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:.5px solid var(--border);font-size:12px">
+          <span style="flex:1">${_escH(b.item_naam)} — ${_escH(b.locatie_naam)}</span>
+          <span style="color:#B91C1C;font-weight:600">${b.qty}/${b.minimum} ${_escH(b.eenheid||'')}</span>
+        </div>`).join('')}
+      </div>`:'';
+    }catch(e){}
+  }
   const zoek=(document.getElementById('vrd-zoek')?.value||'').toLowerCase();
   const cat=document.getElementById('vrd-cat')?.value||'';
   const filter=document.getElementById('vrd-filter')?.value||'';
@@ -2728,6 +2763,23 @@ async function renderVoorraadTab(){
       }).join('')}
     </div>`).join('');
 }
+async function _vrdSaveStock(item_type_id,locatie_id,qty,minimum){
+  await api('POST','/voorraad',{item_type_id,locatie_id,qty:parseFloat(qty)||0,minimum:parseFloat(minimum)||0});
+  _vrdData=[];
+  showToast('Voorraad bijgewerkt','success');
+  renderVoorraadTab();
+}
+async function _vrdVoegLocatieToe(item_type_id){
+  const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
+  if(!stockLocs.length){showToast('Geen stockagelocaties gevonden','warn');return;}
+  const namen=stockLocs.map((l,i)=>`${i+1}. ${l.name}`).join('\n');
+  const keuze=prompt('Kies stockagelocatie:\n'+namen);
+  const idx=parseInt(keuze)-1;
+  if(isNaN(idx)||!stockLocs[idx])return;
+  await api('POST','/voorraad',{item_type_id,locatie_id:stockLocs[idx].id,qty:0,minimum:0});
+  _vrdData=[];
+  renderVoorraadTab();
+}
 const _vrdOpen={};
 function _vrdToggle(id){
   _vrdOpen[id]=!_vrdOpen[id];
@@ -2744,13 +2796,15 @@ function _vrdDetail(item){
       const kleur=s.qty<s.minimum?'#EF4444':'var(--text)';
       return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:.5px solid var(--border)">
         <span style="flex:1;font-size:12px">${_escH(s.locatie_naam)}</span>
-        <span style="font-size:12px;font-weight:600;color:${kleur}">${s.qty} ${_escH(s.eenheid||item.eenheid)}</span>
-        ${s.minimum>0?`<span style="font-size:10px;color:var(--text3)">min ${s.minimum}</span>`:''}
+        <span style="font-size:10px;color:var(--text3)">qty</span>
+        <input type="number" value="${s.qty}" style="width:50px;font-size:12px;color:${kleur};border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="_vrdSaveStock(${item.id},${s.locatie_id},this.value,${s.minimum})">
+        <span style="font-size:10px;color:var(--text3)">min</span>
+        <input type="number" value="${s.minimum}" style="width:44px;font-size:12px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="_vrdSaveStock(${item.id},${s.locatie_id},${s.qty},this.value)">
       </div>`;
     }).join('');
     html+='</div>';
   } else {
-    html+='<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Geen voorraadregistratie voor dit item. <button class="btn-o" style="font-size:11px;padding:2px 8px" onclick="alert(\'Voorraad toevoegen komt binnenkort\')">+ Toevoegen</button></div>';
+    html+=`<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Geen voorraadregistratie voor dit item. <button class="btn-o" style="font-size:11px;padding:2px 8px" onclick="_vrdVoegLocatieToe(${item.id})">+ Toevoegen</button></div>`;
   }
   if(item.bakken.length){
     html+=`<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">📦 Zit in deze bakken</div>`;
@@ -4975,11 +5029,13 @@ async function renderLocatieDetail(){
   </div>`;
   // Locatie-instellingen: eigenschappen + standaarddozen + standaardmateriaal (alleen kamplocatie)
   if(isKamp){
-    let dozen=[];
-    try{dozen=await api('GET','/standaard-dozen');}catch(e){}
+    let vastTypes=[];
+    try{vastTypes=await api('GET','/vast-types');}catch(e){}
     let locConfig=[];
-    try{locConfig=await api('GET',`/locatie-doos-config/${l.id}`);}catch(e){}
-    const cfgByDoos={};locConfig.forEach(c=>{cfgByDoos[c.doos_id]=c;});
+    try{locConfig=await api('GET',`/locatie-config/${l.id}`);}catch(e){}
+    const condOpties=(cur)=>`<option value="altijd" ${cur==='altijd'?'selected':''}>altijd</option>
+      <option value="leeftijdsgroep" ${cur==='leeftijdsgroep'?'selected':''}>bij leeftijdsgroep</option>
+      <option value="kookthema" ${cur==='kookthema'?'selected':''}>bij kookthema</option>`;
     h+=`<div class="card" style="margin-top:.75rem">
       <div class="card-hd">⚙️ Locatie-instellingen</div>
 
@@ -4995,24 +5051,24 @@ async function renderLocatieDetail(){
         </label>
       </div>
 
-      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Standaarddozen</div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Vink uit als een doos niet naar deze locatie moet.</div>
-      ${dozen.map(d=>{
-        const cfg=cfgByDoos[d.id];
-        const condLabel={altijd:'altijd',leeftijdsgroep:`leeftijd: ${d.conditie_waarde}`,thema:'als kookactiviteit',programma:'als kleuterkriebels',locatie:'locatie-instelling'}[d.conditie_type]||'';
-        const isActief=cfg?cfg.actief===1:true;
-        const qty=cfg?.qty||d.qty_default;
-        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--border)">
-          <input type="checkbox" ${isActief?'checked':''} onchange="toggleDoosLocatie(${l.id},${d.id},this.checked)">
-          <div style="flex:1">
-            <span style="font-size:12px${isActief?'':';color:var(--text3)'}">${_escH(d.naam)}</span>
-            ${d.opslagcode?`<span style="font-size:10px;font-weight:700;color:var(--green-dk);margin-left:5px">${_escH(d.opslagcode)}</span>`:''}
-            ${cfg?'<span style="font-size:9px;color:var(--text3);margin-left:4px">(override)</span>':''}
-            <div style="font-size:10px;color:var(--text3)">${condLabel}</div>
-          </div>
-          <input type="number" value="${qty}" min="1" style="width:44px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="setDoosQty(${l.id},${d.id},this.value)">
-        </div>`;
-      }).join('')}
+      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Locatieconfig (vaste exemplaren)</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Welk vast type materiaal hoort standaard op deze locatie, hoeveel exemplaren, en onder welke voorwaarde.</div>
+      ${locConfig.map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:.5px solid var(--border)">
+          <span style="flex:1;font-size:12px">${_escH(c.vast_type)}</span>
+          <input type="number" value="${c.aantal}" min="1" style="width:44px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',this.value,'${c.conditie_type}','${_attrH(c.conditie_waarde||'')}')">
+          <select style="font-size:11px" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',${c.aantal},this.value,'${c.conditie_type==='leeftijdsgroep'?(c.conditie_waarde||''):''}')">${condOpties(c.conditie_type)}</select>
+          ${c.conditie_type==='leeftijdsgroep'?`<select style="font-size:11px" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',${c.aantal},'leeftijdsgroep',this.value)">
+              <option value="kleuters" ${c.conditie_waarde==='kleuters'?'selected':''}>kleuters</option>
+              <option value="lagere school" ${c.conditie_waarde==='lagere school'?'selected':''}>lagere school</option>
+            </select>`:''}
+          <button class="bi" style="color:var(--red)" onclick="verwijderLocatieConfig(${c.id})" title="Verwijder">🗑️</button>
+        </div>`).join('')}
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <select id="loc-cfg-nieuw-type-${l.id}" style="flex:1;font-size:11px">
+          ${vastTypes.map(t=>`<option value="${_attrH(t)}">${_escH(t)}</option>`).join('')}
+        </select>
+        <button class="btn-xs" onclick="saveLocatieConfig(${l.id},document.getElementById('loc-cfg-nieuw-type-${l.id}').value,1,'altijd','')">+ Toevoegen</button>
+      </div>
 
       <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-top:14px;margin-bottom:4px">Standaardmateriaal</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Materiaal dat altijd op deze locatie aanwezig hoort te zijn (EHBO, muziekbox…).</div>
@@ -7035,7 +7091,7 @@ async function slaNoodOp(i){
     type:v.type,opmerking:v.opmerking,kampmoment_id:v.kampmoment_id,
     van_locatie_id:isOph?v.locatie_id:v.van_locatie_id,
     naar_locatie_id:isOph?v.naar_locatie_id:v.locatie_id,
-    regels:(v.materiaal||[]).map(m=>({naam:m.naam,qty:m.qty,soort:m.soort}))
+    regels:(v.materiaal||[]).map(m=>({naam:m.naam,qty:m.qty,soort:m.soort,bak_id:m.bak_id,attribuut_id:m.attribuut_id}))
   });
   if(r&&r.error){showToast(r.error,'error');return;}
   tpVoorstellen.splice(i,1);
@@ -7679,18 +7735,33 @@ function _renderKzItems(){
     +(wacht?'<span style="color:var(--text3)">⬜ '+wacht+'</span>':'')
     +'</div>';
 
-  const soortOrder=['basis','thema','sport','andere'];
-  const soortLabel={basis:'📦 Basismateriaal',thema:'🎯 Thema-materiaal',sport:'🏐 Sportmateriaal',andere:'📋 Overige'};
+  const soortOrder=['basis','thema','attribuut','vast','sport','andere'];
+  const soortLabel={basis:'📦 Basismateriaal',thema:'🎯 Thema-bakken',attribuut:'🎭 Attributen',vast:'🧰 Vast materiaal',sport:'🏐 Sportmateriaal',andere:'📋 Overige'};
   const perSoort={};
   _kzChecks.forEach(c=>{const s=c.item_soort||'andere';if(!perSoort[s])perSoort[s]=[];perSoort[s].push(c);});
   const soorten=soortOrder.filter(s=>perSoort[s]).concat(Object.keys(perSoort).filter(s=>!soortOrder.includes(s)&&perSoort[s]));
 
+  // Chauffeur ziet bakken, geen inhoud: groepeer bak/attribuut-regels per rek (eerste letter van de code)
+  // zodat de chauffeur rek per rek kan lopen. Code wordt uit "(CODE)" in de naam gehaald.
+  function _rekVan(c){
+    const m=(c.item_naam||'').match(/\(([A-Za-z])[0-9]*\)/);
+    return m?m[1].toUpperCase():null;
+  }
+  function _groepeerPerRek(items){
+    const g={};
+    items.forEach(c=>{const r=_rekVan(c)||'?';if(!g[r])g[r]=[];g[r].push(c);});
+    return Object.keys(g).sort().map(r=>({rek:r,items:g[r]}));
+  }
+
   const el=document.getElementById('kz-items');
   el.innerHTML=soorten.map(soort=>{
+    const groepeerbaar=['thema','attribuut','vast'].includes(soort);
     const items=perSoort[soort];
+    const rekBlokken=groepeerbaar?_groepeerPerRek(items):[{rek:null,items}];
     return '<div style="margin-bottom:1rem">'
       +'<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">'+soortLabel[soort]+'</div>'
-      +items.map(c=>{
+      +rekBlokken.map(blok=>(blok.rek?'<div style="font-size:11px;font-weight:700;color:var(--green-dk);margin:8px 0 4px">📍 Rek '+blok.rek+'</div>':'')
+        +blok.items.map(c=>{
         const bg=c.status==='ok'?'background:var(--green-bg);border-color:#5DCAA5':c.status==='ontbreekt'?'background:var(--red-bg);border-color:#F09595':c.status==='deels'?'background:var(--amber-bg);border-color:#F4C875':'';
         const okSt=c.status==='ok',dSt=c.status==='deels',oSt=c.status==='ontbreekt';
         return '<div style="border-radius:8px;margin-bottom:8px;border:.5px solid var(--border);overflow:hidden;'+bg+'" id="kz-row-'+c.id+'">'
@@ -7716,6 +7787,7 @@ function _renderKzItems(){
           +'</div>'
           +'</div>';
       }).join('')
+      ).join('')
       +'</div>';
   }).join('');
 }

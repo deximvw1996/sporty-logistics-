@@ -1516,64 +1516,44 @@ async function startServer() {
     res.json(loc);
   });
 
-  // ── STANDAARD DOZEN ──
-  app.get('/api/standaard-dozen',(req,res)=>{
-    const dozen=all('SELECT * FROM standaard_dozen ORDER BY volgorde');
-    dozen.forEach(d=>{d.items=all('SELECT * FROM standaard_doos_items WHERE doos_id=? ORDER BY id',[ d.id]);});
-    res.json(dozen);
+  // ── S2.5: LOCATIECONFIG (vaste exemplaren per kamplocatie, vervangt standaard_dozen/locatie_doos_config/kampmoment-dozen) ──
+  app.get('/api/vast-types',(req,res)=>{
+    res.json(all("SELECT DISTINCT vast_type FROM bakken WHERE soort='vast' AND vast_type!='' ORDER BY vast_type").map(r=>r.vast_type));
   });
-  app.put('/api/standaard-dozen/:id',(req,res)=>{
-    const{opslagcode}=req.body;
-    run('UPDATE standaard_dozen SET opslagcode=? WHERE id=?',[opslagcode||'',req.params.id]);
-    res.json(get('SELECT * FROM standaard_dozen WHERE id=?',[req.params.id]));
+  app.get('/api/locatie-config/:locatie_id',(req,res)=>{
+    res.json(all('SELECT * FROM locatie_config WHERE kamplocatie_id=? ORDER BY vast_type',[req.params.locatie_id]));
   });
-
-  // ── LOCATIE DOOS CONFIG ──
-  app.get('/api/locatie-doos-config/:locatie_id',(req,res)=>{
-    res.json(all('SELECT * FROM locatie_doos_config WHERE locatie_id=?',[req.params.locatie_id]));
+  app.post('/api/locatie-config',(req,res)=>{
+    const{kamplocatie_id,vast_type,aantal,conditie_type,conditie_waarde}=req.body;
+    if(!kamplocatie_id||!vast_type)return res.status(400).json({error:'kamplocatie_id en vast_type verplicht'});
+    const bestaat=get('SELECT id FROM locatie_config WHERE kamplocatie_id=? AND vast_type=?',[kamplocatie_id,vast_type]);
+    if(bestaat){
+      run('UPDATE locatie_config SET aantal=?,conditie_type=?,conditie_waarde=? WHERE id=?',
+        [aantal||1,conditie_type||'altijd',conditie_waarde||'',bestaat.id]);
+    } else {
+      ins('INSERT INTO locatie_config (kamplocatie_id,vast_type,aantal,conditie_type,conditie_waarde) VALUES (?,?,?,?,?)',
+        [kamplocatie_id,vast_type,aantal||1,conditie_type||'altijd',conditie_waarde||'']);
+    }
+    saveDb();
+    res.json(all('SELECT * FROM locatie_config WHERE kamplocatie_id=? ORDER BY vast_type',[kamplocatie_id]));
   });
-  app.post('/api/locatie-doos-config',(req,res)=>{
-    const{locatie_id,doos_id,qty,actief}=req.body;
-    run('INSERT OR REPLACE INTO locatie_doos_config (locatie_id,doos_id,qty,actief) VALUES (?,?,?,?)',
-      [locatie_id,doos_id,qty||null,actief===false?0:1]);
-    res.json({ok:true});
+  app.delete('/api/locatie-config/:id',(req,res)=>{
+    run('DELETE FROM locatie_config WHERE id=?',[req.params.id]);
+    saveDb();res.json({ok:true});
   });
-
-  // ── KAMPMOMENT STANDAARD DOZEN (welke dozen gaan mee) ──
-  app.get('/api/kampmoment-dozen/:km_id',(req,res)=>{
-    const km=get('SELECT * FROM kampmomenten WHERE id=?',[req.params.km_id]);
-    if(!km)return res.json([]);
-    const loc=get('SELECT * FROM locaties WHERE id=?',[km.locatie_id]);
+  // Bepaalt welke locatie_config-rijen actief zijn voor een kampmoment (conditie: altijd/leeftijdsgroep/kookthema)
+  function _actieveLocatieConfig(km){
+    if(!km)return[];
+    const cfgs=all('SELECT * FROM locatie_config WHERE kamplocatie_id=?',[km.locatie_id]);
     const themas=all('SELECT t.* FROM themas t JOIN kampmoment_themas kt ON kt.thema_id=t.id WHERE kt.kampmoment_id=?',[km.id]);
     const heeftKoken=themas.some(t=>t.heeft_kookactiviteit);
     const leeftijden=new Set(themas.map(t=>t.leeftijdsgroep).filter(Boolean));
-    const heeftKleuters=leeftijden.has('kleuters');
-    const heeftLS=leeftijden.has('lagere school');
-    // Laad alle dozen
-    const dozen=all('SELECT * FROM standaard_dozen ORDER BY volgorde');
-    const locConfig=all('SELECT * FROM locatie_doos_config WHERE locatie_id=?',[km.locatie_id]);
-    const configByDoos={};
-    locConfig.forEach(c=>{configByDoos[c.doos_id]=c;});
-    const result=dozen.map(doos=>{
-      const cfg=configByDoos[doos.id];
-      let actief=true;
-      let qty=cfg?.qty||doos.qty_default;
-      // Conditie-logica
-      if(doos.conditie_type==='leeftijdsgroep'){
-        if(doos.conditie_waarde==='kleuters') actief=heeftKleuters&&!loc?.heeft_eigen_sportmateriaal;
-        else if(doos.conditie_waarde==='lagere school') actief=heeftLS&&!loc?.heeft_eigen_sportmateriaal;
-      } else if(doos.conditie_type==='thema'){
-        if(doos.conditie_waarde==='kookactiviteit') actief=heeftKoken;
-      } else if(doos.conditie_type==='programma'){
-        actief=false; // handmatig activeren
-      }
-      // Locatie-override overschrijft alles
-      if(cfg) actief=cfg.actief===1;
-      doos.items=all('SELECT * FROM standaard_doos_items WHERE doos_id=? ORDER BY id',[doos.id]);
-      return {...doos,actief,qty_effectief:qty,heeft_override:!!cfg};
+    return cfgs.filter(c=>{
+      if(c.conditie_type==='leeftijdsgroep') return leeftijden.has(c.conditie_waarde);
+      if(c.conditie_type==='kookthema') return heeftKoken;
+      return true; // 'altijd'
     });
-    res.json(result);
-  });
+  }
   app.delete('/api/locaties/:id',(req,res)=>{
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
     run('DELETE FROM locaties WHERE id=?',[req.params.id]);
@@ -2002,14 +1982,12 @@ async function startServer() {
     const kms=all('SELECT * FROM kampmomenten ORDER BY locatie_id, week');
     const locs=all('SELECT * FROM locaties');
     const themas=all('SELECT * FROM themas');
-    // Themamateriaal leeft nu in thema_bakken/bak_items (niet meer in de verlaten thema_materiaal-tabel).
-    // Themabakken hebben geen eigen stockagelocatie-veld — ze liggen allemaal op de centrale
-    // thema-stockageplaats (themaStockageId, hieronder bepaald), vandaar geen per-item fallback nodig.
-    const themaBakItems=all(`SELECT bi.*, tb.thema_id, b.naam AS bak_label, b.code AS bak_code
-      FROM bak_items bi JOIN bakken b ON b.id=bi.bak_id JOIN thema_bak tb ON tb.bak_id=b.id`);
-    // S2.2/S2.6 (gedeeltelijk): attributen per thema — worden als losse "regel" (qty 1, geen item-detail)
-    // meegenomen in de thema-materiaallijst zodat ze niet vergeten worden bij transport.
-    const themaAttrRegels=all(`SELECT a.naam, a.code, ta.thema_id
+    // S2.6: chauffeur ziet bakken, geen inhoud. Eén transport_regel per BAK of ATTRIBUUT
+    // die aan het thema gekoppeld is (niet meer per item). Van-locatie = de eigen
+    // thuislocatie_id van de bak/het attribuut (niet meer hardcoded op naam).
+    const themaBakken=all(`SELECT b.id AS bak_id, b.naam, b.code, b.thuislocatie_id, tb.thema_id
+      FROM bakken b JOIN thema_bak tb ON tb.bak_id=b.id WHERE b.soort='thema'`);
+    const themaAttrRegels=all(`SELECT a.id AS attr_id, a.naam, a.code, a.thuislocatie_id, ta.thema_id
       FROM attributen a JOIN thema_attribuut ta ON ta.attribuut_id=a.id`);
     const allLocMat=all('SELECT * FROM locatie_materiaal');
     const standaard=all('SELECT * FROM standaard_materiaal');
@@ -2066,13 +2044,19 @@ async function startServer() {
         const isOpvolgend=prevKm&&prevKm.week===km.week-1;
         const heeftOpvolger=nextKm&&nextKm.week===km.week+1;
 
-        // Thema-materiaal met per-item stockage (fallback: themaStockageId)
+        // S2.6: Thema-materiaal = één regel per BAK of ATTRIBUUT (chauffeur ziet bakken, geen inhoud).
+        // Van-locatie = de eigen thuislocatie_id van de bak/het attribuut (fallback: themaStockageId).
         const themaMatRegels=kmThemas.flatMap(kt=>{
-          const th=themas.find(t=>t.id===kt.thema_id);
-          const bakRegels=themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));
-          const attrRegels=themaAttrRegels.filter(a=>a.thema_id===kt.thema_id).map(a=>({naam:'['+(th?.name||'?')+'] Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:themaStockageId}));
+          const bakRegels=themaBakken.filter(b=>b.thema_id===kt.thema_id).map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'thema',stockage_id:b.thuislocatie_id||themaStockageId,bak_id:b.bak_id}));
+          const attrRegels=themaAttrRegels.filter(a=>a.thema_id===kt.thema_id).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:a.thuislocatie_id||themaStockageId,attribuut_id:a.attr_id}));
           return [...bakRegels,...attrRegels];
         });
+        // Locatieconfig-exemplaren (S2.5/S2.6): bij de eerste levering van dit kampmoment de
+        // vereiste vaste exemplaren (EHBO-koffer, adminkast...) meenemen als eigen transport_regel.
+        const locConfigRegels=(!isOpvolgend)?_actieveLocatieConfig(km).flatMap(cfg=>{
+          const vrij=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' ORDER BY volgorde,id LIMIT ?",[cfg.vast_type,cfg.aantal||1]);
+          return vrij.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
+        }):[];
         // Basis-materiaal met per-item stockage (fallback: sportStockageId)
         const basisRegels=locMat.map(m=>({naam:m.name,qty:m.qty,soort:'basis',stockage_id:m.stockage_locatie_id||sportStockageId}));
 
@@ -2090,7 +2074,7 @@ async function startServer() {
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'08:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering basis week '+km.week+' — '+loc.name+(sLoc?' (van '+sLoc.name+')':'')});
           });
-          Object.entries(byStockage(themaMatRegels)).forEach(([sid,mat])=>{
+          Object.entries(byStockage([...themaMatRegels,...locConfigRegels])).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', van '+sLoc.name:'')+')'});
           });
@@ -2110,8 +2094,14 @@ async function startServer() {
             return !kwamVanAndereLocatie;
           });
           if(vertrekkende.length||aankomendeViaStockage.length){
-            const ophaalMat=vertrekkende.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));});
-            const leverMat=aankomendeViaStockage.flatMap(kt=>{const th=themas.find(t=>t.id===kt.thema_id);return themaBakItems.filter(bi=>bi.thema_id===kt.thema_id).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema',stockage_id:themaStockageId}));});
+            const ophaalMat=vertrekkende.flatMap(kt=>[
+              ...themaBakken.filter(b=>b.thema_id===kt.thema_id).map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'thema',stockage_id:b.thuislocatie_id||themaStockageId,bak_id:b.bak_id})),
+              ...themaAttrRegels.filter(a=>a.thema_id===kt.thema_id).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:a.thuislocatie_id||themaStockageId,attribuut_id:a.attr_id}))
+            ]);
+            const leverMat=aankomendeViaStockage.flatMap(kt=>[
+              ...themaBakken.filter(b=>b.thema_id===kt.thema_id).map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'thema',stockage_id:b.thuislocatie_id||themaStockageId,bak_id:b.bak_id})),
+              ...themaAttrRegels.filter(a=>a.thema_id===kt.thema_id).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:a.thuislocatie_id||themaStockageId,attribuut_id:a.attr_id}))
+            ]);
             const prevOpen=getOpenDagen(prevKm);
             const wisseldatum=prevOpen.length?nextWorkday(prevOpen[prevOpen.length-1]):prevWorkday(openDagen[0]);
             Object.entries(byStockage(ophaalMat)).forEach(([sid,mat])=>{
@@ -2138,6 +2128,14 @@ async function startServer() {
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', naar '+sLoc.name:'')+')'});
           });
+          // Locatieconfig-exemplaren gaan terug mee naar hun thuislocatie
+          const locConfigTerug=(_actieveLocatieConfig(km)).flatMap(cfg=>{
+            const opLocatie=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[cfg.vast_type,loc.id,cfg.aantal||1]);
+            return opLocatie.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
+          });
+          Object.entries(byStockage(locConfigTerug)).forEach(([sid,mat])=>{
+            voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling vast materiaal week '+km.week+' — '+loc.name});
+          });
         }
       });
     });
@@ -2160,7 +2158,10 @@ async function startServer() {
         const openB=getOpenDagen(kmB);
         if(!openA.length||!openB.length)continue;
         const th=themas.find(t=>t.id===thId);
-        const thMat=themaBakItems.filter(bi=>bi.thema_id===thId).map(bi=>({naam:'['+(th?.name||'?')+'] '+bi.bak_label+(bi.bak_code?' ('+bi.bak_code+')':'')+': '+bi.naam,qty:bi.qty,soort:'thema'}));
+        const thMat=[
+          ...themaBakken.filter(b=>b.thema_id===thId).map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'thema',bak_id:b.bak_id})),
+          ...themaAttrRegels.filter(a=>a.thema_id===thId).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',attribuut_id:a.attr_id}))
+        ];
         if(!thMat.length)continue;
         voorstellen.push({type:'levering',kampmoment_id:kmB.id,week:kmB.week,locatie:locB.name,locatie_id:locB.id,van_locatie_id:locA.id,datum:nextWorkday(openA[openA.length-1]),tijd:'10:00',materiaal:thMat,opmerking:'Thema-transfer: '+(th?.name||'?')+' van '+locA.name+' → '+locB.name});
       }
@@ -2240,7 +2241,7 @@ async function startServer() {
     ids.forEach(id=>{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);run('DELETE FROM transport_taken WHERE id=?',[id]);});
     saveDb();res.json({ok:true});
   });
-  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam)]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
+  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)run('DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
   app.put('/api/transport-taken/:id/status',(req,res)=>{
@@ -2520,8 +2521,8 @@ async function startServer() {
     if(!alle_regels.length)return res.status(400).json({error:'Geen materiaalregels gevonden in deze rit'});
     run('DELETE FROM verhuis_checks WHERE rit_id=?',[rit_id]);
     alle_regels.forEach((r,i)=>{
-      ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id) VALUES (?,?,?,?,?,?,?)',
-        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i,r.item_type_id||resolveItemTypeId(r.naam)]);
+      ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?,?,?)',
+        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i,r.item_type_id||resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]);
     });
     const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY item_soort,sort_order',[rit_id]);
     res.json({ok:true,aangemaakt:checks.length,checks});
@@ -3439,11 +3440,20 @@ self.addEventListener('fetch',e=>{
       <div class="nm">${t.opmerking||'(zonder naam)'}</div>
       <div class="rt">${t.van_naam||'Stockage'} → ${t.naar_naam||'Stockage'}</div>
       ${t.tijd?'<div class="ti">⏰ '+t.tijd+'</div>':''}</div>`).join('');
-    const chkRows=checks.map(c=>`<div class="chk ${c.status}">
-      <span class="ico">${c.status==='ok'?'✅':c.status==='ontbreekt'?'❌':c.status==='deels'?'⚠️':'⬜'}</span>
-      <span class="nm">${c.item_naam||''}</span>
-      <span class="qty">×${c.qty}</span>
-      ${c.notitie?'<div class="nt">'+c.notitie+'</div>':''}</div>`).join('');
+    // Chauffeur ziet bakken, geen inhoud: groepeer per rek (eerste letter van de code in de naam)
+    // zodat rek per rek gelopen kan worden.
+    function _rekVan(c){const m=(c.item_naam||'').match(/\(([A-Za-z])[0-9]*\)/);return m?m[1].toUpperCase():null;}
+    const chkByRek={};
+    checks.forEach(c=>{const r=(c.item_soort==='thema'||c.item_soort==='attribuut'||c.item_soort==='vast')?(_rekVan(c)||'Overig'):'Overig';(chkByRek[r]=chkByRek[r]||[]).push(c);});
+    const rekKeys=Object.keys(chkByRek).sort((a,b)=>a==='Overig'?1:b==='Overig'?-1:a.localeCompare(b));
+    const chkRows=rekKeys.map(rek=>{
+      const rows=chkByRek[rek].map(c=>`<div class="chk ${c.status}">
+        <span class="ico">${c.status==='ok'?'✅':c.status==='ontbreekt'?'❌':c.status==='deels'?'⚠️':'⬜'}</span>
+        <span class="nm">${c.item_naam||''}</span>
+        <span class="qty">×${c.qty}</span>
+        ${c.notitie?'<div class="nt">'+c.notitie+'</div>':''}</div>`).join('');
+      return (rek!=='Overig'?`<div class="rek">📍 Rek ${rek}</div>`:'')+rows;
+    }).join('');
     res.send(`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rit ${rit.datum}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#1a1a1a}
@@ -3455,6 +3465,7 @@ self.addEventListener('fetch',e=>{
 .chk{background:#fff;margin:6px 10px;border-radius:6px;padding:10px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .chk.ok{background:#f0fff4;border-left:3px solid #22c55e}.chk.ontbreekt{background:#fff1f1;border-left:3px solid #ef4444}.chk.deels{background:#fffbeb;border-left:3px solid #f59e0b}
 .chk .ico{font-size:18px;flex-shrink:0}.chk .nm{flex:1;font-size:14px}.chk .qty{font-size:12px;color:#888}.chk .nt{width:100%;font-size:11px;color:#888;font-style:italic}
+.rek{margin:10px 10px 2px;font-size:12px;font-weight:700;color:#2563eb}
 .footer{padding:20px 16px;text-align:center;font-size:12px;color:#aaa}</style></head><body>
 <div class="hdr"><h1>🚚 Rit ${rit.datum}</h1>
 <div class="sub">${rit.chauffeur?'👤 '+rit.chauffeur:''}${rit.voertuig?' · 🚐 '+rit.voertuig:''} · ${taken.length} stop${taken.length!==1?'s':''}</div></div>
