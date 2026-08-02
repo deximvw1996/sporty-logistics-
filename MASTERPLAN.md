@@ -142,12 +142,21 @@ De werkstroom waarmee Maxim en Claude alle thema's stuk per stuk terugzetten.
 - [ ] Doorlopend: thema's invoeren (kleuterkampen eerst, dan lagere school, themadagen laatst)
 - **Bewijs per thema:** Maxim keurt de lijst in de app goed (zoals bij het atletiek-thema).
 
-### FASE S5 — Transport 2.0 🚚
-- [ ] S5.1 Laad/los-checklist: twee aparte fases per bak/attribuut in verhuis_checks (geladen_door/op, gelost_door/op); chauffeurspagina toont de juiste fase
-- [ ] S5.2 Transporthistoriek: per bak/attribuut een tijdlijn (welke rit, wanneer, waarheen) uit transport-data; zoekveld "waar is X?"
-- [ ] S5.3 Spoedflow eind-tot-eind: KV-aanvraag → kantoor keurt → spoedtransport met eigen checklist → voorraad-effect bij "gedaan" op `item_type_stock`
-- [ ] S5.4 Transport-tab consolideren: één duidelijke flow (genereer → plan → volg), dubbele backlogs samenvoegen
-- **Bewijs:** volledige rit gesimuleerd: genereer, plan, chauffeur vinkt laden af, vinkt lossen af, historiek toont de verplaatsing, bak-status is "op locatie".
+### FASE S5 — Transport-verfijning 🚚
+(S5.1-laad/los en S5.3-spoedflow zijn al gebouwd in S3.6/S3.3 — deze fase is de fixronde uit de simulatie + Maxims testronde.)
+
+**Ontwerpregels sluiting van een locatie (Maxim, 2026-08-02 — bindend):**
+- **Definitief dicht** (geen kampmoment meer later in de vakantieperiode): ALLES wordt opgehaald — themabakken, attributen, sportsets, kleurenborden én de vaste locatieconfig-uitrusting.
+- **Tijdelijk dicht** (locatie gaat in een latere week weer open): kleurenborden en standaard-/locatieconfig-materiaal blijven gewoon staan tijdens de rustweek — géén ophaal- en herlever-voorstellen. Themamateriaal volgt zijn eigen planning (dat rouleert wél).
+- **Uitzondering "elders nodig":** blijft-staan is de default; heeft een andere locatie in de tussenweek diezelfde vaste exemplaren of kleurenborden nodig en is er onvoldoende vrije voorraad, dan toont de app dat als conflict/waarschuwing zodat kantoor bewust een tussentransport kan plannen. Nooit stilzwijgend weghalen.
+
+**Taken:**
+- [ ] S5.1 Generator: dubbele voorstellen bij aansluitende weken fixen (directe transfer ÉN wissel-ophaling voor dezelfde bakken — simulatie-bevinding 1)
+- [ ] S5.2 Generator: sluitingsregels hierboven implementeren (basis/kleurenborden enkel ophalen na de láátste open week van de periode; gaps overslaan; elders-nodig-conflict)
+- [ ] S5.3 Waar-is-historiek: transportbewegingen (laden/lossen) zichtbaar in de tijdlijn, niet enkel handmatige verplaatsingen (bevinding 2)
+- [ ] S5.4 API-consistentie thema-bakkenlijst id-veld vs items-route (bevinding 3) + kv-tellen weigert misvormde payload met 400 (bevinding 4)
+- [ ] S5.5 Transport-tab consolideren: één duidelijke flow (genereer → plan → volg), dubbele backlogs samenvoegen
+- **Bewijs:** simulatie-scenario's herdraaid: (a) kruiswissel zonder dubbele voorstellen, (b) locatie open w1+w3: geen basis-ophaal/herlever in de gap, (c) locatie definitief dicht: alles opgehaald incl. kleurenborden/config, (d) elders-nodig geeft conflict, (e) waar-is toont de volledige reis van bak N08.
 
 ### FASE S6 — KV-cyclus & kantoor-dashboard ✅
 - [ ] S6.1 Vrijdagcontrole eind-tot-end op echte data: KV telt per bak → tekorten berekend → kantoor-verwerkstap (besteld/aangevuld) → `item_type_stock` bijgewerkt
