@@ -1975,11 +1975,11 @@ async function startServer() {
   });
 
   app.post('/api/kampmomenten',(req,res)=>{
-    const{locatie_id,week,periode_id,type}=req.body;
+    const{locatie_id,week,periode_id,type,kv_persoon_id}=req.body;
     const periodeIdToUse=periode_id||1;
     const typeVal=(type==='themadag'?'themadag':'kamp');
     try {
-      const id=ins('INSERT INTO kampmomenten (locatie_id,week,periode_id,type) VALUES (?,?,?,?)',[locatie_id,week,periodeIdToUse,typeVal]);
+      const id=ins('INSERT INTO kampmomenten (locatie_id,week,periode_id,type,kv_persoon_id) VALUES (?,?,?,?,?)',[locatie_id,week,periodeIdToUse,typeVal,kv_persoon_id||null]);
       const loc=get('SELECT * FROM locaties WHERE id=?',[locatie_id]);
       logAct('kampmoment','aangemaakt',`Week ${week} — ${loc?.name||'?'} (nieuw kampmoment)`,locatie_id,loc?.name);
       // Auto-open alle weekdagen voor deze locatie

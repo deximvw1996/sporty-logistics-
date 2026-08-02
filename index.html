@@ -439,7 +439,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <button class="nb active" onclick="goTo('overzicht')">&#128202; Overzicht</button>
     <button class="nb" onclick="goTo('kampplanner')">&#127956; Kampplanner</button>
     <button class="nb" onclick="goTo('transport-plan')">&#128666; Transport</button>
-    <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal</button>
+    <button class="nb" onclick="goTo('materiaal')">&#128230; Materiaal<span id="materiaal-badge" style="display:none;margin-left:4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:999px;padding:1px 6px"></span></button>
     <button class="nb" onclick="goTo('planning')">&#128205; Locaties</button>
     <button class="nb" onclick="goTo('kaart')">&#128506;&#65039; Kaart</button>
     <button class="nb" onclick="goTo('personeel')">&#128101; Personeel</button>
@@ -709,7 +709,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" style="display:none" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
       <button class="kal-subtab" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('sport',this)">&#9917; Sport</button>
-      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken</button>
+      <button class="kal-subtab" onclick="setMatSubtab('nakijken',this)">&#128994; Nakijken<span id="nakijken-subtab-badge" style="display:none;margin-left:4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:999px;padding:1px 5px"></span></button>
       <div style="flex:1"></div>
       <button class="btn-o" style="font-size:11px;height:28px" onclick="setMatSubtab('themas',this)">&#9881;&#65039; Thema&apos;s beheer</button>
     </div>
@@ -887,6 +887,10 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
 
     <div id="mat-sub-nakijken" style="display:none">
+      <!-- S3.7: tekorten per bak uit ingediende KV-vrijdagcontroles -->
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">📋 Ingediende vrijdagcontroles — tekorten per bak</div>
+      <div id="nk-tekorten-lijst" style="margin-bottom:1.5rem"></div>
+      <div style="border-top:.5px solid var(--border);padding-top:12px;margin-bottom:.75rem;font-size:13px;font-weight:700">🔍 Nakijken starten (kantoor-initiatief)</div>
       <div style="display:flex;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;align-items:center">
         <div style="display:flex;gap:0;border:.5px solid var(--border2);border-radius:var(--r);overflow:hidden">
           <button class="ov-view-btn active" id="nk2-f-alle" onclick="setNk2Filter('alle',this)">Alle bakken</button>
@@ -1309,6 +1313,14 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <select class="sel" id="km-sport-add-sel" style="height:28px;font-size:12px;flex:1;min-width:160px"><option value="">+ Sportpakket toevoegen…</option></select>
         <button class="btn-xs" onclick="kmModalAddSport()">Toevoegen</button>
       </div>
+    </div>
+    <div id="km-kv-sectie" style="border-top:.5px solid var(--border);padding-top:12px;margin-top:4px;margin-bottom:12px">
+      <div class="sl">&#127966; Kampverantwoordelijke</div>
+      <select class="sel" id="km-kv-sel" style="width:100%;margin-bottom:6px" onchange="_kmKvChanged()">
+        <option value="">&mdash; Geen &mdash;</option>
+      </select>
+      <button type="button" class="btn-o" id="km-kv-link-btn" style="display:none;font-size:12px" onclick="kopieerKvLink()">&#128279; KV-link kopiëren</button>
+      <div id="km-kv-link-status" style="font-size:11px;color:var(--text2);margin-top:4px;word-break:break-all"></div>
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn-g" style="flex:1" onclick="saveKampmoment()">&#128190; Opslaan</button>
@@ -2032,7 +2044,7 @@ function setMatSubtab(tab,btn){
   else if(tab==='catalogus'){renderCatalogus();}
   else if(tab==='standaard'){renderStandaard();}
   else if(tab==='voertuigen'){renderVoertuigen();}
-  else if(tab==='nakijken'){laadNakijken();}
+  else if(tab==='nakijken'){laadNakijken();renderNakijkTekorten();}
 }
 async function renderVoertuigen(){
   const el=document.getElementById('voertuigen-lijst');
@@ -3010,6 +3022,76 @@ function isoLocal(d){
 
 // ── CENTRAL DATA SYNC ──
 // Call after any mutation to keep all views consistent
+// S3.7: badge op de Materiaal-navknop met het aantal open (ingediende, nog niet
+// verwerkte) vrijdagcontroles — kantoor ziet meteen dat er tekorten wachten.
+async function updateMateriaalBadge(){
+  const n=await _nakijkOpenAantal();
+  const el=document.getElementById('materiaal-badge');
+  if(el){el.textContent=n;el.style.display=n>0?'inline-block':'none';}
+  const sub=document.getElementById('nakijken-subtab-badge');
+  if(sub){sub.textContent=n;sub.style.display=n>0?'inline-block':'none';}
+}
+async function _nakijkOpenAantal(){
+  try{const r=await api('GET','/nakijk-tekorten/aantal-open');return r?.aantal||0;}
+  catch(e){return 0;}
+}
+// S3.7: kantoor-werkscherm — tekorten per bak uit ingediende KV-vrijdagcontroles
+async function renderNakijkTekorten(){
+  const el=document.getElementById('nk-tekorten-lijst');
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--text3);font-size:12px">Laden…</div>';
+  let sessies=[];
+  try{sessies=await api('GET','/nakijk-tekorten');}catch(e){sessies=[];}
+  if(!Array.isArray(sessies)||!sessies.length){
+    el.innerHTML='<div class="empty">Geen ingediende vrijdagcontroles.</div>';
+    updateMateriaalBadge();
+    return;
+  }
+  el.innerHTML=sessies.map(s=>{
+    const open=s.kantoor_status!=='verwerkt';
+    const tekortRows=(s.tekorten||[]).map(t=>`
+      <div class="row" style="align-items:center;gap:8px;background:${t.besteld?'var(--bg2)':'#FFF7ED'};border-left:3px solid ${t.besteld?'var(--border)':'#F59E0B'}">
+        <div class="ri">
+          <div class="rm">${_escH(t.item_naam)}</div>
+          <div class="rs">${t.aangetroffen} geteld &middot; ${t.verwacht} gewenst &middot; tekort ${t.verwacht-t.aangetroffen}${t.opmerking?' &mdash; '+_escH(t.opmerking):''}</div>
+        </div>
+        ${t.besteld
+          ? '<span class="pill p-green" style="font-size:10px">&#10003; Aangevuld</span>'
+          : `<div style="display:flex;gap:4px;align-items:center">
+              <input class="inp" type="number" min="0" step="1" value="${t.verwacht-t.aangetroffen}" id="nk-aanv-${t.id}" style="width:64px;height:28px;font-size:12px">
+              <button class="btn-g" style="height:28px;font-size:11px" onclick="nakijkRegelAanvullen(${t.id},${s.id})">&#10003; Aangevuld</button>
+            </div>`}
+      </div>`).join('');
+    const kapotRows=(s.kapot_meldingen||[]).map(k=>`
+      <div class="row" style="align-items:center;gap:8px;background:#FEF2F2;border-left:3px solid var(--red)">
+        <div class="ri"><div class="rm">💔 ${_escH(k.item_naam)}</div><div class="rs">${k.opmerking?_escH(k.opmerking):'Kapot gemeld'}</div></div>
+      </div>`).join('');
+    return `<div class="card" style="border-color:${open?'#F59E0B':'var(--border)'};margin-bottom:10px">
+      <div class="card-hd" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <span>${_escH(s.bak_naam||'Bak')}${s.bak_code?' ('+_escH(s.bak_code)+')':''} — ${_escH(s.locatie_naam||'?')}${s.kampmoment_week?' · week '+s.kampmoment_week:''}</span>
+        <span style="font-size:11px;color:var(--text2)">KV: ${_escH(s.kv_wie||'?')} · ${open?'⏳ Te verwerken':'✅ Verwerkt door '+_escH(s.kantoor_wie||'')}</span>
+      </div>
+      ${tekortRows||'<div style="font-size:12px;color:var(--text3);padding:4px 0">Geen tekorten.</div>'}
+      ${kapotRows}
+      ${open?`<button class="btn-o" style="margin-top:8px;font-size:11px" onclick="nakijkSessieVerwerkt(${s.id})">Markeer volledig verwerkt</button>`:''}
+    </div>`;
+  }).join('');
+  updateMateriaalBadge();
+}
+async function nakijkRegelAanvullen(regelId,sessieId){
+  const inp=document.getElementById('nk-aanv-'+regelId);
+  const aangevuld=parseFloat(inp?.value)||0;
+  const r=await api('POST','/nakijk-regels/'+regelId+'/aanvullen',{aangevuld});
+  if(r.error){showToast(r.error,'error');return;}
+  showToast('Voorraad bijgewerkt: '+r.voorraad_voor+' → '+r.voorraad_na,'success');
+  renderNakijkTekorten();
+}
+async function nakijkSessieVerwerkt(sessieId){
+  const r=await api('PUT','/nakijk-sessies/'+sessieId+'/verwerkt',{});
+  if(r.error){showToast(r.error,'error');return;}
+  showToast('Controle gemarkeerd als verwerkt','success');
+  renderNakijkTekorten();
+}
 async function syncAll(){
   const [locs, kms, kal] = await Promise.all([
     api('GET','/locaties'),
@@ -3023,7 +3105,7 @@ async function syncAll(){
   await Promise.all(locs.filter(l=>l.type==='kamp').map(async l=>{
     S.locMat[l.id] = await api('GET','/locaties/'+l.id+'/materiaal');
   }));
-  updateSpoedBadge();
+  updateMateriaalBadge();
   // Re-render active tab
   const activeTab = ['overzicht','planning','materiaal','transport-plan','transporten']
     .find(t => document.getElementById('sec-'+t)?.classList.contains('active'));
@@ -4029,6 +4111,8 @@ function openNieuwKampmoment(preLocId, preWeek){
   _renderKmDagUI();
   updateKmPreview();
   _fillKmSportSectie(preLocId,preWeek);
+  _fillKmKvSelect(null);
+  document.getElementById('km-kv-link-status').textContent='';
   const delBtn=document.getElementById('km-delete-btn');if(delBtn)delBtn.style.display='none';
   openModal('modal-km');
 }
@@ -4067,8 +4151,42 @@ function openBewerkKampmoment(kmId){
     _renderKmDagUI();
   }
   _fillKmSportSectie(km.locatie_id,km.week);
+  _fillKmKvSelect(km.kv_persoon?km.kv_persoon.id:null);
+  document.getElementById('km-kv-link-status').textContent=km.kv_token?(window.location.origin+'/kv/'+km.kv_token):'';
   const delBtn=document.getElementById('km-delete-btn');if(delBtn)delBtn.style.display='block';
   openModal('modal-km');
+}
+// S3.4: KV-koppeling per kampmoment (persoonlijke link — vereist een gekoppelde KV)
+async function _fillKmKvSelect(selectedId){
+  const sel=document.getElementById('km-kv-sel');
+  if(!sel)return;
+  let personen=[];
+  try{personen=await api('GET','/personeel');}catch(e){personen=[];}
+  const rolLabel={kantoor:'Kantoor',chauffeur:'Chauffeur',kv:'KV'};
+  sel.innerHTML='<option value="">&mdash; Geen &mdash;</option>'
+    +personen.map(p=>`<option value="${p.id}">${_escH(p.naam)} (${rolLabel[p.rol]||p.rol})</option>`).join('');
+  sel.value=selectedId||'';
+  _kmKvChanged();
+}
+function _kmKvChanged(){
+  const heeftKeuze=!!document.getElementById('km-kv-sel')?.value;
+  const btn=document.getElementById('km-kv-link-btn');
+  if(btn)btn.style.display=(_kmEditId&&heeftKeuze)?'inline-block':'none';
+}
+async function kopieerKvLink(){
+  if(!_kmEditId){showToast('Sla eerst het kampmoment op.','warn');return;}
+  const kvId=parseInt(document.getElementById('km-kv-sel').value)||null;
+  if(!kvId){showToast('Koppel eerst een kampverantwoordelijke.','warn');return;}
+  const km=await api('PUT','/kampmomenten/'+_kmEditId,{kv_persoon_id:kvId});
+  if(km.error){showToast(km.error,'error');return;}
+  const r=await api('POST','/kampmomenten/'+_kmEditId+'/kv-token');
+  if(r.error){showToast(r.error,'error');return;}
+  const url=window.location.origin+r.url;
+  document.getElementById('km-kv-link-status').textContent=url;
+  try{await navigator.clipboard.writeText(url);showToast('KV-link gekopieerd!','success');}
+  catch(e){showToast('Kopiëren gelukt niet automatisch — link staat hieronder.','warn');}
+  const idx=(S.kampmomenten||[]).findIndex(k=>k.id===_kmEditId);
+  if(idx>=0){S.kampmomenten[idx].kv_token=r.token;S.kampmomenten[idx].kv_persoon_id=kvId;}
 }
 // Sportpakketten zijn gekoppeld aan locatie+week (los van het kampmoment zelf), dus deze
 // sectie werkt identiek bij aanmaken (nog geen kampmoment-id) en bij bewerken.
@@ -4150,11 +4268,12 @@ async function saveKampmoment(){
   const periode_id=parseInt(document.getElementById('km-periode')?.value)||S.activePeriode?.id||1;
   const type=_kmType;
   if(!week||!locatie_id){showToast('Vul week en locatie in.','warn');return;}
+  const kv_persoon_id=parseInt(document.getElementById('km-kv-sel')?.value)||null;
   let km;
   if(_kmEditId){
-    km=await api('PUT','/kampmomenten/'+_kmEditId,{week,type});
+    km=await api('PUT','/kampmomenten/'+_kmEditId,{week,type,kv_persoon_id});
   } else {
-    km=await api('POST','/kampmomenten',{week,locatie_id,periode_id,type});
+    km=await api('POST','/kampmomenten',{week,locatie_id,periode_id,type,kv_persoon_id});
   }
   if(km.error){showToast(km.error,'error');return;}
   // Resync kampmoment_themas: delete-all-then-add (max 5-7 items, goedkoop)
@@ -8112,6 +8231,7 @@ function bootApp(){
   loadAll()
     .then(()=>{
       handleQrScan();
+      updateMateriaalBadge();
       // Re-render whatever tab is currently visible (incl. if user clicked a tab during loading)
       const _initRenderMap={
         overzicht:renderOverzicht,
