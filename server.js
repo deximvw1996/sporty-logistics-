@@ -4377,6 +4377,7 @@ init();
   // ── CONFLICTENDETECTOR ──
   app.get('/api/conflicten',(req,res)=>{
     const conflicten=[];
+    const locs=all('SELECT * FROM locaties');
     // 1. Zelfde thema op overlappende weken (op 2 locaties tegelijk)
     const kts=all(`SELECT kt.thema_id,kt.id AS kt_id,km.week,l.name AS loc_nm
       FROM kampmoment_themas kt JOIN kampmomenten km ON kt.kampmoment_id=km.id JOIN locaties l ON km.locatie_id=l.id`);
@@ -4457,6 +4458,54 @@ init();
           conflicten.push({type:'dubbelboeking_attribuut',ernst:'hoog',
             bericht:`Attribuut "${v.item.naam}" (${v.item.code||'-'}) is in dezelfde week nodig op meerdere plekken: ${[...v.weeks].join(', ')}`});
         }
+      });
+    }
+    // 5. S5.2b "elders nodig": per week heeft een locatie volgens haar locatie_config N
+    // exemplaren van vast_type T nodig, maar er zijn onvoldoende VRIJE exemplaren (status=thuis,
+    // dus niet geparkeerd op een andere — al dan niet tijdelijk gesloten — locatie). Enkel
+    // waarschuwen, nooit automatisch weghalen (bindende regel S5).
+    {
+      const weken=[...new Set(kampen.map(k=>k.week).filter(w=>w!=null))].sort((a,b)=>a-b);
+      const alleVastTypes=[...new Set(all("SELECT DISTINCT vast_type FROM bakken WHERE soort='vast' AND vast_type!=''").map(r=>r.vast_type))];
+      weken.forEach(week=>{
+        const kmsWeek=kampen.filter(k=>k.week===week);
+        alleVastTypes.forEach(vt=>{
+          let nodig=0;
+          kmsWeek.forEach(km=>{ nodig+=_actieveLocatieConfig(km).filter(c=>c.vast_type===vt).reduce((s,c)=>s+(c.aantal||1),0); });
+          if(!nodig)return;
+          const alleExemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=?",[vt]);
+          const vrij=alleExemplaren.filter(b=>b.status==='thuis').length;
+          if(nodig>vrij){
+            const bezet=alleExemplaren.filter(b=>b.status!=='thuis');
+            const waar=bezet.map(b=>{const l=locs.find(l2=>l2.id===b.huidige_locatie_id);return `${b.naam} @ ${l?.name||'onbekende locatie'}`;}).join(', ')||'-';
+            conflicten.push({type:'elders_nodig_vast',ernst:'hoog',
+              bericht:`Week ${week}: ${nodig}× "${vt}" nodig, maar ${vrij} vrij (van ${alleExemplaren.length} totaal) — bezet: ${waar}`});
+          }
+        });
+      });
+    }
+    // 6. S5.2b "elders nodig" voor kleurenborden: totale kleurbehoefte van alle open locaties
+    // die week > voorraad (kleurenborden_stock) — enkel waarschuwen.
+    {
+      const weken=[...new Set(kampen.map(k=>k.week).filter(w=>w!=null))].sort((a,b)=>a-b);
+      const kbStockTotaal={};
+      all('SELECT kleur,SUM(aantal) AS totaal FROM kleurenborden_stock GROUP BY kleur').forEach(r=>{kbStockTotaal[r.kleur]=r.totaal||0;});
+      const allKleurenConflict=all('SELECT * FROM locatie_kleuren');
+      weken.forEach(week=>{
+        const kmsWeek=kampen.filter(k=>k.week===week);
+        const behoefte={};
+        kmsWeek.forEach(km=>{
+          allKleurenConflict.filter(k=>k.locatie_id===km.locatie_id&&k.week===week).forEach(k=>{
+            behoefte[k.kleur]=(behoefte[k.kleur]||0)+(k.aantal||0);
+          });
+        });
+        Object.entries(behoefte).forEach(([kleur,nodig])=>{
+          const voorraad=kbStockTotaal[kleur]||0;
+          if(nodig>voorraad){
+            conflicten.push({type:'elders_nodig_kleur',ernst:'midden',
+              bericht:`Week ${week}: kleurenbord ${kleur} — ${nodig} nodig over alle open locaties samen, maar ${voorraad} op voorraad`});
+          }
+        });
       });
     }
     res.json(conflicten);
