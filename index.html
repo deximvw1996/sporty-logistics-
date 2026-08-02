@@ -889,9 +889,20 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     </div>
 
     <div id="mat-sub-nakijken" style="display:none">
+      <!-- S6.2: sub-subtabs — per-controle-werkscherm (S3.7/S6.1) vs. kantoor-tekortendashboard (S6.2) -->
+      <div style="display:flex;gap:4px;margin-bottom:.75rem">
+        <button class="kal-subtab active" id="nk-inner-per-controle" onclick="setNkInnerTab('per-controle',this)">📋 Per controle</button>
+        <button class="kal-subtab" id="nk-inner-dashboard" onclick="setNkInnerTab('dashboard',this)">📊 Tekortendashboard</button>
+      </div>
+      <div id="nk-inner-per-controle-pane">
       <!-- S3.7: tekorten per bak uit ingediende KV-vrijdagcontroles -->
       <div style="font-size:13px;font-weight:700;margin-bottom:8px">📋 Ingediende vrijdagcontroles — tekorten per bak</div>
       <div id="nk-tekorten-lijst" style="margin-bottom:1.5rem"></div>
+      </div>
+      <div id="nk-inner-dashboard-pane" style="display:none">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px">📊 Alle open tekorten — geaggregeerd per artikel</div>
+        <div id="nk-dashboard-lijst" style="margin-bottom:1.5rem"></div>
+      </div>
       <div style="border-top:.5px solid var(--border);padding-top:12px;margin-bottom:.75rem;font-size:13px;font-weight:700">🔍 Nakijken starten (kantoor-initiatief)</div>
       <div style="display:flex;gap:8px;margin-bottom:.75rem;flex-wrap:wrap;align-items:center">
         <div style="display:flex;gap:0;border:.5px solid var(--border2);border-radius:var(--r);overflow:hidden">
@@ -3074,19 +3085,32 @@ async function renderNakijkTekorten(){
   }
   el.innerHTML=sessies.map(s=>{
     const open=s.kantoor_status!=='verwerkt';
-    const tekortRows=(s.tekorten||[]).map(t=>`
-      <div class="row" style="align-items:center;gap:8px;background:${t.besteld?'var(--bg2)':'#FFF7ED'};border-left:3px solid ${t.besteld?'var(--border)':'#F59E0B'}">
+    // S6.1: tekort_status open|besteld|aangevuld|genegeerd i.p.v. de oude 0/1 besteld-vlag.
+    const tekortRows=(s.tekorten||[]).map(t=>{
+      const status=t.tekort_status||'open';
+      const klaar=status==='aangevuld'||status==='genegeerd';
+      const bg=klaar?'var(--bg2)':(status==='besteld'?'#EFF6FF':'#FFF7ED');
+      const border=klaar?'var(--border)':(status==='besteld'?'#3B82F6':'#F59E0B');
+      let rechts;
+      if(status==='aangevuld')rechts='<span class="pill p-green" style="font-size:10px">&#10003; Aangevuld</span>';
+      else if(status==='genegeerd')rechts='<span class="pill" style="font-size:10px;background:var(--bg2);color:var(--text3)">Genegeerd</span>';
+      else rechts=`<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+              ${status==='besteld'?'<span class="pill" style="font-size:10px;background:#DBEAFE;color:#1D4ED8">&#128230; Besteld</span>':''}
+              <input class="inp" type="number" min="0" step="1" value="${t.verwacht-t.aangetroffen}" id="nk-aanv-${t.id}" style="width:64px;height:28px;font-size:12px">
+              <button class="btn-g" style="height:28px;font-size:11px" onclick="nakijkRegelAanvullen(${t.id},${s.id})">&#10003; Aangevuld</button>
+              ${status!=='besteld'?`<button class="btn-o" style="height:28px;font-size:11px" onclick="nakijkRegelBesteld(${t.id},${s.id})">&#128230; Besteld</button>`:''}
+              <button class="btn-o" style="height:28px;font-size:11px" onclick="nakijkRegelGenegeerd(${t.id},${s.id})">Negeren</button>
+            </div>`;
+      return `
+      <div class="row" style="align-items:center;gap:8px;background:${bg};border-left:3px solid ${border}">
         <div class="ri">
           <div class="rm">${_escH(t.item_naam)}</div>
           <div class="rs">${t.aangetroffen} geteld &middot; ${t.verwacht} gewenst &middot; tekort ${t.verwacht-t.aangetroffen}${t.opmerking?' &mdash; '+_escH(t.opmerking):''}</div>
+          <div id="nk-fout-${t.id}" style="display:none;font-size:11px;color:var(--red);margin-top:4px"></div>
         </div>
-        ${t.besteld
-          ? '<span class="pill p-green" style="font-size:10px">&#10003; Aangevuld</span>'
-          : `<div style="display:flex;gap:4px;align-items:center">
-              <input class="inp" type="number" min="0" step="1" value="${t.verwacht-t.aangetroffen}" id="nk-aanv-${t.id}" style="width:64px;height:28px;font-size:12px">
-              <button class="btn-g" style="height:28px;font-size:11px" onclick="nakijkRegelAanvullen(${t.id},${s.id})">&#10003; Aangevuld</button>
-            </div>`}
-      </div>`).join('');
+        ${rechts}
+      </div>`;
+    }).join('');
     const kapotRows=(s.kapot_meldingen||[]).map(k=>`
       <div class="row" style="align-items:center;gap:8px;background:#FEF2F2;border-left:3px solid var(--red)">
         <div class="ri"><div class="rm">💔 ${_escH(k.item_naam)}</div><div class="rs">${k.opmerking?_escH(k.opmerking):'Kapot gemeld'}</div></div>
@@ -3107,8 +3131,35 @@ async function nakijkRegelAanvullen(regelId,sessieId){
   const inp=document.getElementById('nk-aanv-'+regelId);
   const aangevuld=parseFloat(inp?.value)||0;
   const r=await api('POST','/nakijk-regels/'+regelId+'/aanvullen',{aangevuld});
-  if(r.error){showToast(r.error,'error');return;}
+  const foutEl=document.getElementById('nk-fout-'+regelId);
+  if(r.error){
+    // S6.1(b): geen voorraadrij op deze locatie — bied meteen een knop om ze aan te maken.
+    if(foutEl){
+      foutEl.style.display='block';
+      foutEl.innerHTML=_escH(r.error)+(r.kan_aanmaken?` <button class="btn-o" style="height:22px;font-size:10px;margin-left:4px" onclick="nakijkVoorraadrijAanmaken(${regelId},${sessieId})">+ Voorraadrij aanmaken</button>`:'');
+    } else showToast(r.error,'error');
+    return;
+  }
+  if(foutEl)foutEl.style.display='none';
   showToast('Voorraad bijgewerkt: '+r.voorraad_voor+' → '+r.voorraad_na,'success');
+  renderNakijkTekorten();
+}
+async function nakijkVoorraadrijAanmaken(regelId,sessieId){
+  const r=await api('POST','/nakijk-regels/'+regelId+'/voorraadrij-aanmaken',{});
+  if(r.error){showToast(r.error,'error');return;}
+  showToast('Voorraadrij aangemaakt (0 stuks) — vul aan om te bevestigen','success');
+  nakijkRegelAanvullen(regelId,sessieId);
+}
+async function nakijkRegelBesteld(regelId,sessieId){
+  const r=await api('POST','/nakijk-regels/'+regelId+'/besteld',{});
+  if(r.error){showToast(r.error,'error');return;}
+  showToast('Gemarkeerd als besteld — wacht op levering','success');
+  renderNakijkTekorten();
+}
+async function nakijkRegelGenegeerd(regelId,sessieId){
+  const r=await api('POST','/nakijk-regels/'+regelId+'/genegeerd',{});
+  if(r.error){showToast(r.error,'error');return;}
+  showToast('Tekort genegeerd','success');
   renderNakijkTekorten();
 }
 async function nakijkSessieVerwerkt(sessieId){
@@ -3116,6 +3167,43 @@ async function nakijkSessieVerwerkt(sessieId){
   if(r.error){showToast(r.error,'error');return;}
   showToast('Controle gemarkeerd als verwerkt','success');
   renderNakijkTekorten();
+}
+// S6.2: kantoor-tekortendashboard — sub-subtab-wissel binnen Nakijken
+function setNkInnerTab(tab,btn){
+  document.getElementById('nk-inner-per-controle').classList.toggle('active',tab==='per-controle');
+  document.getElementById('nk-inner-dashboard').classList.toggle('active',tab==='dashboard');
+  document.getElementById('nk-inner-per-controle-pane').style.display=tab==='per-controle'?'':'none';
+  document.getElementById('nk-inner-dashboard-pane').style.display=tab==='dashboard'?'':'none';
+  if(tab==='dashboard')renderTekortenDashboard();
+}
+async function renderTekortenDashboard(){
+  const el=document.getElementById('nk-dashboard-lijst');
+  if(!el)return;
+  el.innerHTML='<div style="color:var(--text3);font-size:12px">Laden…</div>';
+  let rows=[];
+  try{rows=await api('GET','/tekorten-dashboard');}catch(e){rows=[];}
+  if(!Array.isArray(rows)||!rows.length){el.innerHTML='<div class="empty">Geen open tekorten.</div>';return;}
+  el.innerHTML=rows.map((r,i)=>{
+    const statusPill=r.bestel_status==='besteld'
+      ? '<span class="pill" style="font-size:10px;background:#DBEAFE;color:#1D4ED8">&#128230; besteld</span>'
+      : '<span class="pill" style="font-size:10px;background:#FEF3C7;color:#92400E">open</span>';
+    const themaSignaal=(r.thema_al_gebruikt||[]).length
+      ? `<div style="font-size:11px;color:var(--blue-dk);margin-top:2px">&#8505;&#65039; Thema "${_escH(r.thema_al_gebruikt.join(', '))}" al eerder geteld — KV-telling is het startpunt voor kantoor</div>` : '';
+    const onderMin=r.minimum!=null&&r.voorraadstand!=null&&r.voorraadstand<r.minimum;
+    const herkomstRows=(r.herkomst||[]).map(h=>`
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);padding:3px 0;border-top:.5px solid var(--border)">
+        <span>${_escH(h.bak_naam)}${h.bak_code?' ('+_escH(h.bak_code)+')':''} — ${_escH(h.locatie_naam)}, week ${h.week}</span>
+        <span>tekort ${h.tekort} &middot; ${_escH(h.tekort_status||'open')}</span>
+      </div>`).join('');
+    return `<div class="card" style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;cursor:pointer" onclick="const d=document.getElementById('nk-dash-detail-${i}');d.style.display=d.style.display==='none'?'':'none';">
+        <div><b>${_escH(r.item_naam)}</b> — totaal tekort ${r.totaal_tekort} ${statusPill}</div>
+        <div style="font-size:11px;color:var(--text2)">voorraad ${r.voorraadstand??'—'} / min ${r.minimum??'—'}${onderMin?' &#9888;&#65039; onder minimum':''}</div>
+      </div>
+      ${themaSignaal}
+      <div id="nk-dash-detail-${i}" style="display:none;margin-top:6px">${herkomstRows}</div>
+    </div>`;
+  }).join('');
 }
 async function syncAll(){
   const [locs, kms, kal] = await Promise.all([

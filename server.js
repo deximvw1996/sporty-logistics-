@@ -1558,6 +1558,22 @@ async function startServer() {
   // of 'ophalen' (dit type gaat wél mee terug tijdens een pauze en wordt herleverd bij heropening).
   addColumnIfMissing('locatie_config','pauze_gedrag',"TEXT DEFAULT 'blijven'");
 
+  // ── Migratie 60 — S6.1: kantoor-verwerkstap per tekortregel (open→besteld/aangevuld/genegeerd).
+  // 'besteld' bestond al als 0/1-vlag die "aangevuld" betekende (verwarrend); tekort_status is de
+  // nieuwe, expliciete status. Backfill: regels met besteld=1 (= al aangevuld via de oude route)
+  // krijgen tekort_status='aangevuld' zodat bestaande data niet plots weer als open tekort telt.
+  addColumnIfMissing('nakijk_regels','tekort_status',"TEXT DEFAULT 'open'");
+  {
+    const _vlag60=get("SELECT naam FROM app_vlaggen WHERE naam='migratie60_klaar'");
+    if(!_vlag60){
+      try{
+        run("UPDATE nakijk_regels SET tekort_status='aangevuld' WHERE besteld=1 AND tekort_status='open'");
+        console.log('  Migratie 60: tekort_status gebackfilld vanuit besteld-vlag');
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie60_klaar','1')");
+      }catch(e){ console.error('  Migratie 60 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
   // ── Migratie 57 — S3.5: KV-scherm telt ook attributen aanwezig/beschadigd ──
   // nakijk_sessies kende al bak_type 'thema'/'vast' met thema_bak_id/vaste_bak_id; 'attribuut'
   // is een derde bak_type met een eigen FK-kolom. kv_status krijgt een nieuwe tussenwaarde
@@ -3684,7 +3700,10 @@ async function startServer() {
         const bakItem=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
         return {...r,item_type_id:bakItem?bakItem.item_type_id:null};
       });
-      const tekorten=sRegels.filter(r=>(r.aangetroffen||0)<(r.verwacht||0)&&!r.besteld);
+      // S6.1: een tekortregel telt als "open" zolang hij niet aangevuld of genegeerd is —
+      // 'besteld' (wacht op levering) blijft dus zichtbaar in tekorten, met tekort_status erbij
+      // zodat de UI het onderscheid kan tonen.
+      const tekorten=sRegels.filter(r=>(r.aangetroffen||0)<(r.verwacht||0)&&!['aangevuld','genegeerd'].includes(r.tekort_status));
       const kapotMeldingen=sRegels.filter(r=>r.is_kapot);
       return {
         ...s,
@@ -3708,7 +3727,7 @@ async function startServer() {
   });
   // "✔ Aangevuld": vinkt de regel af EN boekt de aangevulde hoeveelheid af van item_type_stock
   // op de thuislocatie van de bak. Bestaat er geen voorraadrij, dan meldt dit dat expliciet
-  // i.p.v. stil niets te doen (zie MASTERPLAN S3.7).
+  // i.p.v. stil niets te doen (zie MASTERPLAN S3.7) — de UI biedt dan de knop hieronder aan.
   app.post('/api/nakijk-regels/:id/aanvullen',(req,res)=>{
     const aangevuld=Math.max(0,parseFloat(req.body?.aangevuld)||0);
     const regel=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
@@ -3720,22 +3739,117 @@ async function startServer() {
     if(!itemTypeId)return res.status(400).json({error:'Geen catalogus-item gekoppeld aan dit item — kan voorraad niet afboeken.'});
     if(!bak||!bak.thuislocatie_id)return res.status(400).json({error:'Deze bak heeft geen thuislocatie ingesteld — kan voorraad niet afboeken.'});
     const stockRow=get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[itemTypeId,bak.thuislocatie_id]);
-    if(!stockRow)return res.status(400).json({error:`Geen voorraadrij voor "${bakItem.naam}" op de thuislocatie van deze bak — maak eerst een voorraadregel aan in Materiaal › Voorraad.`});
+    if(!stockRow)return res.status(400).json({error:`Geen voorraadrij voor "${bakItem.naam}" op de thuislocatie van deze bak — maak eerst een voorraadregel aan in Materiaal › Voorraad.`,item_type_id:itemTypeId,locatie_id:bak.thuislocatie_id,kan_aanmaken:true});
     const voorraad_voor=stockRow.qty;
     const voorraad_na=Math.max(0,voorraad_voor-aangevuld);
     run('UPDATE item_type_stock SET qty=? WHERE id=?',[voorraad_na,stockRow.id]);
-    run('UPDATE nakijk_regels SET besteld=1 WHERE id=?',[regel.id]);
+    run("UPDATE nakijk_regels SET besteld=1,tekort_status='aangevuld' WHERE id=?",[regel.id]);
     saveDb();
     res.json({ok:true,voorraad_voor,voorraad_na,regel:get('SELECT * FROM nakijk_regels WHERE id=?',[regel.id])});
   });
-  // Markeer een controle als volledig verwerkt (alle tekorten aangevuld / kapot-meldingen bekeken)
+  // S6.1(b): maak de ontbrekende voorraadrij aan (qty 0, minimum 0) zodat de UI meteen daarna
+  // opnieuw "aanvullen" kan proberen — voorkomt de omweg via Materiaal › Voorraad.
+  app.post('/api/nakijk-regels/:id/voorraadrij-aanmaken',(req,res)=>{
+    const regel=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
+    if(!regel)return res.status(404).json({error:'Regel niet gevonden'});
+    const sessie=get('SELECT * FROM nakijk_sessies WHERE id=?',[regel.sessie_id]);
+    const bak=sessie&&sessie.thema_bak_id?get('SELECT * FROM bakken WHERE id=?',[sessie.thema_bak_id]):null;
+    const bakItem=regel.item_id?get('SELECT * FROM bak_items WHERE id=?',[regel.item_id]):null;
+    const itemTypeId=bakItem?bakItem.item_type_id:null;
+    if(!itemTypeId)return res.status(400).json({error:'Geen catalogus-item gekoppeld aan dit item.'});
+    if(!bak||!bak.thuislocatie_id)return res.status(400).json({error:'Deze bak heeft geen thuislocatie ingesteld.'});
+    const bestaand=get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[itemTypeId,bak.thuislocatie_id]);
+    if(bestaand)return res.json(bestaand);
+    const id=ins('INSERT INTO item_type_stock (item_type_id,locatie_id,qty,minimum) VALUES (?,?,0,0)',[itemTypeId,bak.thuislocatie_id]);
+    saveDb();
+    res.json(get('SELECT * FROM item_type_stock WHERE id=?',[id]));
+  });
+  // S6.1(a): kantoor markeert een tekortregel als "besteld, wacht op levering" — nog niet
+  // aangevuld/afgeboekt, maar wel uit de "nog te behandelen"-lijst zodra de sessie afgesloten wordt.
+  app.post('/api/nakijk-regels/:id/besteld',(req,res)=>{
+    const regel=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
+    if(!regel)return res.status(404).json({error:'Regel niet gevonden'});
+    run("UPDATE nakijk_regels SET tekort_status='besteld' WHERE id=?",[regel.id]);
+    saveDb();
+    res.json(get('SELECT * FROM nakijk_regels WHERE id=?',[regel.id]));
+  });
+  // Negeren: kantoor beslist bewust dit tekort niet aan te vullen (bv. item vervalt).
+  app.post('/api/nakijk-regels/:id/genegeerd',(req,res)=>{
+    const regel=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
+    if(!regel)return res.status(404).json({error:'Regel niet gevonden'});
+    run("UPDATE nakijk_regels SET tekort_status='genegeerd' WHERE id=?",[regel.id]);
+    saveDb();
+    res.json(get('SELECT * FROM nakijk_regels WHERE id=?',[regel.id]));
+  });
+  // Markeer een controle als volledig verwerkt (alle tekorten aangevuld / kapot-meldingen bekeken).
+  // S6.1(c): mag pas als élke tekortregel aangevuld OF expliciet besteld/genegeerd is.
   app.put('/api/nakijk-sessies/:id/verwerkt',(req,res)=>{
     const sessie=get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]);
     if(!sessie)return res.status(404).json({error:'Sessie niet gevonden'});
+    const regels=all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[req.params.id]);
+    const openTekorten=regels.filter(r=>(r.aangetroffen||0)<(r.verwacht||0)&&!['aangevuld','genegeerd','besteld'].includes(r.tekort_status));
+    if(openTekorten.length)return res.status(400).json({error:`Nog ${openTekorten.length} tekortregel(s) niet aangevuld, besteld of genegeerd: ${openTekorten.map(r=>r.item_naam).join(', ')}`});
     const behandelaar=(req.persoon&&req.persoon.naam)||'';
     run("UPDATE nakijk_sessies SET kantoor_status='verwerkt',kantoor_wie=?,kantoor_tijdstip=? WHERE id=?",[behandelaar,now(),req.params.id]);
     saveDb();
     res.json(get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]));
+  });
+
+  // ── S6.2: KANTOOR-TEKORTENDASHBOARD — alle open tekorten geaggregeerd per item_type,
+  // over alle ingediende sessies (ongeacht kantoor_status), met voorraadstand/minimum en
+  // per-bak/locatie-herkomst uitklapbaar. "Thema al gebruikt" = er bestaat al een nakijk_sessie
+  // voor een thema_bak van dat thema (los van de huidige sessie) → KV-data is startpunt.
+  app.get('/api/tekorten-dashboard',(req,res)=>{
+    const sessies=all("SELECT * FROM nakijk_sessies WHERE kv_status='ingediend'");
+    const regels=all('SELECT * FROM nakijk_regels');
+    const perType={};
+    sessies.forEach(s=>{
+      const bak=s.thema_bak_id?get('SELECT * FROM bakken WHERE id=?',[s.thema_bak_id]):null;
+      const loc=s.locatie_id?get('SELECT name FROM locaties WHERE id=?',[s.locatie_id]):null;
+      const themaId=bak?(get('SELECT thema_id FROM thema_bak WHERE bak_id=?',[bak.id])||{}).thema_id:null;
+      const thema=themaId?get('SELECT * FROM themas WHERE id=?',[themaId]):null;
+      regels.filter(r=>r.sessie_id===s.id).forEach(r=>{
+        const tekort=(r.verwacht||0)-(r.aangetroffen||0);
+        if(tekort<=0)return;
+        if(['aangevuld','genegeerd'].includes(r.tekort_status))return;
+        const bakItem=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
+        const itemTypeId=bakItem?bakItem.item_type_id:null;
+        const key=itemTypeId||('naam:'+r.item_naam);
+        if(!perType[key]){
+          const it=itemTypeId?get('SELECT * FROM item_types WHERE id=?',[itemTypeId]):null;
+          perType[key]={
+            item_type_id:itemTypeId, item_naam:it?it.naam:r.item_naam,
+            totaal_tekort:0, bestel_status:'open', herkomst:[], thema_signalen:new Set(),
+          };
+        }
+        perType[key].totaal_tekort+=tekort;
+        if(r.tekort_status==='besteld'&&perType[key].bestel_status==='open')perType[key].bestel_status='besteld';
+        perType[key].herkomst.push({
+          sessie_id:s.id, regel_id:r.id, bak_naam:bak?bak.naam:'', bak_code:bak?bak.code:'',
+          locatie_naam:loc?loc.name:'', week:s.week, tekort, tekort_status:r.tekort_status,
+        });
+        if(thema){
+          // "thema al gebruikt": bestaan er nog andere (afgeronde) sessies voor ditzelfde thema?
+          const anderTellingen=(get(`SELECT COUNT(*) as n FROM nakijk_sessies ns2 JOIN thema_bak tb2 ON tb2.bak_id=ns2.thema_bak_id
+            WHERE tb2.thema_id=? AND ns2.id!=?`,[themaId,s.id])||{}).n||0;
+          if(anderTellingen>0)perType[key].thema_signalen.add(thema.name);
+        }
+      });
+    });
+    const stockPerType={};
+    all('SELECT item_type_id,SUM(qty) AS qty,SUM(minimum) AS minimum FROM item_type_stock GROUP BY item_type_id')
+      .forEach(r=>{stockPerType[r.item_type_id]={qty:r.qty||0,minimum:r.minimum||0};});
+    const out=Object.values(perType).map(v=>({
+      item_type_id:v.item_type_id,
+      item_naam:v.item_naam,
+      totaal_tekort:v.totaal_tekort,
+      voorraadstand:v.item_type_id?(stockPerType[v.item_type_id]?.qty||0):null,
+      minimum:v.item_type_id?(stockPerType[v.item_type_id]?.minimum||0):null,
+      bestel_status:v.bestel_status,
+      herkomst:v.herkomst,
+      thema_al_gebruikt:[...v.thema_signalen],
+    })).sort((a,b)=>b.totaal_tekort-a.totaal_tekort);
+    res.json(out);
   });
 
   // ── SPORT MATERIAAL ──
@@ -4613,6 +4727,40 @@ init();
           if(nodig>voorraad){
             conflicten.push({type:'elders_nodig_kleur',ernst:'midden',
               bericht:`Week ${week}: kleurenbord ${kleur} — ${nodig} nodig over alle open locaties samen, maar ${voorraad} op voorraad`});
+          }
+        });
+      });
+    }
+    // 7. S6.3(a) "ontbrekend transport": kampmoment met thema (kampmoment_themas) of sport
+    // (sport_planning op locatie+week) gepland, maar helemaal geen transporttaak (levering NÓCH
+    // ophaling) aangemaakt. Los van de bestaande #2 (die ook op lege kampmomenten vuurt) — dit
+    // signaal geldt enkel als er ook echt iets moet vervoerd worden.
+    {
+      const sportWeken=all('SELECT DISTINCT locatie_id,week FROM sport_planning');
+      const themaKmIds=new Set(all('SELECT DISTINCT kampmoment_id FROM kampmoment_themas').map(r=>r.kampmoment_id));
+      kampen.forEach(km=>{
+        const heeftThema=themaKmIds.has(km.id);
+        const heeftSport=sportWeken.some(sp=>sp.locatie_id===km.locatie_id&&sp.week===km.week);
+        if(!heeftThema&&!heeftSport)return;
+        const heeftLev=get('SELECT id FROM transport_taken WHERE kampmoment_id=? AND type=?',[km.id,'levering']);
+        const heeftOph=get('SELECT id FROM transport_taken WHERE kampmoment_id=? AND type=?',[km.id,'ophaling']);
+        if(!heeftLev&&!heeftOph){
+          conflicten.push({type:'ontbrekend_transport',ernst:'hoog',
+            bericht:`Week ${km.week} — ${km.loc_nm}: thema/sport gepland maar geen enkele transporttaak (levering of ophaling) aangemaakt`});
+        }
+      });
+    }
+    // 8. S6.3(b) "locatieconfig onvolledig": een locatie heeft deze week een kampmoment met
+    // locatieconfig-regels (bv. 2× EHBO), maar er zijn niet genoeg vrije (status='thuis')
+    // exemplaren van dat vast_type om aan déze locatie te leveren.
+    {
+      kampen.forEach(km=>{
+        _actieveLocatieConfig(km).forEach(cfg=>{
+          const alleExemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=?",[cfg.vast_type]);
+          const vrij=alleExemplaren.filter(b=>b.status==='thuis').length;
+          if(vrij<(cfg.aantal||1)){
+            conflicten.push({type:'locatieconfig_onvolledig',ernst:'hoog',
+              bericht:`Week ${km.week} — ${km.loc_nm}: locatieconfig vraagt ${cfg.aantal||1}× "${cfg.vast_type}", maar slechts ${vrij} vrij exemplaar/exemplaren beschikbaar (van ${alleExemplaren.length} totaal)`});
           }
         });
       });
