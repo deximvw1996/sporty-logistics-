@@ -1515,6 +1515,20 @@ async function startServer() {
     behandeld_op TEXT DEFAULT ''
   )`);
 
+  // ── Migratie 56 — S3.4: KV-koppeling per kampmoment (persoonlijke link, geen login) ──
+  addColumnIfMissing('kampmomenten','kv_persoon_id','INTEGER');
+  addColumnIfMissing('kampmomenten','kv_token',"TEXT DEFAULT ''");
+
+  // ── Migratie 56 — S3.6: chauffeurspagina interactief, twee vink-fases per bak/attribuut ──
+  // Het oude 'status'-veld op verhuis_checks blijft ongewijzigd staan voor compatibiliteit.
+  addColumnIfMissing('verhuis_checks','geladen','INTEGER DEFAULT 0');
+  addColumnIfMissing('verhuis_checks','geladen_door',"TEXT DEFAULT ''");
+  addColumnIfMissing('verhuis_checks','geladen_op',"TEXT DEFAULT ''");
+  addColumnIfMissing('verhuis_checks','gelost','INTEGER DEFAULT 0');
+  addColumnIfMissing('verhuis_checks','gelost_door',"TEXT DEFAULT ''");
+  addColumnIfMissing('verhuis_checks','gelost_op',"TEXT DEFAULT ''");
+  addColumnIfMissing('verhuis_checks','taak_id','INTEGER');
+
   // Migratie 54: ploeg_shifts → personeel_shifts. Vanaf nu wordt chauffeurs/ploeg_shifts niet
   // meer beschreven vanuit code (S3.1 personen-consolidatie); de tabellen blijven puur als
   // historisch archief staan zodat er geen dataverlies is.
@@ -1573,10 +1587,13 @@ async function startServer() {
   }
 
   // PUBLIEK (geen sessietoken vereist): login zelf, login-status/setup-vangnet, de personeelslijst
-  // om het loginscherm te vullen, en /rit/:token (die staat sowieso niet onder /api/*, dus is
-  // vanzelf publiek). MARKER voor de volgende chat (S3.4/S3.5 KV-flow): /kv/:token en zijn
-  // onderliggende data-calls moeten hier ook expliciet als publiek toegevoegd worden.
+  // om het loginscherm te vullen, en /rit/:token + /kv/:token (die staan sowieso niet onder
+  // /api/*, dus zijn vanzelf publiek). Hun onderliggende schrijf-/data-calls ONDER /api/ staan
+  // wél achter deze poort en krijgen daarom een expliciete prefix-uitzondering hieronder — de
+  // routes zelf doen daarna hun EIGEN validatie op het token (rit_token resp. kv_token), dus
+  // "publiek bereikbaar" betekent hier niet "toegang tot alles", enkel "geen sessietoken nodig".
   const PUBLIEKE_API_PADEN = new Set(['/api/login','/api/login-status','/api/setup-eerste-pincode','/api/personeel-lijst-login']);
+  const PUBLIEKE_API_PREFIXEN = ['/api/rit-token/','/api/kv/'];
 
   app.post('/api/login',(req,res)=>{
     const {persoon_id,pincode}=req.body;
@@ -1625,6 +1642,7 @@ async function startServer() {
   app.use((req,res,next)=>{
     if(!req.path.startsWith('/api/')) return next();
     if(PUBLIEKE_API_PADEN.has(req.path)) return next();
+    if(PUBLIEKE_API_PREFIXEN.some(p=>req.path.startsWith(p))) return next();
     const token = req.headers['x-auth-token'] || (req.headers['authorization']||'').replace(/^Bearer\s+/i,'');
     const sessie = checkSessie(token);
     if(!sessie) return res.status(401).json({error:'Niet ingelogd'});
@@ -1947,7 +1965,8 @@ async function startServer() {
       JOIN sport_items si ON si.id=ss.item_id
       WHERE sp.locatie_id=? AND sp.week=?
       ORDER BY si.name, ss.label`,[km.locatie_id, km.week]);
-    return {...km, locatie:loc, themas, sport_sets:sportSets, open_dagen:openDagen, locatie_materiaal:locMat, periode};
+    const kvPersoon = km.kv_persoon_id ? get('SELECT id,naam FROM personeel WHERE id=?',[km.kv_persoon_id]) : null;
+    return {...km, locatie:loc, themas, sport_sets:sportSets, open_dagen:openDagen, locatie_materiaal:locMat, periode, kv_persoon:kvPersoon};
   }
 
   app.get('/api/kampmomenten',(req,res)=>{
@@ -1980,13 +1999,30 @@ async function startServer() {
   });
 
   app.put('/api/kampmomenten/:id',(req,res)=>{
-    const{week,type}=req.body;
+    const{week,type,kv_persoon_id}=req.body;
     const old=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[req.params.id]);
     if(week!==undefined) run('UPDATE kampmomenten SET week=? WHERE id=?',[week,req.params.id]);
     if(type!==undefined && (type==='kamp'||type==='themadag')) run('UPDATE kampmomenten SET type=? WHERE id=?',[type,req.params.id]);
+    // S3.4: KV-koppeling is persoonsgebonden (ontwerpbeslissing 1) — wijzigt de gekoppelde
+    // persoon, dan is een eerder uitgegeven link niet meer geldig voor de juiste naam:
+    // bestaand kv_token wissen zodat een volgende link-aanvraag een verse token genereert.
+    if(kv_persoon_id!==undefined && kv_persoon_id!==old?.kv_persoon_id){
+      run('UPDATE kampmomenten SET kv_persoon_id=?,kv_token=? WHERE id=?',[kv_persoon_id||null,'',req.params.id]);
+      if(old) logAct('kampmoment','kv-koppeling',`${old.loc_naam||'?'} week ${old.week}: KV-koppeling gewijzigd`,old.locatie_id,old.loc_naam);
+    }
     if(old && week!==undefined && week!==old.week) logAct('kampmoment','verplaatst',`${old.loc_naam||'?'}: week ${old.week} → week ${week}`,old.locatie_id,old.loc_naam);
     if(old && type!==undefined && type!==(old.type||'kamp')) logAct('kampmoment','bewerkt',`${old.loc_naam||'?'} week ${old.week}: ${old.type||'kamp'} → ${type}`,old.locatie_id,old.loc_naam);
+    saveDb();
     res.json(getKampmoment(req.params.id));
+  });
+  // S3.4: KV-link genereren (persoonsgebonden — zonder gekoppelde KV geen link mogelijk)
+  app.post('/api/kampmomenten/:id/kv-token',(req,res)=>{
+    const km=get('SELECT * FROM kampmomenten WHERE id=?',[req.params.id]);
+    if(!km)return res.status(404).json({error:'Kampmoment niet gevonden'});
+    if(!km.kv_persoon_id)return res.status(400).json({error:'Koppel eerst een kampverantwoordelijke aan dit kampmoment.'});
+    let tok=km.kv_token;
+    if(!tok){tok=_genToken(12);run('UPDATE kampmomenten SET kv_token=? WHERE id=?',[tok,req.params.id]);saveDb();}
+    res.json({token:tok,url:'/kv/'+tok});
   });
 
   app.delete('/api/kampmomenten/:id',(req,res)=>{
@@ -2672,13 +2708,13 @@ async function startServer() {
     const taken=all('SELECT * FROM transport_taken WHERE rit_id=?',[rit_id]);
     const alle_regels=[];
     taken.forEach(t=>{
-      all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]).forEach(r=>alle_regels.push({...r,_taak_opmerking:t.opmerking,_taak_type:t.type}));
+      all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]).forEach(r=>alle_regels.push({...r,_taak_id:t.id,_taak_opmerking:t.opmerking,_taak_type:t.type}));
     });
     if(!alle_regels.length)return res.status(400).json({error:'Geen materiaalregels gevonden in deze rit'});
     run('DELETE FROM verhuis_checks WHERE rit_id=?',[rit_id]);
     alle_regels.forEach((r,i)=>{
-      ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?,?,?)',
-        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i,r.item_type_id||resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]);
+      ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id,bak_id,attribuut_id,taak_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i,r.item_type_id||resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null,r._taak_id||null]);
     });
     const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY item_soort,sort_order',[rit_id]);
     res.json({ok:true,aangemaakt:checks.length,checks});
@@ -2720,6 +2756,64 @@ async function startServer() {
     const tijdstip=now();
     run('UPDATE transport_ritten SET klaarzet_status=?,klaarzet_door=?,klaarzet_op=? WHERE id=?',['klaar',naam,tijdstip,req.params.id]);
     res.json({ok:true,klaarzet_door:naam,klaarzet_op:tijdstip});
+  });
+
+  // ── S3.6: chauffeurspagina interactief — twee vink-fases per bak/attribuut ──
+  // Werkt UITSLUITEND op het rit-token (publiek pad, geen sessietoken), en enkel op checks
+  // die bij die specifieke rit horen — zie de auth-poort-uitzondering /api/rit-token/.
+  function _pasBakAttribuutStatusToe(regels, veld){
+    // veld: 'onderweg' bij volledig geladen, of {naar_locatie_id} bij volledig gelost
+    regels.forEach(c=>{
+      if(c.bak_id){
+        if(veld==='onderweg') run("UPDATE bakken SET status='onderweg' WHERE id=?",[c.bak_id]);
+        else{
+          const b=get('SELECT * FROM bakken WHERE id=?',[c.bak_id]);
+          if(b){const st=veld.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
+            run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.bak_id]);}
+        }
+      }
+      if(c.attribuut_id){
+        if(veld==='onderweg') run("UPDATE attributen SET status='onderweg' WHERE id=?",[c.attribuut_id]);
+        else{
+          const a=get('SELECT * FROM attributen WHERE id=?',[c.attribuut_id]);
+          if(a){const st=veld.naar_locatie_id==a.thuislocatie_id?'thuis':'op_locatie';
+            run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.attribuut_id]);}
+        }
+      }
+    });
+  }
+  app.post('/api/rit-token/:token/checks/:checkId/laden',(req,res)=>{
+    const rit=get('SELECT * FROM transport_ritten WHERE rit_token=?',[req.params.token]);
+    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
+    const check=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
+    if(!check||check.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
+    const nieuw=check.geladen?0:1;
+    run('UPDATE verhuis_checks SET geladen=?,geladen_door=?,geladen_op=? WHERE id=?',
+      [nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id]);
+    if(check.taak_id){
+      const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
+      const alleGeladen=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.geladen);
+      if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg');
+    }
+    saveDb();
+    res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
+  });
+  app.post('/api/rit-token/:token/checks/:checkId/lossen',(req,res)=>{
+    const rit=get('SELECT * FROM transport_ritten WHERE rit_token=?',[req.params.token]);
+    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
+    const check=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
+    if(!check||check.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
+    const nieuw=check.gelost?0:1;
+    run('UPDATE verhuis_checks SET gelost=?,gelost_door=?,gelost_op=? WHERE id=?',
+      [nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id]);
+    if(check.taak_id){
+      const taak=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
+      const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
+      const alleGelost=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.gelost);
+      if(alleGelost && taak && taak.naar_locatie_id)_pasBakAttribuutStatusToe(groep,{naar_locatie_id:taak.naar_locatie_id});
+    }
+    saveDb();
+    res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
   });
 
   // ── KLEURENBORDEN PER LOCATIE EN WEEK ──
@@ -3217,6 +3311,76 @@ async function startServer() {
     res.json({ok:true});
   });
 
+  // ── S3.7: KANTOOR — TEKORTEN PER BAK ──
+  // Werkscherm op ingediende KV-controles (kv_status='ingediend'): per bak de tekorten
+  // (aangetroffen < verwacht) en kapot-markeringen, gegroepeerd zoals in het magazijn.
+  // nakijk_sessies heeft geen kampmoment_id (ouder ontwerp, denormaliseert locatie_id+week
+  // rechtstreeks) — kampmoment wordt hier afgeleid via de UNIQUE(locatie_id,week)-combinatie.
+  app.get('/api/nakijk-tekorten',(req,res)=>{
+    const sessies=all("SELECT * FROM nakijk_sessies WHERE kv_status='ingediend' ORDER BY kv_tijdstip DESC");
+    const regels=all('SELECT * FROM nakijk_regels');
+    const out=sessies.map(s=>{
+      const bak=s.thema_bak_id?get('SELECT * FROM bakken WHERE id=?',[s.thema_bak_id]):null;
+      const km=(s.locatie_id&&s.week)?get('SELECT * FROM kampmomenten WHERE locatie_id=? AND week=?',[s.locatie_id,s.week]):null;
+      const loc=s.locatie_id?get('SELECT name FROM locaties WHERE id=?',[s.locatie_id]):null;
+      const sRegels=regels.filter(r=>r.sessie_id===s.id).map(r=>{
+        const bakItem=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
+        return {...r,item_type_id:bakItem?bakItem.item_type_id:null};
+      });
+      const tekorten=sRegels.filter(r=>(r.aangetroffen||0)<(r.verwacht||0)&&!r.besteld);
+      const kapotMeldingen=sRegels.filter(r=>r.is_kapot);
+      return {
+        ...s,
+        bak_naam:bak?bak.naam:'',
+        bak_code:bak?bak.code:'',
+        bak_thuislocatie_id:bak?bak.thuislocatie_id:null,
+        kampmoment_id:km?km.id:null,
+        kampmoment_week:km?km.week:s.week,
+        locatie_naam:loc?loc.name:'',
+        regels:sRegels,
+        tekorten,
+        kapot_meldingen:kapotMeldingen,
+      };
+    });
+    res.json(out);
+  });
+  // Aantal open controles voor de Materiaal-navbadge (ingediend, nog niet kantoor_status='verwerkt')
+  app.get('/api/nakijk-tekorten/aantal-open',(req,res)=>{
+    const n=get("SELECT COUNT(*) as n FROM nakijk_sessies WHERE kv_status='ingediend' AND kantoor_status!='verwerkt'").n;
+    res.json({aantal:n});
+  });
+  // "✔ Aangevuld": vinkt de regel af EN boekt de aangevulde hoeveelheid af van item_type_stock
+  // op de thuislocatie van de bak. Bestaat er geen voorraadrij, dan meldt dit dat expliciet
+  // i.p.v. stil niets te doen (zie MASTERPLAN S3.7).
+  app.post('/api/nakijk-regels/:id/aanvullen',(req,res)=>{
+    const aangevuld=Math.max(0,parseFloat(req.body?.aangevuld)||0);
+    const regel=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
+    if(!regel)return res.status(404).json({error:'Regel niet gevonden'});
+    const sessie=get('SELECT * FROM nakijk_sessies WHERE id=?',[regel.sessie_id]);
+    const bak=sessie&&sessie.thema_bak_id?get('SELECT * FROM bakken WHERE id=?',[sessie.thema_bak_id]):null;
+    const bakItem=regel.item_id?get('SELECT * FROM bak_items WHERE id=?',[regel.item_id]):null;
+    const itemTypeId=bakItem?bakItem.item_type_id:null;
+    if(!itemTypeId)return res.status(400).json({error:'Geen catalogus-item gekoppeld aan dit item — kan voorraad niet afboeken.'});
+    if(!bak||!bak.thuislocatie_id)return res.status(400).json({error:'Deze bak heeft geen thuislocatie ingesteld — kan voorraad niet afboeken.'});
+    const stockRow=get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[itemTypeId,bak.thuislocatie_id]);
+    if(!stockRow)return res.status(400).json({error:`Geen voorraadrij voor "${bakItem.naam}" op de thuislocatie van deze bak — maak eerst een voorraadregel aan in Materiaal › Voorraad.`});
+    const voorraad_voor=stockRow.qty;
+    const voorraad_na=Math.max(0,voorraad_voor-aangevuld);
+    run('UPDATE item_type_stock SET qty=? WHERE id=?',[voorraad_na,stockRow.id]);
+    run('UPDATE nakijk_regels SET besteld=1 WHERE id=?',[regel.id]);
+    saveDb();
+    res.json({ok:true,voorraad_voor,voorraad_na,regel:get('SELECT * FROM nakijk_regels WHERE id=?',[regel.id])});
+  });
+  // Markeer een controle als volledig verwerkt (alle tekorten aangevuld / kapot-meldingen bekeken)
+  app.put('/api/nakijk-sessies/:id/verwerkt',(req,res)=>{
+    const sessie=get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]);
+    if(!sessie)return res.status(404).json({error:'Sessie niet gevonden'});
+    const behandelaar=(req.persoon&&req.persoon.naam)||'';
+    run("UPDATE nakijk_sessies SET kantoor_status='verwerkt',kantoor_wie=?,kantoor_tijdstip=? WHERE id=?",[behandelaar,now(),req.params.id]);
+    saveDb();
+    res.json(get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]));
+  });
+
   // ── SPORT MATERIAAL ──
   app.get('/api/sport', (req,res) => {
     const items = all('SELECT si.*, l.name as locatie_name FROM sport_items si LEFT JOIN locaties l ON l.id=si.locatie_id ORDER BY si.cat, si.name');
@@ -3565,12 +3729,27 @@ self.addEventListener('fetch',e=>{
     const chkByRek={};
     checks.forEach(c=>{const r=(c.item_soort==='thema'||c.item_soort==='attribuut'||c.item_soort==='vast')?(_rekVan(c)||'Overig'):'Overig';(chkByRek[r]=chkByRek[r]||[]).push(c);});
     const rekKeys=Object.keys(chkByRek).sort((a,b)=>a==='Overig'?1:b==='Overig'?-1:a.localeCompare(b));
+    // S3.6: twee vink-fases per bak/attribuut (laden bij vertrek, lossen bij aankomst).
+    // Alleen thema/attribuut/vast-regels (= bakken/attributen, geen basis-materiaal) krijgen
+    // de fase-knoppen — basis-materiaal blijft de oude eenvoudige status-weergave.
     const chkRows=rekKeys.map(rek=>{
-      const rows=chkByRek[rek].map(c=>`<div class="chk ${c.status}">
-        <span class="ico">${c.status==='ok'?'✅':c.status==='ontbreekt'?'❌':c.status==='deels'?'⚠️':'⬜'}</span>
-        <span class="nm">${c.item_naam||''}</span>
-        <span class="qty">×${c.qty}</span>
-        ${c.notitie?'<div class="nt">'+c.notitie+'</div>':''}</div>`).join('');
+      const rows=chkByRek[rek].map(c=>{
+        const isBak=c.item_soort==='thema'||c.item_soort==='attribuut'||c.item_soort==='vast';
+        if(!isBak){
+          return `<div class="chk ${c.status}">
+            <span class="ico">${c.status==='ok'?'✅':c.status==='ontbreekt'?'❌':c.status==='deels'?'⚠️':'⬜'}</span>
+            <span class="nm">${c.item_naam||''}</span>
+            <span class="qty">×${c.qty}</span>
+            ${c.notitie?'<div class="nt">'+c.notitie+'</div>':''}</div>`;
+        }
+        return `<div class="chk fase" id="chk-${c.id}">
+          <span class="nm">${c.item_naam||''}</span>
+          <span class="qty">×${c.qty}</span>
+          <div class="fasebtns">
+            <button type="button" class="fbtn b-laden ${c.geladen?'done':''}" onclick="tog(${c.id},'laden')">${c.geladen?'✅ Geladen':'⬆️ Laden'}</button>
+            <button type="button" class="fbtn b-lossen ${c.gelost?'done':''}" onclick="tog(${c.id},'lossen')">${c.gelost?'✅ Gelost':'⬇️ Lossen'}</button>
+          </div></div>`;
+      }).join('');
       return (rek!=='Overig'?`<div class="rek">📍 Rek ${rek}</div>`:'')+rows;
     }).join('');
     res.send(`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -3584,13 +3763,36 @@ self.addEventListener('fetch',e=>{
 .chk{background:#fff;margin:6px 10px;border-radius:6px;padding:10px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .chk.ok{background:#f0fff4;border-left:3px solid #22c55e}.chk.ontbreekt{background:#fff1f1;border-left:3px solid #ef4444}.chk.deels{background:#fffbeb;border-left:3px solid #f59e0b}
 .chk .ico{font-size:18px;flex-shrink:0}.chk .nm{flex:1;font-size:14px}.chk .qty{font-size:12px;color:#888}.chk .nt{width:100%;font-size:11px;color:#888;font-style:italic}
+.chk.fase{flex-direction:column;align-items:stretch}
+.chk.fase .nm{flex:none}
+.fasebtns{display:flex;gap:8px;margin-top:6px;width:100%}
+.fbtn{flex:1;min-height:48px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#334155;font-size:14px;font-weight:600;font-family:inherit}
+.fbtn.done{background:#dcfce7;border-color:#22c55e;color:#166534}
 .rek{margin:10px 10px 2px;font-size:12px;font-weight:700;color:#2563eb}
 .footer{padding:20px 16px;text-align:center;font-size:12px;color:#aaa}</style></head><body>
 <div class="hdr"><h1>🚚 Rit ${rit.datum}</h1>
 <div class="sub">${rit.chauffeur?'👤 '+rit.chauffeur:''}${rit.voertuig?' · 🚐 '+rit.voertuig:''} · ${taken.length} stop${taken.length!==1?'s':''}</div></div>
 <div class="sec">Stops</div>${stops||'<div style="padding:16px;color:#888">Geen stops gepland.</div>'}
 ${checks.length?'<div class="sec">Materiaallijst ('+checks.length+' items)</div>'+chkRows:''}
-<div class="footer">Sporty Logistics</div></body></html>`);
+<div class="footer">Sporty Logistics</div>
+<script>
+const TOKEN=${JSON.stringify(req.params.token)};
+async function tog(id,kind){
+  const row=document.getElementById('chk-'+id);
+  const btns=row.querySelectorAll('.fbtn');
+  btns.forEach(b=>b.disabled=true);
+  try{
+    const r=await fetch('/api/rit-token/'+TOKEN+'/checks/'+id+'/'+kind,{method:'POST'});
+    const c=await r.json();
+    if(!r.ok){alert(c.error||'Fout bij opslaan');return;}
+    const bl=row.querySelector('.b-laden'), bg=row.querySelector('.b-lossen');
+    bl.textContent=c.geladen?'✅ Geladen':'⬆️ Laden'; bl.classList.toggle('done',!!c.geladen);
+    bg.textContent=c.gelost?'✅ Gelost':'⬇️ Lossen'; bg.classList.toggle('done',!!c.gelost);
+  }catch(e){alert('Netwerkfout — probeer opnieuw.');}
+  finally{btns.forEach(b=>b.disabled=false);}
+}
+</script>
+</body></html>`);
   });
 
   // ── CONFLICTENDETECTOR ──
