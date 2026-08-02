@@ -150,3 +150,14 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Sportymadness] Fiche noemt het thema "Sporten met een hoek af" - welke naam wil je in de app? Tweekoloms fiche: minibasketdoelen bij paralympics-bak gezet, medailles (36, goud/zilver/brons) als duurzaam bij F31 - verifieren. "Jo jack" in F58 naast de JoJack-curver van Play Factory - zelfde set?
 - [Voetbal madness] Voetbalkisten-lijst overlapt sterk met FC Sporty girls maar andere aantallen (ladder 2 vs 1, kegels 4+12 vs 8+8, schaaltjes 20 vs 10+10, girls heeft rebounder/PANNA-kooi/plooibaar doel/kleine-grote doelen extra) - zijn dit dezelfde fysieke kisten? Zo ja, dan moeten beide themas 1 gedeelde kisten-bak krijgen.
 - [Wacko Waterweek] Fiche is een fotoraster: aantallen (2 waterballen, 2 trampolines, 2 waterbasketdoelen, 1 waterpolodoel) onzeker; glijbaan heeft springkasteelblazer nodig. Enkel 3-daagse bundel.
+
+### Batch 13 (ingevoerd door Fable, laatste LS-batch)
+- [We knallen er op los] "10 potloden per kind" (=320) staat letterlijk op de fiche - opvallend veel, verifieren. Paintball in programma maar geen materiaal op fiche. Lasershoot via Play Factory-bakken?
+- [Wereldkeuken] Fiche zegt "Themabak 1/X" als kopje - genegeerd (4 benoemde bakken E33/E37/E35/E40 gevolgd).
+- [Wie wordt Homo Universalis?] N07-bak bevat 4 "verzamelcategorieen" (skydiven, toren, kettingreactie, vliegtuig) - als verzamel-items ingevoerd.
+- [WK voetbal LS] Geen materiaalfiche - thema-only + INFO (levende tafelvoetbal, pannakooien, bumperballen, Voetbal academie-map, uitstap KRC Genk). Hoort hier een voetbalkist bij?
+- [Zeepkistenrace] Enkel 3-daagse bundel; 4 zeepkisten als pool; "bamboe" bij extra - zelfde bamboe-dozen als Buitengewoon bouwen? 30 kegels + autobanden als attributen.
+- [Zoete toetjes] Bak 2/5 heeft geen code op de fiche. Bakken 3/5 en 4/5 zijn identiek uitgerust (2 sets kookgerei). "1 bak verlengkabels" = verlengdraadkoffer-pool. 3-daagse = per-16-variant (32 leidend).
+- [Slag- en balsporten] practical_info_leader-bestand met sport-only fiche - thema-only. Sporten via sportpakketten.
+- [Bouwingenieurs] Fiche noemt alleen "4x bol touw"; kamp draait op Creatool OPLA (kist XL) + SPOK - als pool-eenheden aangemaakt. Waar staan die kisten?
+- [The Hunger Games] Nerfbattle = 2 KL bakken (gedeeld met Geef acht!-nerf?); Rotselaar-variant = programma-verschil (hoogteparcours).
