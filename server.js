@@ -1598,13 +1598,23 @@ async function startServer() {
   app.post('/api/setup-eerste-pincode',(req,res)=>{
     const n=get("SELECT COUNT(*) as n FROM personeel WHERE pincode IS NOT NULL AND pincode<>''").n;
     if(n>0) return res.status(400).json({error:'Setup is al voltooid — log in via het gewone loginscherm.'});
-    const {persoon_id,pincode}=req.body;
-    if(!persoon_id||!pincode||String(pincode).length<4) return res.status(400).json({error:'persoon_id en een pincode van minstens 4 tekens zijn vereist'});
-    const p=get('SELECT * FROM personeel WHERE id=?',[persoon_id]);
-    if(!p) return res.status(404).json({error:'Persoon niet gevonden'});
+    const {persoon_id,pincode,naam}=req.body;
+    if(!pincode||String(pincode).length<4) return res.status(400).json({error:'Een pincode van minstens 4 tekens is vereist'});
+    // Bootstrap-gat gedicht (reviewfix): op een lege personeelstabel kan je anders nooit
+    // binnenraken (personeel aanmaken vereist een token, een token vereist een persoon).
+    // Is personeel leeg, dan mag de setup zelf de eerste kantoor-persoon aanmaken via `naam`.
+    let p = persoon_id ? get('SELECT * FROM personeel WHERE id=?',[persoon_id]) : null;
+    if(!p){
+      const totaal=get('SELECT COUNT(*) as n FROM personeel').n;
+      if(totaal===0 && naam && naam.trim()){
+        const nieuwId=ins('INSERT INTO personeel (naam,rol) VALUES (?,?)',[naam.trim(),'kantoor']);
+        p=get('SELECT * FROM personeel WHERE id=?',[nieuwId]);
+      }
+    }
+    if(!p) return res.status(404).json({error:'Persoon niet gevonden (of geef bij een lege personeelslijst een naam op)'});
     run('UPDATE personeel SET rol=?, pincode=? WHERE id=?',['kantoor',hashPin(pincode),p.id]);
     saveDb();
-    res.json({ok:true});
+    res.json({ok:true,persoon_id:p.id});
   });
   app.get('/api/personeel-lijst-login',(req,res)=>{
     res.json(all("SELECT id,naam,rol FROM personeel ORDER BY rol,naam"));

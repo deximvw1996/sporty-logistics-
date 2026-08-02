@@ -191,5 +191,8 @@ De werkstroom waarmee Maxim en Claude alle thema's stuk per stuk terugzetten.
 | 2026-08-01 | S2-brainstorm: 6 ontwerpbeslissingen vastgelegd | ✅ | sectie FASE S2 |
 | 2026-08-02 | S2.1–S2.6 gebouwd (Chat A, 2 rondes) + reviewfix Fable (attributen-UI, alle-bakken levert attributen mee) | ✅ | herdraaide bewijzen: 3 bak-regels met bak_id in genereer; attribuut end-to-end; dubbelboeking-conflict vuurt; bestellijst + tekort-conflict (32 nodig/2 voorraad); status-keten gedaan→op_locatie→handmatig thuis; locatieconfig kiest 2 EHBO-exemplaren; alle tabs 0 console-errors; testdata opgeruimd |
 | 2026-08-02 | S2 naar productie | ✅ | prod-kerntest: 3 bak-regels met bak_id van Rozenweg; atletiek gemigreerd (3 bakken/19 items/status thuis); sport 112/personeel 9/locaties 41 intact |
-| | S1.4 (personen-consolidatie), S1.5 (spoed-consolidatie), S1.6 (export/import) | ⬜ | volgende bouwronde |
-| | S3 brainstorm (rollen + KV-scherm) | ⬜ | ontwerpsessie met Maxim |
+| 2026-08-02 | S3-brainstorm: 6 ontwerpbeslissingen | ✅ | sectie FASE S3 |
+| 2026-08-02 | KV-scherm-mockup (Claude Design) goedgekeurd + omgebouwd naar 4 echte tabbladen | ✅ | design-mockups/kv-scherm/KV-scherm.dc.html — bindende UI-spec voor S3.5 |
+| 2026-08-02 | S3.1/S3.2/S3.3/S3.8 gebouwd (Chat A) + reviewfix Fable (bootstrap-gat setup op lege personeelstabel) | ✅ | herdraaid: 401 zonder token; setup→login→wie-ben-ik; foute pincode 401; 2e setup 400; aanvraag nieuw→goedgekeurd(+spoedtaak, behandeld_door=ingelogde naam)→afgehandeld; export 62 tabellen dynamisch; chauffeurs/ploeg-routes weg; login-UI + alle tabs 0 console-errors |
+| | S3 deel 1+2 samen naar productie (na deel 2) | ⬜ | |
+| | S3.4–S3.7 (KV-link, KV-scherm, chauffeur interactief, tekorten-per-bak) | ⬜ | Chat B |
