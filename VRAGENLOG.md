@@ -121,3 +121,10 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - Sommige fiches hebben een "Extra meenemen"-rubriek (Farao: soft lego, oven, afwasbak, klei, speelzand) — mix van pool-materiaal en losse goederen zonder bak; voorstel: leesregel "Extra meenemen = pool-verwijzing (S4.5) + INFO, tenzij een item duidelijk bij een themabak hoort".
 - Bundel zonder materiaalfiche maar mét fotolijst van aangekocht materiaal (WK voetbal Kleuters: "Zie materiaalfiche!" zonder fiche) — voorstel: leesregel "fotolijst = bak-inhoud met code onbekend + verifieer-notitie" (L27 komt het dichtst maar dekt dit niet).
 - Puur-sportkampen zonder fiche en zonder eigen materiaal (Balls & Rackets) — voorstel: leesregel "sportkamp zonder fiche = thema-only + INFO-regel, generiek sportmateriaal via sportkoffers" (uitbreiding van L28 naast uitstapkampen).
+
+### Batch 9 (ingevoerd door Fable)
+- [Beestenbende] Uitstapweek zonder fiche (L28) — klopt dat er geen materiaal meereist behalve S&S-materiaal ("zelf meenemen" bij alpaca-uitstap)? Aanname: thema-only + INFO.
+- [Beestige natuurweek] Fiche heet "Beestige natuur 3-daagse", bundel "Beestige natuurweek" — themanaam "Beestige natuurweek" gekozen; apart thema naast Beestenbende (verschillende inhoud). Ook: "zak potgrond (apart)" als verbruiksitem in bak E25 met notitie gezet.
+- [Buitengewoon bouwen] Fiche zegt "7 dozen met bamboestokken" maar geeft 4 codes (L11/L13/F41/F42) — 4 dozen aangemaakt, verifiëren. "3 kisten houten blokken (F32–F47)": derde code onbekend. Cement toegewezen aan TEIFOC en rekkers/nagels/MDF/karton aan Flipperkast (tweekoloms-aanname). Aantallen dakpannen/truweeltjes/tegels/lakens/hamers onbekend → 1 + verifieer-notitie.
+- [CLIC IT] Volledig clics-pool; fiche zegt "12 dozen of grote plox", pool telt nu 4 geregistreerde clics-bakken — hoeveel clics-dozen bestaan er echt?
+- [Dagelijkse Sportykost] "Maanzaad / sesamzaad / italiaanse kruiden / grof zeezout" gesplitst in 4 verbruiksitems (L13). Receptenfiches (vast, D39) én receptenboekje 1/knd (verbruik, D45) — beide 🖨️.
