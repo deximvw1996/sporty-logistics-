@@ -4,6 +4,8 @@
 
 Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (autonome fase vanaf enkele foutloze thema's op rij).
 
+**Werkwijze rollend akkoord (Maxim 2026-08-02):** zodra Maxim de volgende PDF aanlevert, geldt dat als akkoord om het vórige thema in te voeren. Einddoel: een chat die alle bundels zelfstandig leest en invoert volgens deze gids.
+
 ---
 
 ## Structuur van een themabundel (basiskennis)
