@@ -83,6 +83,10 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L28 (2026-08-02, Op stap met Sporty): UITSTAPKAMPEN hebben geen materiaalfiche** — alle activiteiten zijn extern (jumppark, bowling, Bokrijk...). Het thema zelf wél invoeren (voor planning en zodat kantoor weet: geen transport), zonder bakken/attributen/verbruik, met een INFO-regel in thema_materiaal die de externe activiteiten opsomt. Geen fiche ≠ fout bestand: check wel even of er geen fiche verderop in de PDF staat.
 
+**L29 (2026-08-02, antwoordenronde Maxim): wc-rolletjes (en vergelijkbaar huisverzamelmateriaal) zijn een VERZAMELSTROOM, geen aankoop.** Sporty verzamelt ze het hele schooljaar en geeft ze mee in de themabak; ouders wordt óók gevraagd er mee te geven (briefje). Ze raken snel op en zijn voor heel veel thema's nodig. Invoer: verbruiksitem met notitie "verzamelstroom (Sporty + ouders)", geen voorraadrij.
+
+**L30 (idem): veel groot spelmateriaal is één gedeelde fysieke set over thema's heen** — bevestigd door Maxim voor: voetbalkisten (alle voetbalthema's), GPS-bak (mogelijk 2e exemplaar), bilibo-set, Ypie-mascottepak (1×), nerf (enkele sets), geocache-bak. Boogschieten: kruisbogen zitten in een houten kist; bogen (±16) en pijlen met punt (±32) liggen er LOS bij (geen bak). Bij zulke items: bestaande gedeelde eenheid koppelen, nooit per thema opnieuw aanmaken.
+
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
 ---

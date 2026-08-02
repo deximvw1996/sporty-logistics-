@@ -161,3 +161,7 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Slag- en balsporten] practical_info_leader-bestand met sport-only fiche - thema-only. Sporten via sportpakketten.
 - [Bouwingenieurs] Fiche noemt alleen "4x bol touw"; kamp draait op Creatool OPLA (kist XL) + SPOK - als pool-eenheden aangemaakt. Waar staan die kisten?
 - [The Hunger Games] Nerfbattle = 2 KL bakken (gedeeld met Geef acht!-nerf?); Rotselaar-variant = programma-verschil (hoogteparcours).
+
+## Antwoordenronde Maxim (2026-08-02) - verwerkt
+Beantwoord en doorgevoerd: voetbalkisten gedeeld (1 set), GPS-bak gedeeld (mogelijk 2e ex.), boogschieten omgebouwd (kist kruisbogen + losse bogen/pijlen), hindernisbanen apart (LS = 2 delen; waterglijbaan = springkasteel met 1 blazer), bilibo-set gedeeld, kerstboom = 1 (ontdubbeld), verkleedsets bevestigd, wc-rolletjes = verzamelstroom (L29), Ypie-pak = 1 mascotte gedeeld, Schattenjacht-verrassing = KV koopt, verhuurmodule -> FASE S9 backlog.
+Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse obstakels), Klimwereld-bundel (gescand), naam Sportymadness, bouwmateriaal-bezitstotalen (duplo/softlego/clics/kruiwagens/LEONARDO/Creatool), WK voetbal LS-kist bevestigd via gedeelde set, Koekiemonsters-KV-lijst, "10 potloden per kind", Reis rond de wereld bak 4/6-5/6, nerf "enkele sets" en bamboe "2 sets" - exacte tellingen.
