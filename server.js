@@ -4737,11 +4737,24 @@ init();
     // signaal geldt enkel als er ook echt iets moet vervoerd worden.
     {
       const sportWeken=all('SELECT DISTINCT locatie_id,week FROM sport_planning');
-      const themaKmIds=new Set(all('SELECT DISTINCT kampmoment_id FROM kampmoment_themas').map(r=>r.kampmoment_id));
+      const kmThemaIds=all('SELECT DISTINCT kampmoment_id,thema_id FROM kampmoment_themas');
+      const themaKmIds=new Set(kmThemaIds.map(r=>r.kampmoment_id));
       kampen.forEach(km=>{
         const heeftThema=themaKmIds.has(km.id);
         const heeftSport=sportWeken.some(sp=>sp.locatie_id===km.locatie_id&&sp.week===km.week);
         if(!heeftThema&&!heeftSport)return;
+        // S6.3(a) uitzondering: materiaalloze thema's (uitstapkampen zoals "Op stap met Sporty",
+        // "Beestenbende") hebben 0 bakken én 0 attributen — logischerwijs ook geen transport nodig.
+        // Enkel skippen als ELK gekoppeld thema materiaalloos is en er ook geen sport gepland is.
+        if(heeftThema&&!heeftSport){
+          const themaIds=kmThemaIds.filter(r=>r.kampmoment_id===km.id).map(r=>r.thema_id);
+          const alleMateriaalloos=themaIds.every(tid=>{
+            const nBak=get('SELECT COUNT(*) AS n FROM thema_bak WHERE thema_id=?',[tid]).n;
+            const nAttr=get('SELECT COUNT(*) AS n FROM thema_attribuut WHERE thema_id=?',[tid]).n;
+            return (nBak+nAttr)===0;
+          });
+          if(alleMateriaalloos)return;
+        }
         const heeftLev=get('SELECT id FROM transport_taken WHERE kampmoment_id=? AND type=?',[km.id,'levering']);
         const heeftOph=get('SELECT id FROM transport_taken WHERE kampmoment_id=? AND type=?',[km.id,'ophaling']);
         if(!heeftLev&&!heeftOph){
