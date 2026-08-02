@@ -142,3 +142,11 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Klimwereld] Bundel volledig gescand (3 pagina's, geen tekst) - thema aangemaakt zonder materiaal; samen bekijken.
 - [Koekiemonsters] Houten schijfjes zonder aantal (1 + verifieren); geen KV-lijst in bundel (eieren/boter niet vermeld - vermoedelijk vergeten op de fiche?).
 - [Lego Legends] Bak 2/2 bevat sub-bakken (5 bakjes wieltjes, 7 zwarte bakken, +-8 curverbakken ongesorteerd) - als items ingevoerd; fysieke transporteenheid verifieren (mogelijk zijn die +-8 curvers aparte bakken).
+
+### Batch 12 (ingevoerd door Fable)
+- [Play a game] Deelt 14 bakken + volksspel/lasershoot-attributen met Play Factory (gekoppeld). Fiche: 2 obstakel-bakken met 5 per bak vs Play Factory 3 bakken met 10 - welke telling klopt?
+- [Play Factory - grasmus] Zelfde fiche, maar de boogschieten-sectie is gedetailleerder: 1 LS bak kruisbogen, 1 LS bak bogen (punt + zuignap), 1 LS bak easytech + rozen/doelen. Nu staat dat als 1 attribuut "Boog- & kruisboogschieten-materiaal" - omzetten naar 3 echte LS-bakken? Grasmus heeft geen lasershoot/golf.
+- [Plan(t)trekkers] Bak 1/2 draagt 3 codes (D25; D27; D29 - D25 is ook de Bilibo-bak van Gymnast!) -> code leeg gelaten, codes in label; verifieren. GPS-bak (4x) mogelijk gedeeld met Geocache. "Andere"-rubriek (potgrond, sanseveria, kolen, aarde, zand, grind) als INFO - deels zelfde zakken als Survival (kolen/zand/grind attributen)?
+- [Sportymadness] Fiche noemt het thema "Sporten met een hoek af" - welke naam wil je in de app? Tweekoloms fiche: minibasketdoelen bij paralympics-bak gezet, medailles (36, goud/zilver/brons) als duurzaam bij F31 - verifieren. "Jo jack" in F58 naast de JoJack-curver van Play Factory - zelfde set?
+- [Voetbal madness] Voetbalkisten-lijst overlapt sterk met FC Sporty girls maar andere aantallen (ladder 2 vs 1, kegels 4+12 vs 8+8, schaaltjes 20 vs 10+10, girls heeft rebounder/PANNA-kooi/plooibaar doel/kleine-grote doelen extra) - zijn dit dezelfde fysieke kisten? Zo ja, dan moeten beide themas 1 gedeelde kisten-bak krijgen.
+- [Wacko Waterweek] Fiche is een fotoraster: aantallen (2 waterballen, 2 trampolines, 2 waterbasketdoelen, 1 waterpolodoel) onzeker; glijbaan heeft springkasteelblazer nodig. Enkel 3-daagse bundel.
