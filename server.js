@@ -2528,10 +2528,15 @@ async function startServer() {
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling basis week '+km.week+' — '+loc.name+(sLoc?' (naar '+sLoc.name+')':'')});
           });
-          // Locatieconfig-exemplaren gaan terug mee naar hun thuislocatie
+          // Locatieconfig-exemplaren gaan terug mee naar hun thuislocatie.
+          // Reviewfix: bij vooraf plannen (alles in één keer genereren) staan de exemplaren nog
+          // 'thuis' — val dan terug op dezelfde vrije exemplaren die de levering zou kiezen,
+          // anders ontbreekt de eind-ophaling bij definitieve sluiting (bindende regel 1).
           const locConfigTerug=(_actieveLocatieConfig(km)).flatMap(cfg=>{
-            const opLocatie=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[cfg.vast_type,loc.id,cfg.aantal||1]);
-            return opLocatie.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
+            let exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[cfg.vast_type,loc.id,cfg.aantal||1]);
+            if(!exemplaren.length)
+              exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' LIMIT ?",[cfg.vast_type,cfg.aantal||1]);
+            return exemplaren.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
           });
           Object.entries(byStockage(locConfigTerug)).forEach(([sid,mat])=>{
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling vast materiaal week '+km.week+' — '+loc.name});
