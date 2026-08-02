@@ -705,7 +705,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <!-- Tijdelijk verborgen (opkuis thema's/materiaal, wordt stuk per stuk teruggezet) -->
       <button class="kal-subtab" style="display:none" onclick="setMatSubtab('catalogus',this)">&#128230; Alle artikelen</button>
       <button class="kal-subtab" onclick="setMatSubtab('themabakken',this)">&#129082; Themabakken</button>
-      <button class="kal-subtab" style="display:none" onclick="setMatSubtab('vastebakken',this)">&#128451; Vaste bakken</button>
+      <button class="kal-subtab" onclick="setMatSubtab('vastebakken',this)">&#128451; Vaste bakken</button>
       <button class="kal-subtab" style="display:none" onclick="setMatSubtab('gedeeld',this)">&#128295; Gedeeld</button>
       <button class="kal-subtab" onclick="setMatSubtab('voorraad',this)">&#128203; Voorraad</button>
       <button class="kal-subtab" onclick="setMatSubtab('sport',this)">&#9917; Sport</button>
@@ -743,8 +743,9 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <div class="card" style="margin-top:.75rem">
         <div class="card-hd">+ Nieuwe vaste bak aanmaken</div>
         <div class="fr">
-          <div class="fg grow"><label>Naam</label><input class="inp" id="vb-new-naam" placeholder="bv. EHBO koffer, Creabak&#8230;"></div>
-          <div class="fg sm"><label>Code</label><input class="inp" id="vb-new-code" placeholder="bv. EHBO" style="width:80px"></div>
+          <div class="fg grow"><label>Naam (exemplaar)</label><input class="inp" id="vb-new-naam" placeholder="bv. EHBO-koffer #1"></div>
+          <div class="fg md"><label>Soort (voor locatieconfig)</label><input class="inp" id="vb-new-vasttype" placeholder="bv. EHBO-koffer" list="vb-vasttype-lijst"><datalist id="vb-vasttype-lijst"></datalist></div>
+          <div class="fg sm"><label>Code</label><input class="inp" id="vb-new-code" placeholder="bv. V01" style="width:80px"></div>
           <div class="fg md"><label>Type</label>
             <select class="sel" id="vb-new-type">
               <option value="vast">Vast materiaal</option>
@@ -753,6 +754,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
           </div>
           <button class="btn-g" onclick="addVasteBak()">+ Aanmaken</button>
         </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px">💡 "Soort" groepeert exemplaren: maak bv. 3× een exemplaar met soort <b>EHBO-koffer</b> — in de locatieconfig kies je dan "EHBO-koffer ×2" en het transport pakt vrije exemplaren.</div>
       </div>
     </div>
 
@@ -2605,18 +2607,22 @@ let _vasteBakken=[], _vbOpen={};
 async function renderVasteBakken(){
   const el=document.getElementById('vb-lijst'); if(!el)return;
   try{_vasteBakken=await api('GET','/vaste-bakken');}catch(e){el.innerHTML='<div class="empty">Fout bij laden.</div>';return;}
+  // Datalist met bestaande soorten (vast_type) zodat exemplaren consistent gegroepeerd worden
+  const dl=document.getElementById('vb-vasttype-lijst');
+  if(dl) dl.innerHTML=[...new Set(_vasteBakken.map(b=>b.vast_type).filter(Boolean))].map(t=>`<option value="${_attrH(t)}">`).join('');
   if(!_vasteBakken.length){el.innerHTML='<div class="empty">Nog geen vaste bakken aangemaakt.</div>';return;}
   el.innerHTML=_vasteBakken.map(bak=>{
     const open=_vbOpen[bak.id];
     const items=bak.items||[];
     const vast=items.filter(i=>!i.is_verbruik), verbruik=items.filter(i=>i.is_verbruik);
     const typePill=bak.type==='verbruik'?'<span class="pill" style="background:#F9731622;color:#9A3412;font-size:10px">Wekelijks aanvullen</span>':'<span class="pill" style="background:var(--bg2);color:var(--text2);font-size:10px">Vast</span>';
+    const vastTypePill=bak.vast_type?`<span class="pill" style="background:var(--blue-bg);color:var(--blue-dk);font-size:10px">${_escH(bak.vast_type)}</span>`:'';
     const codePill=bak.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.code)}</span>`:'';
     return `<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
       <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg2);cursor:pointer" onclick="_vbToggle(${bak.id})">
         <span style="font-size:16px">🗃️</span>
         <span style="font-weight:600;flex:1">${_escH(bak.naam)}</span>
-        ${codePill}${typePill}
+        ${codePill}${vastTypePill}${typePill}
         <span style="font-size:11px;color:var(--text3)">${items.length} items</span>
         <button class="bi" onclick="event.stopPropagation();deleteVasteBak(${bak.id})" title="Verwijderen">🗑️</button>
         <span style="font-size:12px;color:var(--text3)">${open?'▲':'▼'}</span>
@@ -2649,10 +2655,12 @@ async function addVasteBak(){
   const naam=document.getElementById('vb-new-naam')?.value?.trim();
   const code=document.getElementById('vb-new-code')?.value?.trim();
   const type=document.getElementById('vb-new-type')?.value||'vast';
+  const vast_type=document.getElementById('vb-new-vasttype')?.value?.trim()||'';
   if(!naam)return showToast('Naam vereist','error');
-  await api('POST','/vaste-bakken',{naam,code,type});
+  await api('POST','/vaste-bakken',{naam,code,type,vast_type});
   document.getElementById('vb-new-naam').value='';
   document.getElementById('vb-new-code').value='';
+  document.getElementById('vb-new-vasttype').value='';
   renderVasteBakken();
 }
 async function addVasteBakItem(bakId){
