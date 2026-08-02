@@ -174,5 +174,8 @@ De werkstroom waarmee Maxim en Claude alle thema's stuk per stuk terugzetten.
 | 2026-08-01 | S1.1+S1.2 backend-opkuis (Chat A) | ✅ | server.js 3.885→3.135 regels; 9 levende endpoints 200; 3 herstarts zonder seeds |
 | 2026-08-01 | S1.3 frontend-opkuis (Chat B) | ✅ | index.html 9.833→8.275; alle 9 tabs zonder console-errors |
 | 2026-08-01 | Reviewfix: verhuis_checks.item_type_id ontbrak (checks-init + Mig 51 crashten) → kolom + Mig 52 | ✅ | item_types 207→19 lokaal; checks-init eind-tot-eind getest |
+| 2026-08-01 | S2-brainstorm: 6 ontwerpbeslissingen vastgelegd | ✅ | sectie FASE S2 |
+| 2026-08-02 | S2.1–S2.6 gebouwd (Chat A, 2 rondes) + reviewfix Fable (attributen-UI, alle-bakken levert attributen mee) | ✅ | herdraaide bewijzen: 3 bak-regels met bak_id in genereer; attribuut end-to-end; dubbelboeking-conflict vuurt; bestellijst + tekort-conflict (32 nodig/2 voorraad); status-keten gedaan→op_locatie→handmatig thuis; locatieconfig kiest 2 EHBO-exemplaren; alle tabs 0 console-errors; testdata opgeruimd |
+| | S2 naar productie (na backup Maxim) | ⬜ | |
 | | S1.4 (personen-consolidatie), S1.5 (spoed-consolidatie), S1.6 (export/import) | ⬜ | volgende bouwronde |
-| | S2 brainstorm (datamodel) + S3 (rollen) | ⬜ | ontwerpsessie met Maxim |
+| | S3 brainstorm (rollen + KV-scherm) | ⬜ | ontwerpsessie met Maxim |

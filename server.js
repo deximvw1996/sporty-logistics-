@@ -2421,7 +2421,7 @@ async function startServer() {
   // Alle bakken van alle themas in één call (voor Themabakken-tab)
   app.get('/api/alle-bakken',(req,res)=>{
     const themas=all('SELECT * FROM themas ORDER BY name');
-    res.json(themas.map(t=>({...t,bakken:_bakkenVanThema(t.id)})));
+    res.json(themas.map(t=>({...t,bakken:_bakkenVanThema(t.id),attributen:_attributenVanThema(t.id)})));
   });
   // POST: koppel een bestaande bak (bak_id) OF maak een nieuwe bak+koppel (label/code/...)
   app.post('/api/themas/:id/bakken',(req,res)=>{

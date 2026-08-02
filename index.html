@@ -2458,7 +2458,7 @@ async function renderThemabakken(){
   // Laad data van thema_bakken (canonical na migratie 29)
   if(!_tbData.length){
     el.innerHTML='<div class="loading">Laden…</div>';
-    try{_tbData=await api('GET','/alle-bakken');}catch(e){el.innerHTML='<div class="empty">Fout bij laden.</div>';return;}
+    try{_tbData=await api('GET','/alle-bakken');_attrAlle=await api('GET','/attributen');}catch(e){el.innerHTML='<div class="empty">Fout bij laden.</div>';return;}
   }
   const zoek=(document.getElementById('tb-zoek')?.value||'').toLowerCase().trim();
   const lgFilter=document.getElementById('tb-filter-lg')?.value||'';
@@ -2507,8 +2507,7 @@ async function renderWaarIs(){
 function _tbToggle(tid){_tbOpen[tid]=!_tbOpen[tid];renderThemabakken();}
 async function _tbVernieuwen(){_tbData=[];await renderThemabakken();}
 function _renderThemaBakkenInhoud(thema,bakken){
-  if(!bakken.length) return `<div style="font-size:12px;color:var(--text3);padding:4px 0">Nog geen bakken voor dit thema.</div>`;
-  return bakken.map(bak=>{
+  const bakkenHtml=!bakken.length?`<div style="font-size:12px;color:var(--text3);padding:4px 0">Nog geen bakken voor dit thema.</div>`:bakken.map(bak=>{
     const items=bak.items||[];
     const vastItems=items.filter(i=>!i.verbruik);
     const verbruikItems=items.filter(i=>i.verbruik);
@@ -2533,6 +2532,55 @@ function _renderThemaBakkenInhoud(thema,bakken){
       ${verbruikItems.length?`<div style="font-size:11px;color:var(--text2);margin-top:2px">🔄 Verbruik: ${verbruikItems.map(i=>`${_escH(i.naam||i.name||'')} ×${i.qty}`).join(', ')}</div>`:''}
     </div>`;
   }).join('');
+  return bakkenHtml+_renderThemaAttributen(thema);
+}
+// ── ATTRIBUTEN per thema (S2.2): los groot materiaal zonder itemlijst (decor, doelen...) ──
+let _attrAlle=[];
+function _renderThemaAttributen(thema){
+  const attrs=thema.attributen||[];
+  const gekoppeld=new Set(attrs.map(a=>a.id));
+  const beschikbaar=(_attrAlle||[]).filter(a=>!gekoppeld.has(a.id));
+  const statusLbl={thuis:'🏠 thuis',op_locatie:'📍 op locatie',onderweg:'🚚 onderweg'};
+  const lijst=attrs.map(a=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;flex-wrap:wrap">
+      <span style="font-size:12px">🎭 ${_escH(a.naam)}</span>
+      ${a.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(a.code)}</span>`:''}
+      <span style="font-size:10px;color:var(--text3)">${statusLbl[a.status]||a.status||''}</span>
+      ${(a.gedeeld_met||[]).length?`<span style="font-size:10px;background:var(--amber-bg);color:var(--amber-dk);border-radius:4px;padding:1px 6px" title="${_attrH((a.gedeeld_met||[]).map(t=>t.name).join(', '))}">🔗 gedeeld met ${a.gedeeld_met.length}</span>`:''}
+      <button class="bi" style="font-size:11px" onclick="_attrOntkoppel(${thema.id},${a.id})" title="Ontkoppel van dit thema">✕</button>
+    </div>`).join('');
+  return `<div style="margin-top:8px;border-top:.5px dashed var(--border);padding-top:8px">
+    <div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">🎭 Attributen</div>
+    ${lijst||'<div style="font-size:11px;color:var(--text3)">Nog geen attributen gekoppeld.</div>'}
+    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center">
+      ${beschikbaar.length?`<select class="sel" id="attr-sel-${thema.id}" style="height:26px;font-size:11px"><option value="">Koppel bestaand…</option>${beschikbaar.map(a=>`<option value="${a.id}">${_escH(a.naam)}${a.code?' ('+_escH(a.code)+')':''}</option>`).join('')}</select>
+      <button class="btn-o" style="height:26px;font-size:11px" onclick="_attrKoppel(${thema.id})">Koppel</button>`:''}
+      <input class="inp" id="attr-nieuw-naam-${thema.id}" placeholder="Nieuw attribuut…" style="height:26px;font-size:11px;width:150px">
+      <input class="inp" id="attr-nieuw-code-${thema.id}" placeholder="Code" style="height:26px;font-size:11px;width:60px">
+      <button class="btn-o" style="height:26px;font-size:11px" onclick="_attrNieuw(${thema.id})">＋ Maak & koppel</button>
+    </div>
+  </div>`;
+}
+async function _attrKoppel(themaId){
+  const sel=document.getElementById('attr-sel-'+themaId);
+  const attrId=parseInt(sel?.value); if(!attrId)return;
+  await api('POST','/themas/'+themaId+'/attributen',{attribuut_id:attrId});
+  await _tbVernieuwen();
+}
+async function _attrOntkoppel(themaId,attrId){
+  const attr=(_attrAlle||[]).find(a=>a.id===attrId);
+  const elders=attr&&await api('GET','/themas/'+themaId+'/attributen').then(l=>(l.find(x=>x.id===attrId)?.gedeeld_met||[]).length).catch(()=>0);
+  if(!elders&&!confirm('Dit attribuut is nergens anders gekoppeld. Ontkoppelen? (Het attribuut zelf blijft bestaan.)'))return;
+  await api('DELETE','/themas/'+themaId+'/attributen/'+attrId);
+  await _tbVernieuwen();
+}
+async function _attrNieuw(themaId){
+  const naam=(document.getElementById('attr-nieuw-naam-'+themaId)?.value||'').trim();
+  const code=(document.getElementById('attr-nieuw-code-'+themaId)?.value||'').trim();
+  if(!naam){showToast('Geef het attribuut een naam.','warn');return;}
+  const attr=await api('POST','/attributen',{naam,code});
+  if(attr.error){showToast(attr.error,'error');return;}
+  await api('POST','/themas/'+themaId+'/attributen',{attribuut_id:attr.id});
+  await _tbVernieuwen();
 }
 
 // ── VASTE BAKKEN ──
