@@ -67,6 +67,19 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Mini Splash] Transporteenheden 3/5 en 4/5 = 2 dakgoten (E00) en 5/5 = zak zand 1kg — als attributen ingevoerd (los ding zonder telbare inhoud); zak zand zonder code — verifiëren.
 - [Mini Splash] "Bak eendjes vangen" staat op H03, dezelfde code als een Speelfabriek-bak (die óók eendjes vangen bevat!) — mogelijk dezelfde fysieke bak; als aparte bak ingevoerd (L5), dubbel-check bij eerste nakijk. "Eendjes" en "Opblaasbaar speelgoed" zonder aantal — 1 + verifieer-notitie (L7).
 
+- [Minidisco] "Briefje wc rolletjes (1/knd)" + "Aantal wc rolletjes": briefje = printbaar (L12); de rolletjes zelf gelezen als via ouders verzameld (geen aankoop, geen voorraadrij), aantal onbekend — qty 1 + verifieer-notitie (L7).
+- [Minidisco] "2 verkleedpakken + petten" gesplitst in 2 verkleedpakken + 2 petten (L19); aantal petten niet expliciet — aangenomen 2 (1 per pak).
+- [Multiballs met Ypie] Fiche heeft géén "Los materiaal"-rubriek — gekozen: geen verbruiksmateriaal (INFO-regel toegevoegd).
+- [Multiballs met Ypie] Sportbak B41 "Zweefbal- + Kinbzllpakket": naam letterlijk overgenomen (L20, vermoedelijk tikfout voor kinbalpakket); geen inhoudslijst op fiche — 1 verzamel-item + verifieer-notitie (L27).
+- [Multiballs met Ypie] Ypie-pak wordt in de organisatiepagina genoemd ("hele week op locatie") maar staat niet op de fiche — alleen INFO-regel; hoort het pak bij dit thema of bij een Ypie-pool?
+- [Op een onbewoond eiland] Los-rubriek schrijft "Themabak 1/3" terwijl vast 4 bakken telt — gelezen als bak 1/4 (E31); nummering verifiëren.
+- [Op een onbewoond eiland] Bakken 3/4 en 4/4 = 2 grote zakken met elk 36 RIWI blokken, zonder code — codes verifiëren.
+- [Op een onbewoond eiland] "Rode, gele, oranje ballonnen" gesplitst in 3 kleuren (L13), aantallen onbekend — qty 1 per kleur + verifieer-notitie; "Kokosnoten" zonder aantal — qty 1 + verifieer-notitie (L7).
+- [Op stap in de jungle] Verkleedkledij in de kooi (G41) staat enkel als foto's op de fiche, geen tekstlijst — 1 verzamel-item + verifieer-notitie; sportmateriaal-rubriek ontbreekt.
+- [Reis rond de wereld] 5-daagse fiche mist bakken 4/6 en 5/6; de 3-daagse fiche heeft wél een 4/6 (blauwe curver G42) met de volksspelen die op de 5-daagse in 3/6 (G40) staan. Hoofdfiche gevolgd, niets herschoven (L14) — echte indeling (en of 5/6 bestaat) verifiëren bij eerste nakijk.
+- [Reis rond de wereld] "18 kommetjes" staat 2× op de fiche in bak 2/6 — 1× ingevoerd met notitie.
+- [Reis rond de wereld] "Apart"-materiaal (3 djembés N33, 5 gekleurde emmers met 10 trommelstokken, echodoos) als attributen ingevoerd (los, geen bak) — bak-of-attribuut-keuze + codes verifiëren.
+- [Reis rond de wereld] Melk en mayonaise = vers → geen voorraadrij (analoog Farao-lijn); overige ingrediënten (peper, zout, confituur, suikerklontjes, thee, maïszetmeel, conditioner) wél voorraadrij Rozenweg qty 0.
 ## Mogelijke nieuwe leesregels
 
 - Fiches van oudere kleuterbundels (Balanceren op één been) missen soms bakcodes én de item-verdeling over meerdere bakken; voorstel: vaste aanpak "alles in bak 1 + lege bak 2 + verifieer-notitie" als leesregel vastleggen.
