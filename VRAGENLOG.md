@@ -37,6 +37,19 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [De Speelfabriek] "Map 10 kamp" letterlijk overgenomen (L20); bundel p5 noemt de themabak H01 "Mini-play Factory koffer" (met map Kleuterganzenbord + 10-kamp-map + boek) — mogelijk dezelfde fysieke koffer als bij Play Factory? Verifiëren.
 - [De Speelfabriek] Geen "Los materiaal"- en geen "Sportmateriaal"-rubriek op fiche — gekozen: geen; enige verbruiksitem is de zelf-printbare "Print 10-kamp stempelblad" (L12, geen voorraadrij).
 - [De Speelfabriek] "Clics 1 bak" als pool (clics_bak ×1) ingevoerd; Sporty heeft ±50.000 clics-blokken (bundel p5).
+- [De vloek van de farao] "Extra meenemen"-rubriek (soft lego ×2, oven, afwasbak, klei, speelzand) = pool + losse goederen zonder bak — als INFO-regel; klei/speelzand niet als item ingevoerd (geen bak/code op fiche), plek verifiëren.
+- [De vloek van de farao] "48 hotdog worstjes" + "klein busje mayonaise" staan in de Los-rubriek (niet onder KV) — als verbruiksitems in bak 1/2 ingevoerd, maar GEEN voorraadrij (verse waar); zie voorstel nieuwe leesregel onderaan.
+- [De vloek van de farao] "Faraokroon op stevig papier" zonder "print"-prefix maar zelfde patroon als de printregels — als zelf-printbaar behandeld (geen voorraadrij), verifiëren.
+- [Dino detectives] Fiche schrijft bak 1/4 als "LS bal – H45" — tikfout, als LS bak gelezen; verifiëren.
+- [Dino detectives] "Inkleurbaar masker dino 1/kind" als zelf-printbaar behandeld (geen voorraadrij) — verifiëren.
+- [Dino detectives] "Extra"-blokje op p1 (blinddoek, zak zand, dinostaart, decor dinogrot, handpoppen, pingpongballetjes): blinddoek/dinostaart/handpoppen/pingpongballetjes bij bak 1/4 gehouden; zak zand + decor dinogrot als attributen zonder code (L10). Toewijzing verifiëren.
+- [FC Sporty] Themanaam van de fiche is "FC Sporty" (bestand heet "FC Sporty Kleuters"); apart thema naast "WK voetbal Kleuters" (L16). Materialen zitten "verzameld in grote kisten" zonder code of aantal — 1 bak "Voetbalkisten" met verifieer-notitie.
+- [FC Sporty] Medailles zonder aantal — 32 ingevoerd met aanname-notitie 1/kind (te bestellen bij huis Prinzie), verifiëren.
+- [Feestje bouwen!] 3-daagse = zelfde thema (L14). Verschillen: 3-daagse heeft extra "groot groen ei" (bak 2/3 vast) en "geel zijdepapier" (bak 1/3 los) — aangevuld met bron-notitie; 3-daagse mist bak 3/3-vastdeel, kerstboom F12, decoratie cake, geel crêpepapier en kookbak/afwasbak — niets verwijderd of herschoven.
+- [Feestje bouwen!] "Kerstboom" staat dubbel: in bak 3/3 (inkleding Kerstmis) én apart op F12 — beide ingevoerd (bak-item + attribuut) met kruisnotitie; verifiëren of het 1 of 2 bomen zijn.
+- [Feestje bouwen!] "De kampverantwoordelijke voorziet cakes of cupcakes" → KV-regel qty 1 (aantal onbekend).
+- [Jumpen!] Springkastelen zonder namen op fiche gemapt op bestaande pool (klein 3x3 ≈ jungle, groot ≈ kasteel, hindernissenbaan ≈ kleuterhindernisbaan) — alleen als INFO-regel, mapping verifiëren; geen nieuwe pool-exemplaren aangemaakt. Themabehoefte + blazers → S4.5.
+- [Jumpen!] Bak springkonijnen heeft dubbele code "N17/N18" — mogelijk 2 fysieke bakken; als 1 bak ingevoerd met verifieer-notitie. "10x springkonijn en/of springbal": mix onbekend (L7). "10 meterband" letterlijk overgenomen (L20). Mogelijk overlappen de springkonijnen met de springdieren-bak van Circus Krokofant — verifiëren.
 
 ## Mogelijke nieuwe leesregels
 
@@ -44,4 +57,6 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - "Coole Kadeekes - X"-bundels blijken de doelgroep te versmallen (oudste kleuters 5-6 j) en hele-dag-planning te gebruiken; mogelijk later relevant voor planning (zelfde thema, ander dagritme).
 - Bouwmateriaal (duplo, softlego, clics, houten blokken, kruiwagens, LEONARDO) gedraagt zich als gedeelde pool over bouwthema's heen (Bouwfabriek, Speelfabriek, en bundel verwijst ook naar "Blokkenbouwdoos") — voorstel: als leesregel vastleggen naast voertuigen (L15) en WESCO (L21). Bezitstotalen verifiëren bij Maxim.
 - Er bestaat een rubriek "Materiaal aanwezig in Hal 5" (locatiegebonden kampen zoals Beweegkriebels): materiaal hoort bij de hal, niet bij het thema — voorstel: leesregel "locatie-rubriek = INFO, geen bakken".
+- Verse waren (hotdog worstjes, mayonaise bij Farao) kunnen óók in de gewone Los-rubriek staan i.p.v. onder een KV-kopje — voorstel: leesregel "herkenbaar verse waar in de Los-rubriek = verbruiksitem zonder Sporty-voorraadrij (telkens vers kopen)", analoog aan L24.
+- Sommige fiches hebben een "Extra meenemen"-rubriek (Farao: soft lego, oven, afwasbak, klei, speelzand) — mix van pool-materiaal en losse goederen zonder bak; voorstel: leesregel "Extra meenemen = pool-verwijzing (S4.5) + INFO, tenzij een item duidelijk bij een themabak hoort".
 
