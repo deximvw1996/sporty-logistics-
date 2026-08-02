@@ -61,9 +61,15 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L17 (idem): identieke koffers op de fiche (verkeerskoffer 1/2/3) = pool-exemplaren; meestal gaat er maar 1 mee per locatie.** De verkeerskoffers staan allemaal bij de fietsen in de Rozenweg. Ook hier: fiche-fouten mogelijk (F40 stond als "grijze curver" maar is de zwárte curver; kleine inhoudsverschillen tussen koffers = verifiëren bij eerste nakijk).
 
-**L18 (idem): bij elk springkasteel/opblaasstructuur horen standaard een blazer én een verlengdraadkoffer** (koffers vol verlengdraden en domino's, zelfde model als de EHBO-koffers). Elk springkasteel hoort in de app een foto te krijgen: opgeplooid én opgezet (bouwpunt).
+**L18 (idem, herzien 2026-08-02 na Holderdebolder): bij springkastelen horen blazers en een verlengdraadkoffer, maar per LEVERING gepland, niet per kasteel.** (a) Elk springkasteel heeft een eigen blazer-behoefte: meestal 1, grote structuren soms 2 (kleuterhindernisbaan = 2). (b) Het benodigde aantal blazers op een locatie = de piek-gelijktijdigheid van de dagplanning, níét de som (staan 2 kleine kastelen op dag 1 en het grote op dag 2, dan volstaan 2 blazers). (c) Verlengdraadkoffer: 1 per levering/locatie is genoeg, ook bij 3 springkastelen. (d) Elk springkasteel hoort in de app een foto te krijgen: opgeplooid én opgezet (bouwpunt S4.6). Blazers zijn een pool: ±15 stuks, waarvan ±5 sterkere (±1500W) en ±10 lichtere (±1000W) — wattages onzeker, verifiëren.
 
 **L19 (idem): "pak + pet"-verkleedkledij = 2 aparte items die bij elkaar horen** (notitie), géén 1 set — de Alice-setregel geldt alleen als de fiche het expliciet als één geheel presenteert.
+
+**L20 (2026-08-02, Holderdebolder): itemnamen ALTIJD letterlijk uit de bundel overnemen, ook als ze onduidelijk zijn** ("10 kamp" blijft "10 kamp"). Onduidelijkheid los je op met een notitie, nooit door te hernoemen.
+
+**L21 (idem): WESCO-blokken reizen los mee in camionette/camion/remorque** (geen bak); Sporty heeft ±4 WESCO-pakketten (pool per pakket).
+
+**L22 (idem): een thema kan volledig uit pool-materiaal bestaan** (Holderdebolder = 2 springkastelen + kleuterhindernisbaan + WESCO, géén themabak en géén los/sportmateriaal — beide rubrieken op "nee"). Dan geen bakken aanmaken; de themabehoefte komt in S4.5.
 
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
