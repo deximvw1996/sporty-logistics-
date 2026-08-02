@@ -2377,6 +2377,14 @@ async function startServer() {
       // Filter themadag-kampmomenten weg vóór het itereren — anders breken
       // de prevKm/nextKm contiguïteits-checks (de themadag staat tussen 2 themakampen).
       const kmList=kmListAll.filter(k=>k.type!=='themadag').sort((a,b)=>a.week-b.week);
+      // S5.2: basis-materiaal en kleurenborden volgen "periode-bereik per locatie" i.p.v.
+      // "aansluitende weken" — enkel de EERSTE open week van de locatie in de periode levert,
+      // enkel de LAATSTE haalt op; gap-weken (locatie tijdelijk dicht, later weer open) krijgen
+      // GEEN ophaal-/herlevervoorstel — dat materiaal blijft gewoon staan. kleurenStand houdt per
+      // kleur bij hoeveel er (cumulatief, enkel toenames) al effectief op de locatie staat, zodat
+      // een latere open week alleen het positieve verschil bijgeleverd krijgt (nooit terugname).
+      const kleurenOpenWeken=kmList.filter(km=>getOpenDagen(km).length);
+      const kleurenStand={};
       kmList.forEach((km,idx)=>{
         const openDagen=getOpenDagen(km);
         if(!openDagen.length)return;
@@ -2386,6 +2394,10 @@ async function startServer() {
         const nextKm=kmList[idx+1];
         const isOpvolgend=prevKm&&prevKm.week===km.week-1;
         const heeftOpvolger=nextKm&&nextKm.week===km.week+1;
+        // S5.2: periode-bereik i.p.v. aansluitende weken — enkel voor basis/kleurenborden/locatieconfig.
+        const idxOpen=kleurenOpenWeken.indexOf(km);
+        const isEersteVanPeriode=idxOpen===0;
+        const isLaatsteVanPeriode=idxOpen===kleurenOpenWeken.length-1;
 
         // S2.6: Thema-materiaal = één regel per BAK of ATTRIBUUT (chauffeur ziet bakken, geen inhoud).
         // Van-locatie = de eigen thuislocatie_id van de bak/het attribuut (fallback: themaStockageId).
@@ -2394,9 +2406,24 @@ async function startServer() {
           const attrRegels=themaAttrRegels.filter(a=>a.thema_id===kt.thema_id).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:a.thuislocatie_id||themaStockageId,attribuut_id:a.attr_id}));
           return [...bakRegels,...attrRegels];
         });
+        // S5.1 (uitbreiding): een thema dat deze week op deze locatie START doordat het via een
+        // directe transfer van een andere locatie komt (vorige week elders) wordt door het
+        // "DIRECT THEMA-TRANSFER"-blok geleverd — hier NIET nog eens meesturen als "eerste
+        // levering", anders krijg je zowel de transfer als een volledige stockage-levering voor
+        // dezelfde bakken bij een locatie die voor het eerst in de kmList opduikt.
+        const kmThemasNietViaDirecteTransfer=kmThemas.filter(kt=>{
+          const komtDirectVanAndereLocatie=kts.some(kt2=>kt2.thema_id===kt.thema_id&&kt2.kampmoment_id!==km.id&&
+            (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.week===km.week-1&&km2.locatie_id!==km.locatie_id;})());
+          return !komtDirectVanAndereLocatie;
+        });
+        const themaMatRegelsEersteLevering=kmThemasNietViaDirecteTransfer.flatMap(kt=>{
+          const bakRegels=themaBakken.filter(b=>b.thema_id===kt.thema_id).map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'thema',stockage_id:b.thuislocatie_id||themaStockageId,bak_id:b.bak_id}));
+          const attrRegels=themaAttrRegels.filter(a=>a.thema_id===kt.thema_id).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:a.thuislocatie_id||themaStockageId,attribuut_id:a.attr_id}));
+          return [...bakRegels,...attrRegels];
+        });
         // Locatieconfig-exemplaren (S2.5/S2.6): bij de eerste levering van dit kampmoment de
         // vereiste vaste exemplaren (EHBO-koffer, adminkast...) meenemen als eigen transport_regel.
-        const locConfigRegels=(!isOpvolgend)?_actieveLocatieConfig(km).flatMap(cfg=>{
+        const locConfigRegels=(isEersteVanPeriode)?_actieveLocatieConfig(km).flatMap(cfg=>{
           const vrij=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' ORDER BY volgorde,id LIMIT ?",[cfg.vast_type,cfg.aantal||1]);
           return vrij.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
         }):[];
@@ -2406,18 +2433,41 @@ async function startServer() {
         // Groepeer regels per stockage-locatie en push één transport per groep
         function byStockage(regels){const g={};regels.forEach(r=>{if(!r.stockage_id)return;const k=r.stockage_id;if(!g[k])g[k]=[];g[k].push(r);});return g;}
 
-        if(!isOpvolgend){
-          // Eerste week: lever per stockage-groep
-          const prevD=prevWorkday(openDagen[0]);
-          // Kleurenborden voor deze locatie+week meesturen met basislevering
-          const kleuren=allKleuren.filter(k=>k.locatie_id==loc.id&&k.week===km.week);
-          const kleurenRegels=kleuren.map(k=>({naam:`Kleurenbord ${k.kleur} ×${k.aantal}`,qty:k.aantal,soort:'basis',stockage_id:sportStockageId}));
+        const prevD=prevWorkday(openDagen[0]);
+        // Kleurenborden voor deze locatie+week: eerste open week van de periode = volledige
+        // levering; latere open weken (aansluitend of na een gap) = enkel het positieve verschil
+        // t.o.v. wat al staat (kleurenStand); nooit tussentijds terughalen.
+        const kleurenHuidig=allKleuren.filter(k=>k.locatie_id==loc.id&&k.week===km.week);
+        let kleurenRegels=[];
+        if(isEersteVanPeriode){
+          kleurenRegels=kleurenHuidig.map(k=>({naam:`Kleurenbord ${k.kleur} ×${k.aantal}`,qty:k.aantal,soort:'basis',stockage_id:sportStockageId}));
+          kleurenHuidig.forEach(k=>{kleurenStand[k.kleur]=k.aantal;});
+        } else {
+          kleurenHuidig.forEach(k=>{
+            const stand=kleurenStand[k.kleur]||0;
+            const extra=k.aantal-stand;
+            if(extra>0){
+              kleurenRegels.push({naam:`Kleurenbord ${k.kleur} ×${extra} (bijlevering, staat al ${stand})`,qty:extra,soort:'basis',stockage_id:sportStockageId});
+              kleurenStand[k.kleur]=k.aantal;
+            }
+          });
+        }
+        if(isEersteVanPeriode){
+          // Eerste open week van de locatie in de periode: lever basis-materiaal + locatieconfig per stockage-groep
           const basisPlusKleuren=[...basisRegels,...kleurenRegels];
           Object.entries(byStockage(basisPlusKleuren)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'08:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering basis week '+km.week+' — '+loc.name+(sLoc?' (van '+sLoc.name+')':'')});
           });
-          Object.entries(byStockage([...themaMatRegels,...locConfigRegels])).forEach(([sid,mat])=>{
+        } else if(kleurenRegels.length){
+          // Gap-week/latere open week: enkel het kleurenverschil bijleveren, geen basis-materiaal.
+          Object.entries(byStockage(kleurenRegels)).forEach(([sid,mat])=>{
+            const sLoc=locs.find(l=>l.id==sid);
+            voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'08:00',open_dagen:openDagen,materiaal:mat,opmerking:'Bijlevering kleurenverschil week '+km.week+' — '+loc.name});
+          });
+        }
+        if(!isOpvolgend){
+          Object.entries(byStockage([...themaMatRegelsEersteLevering,...locConfigRegels])).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', van '+sLoc.name:'')+')'});
           });
@@ -2466,20 +2516,17 @@ async function startServer() {
           }
         }
 
-        if(!heeftOpvolger){
-          // Laatste week: haal op per stockage-groep
+        if(isLaatsteVanPeriode){
+          // Laatste OPEN week van de locatie binnen de periode (definitief dicht daarna, of
+          // laatste week van de vakantie): haal basis-materiaal, kleurenborden (alles wat
+          // cumulatief effectief staat volgens kleurenStand) en locatieconfig-exemplaren op.
           const nextD=nextWorkday(openDagen[openDagen.length-1]);
-          // Kleurenborden meeophalend na de laatste week
-          const kleuren=allKleuren.filter(k=>k.locatie_id==loc.id&&k.week===km.week);
-          const kleurenRegels=kleuren.map(k=>({naam:`Kleurenbord ${k.kleur} ×${k.aantal}`,qty:k.aantal,soort:'basis',stockage_id:sportStockageId}));
-          const basisPlusKleuren=[...basisRegels,...kleurenRegels];
+          const kleurenOphaalRegels=Object.entries(kleurenStand).filter(([,q])=>q>0)
+            .map(([kleur,aantal])=>({naam:`Kleurenbord ${kleur} ×${aantal}`,qty:aantal,soort:'basis',stockage_id:sportStockageId}));
+          const basisPlusKleuren=[...basisRegels,...kleurenOphaalRegels];
           Object.entries(byStockage(basisPlusKleuren)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling basis week '+km.week+' — '+loc.name+(sLoc?' (naar '+sLoc.name+')':'')});
-          });
-          Object.entries(byStockage(themaMatRegels)).forEach(([sid,mat])=>{
-            const sLoc=locs.find(l=>l.id==sid);
-            voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', naar '+sLoc.name:'')+')'});
           });
           // Locatieconfig-exemplaren gaan terug mee naar hun thuislocatie
           const locConfigTerug=(_actieveLocatieConfig(km)).flatMap(cfg=>{
@@ -2488,6 +2535,15 @@ async function startServer() {
           });
           Object.entries(byStockage(locConfigTerug)).forEach(([sid,mat])=>{
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling vast materiaal week '+km.week+' — '+loc.name});
+          });
+        }
+        if(!heeftOpvolger){
+          // Laatste week van deze aaneensluitende reeks (kan een gap-week zijn): thema volgt
+          // zijn eigen gap-gedrag (via stockage) — niet aanraken, blijft ongewijzigd.
+          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          Object.entries(byStockage(themaMatRegels)).forEach(([sid,mat])=>{
+            const sLoc=locs.find(l=>l.id==sid);
+            voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', naar '+sLoc.name:'')+')'});
           });
         }
       });
