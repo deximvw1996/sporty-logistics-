@@ -1797,8 +1797,17 @@ async function startServer() {
     const {bakken}=_kvVerwacht(km);
     const bak=bakken.find(b=>b.id===parseInt(req.params.bakId));
     if(!bak)return res.status(403).json({error:'Deze bak hoort niet bij dit kampmoment'});
+    // S5.4b: weiger lege/misvormde payload i.p.v. stil ok:true teruggeven.
+    const regelsIn=Array.isArray(req.body?.regels)?req.body.regels:null;
+    if(!regelsIn||!regelsIn.length)return res.status(400).json({error:'regels is verplicht en mag niet leeg zijn'});
+    const items0=_bakItems(bak);
+    const ongeldig=regelsIn.some(rin=>{
+      const itemIdOk=rin&&rin.item_id!=null&&items0.some(i=>i.id===rin.item_id);
+      const aangetroffenOk=rin&&rin.aangetroffen!=null&&!isNaN(parseFloat(rin.aangetroffen))&&parseFloat(rin.aangetroffen)>=0;
+      return !itemIdOk||!aangetroffenOk;
+    });
+    if(ongeldig)return res.status(400).json({error:'Elke regel heeft een geldig item_id en aangetroffen (≥0) nodig'});
     const kvNaam=_kvNaam(km);
-    const regelsIn=Array.isArray(req.body?.regels)?req.body.regels:[];
     const veldNaam=bak.soort==='thema'?'thema_bak_id':'vaste_bak_id';
     let sessie=get(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veldNaam}=? AND locatie_id=? AND week=? AND kv_status IN ('bezig','ingediend')`,
       [bak.soort,bak.id,km.locatie_id,km.week]);
@@ -1828,7 +1837,10 @@ async function startServer() {
     const {attributen}=_kvVerwacht(km);
     const attr=attributen.find(a=>a.id===parseInt(req.params.attrId));
     if(!attr)return res.status(403).json({error:'Dit attribuut hoort niet bij dit kampmoment'});
-    const status=['aanwezig','beschadigd'].includes(req.body?.status)?req.body.status:'';
+    // S5.4b: weiger een ongeldige status i.p.v. ze stil te vervangen door ''.
+    if(!['aanwezig','beschadigd'].includes(req.body?.status))
+      return res.status(400).json({error:"status moet 'aanwezig' of 'beschadigd' zijn"});
+    const status=req.body.status;
     const kvNaam=_kvNaam(km);
     let sessie=get("SELECT * FROM nakijk_sessies WHERE bak_type='attribuut' AND attribuut_id=? AND locatie_id=? AND week=? AND kv_status IN ('bezig','ingediend')",
       [attr.id,km.locatie_id,km.week]);
@@ -2414,7 +2426,7 @@ async function startServer() {
           const prevKmThemas=kts.filter(kt=>kt.kampmoment_id===prevKm.id);
           const prevThIds=new Set(prevKmThemas.map(kt=>kt.thema_id));
           const newThIds=new Set(kmThemas.map(kt=>kt.thema_id));
-          const vertrekkende=prevKmThemas.filter(kt=>!newThIds.has(kt.thema_id));
+          const vertrekkendeAll=prevKmThemas.filter(kt=>!newThIds.has(kt.thema_id));
           const aankomende=kmThemas.filter(kt=>!prevThIds.has(kt.thema_id));
 
           // Aankomende thema's die direct van een andere locatie komen (A→B consecutive)
@@ -2423,6 +2435,16 @@ async function startServer() {
             const kwamVanAndereLocatie=kts.some(kt2=>kt2.thema_id===kt.thema_id&&kt2.kampmoment_id!==km.id&&
               (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.week===km.week-1&&km2.locatie_id!==km.locatie_id;})());
             return !kwamVanAndereLocatie;
+          });
+          // S5.1: symmetrische fix — een VERTREKKEND thema waarvoor een directe transfer bestaat
+          // (zelfde thema, volgende week km.week, andere locatie) wordt hier NIET meer als
+          // wissel-ophaling opgevoerd — dat wordt al door het "DIRECT THEMA-TRANSFER" blok gedaan.
+          // Zonder deze filter kreeg je zowel de directe transfer als deze ophaling voor
+          // dezelfde bakken (simulatie-bevinding 1). Eén thema-verplaatsing = precies één voorstel.
+          const vertrekkende=vertrekkendeAll.filter(kt=>{
+            const gaatDirectNaarAndereLocatie=kts.some(kt2=>kt2.thema_id===kt.thema_id&&kt2.kampmoment_id!==prevKm.id&&
+              (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.week===prevKm.week+1&&km2.locatie_id!==prevKm.locatie_id;})());
+            return !gaatDirectNaarAndereLocatie;
           });
           if(vertrekkende.length||aankomendeViaStockage.length){
             const ophaalMat=vertrekkende.flatMap(kt=>[
@@ -2601,16 +2623,21 @@ async function startServer() {
       // automatisch mee naar naar_locatie_id; status 'thuis' als dat hun thuislocatie is.
       if(taak&&taak.naar_locatie_id&&oudStatus!=='gedaan'){
         const regels=all('SELECT bak_id,attribuut_id FROM transport_regels WHERE taak_id=?',[req.params.id]);
+        const ritRow=taak.rit_id?get('SELECT * FROM transport_ritten WHERE id=?',[taak.rit_id]):null;
+        const chauffeurNaam=(ritRow&&ritRow.chauffeur)||taak.wie||'onbekende chauffeur';
+        const loc=get('SELECT name FROM locaties WHERE id=?',[taak.naar_locatie_id]);
         regels.forEach(r=>{
           if(r.bak_id){
             const b=get('SELECT * FROM bakken WHERE id=?',[r.bak_id]);
             if(b){const st=taak.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
-              run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id]);}
+              run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id]);
+              logAct('bak','gelost',`Bak "${b.naam}" (${b.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
           }
           if(r.attribuut_id){
             const a=get('SELECT * FROM attributen WHERE id=?',[r.attribuut_id]);
             if(a){const st=taak.naar_locatie_id==a.thuislocatie_id?'thuis':'op_locatie';
-              run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.attribuut_id]);}
+              run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.attribuut_id]);
+              logAct('attribuut','gelost',`Attribuut "${a.naam}" (${a.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
           }
         });
       }
@@ -2818,13 +2845,18 @@ async function startServer() {
     res.json(get('SELECT * FROM bak_items WHERE id=?',[req.params.id]));
   });
   app.delete('/api/bak-items/:id',(req,res)=>{run('DELETE FROM bak_items WHERE id=?',[req.params.id]);res.json({ok:true});});
+  // S5.4a: dit veld `id` = bak.id uit de `bakken`-tabel (zelfde als de thema-bakkenlijst
+  // /api/themas/:id/bakken teruggeeft) — niet meer de legacy thema_bakken-tabel, die na
+  // Migratie 53 niet meer bijgewerkt wordt zodra nieuwe bakken via /api/themas/:id/bakken ontstaan.
   app.get('/api/bakken/:id/items-detail',(req,res)=>{
-    const b=get('SELECT * FROM thema_bakken WHERE id=?',[req.params.id]);
+    const b=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!b)return res.status(404).json({error:'Bak niet gevonden'});
     res.json(all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[req.params.id]));
   });
   // Nakijk log
   app.post('/api/bakken/:id/nakijk',(req,res)=>{
+    const b=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
+    if(!b)return res.status(404).json({error:'Bak niet gevonden'});
     const{wie,resultaat,notitie,stock_updates}=req.body;
     const tid=ins('INSERT INTO bak_nakijk_log (bak_id,tijdstip,wie,resultaat,notitie) VALUES (?,?,?,?,?)',
       [req.params.id,now(),wie||'',resultaat||'ok',notitie||'']);
@@ -2836,7 +2868,8 @@ async function startServer() {
       });
     }
     saveDb();
-    res.json({ok:true,log_id:tid,bakken:_bakkenVanThema(get('SELECT thema_id FROM thema_bakken WHERE id=?',[req.params.id])?.thema_id)});
+    const themaId=get('SELECT thema_id FROM thema_bak WHERE bak_id=? LIMIT 1',[req.params.id])?.thema_id;
+    res.json({ok:true,log_id:tid,bakken:themaId?_bakkenVanThema(themaId):[]});
   });
 
   // ── VERHUIS CHECKS (persistente klaarzet-checklist per rit) ──
@@ -2906,23 +2939,37 @@ async function startServer() {
   // ── S3.6: chauffeurspagina interactief — twee vink-fases per bak/attribuut ──
   // Werkt UITSLUITEND op het rit-token (publiek pad, geen sessietoken), en enkel op checks
   // die bij die specifieke rit horen — zie de auth-poort-uitzondering /api/rit-token/.
-  function _pasBakAttribuutStatusToe(regels, veld){
+  function _pasBakAttribuutStatusToe(regels, veld, rit){
     // veld: 'onderweg' bij volledig geladen, of {naar_locatie_id} bij volledig gelost
+    // S5.3: elke statuswijziging via transport wordt ook naar activiteiten_log geschreven,
+    // zodat /api/waar-is de volledige reis toont (niet enkel handmatige verplaatsingen).
+    const chauffeur=(rit&&rit.chauffeur)||'onbekende chauffeur';
+    const ritNr=rit?rit.id:'?';
     regels.forEach(c=>{
       if(c.bak_id){
-        if(veld==='onderweg') run("UPDATE bakken SET status='onderweg' WHERE id=?",[c.bak_id]);
-        else{
+        if(veld==='onderweg'){
+          run("UPDATE bakken SET status='onderweg' WHERE id=?",[c.bak_id]);
+          const b=get('SELECT * FROM bakken WHERE id=?',[c.bak_id]);
+          if(b)logAct('bak','geladen',`Bak "${b.naam}" (${b.code||'-'}) geladen voor rit #${ritNr} door ${chauffeur}`,null,null);
+        }else{
           const b=get('SELECT * FROM bakken WHERE id=?',[c.bak_id]);
           if(b){const st=veld.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
-            run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.bak_id]);}
+            run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.bak_id]);
+            const loc=get('SELECT name FROM locaties WHERE id=?',[veld.naar_locatie_id]);
+            logAct('bak','gelost',`Bak "${b.naam}" (${b.code||'-'}) gelost op ${loc?.name||'?'} (rit #${ritNr}) door ${chauffeur}`,veld.naar_locatie_id,loc?.name);}
         }
       }
       if(c.attribuut_id){
-        if(veld==='onderweg') run("UPDATE attributen SET status='onderweg' WHERE id=?",[c.attribuut_id]);
-        else{
+        if(veld==='onderweg'){
+          run("UPDATE attributen SET status='onderweg' WHERE id=?",[c.attribuut_id]);
+          const a=get('SELECT * FROM attributen WHERE id=?',[c.attribuut_id]);
+          if(a)logAct('attribuut','geladen',`Attribuut "${a.naam}" (${a.code||'-'}) geladen voor rit #${ritNr} door ${chauffeur}`,null,null);
+        }else{
           const a=get('SELECT * FROM attributen WHERE id=?',[c.attribuut_id]);
           if(a){const st=veld.naar_locatie_id==a.thuislocatie_id?'thuis':'op_locatie';
-            run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.attribuut_id]);}
+            run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.attribuut_id]);
+            const loc=get('SELECT name FROM locaties WHERE id=?',[veld.naar_locatie_id]);
+            logAct('attribuut','gelost',`Attribuut "${a.naam}" (${a.code||'-'}) gelost op ${loc?.name||'?'} (rit #${ritNr}) door ${chauffeur}`,veld.naar_locatie_id,loc?.name);}
         }
       }
     });
@@ -2938,7 +2985,7 @@ async function startServer() {
     if(check.taak_id){
       const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
       const alleGeladen=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.geladen);
-      if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg');
+      if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg',rit);
     }
     saveDb();
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
@@ -2955,7 +3002,7 @@ async function startServer() {
       const taak=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
       const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
       const alleGelost=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.gelost);
-      if(alleGelost && taak && taak.naar_locatie_id)_pasBakAttribuutStatusToe(groep,{naar_locatie_id:taak.naar_locatie_id});
+      if(alleGelost && taak && taak.naar_locatie_id)_pasBakAttribuutStatusToe(groep,{naar_locatie_id:taak.naar_locatie_id},rit);
     }
     saveDb();
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
