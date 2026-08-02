@@ -114,11 +114,25 @@ Klein, urgent, vóór al de rest.
 - **Bewijs:** het atletiek-scenario volledig herdraaid via API: kamp plannen → genereer → chauffeurslijst bevat exact G11+D17+G00+locatieconfig-exemplaren; status van bak G11 verandert mee met de rit; "materiaaltekort" en "dubbelboeking bak" vuren op bewust geconstrueerde testgevallen.
 
 ### FASE S3 — Rollen & toegang 🔐
-- [ ] S3.1 Login: personeel-gebaseerd (naam kiezen + per-persoon pincode of wachtwoord), sessie in localStorage + server-side token; APP_PASSWORD blijft als buitenmuur
-- [ ] S3.2 Rolgebaseerde UI: kantoor/chauffeur zien alles; KV ziet enkel zijn KV-scherm
-- [ ] S3.3 KV-weergave (mobiel-eerst): eigen kamp kiezen → vrijdagcontrole (nakijk-flow v2 hergebruiken) + aanvraag indienen; bereikbaar via een simpele link, geen admin-navigatie
-- [ ] S3.4 Chauffeursweergave uitbreiden: `/rit/:token` interactief maken (laden afvinken → lossen afvinken, twee fases per bak/attribuut)
-- **Bewijs:** drie testpersonen (kantoor/chauffeur/kv) loggen in en zien elk het juiste; KV kan niets anders bereiken (ook niet via directe URL/API).
+
+**Ontwerpbeslissingen (brainstorm met Maxim, 2026-08-02) — bindend:**
+1. **KV-toegang = persoonlijke link per kamp, géén login.** Kantoor koppelt vooraf wie KV is op welk kampmoment (uit Personeel); de link is daardoor persoonsgebonden — de app weet wie invult. KV's zijn wisselend seizoenspersoneel: nul accountbeheer.
+2. **Kantoor & chauffeurs: naam kiezen uit personeelslijst + eigen pincode.** APP_PASSWORD blijft als buitenmuur. Alles wat iemand doet (nakijken, laden, goedkeuren) wordt op naam gelogd.
+3. **KV-scherm (mobiel-eerst), vier functies:** (a) vooraf zien wat er op de locatie moet staan (bakken/attributen mét codes — maandagochtend-check), (b) vrijdagcontrole: **alles wat er staat** — themabakken én vaste bakken items tellen, attributen aanwezig/heel afvinken, (c) aanvraag indienen tijdens de week, (d) kapot-melding met foto, los van de vrijdagcontrole.
+4. **Chauffeurspagina wordt interactief: twee fases per bak/attribuut** — laden afvinken bij vertrek, lossen bij aankomst. Bak-status volgt automatisch (laden→onderweg, lossen→op locatie/thuis).
+5. **Aanvraagflow: nieuw → goedgekeurd/afgewezen (met reden) → afgehandeld.** Bij goedkeuring kan kantoor direct een spoedtransport aanmaken. KV ziet de status op zijn link. Dit vervangt de oude losse spoedmeldingen (= S1.5 spoed-consolidatie).
+6. **Kantoor verwerkt tekorten per bak** ("Themabak Alice 2/2 — 3 lijm bijvullen"), zoals je fysiek in het magazijn staat. Aanvul-actie boekt automatisch af van de voorraad (S2-regel).
+
+**Taken:**
+- [ ] S3.1 Personen-consolidatie (S1.4): chauffeurs+ploeg_shifts → personeel; transport_ritten op personeel_id
+- [ ] S3.2 Login kantoor/chauffeur: naam + pincode, server-side sessietoken, acties op naam gelogd
+- [ ] S3.3 KV-aanvraagflow (vervangt S1.5): aanvragen-tabel met statussen, kantoor-behandelscherm, spoedtransport-koppeling, oude spoedmeldingen-UI eruit
+- [ ] S3.4 KV-koppeling per kampmoment + persoonlijke token-link
+- [ ] S3.5 KV-scherm mobiel: de vier functies uit beslissing 3
+- [ ] S3.6 Chauffeurspagina interactief: twee vink-fases + automatische status-doorwerking
+- [ ] S3.7 Kantoor: tekorten-per-bak-werkscherm met aanvul-actie (boekt af van voorraad)
+- [ ] S3.8 Export/import bijwerken naar levende tabellen (S1.6)
+- **Bewijs:** volledig rollenspel herdraaid: kantoor plant kamp + koppelt KV → KV-link toont verwachte bakken → chauffeur laadt/lost af (status volgt) → KV doet vrijdagcontrole + aanvraag → kantoor keurt goed, maakt spoedtransport, vult bak aan (voorraad daalt). KV-link geeft geen toegang tot iets anders (ook niet via directe API-calls).
 
 ### FASE S4 — Thema-opbouwstraat 📚
 De werkstroom waarmee Maxim en Claude alle thema's stuk per stuk terugzetten.
