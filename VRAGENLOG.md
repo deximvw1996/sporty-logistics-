@@ -80,6 +80,14 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Reis rond de wereld] "18 kommetjes" staat 2× op de fiche in bak 2/6 — 1× ingevoerd met notitie.
 - [Reis rond de wereld] "Apart"-materiaal (3 djembés N33, 5 gekleurde emmers met 10 trommelstokken, echodoos) als attributen ingevoerd (los, geen bak) — bak-of-attribuut-keuze + codes verifiëren.
 - [Reis rond de wereld] Melk en mayonaise = vers → geen voorraadrij (analoog Farao-lijn); overige ingrediënten (peper, zout, confituur, suikerklontjes, thee, maïszetmeel, conditioner) wél voorraadrij Rozenweg qty 0.
+- [Schattenjacht] Sportmateriaal-rubriek ontbreekt op de fiche — aangenomen: geen sportmateriaal, verifiëren.
+- [Schattenjacht] Uitleg bij Los materiaal spreekt van een "verrassing" die de KV aankoopt (met factuur), maar de rubriek zelf bevat enkel "kleuterplaat elfen 1/kind" — beide opgenomen (item als verbruik + aparte KV-regel voor de verrassing); of dit hetzelfde is, verifiëren.
+- [Spelen in dromenland] Sportmateriaal-rubriek ontbreekt op de fiche — aangenomen: geen sportmateriaal. Bak 1/4 (wasmand H25) en 3/4 (bommazak H28) zonder inhoudsopgave: kussens qty 1 + verifieer-notitie (L7). Reservebatterijen (vast-rubriek) als verbruik ingevoerd, analoog 1001-precedent.
+- [Sporty in smurfenland] Bakken 1/2 en 2/2 hebben geen magazijncode op de fiche — code onbekend, verifiëren. Sportmateriaal-rubriek ontbreekt — aangenomen: geen. Wc-rolletjes 1/kind: aankopen of via kinderen (zoals Minidisco)? — als gewone verbruiksaankoop ingevoerd.
+- [Sprookjesland] 3-daagse fiche mist kookbak+afwasbak, bak 2/3 (blokken) en de food-aankopen; bak 1/3 heeft er 3 extra items (4 mengkommen, 6 plastic servies, bestekbakje) — hoofdfiche gevolgd, extra's aangevuld met bron-notitie, niets herschoven (L14). Echte inhoud G35 verifiëren.
+- [Sprookjesland] Decor "frame en doek" als eigen attribuut aangemaakt ("Decor Sprookjesland: frame en doek") — mogelijk hetzelfde fysieke frame als bij "Op stap in de jungle"; verifiëren of dit een gedeelde pool is.
+- [Superhelden] Sportmateriaal-rubriek ontbreekt op de fiche — aangenomen: geen. "Sjabloon masker (op dikker papier of bij Marlimat EF624)": printen of aankopen onduidelijk — als aankoop met voorraadrij ingevoerd, verifiëren.
+
 ## Mogelijke nieuwe leesregels
 
 - Fiches van oudere kleuterbundels (Balanceren op één been) missen soms bakcodes én de item-verdeling over meerdere bakken; voorstel: vaste aanpak "alles in bak 1 + lege bak 2 + verifieer-notitie" als leesregel vastleggen.
