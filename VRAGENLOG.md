@@ -50,6 +50,22 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Feestje bouwen!] "De kampverantwoordelijke voorziet cakes of cupcakes" → KV-regel qty 1 (aantal onbekend).
 - [Jumpen!] Springkastelen zonder namen op fiche gemapt op bestaande pool (klein 3x3 ≈ jungle, groot ≈ kasteel, hindernissenbaan ≈ kleuterhindernisbaan) — alleen als INFO-regel, mapping verifiëren; geen nieuwe pool-exemplaren aangemaakt. Themabehoefte + blazers → S4.5.
 - [Jumpen!] Bak springkonijnen heeft dubbele code "N17/N18" — mogelijk 2 fysieke bakken; als 1 bak ingevoerd met verifieer-notitie. "10x springkonijn en/of springbal": mix onbekend (L7). "10 meterband" letterlijk overgenomen (L20). Mogelijk overlappen de springkonijnen met de springdieren-bak van Circus Krokofant — verifiëren.
+- [Koekjesfabriek] Tweekoloms-fiche: rechterkolom-items onder de "Themabak 1/3"-kop (koekiemonster-deksels, emmers, bewaardozen, ovenwanten, rubberen eieren, breekmessen, schijfjes, yoghurtpotjes, PET-flessen, kurken, receptenfiches) zijn als vervolg van de B47-kolom gelezen (bak 2/3 = keukengerei, bak 1/3 = spellen) — kolomtoewijzing verifiëren bij eerste nakijk.
+- [Koekjesfabriek] "Uitsteekvormpjes" en "Receptenfiches" zonder aantal — 1 met verifieer-notitie (L7). "Extra meenemen" (kookbak, afwasbak, 2 ovens) = kookuitrusting-pool, als INFO-regel (geen nieuwe pool-exemplaren).
+- [Koekjesfabriek] Natte ingrediënten (16 eieren, 4,2 kg boter) staan op fiche-p2 onder een KV-alinea — als "KV: "-regels ingevoerd (L24).
+- [Kriebeldiertjes] Fiche noemt twee bijna identieke mappen ("Map zoekkaarten" én "Map zoekkaarten + determineertabellen") — beide letterlijk ingevoerd (L20), mogelijk 1 map; verifiëren.
+- [Kriebeldiertjes] Rubriek heet "Los thema materiaal" zonder "telkens nieuw aan te kopen"; toch als verbruik behandeld (rubriek-positie), maar weegschaal/pons/mengkommen/maatlepels ogen duurzaam — verbruik-vlag van die items verifiëren.
+- [Kriebeldiertjes] Sportmateriaal-rubriek ontbreekt op de fiche — gekozen: geen (zoals "nee"). "Extra vergrootglazen" zonder aantal — 1 + verifieer-notitie (L7).
+- [Later als ik groot ben] Bak 2/2 (G31) bevat alleen zes beroepsnamen (postbode/politieman/kok/clown/kunstenaar/garagist) — gelezen als 6 verkleedsets; verifiëren.
+- [Later als ik groot ben] 3-daagse-verschillen (L14, niets herschoven): 3-daagse mist bij APART "kookbak en afwasbak" + "lamineermachine", en in Los-rubriek "Cluedo fiches", "Kleurplaat placemat A3", "Lamineerhoezen A3" en "Kleine schildersdoeken"; 3-daagse zegt "voorbeelden pointillisme + clown". Alles op de hoofdfiche gehouden met notities.
+- [Later als ik groot ben] APART-rubriek: verkeerskoffer/kookbak/afwasbak = bestaande pool (INFO-regel); "circuskoffer + schminkkoffer" — schminkkoffer bestaat als bak bij Circus Krokofant, circuskoffer nergens als eenheid gezien; alleen INFO-regel, koppeling verifiëren. Lamineermachine als attribuut aangemaakt (ligt op kantoor).
+- [Later als ik groot ben] "Postzegels en enveloppen" gesplitst (L13), beide zonder aantal — 1 + verifieer-notitie.
+- [Mini helden 112] A3-map en "Map met prints" als items ingevoerd met hun inhoud als aparte items (notitie "in A3-map"/"in map met prints") — presentatie verifiëren.
+- [Mini helden 112] "Rood, oranje en geel crêpepapier" gesplitst in 3 kleuren (L13); "3 blauwe hesjes + 2 rode hesjes" gesplitst in 2 items.
+- [Mini helden 112] Fiche heeft geen ja/nee-markeringen en geen Sportmateriaal-rubriek — gekozen: geen sportmateriaal. 3-daagse-fiche is identiek aan de hoofdfiche — niets aangevuld.
+- [Mini Splash] Alleen de 3-daagse bundel bestaat — ingevoerd als thema "Mini Splash" met INFO-notitie (opdracht batch 4). Zwembadactiviteiten zijn extern (i.s.m. Tofsport).
+- [Mini Splash] Transporteenheden 3/5 en 4/5 = 2 dakgoten (E00) en 5/5 = zak zand 1kg — als attributen ingevoerd (los ding zonder telbare inhoud); zak zand zonder code — verifiëren.
+- [Mini Splash] "Bak eendjes vangen" staat op H03, dezelfde code als een Speelfabriek-bak (die óók eendjes vangen bevat!) — mogelijk dezelfde fysieke bak; als aparte bak ingevoerd (L5), dubbel-check bij eerste nakijk. "Eendjes" en "Opblaasbaar speelgoed" zonder aantal — 1 + verifieer-notitie (L7).
 
 ## Mogelijke nieuwe leesregels
 
