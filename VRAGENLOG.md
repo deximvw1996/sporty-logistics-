@@ -99,6 +99,18 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [WK voetbal Kleuters] Opblaasbaar voetbalterreintje (woensdagprogramma) staat niet in de vaste-bakkenpool — bezit + pool-soort verifiëren bij Maxim.
 - [Word verrast als gymnast / Ypie is vermist] Bilibo's staan op D25 (gymnast, 16x) én op E29 (Ypie, "16 bilibio's") — zelfde poolset verhuisd of twee sets? Verifiëren; per fiche apart ingevoerd.
 - [Woutje Astronautje] Vaste fiche is tweekoloms en rommelig; kolomsplitsing gereconstrueerd via layout-extractie (bak 1/2=F01 keuken/knutsel, bak 2/2=F03 astronautenmateriaal) — indeling verifiëren.
+- [Actie & Avontuur] "Games of empire"-materiaal staat onder Vast zonder bak-/zaklabel (groot los materiaal: balken, big bags, skilatten) — als één eenheid "Games of empire (set)" ingevoerd, transportvorm + code verifiëren.
+- [Actie & Avontuur] Fiche heeft geen Los-/Sportmateriaal-rubriek; voedsel (bloem, worstjes, marshmallows...) zit ín Themabak Kampvuurgerechtjes 1/2 — als verbruik gemarkeerd met voorraadrij Rozenweg qty 0; "18 bananen → aankopen KV" als KV-regel.
+- [Actie & Avontuur] "2 petten per kleur" (Levende Catan 2/2): totaal onbekend (vermoedelijk 6 kleuren/groepen) — qty 2 ingevoerd (L7), verifiëren.
+- [Actie & Avontuur] "Boogschieten en staande wip" (Apart) overlapt met pool-attributen Boog- & kruisboogschieten-materiaal + Rozen/doelen — beide gekoppeld + nieuw attribuut "Staande wip (+ bak staande wip)"; of de getelde bogen/pijlen dezelfde pool-set zijn: verifiëren.
+- [Ambachtenacademie] 6 kg zelfdrogende klei staat onder VAST maar is vermoedelijk verbruik — zonder verbruik-vlag ingevoerd met notitie, verifiëren.
+- [Ambachtenacademie] 16 placemats staan zowel in bak 1/4 (vast) als in de Los-rubriek bak 2/4 — beide ingevoerd, dubbel? verifiëren.
+- [Ambachtenacademie] Betekom-fiche wijkt af: 8 i.p.v. 12 scharen, 6 onderleggers i.p.v. 3, 4 spuitmondjes i.p.v. set, 48 grote witte kaarsen i.p.v. 16 brede + 32 lange — niets herschoven (L14), alleen Betekom-extra's aangevuld (krantenstok, graveer-/brandpennen, kurken, conservenblikken, schrijfpotloden, gom, slijper, vernis).
+- [Ambachtenacademie] Hoofdfiche bak 4/4 (B30, snijplankjes + schuurpapier) ontbreekt op de 3-daagse-fiche; Betekom noemt zelfde items als "Los, niet nodig bij 3-daagse" — ingevoerd met notitie "niet nodig bij 3-daagse".
+- [Art @ Sporty] Sportmateriaal-rubriek ontbreekt op de fiche — aangenomen: geen.
+- [Art @ Sporty] Losse-materiaallijst bak 2/2 draagt kopje "(Action)" — als aankoopnotitie op die items gezet.
+- [Balls & Rackets] Bundel (2 p.) bevat géén materiaalfiche — sportkamp op generiek sportmateriaal; thema-only + INFO-regel ingevoerd (cf. L28). Beschrijving zegt "3-daagse" maar het rooster toont 5 dagen — inconsistentie in de bron.
+
 ## Mogelijke nieuwe leesregels
 
 - Fiches van oudere kleuterbundels (Balanceren op één been) missen soms bakcodes én de item-verdeling over meerdere bakken; voorstel: vaste aanpak "alles in bak 1 + lege bak 2 + verifieer-notitie" als leesregel vastleggen.
@@ -108,3 +120,4 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - Verse waren (hotdog worstjes, mayonaise bij Farao) kunnen óók in de gewone Los-rubriek staan i.p.v. onder een KV-kopje — voorstel: leesregel "herkenbaar verse waar in de Los-rubriek = verbruiksitem zonder Sporty-voorraadrij (telkens vers kopen)", analoog aan L24.
 - Sommige fiches hebben een "Extra meenemen"-rubriek (Farao: soft lego, oven, afwasbak, klei, speelzand) — mix van pool-materiaal en losse goederen zonder bak; voorstel: leesregel "Extra meenemen = pool-verwijzing (S4.5) + INFO, tenzij een item duidelijk bij een themabak hoort".
 - Bundel zonder materiaalfiche maar mét fotolijst van aangekocht materiaal (WK voetbal Kleuters: "Zie materiaalfiche!" zonder fiche) — voorstel: leesregel "fotolijst = bak-inhoud met code onbekend + verifieer-notitie" (L27 komt het dichtst maar dekt dit niet).
+- Puur-sportkampen zonder fiche en zonder eigen materiaal (Balls & Rackets) — voorstel: leesregel "sportkamp zonder fiche = thema-only + INFO-regel, generiek sportmateriaal via sportkoffers" (uitbreiding van L28 naast uitstapkampen).
