@@ -176,6 +176,6 @@ De werkstroom waarmee Maxim en Claude alle thema's stuk per stuk terugzetten.
 | 2026-08-01 | Reviewfix: verhuis_checks.item_type_id ontbrak (checks-init + Mig 51 crashten) → kolom + Mig 52 | ✅ | item_types 207→19 lokaal; checks-init eind-tot-eind getest |
 | 2026-08-01 | S2-brainstorm: 6 ontwerpbeslissingen vastgelegd | ✅ | sectie FASE S2 |
 | 2026-08-02 | S2.1–S2.6 gebouwd (Chat A, 2 rondes) + reviewfix Fable (attributen-UI, alle-bakken levert attributen mee) | ✅ | herdraaide bewijzen: 3 bak-regels met bak_id in genereer; attribuut end-to-end; dubbelboeking-conflict vuurt; bestellijst + tekort-conflict (32 nodig/2 voorraad); status-keten gedaan→op_locatie→handmatig thuis; locatieconfig kiest 2 EHBO-exemplaren; alle tabs 0 console-errors; testdata opgeruimd |
-| | S2 naar productie (na backup Maxim) | ⬜ | |
+| 2026-08-02 | S2 naar productie | ✅ | prod-kerntest: 3 bak-regels met bak_id van Rozenweg; atletiek gemigreerd (3 bakken/19 items/status thuis); sport 112/personeel 9/locaties 41 intact |
 | | S1.4 (personen-consolidatie), S1.5 (spoed-consolidatie), S1.6 (export/import) | ⬜ | volgende bouwronde |
 | | S3 brainstorm (rollen + KV-scherm) | ⬜ | ontwerpsessie met Maxim |
