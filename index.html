@@ -4215,6 +4215,31 @@ function _fillKmSportSectie(locatieId,week){
     sel.dataset.locid=locatieId;
     sel.dataset.week=week;
   }
+  // Vorige week op deze locatie: sportpakketten blijven vaak meerdere weken staan —
+  // toon wat er vorige week stond en laat het in één klik overnemen.
+  let vwEl=document.getElementById('km-sport-vorige-week');
+  if(!vwEl&&sel){vwEl=document.createElement('div');vwEl.id='km-sport-vorige-week';vwEl.style.cssText='margin-top:8px;font-size:11px;color:var(--text2)';sel.parentElement.insertAdjacentElement('afterend',vwEl);}
+  if(vwEl){
+    if(week>1){
+      const vorige=allSets.filter(s=>(s.planning||[]).some(p=>p.locatie_id===locatieId&&p.week===week-1));
+      const overneembaar=vorige.filter(s=>!geplandeIds.has(s.id)&&!(s.planning||[]).some(p=>p.week===week));
+      const eldersDezeWeek=vorige.filter(s=>!geplandeIds.has(s.id)&&(s.planning||[]).some(p=>p.week===week&&p.locatie_id!==locatieId));
+      if(vorige.length){
+        vwEl.innerHTML=`📅 Vorige week hier: ${vorige.map(s=>`<span style="background:var(--bg2);border-radius:4px;padding:1px 6px">${_escH(s.item_naam)} — ${_escH(s.label)}</span>`).join(' ')}
+          ${overneembaar.length?`<button type="button" class="btn-o" style="height:24px;font-size:11px;margin-left:6px" onclick="kmModalNeemSportOver(${locatieId},${week})">↩︎ Neem over (${overneembaar.length})</button>`:''}
+          ${eldersDezeWeek.length?`<div style="margin-top:3px;color:var(--amber-dk)">⚠️ Al elders gepland deze week: ${eldersDezeWeek.map(s=>_escH(s.item_naam+' — '+s.label)).join(', ')}</div>`:''}`;
+      } else vwEl.innerHTML='';
+    } else vwEl.innerHTML='';
+  }
+}
+async function kmModalNeemSportOver(locId,week){
+  const allSets=(_invSport||[]).flatMap(item=>(item.sets||[]).map(s=>({...s,item_naam:item.name})));
+  const overneembaar=allSets.filter(s=>(s.planning||[]).some(p=>p.locatie_id===locId&&p.week===week-1)&&!(s.planning||[]).some(p=>p.week===week));
+  for(const s of overneembaar){ await api('POST','/sport/sets/'+s.id+'/plan',{week,locatie_id:locId}); }
+  _invSport=await api('GET','/sport');
+  _fillKmSportSectie(locId,week);
+  renderRooster('rooster-content-kp');
+  if(typeof showToast==='function')showToast(overneembaar.length+' sportpakket(ten) overgenomen van vorige week','success');
 }
 // Herlees de huidige week/locatie uit het formulier zelf (werkt zowel bij aanmaken als bewerken).
 function _refreshKmSportSectie(){
@@ -7926,7 +7951,16 @@ function _renderKbTabs(){
 function _renderKbBody(){
   const kleuren=_kbData[_kbWeek]||{};
   const el=document.getElementById('kb-body');
-  el.innerHTML='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
+  // Kleurenborden blijven vaak meerdere weken hetzelfde: toon wat de vorige open week had
+  // en laat het in één klik overnemen (daarna gewoon Opslaan zoals altijd).
+  const idx=_kbWeken.indexOf(_kbWeek);
+  const vorigeWeek=idx>0?_kbWeken[idx-1]:null;
+  const vorigeKleuren=vorigeWeek!=null?Object.entries(_kbData[vorigeWeek]||{}).filter(([,n])=>n>0):[];
+  const vwHtml=vorigeKleuren.length?`<div style="margin-bottom:8px;font-size:11px;color:var(--text2)">
+    📅 Week ${vorigeWeek}: ${vorigeKleuren.map(([k,n])=>`<span style="background:${_kleurBg(k)}1A;border-radius:4px;padding:1px 6px">${k} ×${n}</span>`).join(' ')}
+    <button type="button" class="btn-o" style="height:24px;font-size:11px;margin-left:6px" onclick="_kbNeemOver(${vorigeWeek})">↩︎ Neem over</button>
+  </div>`:'';
+  el.innerHTML=vwHtml+'<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'
     +_KLEUREN.map(k=>{
       const n=kleuren[k]||0;
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;border:.5px solid var(--border);background:${n>0?_kleurBg(k)+'1A':'var(--bg)'}">
@@ -7940,6 +7974,11 @@ function _renderKbBody(){
     +'</div>';
 }
 
+function _kbNeemOver(vanWeek){
+  _kbData[_kbWeek]=Object.assign({},_kbData[vanWeek]||{});
+  _renderKbBody();
+  if(typeof showToast==='function')showToast('Kleuren van week '+vanWeek+' overgenomen — klik Opslaan om te bevestigen','success');
+}
 async function saveKleurenborden(){
   if(!_kbLocId||!_kbWeek)return;
   const kleuren=Object.entries(_kbData[_kbWeek]||{})
