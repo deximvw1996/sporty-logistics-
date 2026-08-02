@@ -77,6 +77,10 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L25 (idem): kookthema's hebben een "Apart meenemen"-rubriek (kookvuur, oventjes, afwasbak) = pool-materiaal.** Bezit Sporty (Maxim 2026-08-02): 5 ovens, 8 kookvuren, 8 afwasbakken, 6 kookbakken.
 
+**L26 (2026-08-02, Play Factory): materiaal/activiteiten van EXTERNE firma's (bv. drone-workshop door Glen) gaan NIET in de database** — Sporty bezit dat niet. Wel als notitie bij het thema vermelden mag.
+
+**L27 (idem): spelfiches in fotoraster-vorm zonder codes en zonder los/verbruik-rubriek bestaan.** Losse grote spellen (volksspelen, XL-spelen, boogschieten-materiaal, targets/vestjes) = attributen, gedeeld over thema's (later aan meerdere thema's koppelen); bakken zonder inhoudsopgave krijgen 1 verzamel-item + notitie "aantal/inhoud verifiëren bij eerste nakijk". Alles zonder code: "code onbekend — verifiëren". Een kopje zonder materiaal (Golf) = niets invoeren, wel notitie.
+
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
 ---
