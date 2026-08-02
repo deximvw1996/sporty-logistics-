@@ -88,6 +88,17 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Sprookjesland] Decor "frame en doek" als eigen attribuut aangemaakt ("Decor Sprookjesland: frame en doek") — mogelijk hetzelfde fysieke frame als bij "Op stap in de jungle"; verifiëren of dit een gedeelde pool is.
 - [Superhelden] Sportmateriaal-rubriek ontbreekt op de fiche — aangenomen: geen. "Sjabloon masker (op dikker papier of bij Marlimat EF624)": printen of aankopen onduidelijk — als aankoop met voorraadrij ingevoerd, verifiëren.
 
+- [De techniekfabriek] Los-rubriek bevat zowel "Dubbelzijdige tape" als "Dubbelzijdige tap" — vermoedelijk duplicaatregel; 1× ingevoerd met notitie, verifiëren.
+- [De techniekfabriek] Sportmateriaal-rubriek ontbreekt op de fiche — aangenomen: geen sportmateriaal, verifiëren.
+- [We gaan op berenjacht] Geen bakcodes op de fiche (LS bak + zak) — code onbekend, verifiëren. Los-rubriek zegt "Themabak 1/1" terwijl vast-rubriek 2 bakken telt — losse items in bak 1/2 (LS bak) gezet.
+- [We gaan op berenjacht] "Apart: Sneeuwballen" zonder aantal en "12 platte kartonnen dozen" — als attributen ingevoerd (los, geen bak); aantal sneeuwballen verifiëren.
+- [We slaan in het rond] Hoofdfiche zegt "5 standballen", 3-daagse fiche "5 grote strandballen" — hoofdvariant letterlijk gevolgd (L14/L20), vermoedelijk strandballen; verifiëren.
+- [We slaan in het rond] Sportmateriaal-rubriek ontbreekt op de fiche — aangenomen: geen. Mini tennis set (kantoor) en mini golf/croquet set (Mini play factory L31) als INFO-regel, niet dubbel ingevoerd.
+- [Welkom op de boerderij] Bak 4/5 (mandje stro) en 5/5 (8 groene bakjes) zonder inhoudsopgave — verzamel-item per bak (L27); code H31 gedeeld door beide (L5); verifiëren.
+- [WK voetbal Kleuters] Bundel zegt "Zie materiaalfiche!" maar bevat géén fiche — bak samengesteld uit de fotolijst "aangekocht voetbalmateriaal" (p2-6), kist-/code-verdeling onbekend; overlap met FC Sporty-voetbalkisten mogelijk — verifiëren.
+- [WK voetbal Kleuters] Opblaasbaar voetbalterreintje (woensdagprogramma) staat niet in de vaste-bakkenpool — bezit + pool-soort verifiëren bij Maxim.
+- [Word verrast als gymnast / Ypie is vermist] Bilibo's staan op D25 (gymnast, 16x) én op E29 (Ypie, "16 bilibio's") — zelfde poolset verhuisd of twee sets? Verifiëren; per fiche apart ingevoerd.
+- [Woutje Astronautje] Vaste fiche is tweekoloms en rommelig; kolomsplitsing gereconstrueerd via layout-extractie (bak 1/2=F01 keuken/knutsel, bak 2/2=F03 astronautenmateriaal) — indeling verifiëren.
 ## Mogelijke nieuwe leesregels
 
 - Fiches van oudere kleuterbundels (Balanceren op één been) missen soms bakcodes én de item-verdeling over meerdere bakken; voorstel: vaste aanpak "alles in bak 1 + lege bak 2 + verifieer-notitie" als leesregel vastleggen.
@@ -96,4 +107,4 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - Er bestaat een rubriek "Materiaal aanwezig in Hal 5" (locatiegebonden kampen zoals Beweegkriebels): materiaal hoort bij de hal, niet bij het thema — voorstel: leesregel "locatie-rubriek = INFO, geen bakken".
 - Verse waren (hotdog worstjes, mayonaise bij Farao) kunnen óók in de gewone Los-rubriek staan i.p.v. onder een KV-kopje — voorstel: leesregel "herkenbaar verse waar in de Los-rubriek = verbruiksitem zonder Sporty-voorraadrij (telkens vers kopen)", analoog aan L24.
 - Sommige fiches hebben een "Extra meenemen"-rubriek (Farao: soft lego, oven, afwasbak, klei, speelzand) — mix van pool-materiaal en losse goederen zonder bak; voorstel: leesregel "Extra meenemen = pool-verwijzing (S4.5) + INFO, tenzij een item duidelijk bij een themabak hoort".
-
+- Bundel zonder materiaalfiche maar mét fotolijst van aangekocht materiaal (WK voetbal Kleuters: "Zie materiaalfiche!" zonder fiche) — voorstel: leesregel "fotolijst = bak-inhoud met code onbekend + verifieer-notitie" (L27 komt het dichtst maar dekt dit niet).
