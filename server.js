@@ -2659,8 +2659,34 @@ async function startServer() {
       if(lKm){const lo=getOpenDagen(lKm);if(lo.length){const lLoc=locs.find(l=>l.id===lp.locatie_id);voorstellen.push({type:'ophaling',locatie:lLoc?.name||'?',locatie_id:lp.locatie_id,naar_locatie_id:homeStockageId,datum:nextWorkday(lo[lo.length-1]),tijd:'17:00',materiaal:[{naam:setNaam,qty:1,soort:'sport'}],opmerking:'Sport ophaling (einde): '+setNaam+' ← '+(lLoc?.name||'?')});}}
     });
 
-    voorstellen.sort((a,b)=>a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd));
-    res.json(voorstellen);
+    // Bundeling (Maxim 2026-08-02): voorstellen met hetzelfde type, dezelfde datum en dezelfde
+    // route (locatie + van/naar) worden één voorstel met meerdere regels — anders krijg je bv.
+    // 8 losse "Sport ophaling"-kaarten voor 2 locaties op dezelfde dag.
+    const _gebundeld={};
+    voorstellen.forEach(p=>{
+      const sleutel=[p.type,p.datum,p.locatie_id||'',p.van_locatie_id||'',p.naar_locatie_id||''].join('|');
+      if(!_gebundeld[sleutel]){ _gebundeld[sleutel]={...p,materiaal:[...(p.materiaal||[])],_bundelAantal:1,_bundelOpmerkingen:[p.opmerking]}; }
+      else {
+        const g=_gebundeld[sleutel];
+        g.materiaal.push(...(p.materiaal||[]));
+        g._bundelAantal++;
+        g._bundelOpmerkingen.push(p.opmerking);
+        if(p.tijd<g.tijd)g.tijd=p.tijd; // vroegste tijdstip wint
+        if(!g.kampmoment_id&&p.kampmoment_id)g.kampmoment_id=p.kampmoment_id;
+      }
+    });
+    const gebundeldeVoorstellen=Object.values(_gebundeld).map(g=>{
+      if(g._bundelAantal>1){
+        const alleSport=g._bundelOpmerkingen.every(o=>(o||'').startsWith('Sport '));
+        g.opmerking=alleSport
+          ? `Sport ${g.type==='ophaling'?'ophaling':'levering'} — ${g._bundelAantal} sets — ${g.locatie}`
+          : `${g._bundelOpmerkingen[0]} (+${g._bundelAantal-1} gebundeld)`;
+      }
+      delete g._bundelAantal; delete g._bundelOpmerkingen;
+      return g;
+    });
+    gebundeldeVoorstellen.sort((a,b)=>a.datum.localeCompare(b.datum)||a.tijd.localeCompare(b.tijd));
+    res.json(gebundeldeVoorstellen);
   });
   // Bulk: ontkoppel van rit (zet rit_id=NULL)
   app.post('/api/transport-taken/bulk-ontkoppel',(req,res)=>{
@@ -2687,6 +2713,27 @@ async function startServer() {
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
     ids.forEach(id=>{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);run('DELETE FROM transport_taken WHERE id=?',[id]);});
     saveDb();res.json({ok:true});
+  });
+  // Splitsen (Maxim 2026-08-02): een deel van de regels (bakken/attributen) van een taak
+  // verhuist naar een NIEUWE taak op een andere dag — bv. donderdag al de helft ophalen,
+  // vrijdag de rest. Zo wordt het werk over meerdere dagen gespreid.
+  app.post('/api/transport-taken/:id/splits',(req,res)=>{
+    const{regel_ids,datum,tijd}=req.body;
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
+    if(!taak)return res.status(404).json({error:'Taak niet gevonden'});
+    if(!Array.isArray(regel_ids)||!regel_ids.length)return res.status(400).json({error:'Kies minstens één regel om af te splitsen'});
+    const alleRegels=all('SELECT * FROM transport_regels WHERE taak_id=?',[taak.id]);
+    const teVerhuizen=alleRegels.filter(r=>regel_ids.includes(r.id));
+    if(!teVerhuizen.length)return res.status(400).json({error:'Geen van de gekozen regels hoort bij deze taak'});
+    if(teVerhuizen.length===alleRegels.length)return res.status(400).json({error:'Je kan niet álle regels afsplitsen — dan verplaats je beter de hele taak'});
+    const nieuwId=ins(`INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [taak.type,datum||'',tijd||taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,
+       (taak.opmerking||'')+' — afgesplitst deel',taak.wie||'',taak.kampmoment_id,'gepland',now(),null,taak.week]);
+    teVerhuizen.forEach(r=>run('UPDATE transport_regels SET taak_id=? WHERE id=?',[nieuwId,r.id]));
+    saveDb();
+    logAct('transport','gesplitst',`Taak #${taak.id}: ${teVerhuizen.length} regel(s) afgesplitst naar taak #${nieuwId}${datum?' ('+datum+')':''}`,taak.naar_locatie_id||taak.van_locatie_id,null);
+    res.json({ok:true,nieuwe_taak_id:nieuwId,verplaatst:teVerhuizen.length});
   });
   app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});

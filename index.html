@@ -1471,6 +1471,23 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   </div>
 </div>
 
+<!-- Taak splitsen over meerdere dagen (bv. deel donderdag ophalen, rest vrijdag) -->
+<div class="modal-bg" id="modal-taak-splits">
+  <div class="modal" style="width:480px">
+    <div class="modal-title"><span>&#9986;&#65039; Taak splitsen</span><button class="modal-close" aria-label="Sluiten" onclick="closeModal('modal-taak-splits')">&#x2715;</button></div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Vink aan wat al <b>eerder</b> mee mag (bv. donderdag); de rest blijft in de oorspronkelijke taak (bv. vrijdag).</div>
+    <div id="ts-regels" style="display:flex;flex-direction:column;gap:4px;max-height:260px;overflow-y:auto;margin-bottom:12px"></div>
+    <div class="fr">
+      <div class="fg md"><label for="ts-datum">Datum afgesplitst deel</label><input class="inp" type="date" id="ts-datum"></div>
+      <div class="fg sm"><label for="ts-tijd">Tijdstip</label><input class="inp" type="time" id="ts-tijd" value="15:00"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:1rem">
+      <button class="btn-g" style="flex:1" onclick="saveTaakSplits()">&#9986;&#65039; Splitsen</button>
+      <button class="btn-o" onclick="closeModal('modal-taak-splits')">Annuleren</button>
+    </div>
+  </div>
+</div>
+
 <script>
 
 
@@ -7336,6 +7353,7 @@ function renderTransportBeheer(){
         +`<div style="display:flex;gap:3px;flex-shrink:0">`
         +(rit?`<button class="btn-xs" title="Terugzetten naar backlog" onclick="enkeleOntkoppel(${t.id})" style="font-size:10px">\u21A9\uFE0F</button>`
              :`<button class="btn-xs btn-g" title="Inplannen" onclick="planNood(${t.id})" style="font-size:10px">\uD83D\uDCC5</button>`)
+        +(matN>1?`<button class="bi" title="Splitsen over meerdere dagen (bv. deel donderdag, rest vrijdag)" onclick="openTaakSplits(${t.id})">\u2702\uFE0F</button>`:'')
         +`<button class="bi" title="Bewerken" onclick="openEditTp(${t.id})">\u270F\uFE0F</button>`
         +`<button class="bi" style="color:var(--red)" title="Verwijderen" onclick="verwijderNood(${t.id})">\uD83D\uDDD1\uFE0F</button>`
         +`</div></div></div>`;
@@ -7348,6 +7366,33 @@ function renderTransportBeheer(){
   _updateBulkBar();
 }
 function renderNodenLijst(){renderTransportBeheer();}
+// ── Taak splitsen over meerdere dagen (Maxim: deel donderdag ophalen, rest vrijdag) ──
+let _tsTaakId=null;
+function openTaakSplits(taakId){
+  const t=(plannerTaken||[]).find(x=>x.id===taakId);
+  if(!t||!(t.regels||[]).length){showToast('Geen regels om te splitsen','warn');return;}
+  _tsTaakId=taakId;
+  document.getElementById('ts-regels').innerHTML=(t.regels||[]).map(r=>
+    `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:.5px solid var(--border);border-radius:var(--r);cursor:pointer;font-size:12px">
+      <input type="checkbox" class="ts-cb" value="${r.id}" style="width:15px;height:15px">
+      <span style="flex:1">${_escH(r.naam)}</span>
+      ${r.qty>1?`<span style="color:var(--text3)">×${r.qty}</span>`:''}
+    </label>`).join('');
+  document.getElementById('ts-datum').value='';
+  openModal('modal-taak-splits');
+}
+async function saveTaakSplits(){
+  const regel_ids=[...document.querySelectorAll('.ts-cb:checked')].map(cb=>parseInt(cb.value));
+  if(!regel_ids.length){showToast('Vink minstens één regel aan','warn');return;}
+  const datum=document.getElementById('ts-datum').value;
+  const tijd=document.getElementById('ts-tijd').value||'15:00';
+  const r=await api('POST','/transport-taken/'+_tsTaakId+'/splits',{regel_ids,datum,tijd});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  closeModal('modal-taak-splits');
+  showToast(r.verplaatst+' regel(s) afgesplitst naar een nieuwe taak'+(datum?' op '+datum:' (backlog)'),'success');
+  plannerTaken=await api('GET','/transport-taken');
+  renderTransportBeheer();
+}
 function _tbToggleCb(id,checked){if(checked)_tbSel.add(id);else _tbSel.delete(id);_updateBulkBar();}
 function _tbToggleAll(checked){
   document.querySelectorAll('.tb-cb').forEach(cb=>{
