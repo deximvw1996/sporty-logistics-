@@ -43,6 +43,14 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L8 (idem): voorraadlocatie is een eigenschap van het ITEM, niet van het thema.** Eén keer geleerd = overal geldig: "ballonnen liggen in de Rozenweg" geldt automatisch voor elk volgend thema met ballonnen. Vastleggen als voorraadrij op de genoemde locatie met aantal 0 ("ligt daar, nog te tellen" — geen aantallen verzinnen) + notitie op het bak-item. Tot nu toe geleerd: sportballen (voetbal, basketbal, mousse) → Kantoor; zowat al het bellenblaas-, knutsel- en verbruiksmateriaal → Rozenweg.
 
+**L10 (2026-08-02, Alice): attributen zonder code → thuislocatie Rozenweg + notitie "exacte plek onbekend".** Er bestaat een seizoenspatroon: sommige attributen staan buiten de vakantie in **Marko** en verhuizen bij vakantiestart naar de Rozenweg (dichterbij, vertrekt samen met de themabakken); na de vakantie deels terug. Niet automatisch modelleren — als notitie op het attribuut zetten.
+
+**L11 (idem): een onduidelijke fiche-regel los je op door in de ACTIVITEITENPAGINA'S te zoeken waarvoor het item dient.** Voorbeeld: "kleine of grote kartonnen bordjes (32)" → activiteit dromenvanger → formaat is flexibel; invoeren zoals de fiche met verhelderende notitie.
+
+**L12 (idem): "print …"-items zijn meestal zelf printbaar → 🖨️-notitie, geen voorraadrij** (zoals de afdrukbare handleidingen uit L9a).
+
+**L13 (idem): een "X en Y"-regel zijn twee aparte items** tenzij het aantoonbaar één set is. "Bus rode en roze verf" = 1 bus rode + 1 bus roze verf.
+
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
 ---
