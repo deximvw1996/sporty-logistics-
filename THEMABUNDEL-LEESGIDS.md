@@ -71,6 +71,12 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L22 (idem): een thema kan volledig uit pool-materiaal bestaan** (Holderdebolder = 2 springkastelen + kleuterhindernisbaan + WESCO, géén themabak en géén los/sportmateriaal — beide rubrieken op "nee"). Dan geen bakken aanmaken; de themabehoefte komt in S4.5.
 
+**L23 (2026-08-02, De bakkerij): 32 kinderen is de standaard.** Staat de fiche op 16, gebruik dan de "per kamp van 32 deelnemers"-lijsten achterin de bundel als leidend voor aantallen; 16 geldt alleen als er effectief minder inschrijvingen zijn. Per-16-aantallen zonder 32-tegenhanger: invoeren met notitie "per 16 knd".
+
+**L24 (idem): de rubriek "Voorzien door de kampverantwoordelijke" (verse waren) gaat WÉL in de app** — als boodschappenlijst bij het thema (handig voor de KV in de winkel). Geen Sporty-voorraad of transport.
+
+**L25 (idem): kookthema's hebben een "Apart meenemen"-rubriek (kookvuur, oventjes, afwasbak) = pool-materiaal.** Bezit Sporty (Maxim 2026-08-02): 5 ovens, 8 kookvuren, 8 afwasbakken, 6 kookbakken.
+
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
 ---
