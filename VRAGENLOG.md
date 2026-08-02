@@ -128,3 +128,9 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Buitengewoon bouwen] Fiche zegt "7 dozen met bamboestokken" maar geeft 4 codes (L11/L13/F41/F42) — 4 dozen aangemaakt, verifiëren. "3 kisten houten blokken (F32–F47)": derde code onbekend. Cement toegewezen aan TEIFOC en rekkers/nagels/MDF/karton aan Flipperkast (tweekoloms-aanname). Aantallen dakpannen/truweeltjes/tegels/lakens/hamers onbekend → 1 + verifieer-notitie.
 - [CLIC IT] Volledig clics-pool; fiche zegt "12 dozen of grote plox", pool telt nu 4 geregistreerde clics-bakken — hoeveel clics-dozen bestaan er echt?
 - [Dagelijkse Sportykost] "Maanzaad / sesamzaad / italiaanse kruiden / grof zeezout" gesplitst in 4 verbruiksitems (L13). Receptenfiches (vast, D39) én receptenboekje 1/knd (verbruik, D45) — beide 🖨️.
+
+### Batch 10 (ingevoerd door Fable)
+- [Expeditie Survival] Week 6/8- en 3-daagse-fiches identiek (week 8 = ander programma: boomklimmen Vagamundi, extern). Geocache-bak van Actie & Avontuur gekoppeld als gedeelde bak — klopt dat het dezelfde fysieke D21-bak is? Zak kolen/zand/grind "beneden" als attributen; D35 vast-kolom bevatte ook rechterkolom-items (Caesaralfabet, decodeersleutels) — toewijzing verifiëren.
+- [Experimenteerfabriek] Bak 1/2 heeft code D35 = zelfde code als Survival-curver (L5, informatief) — verifiëren. Bouwpakket zenuwspiraal (Opitec, 32x) als verbruik in bak 2/2 gezet hoewel fiche "apart meenemen" zegt.
+- [FC Sporty girls] Geen materiaalfiche ("zie materiaalfiche") — bak opgebouwd uit de fotolijst p10-13, code onbekend. Voetbal holes set (voetgolf) als attribuut. Relatie met FC Sporty (kleuters)-voetbalkisten en WK-materiaal: gedeeld of apart? Medailles 1/kind aangenomen.
+- [Festivalfood] Bundel is een "(practical_info_leader)"-bestand maar bevat een volwaardige fiche — gewoon ingevoerd. Kookpool: kookbak/afwasbak/oven.
