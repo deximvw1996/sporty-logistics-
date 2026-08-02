@@ -81,6 +81,8 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L27 (idem): spelfiches in fotoraster-vorm zonder codes en zonder los/verbruik-rubriek bestaan.** Losse grote spellen (volksspelen, XL-spelen, boogschieten-materiaal, targets/vestjes) = attributen, gedeeld over thema's (later aan meerdere thema's koppelen); bakken zonder inhoudsopgave krijgen 1 verzamel-item + notitie "aantal/inhoud verifiëren bij eerste nakijk". Alles zonder code: "code onbekend — verifiëren". Een kopje zonder materiaal (Golf) = niets invoeren, wel notitie.
 
+**L28 (2026-08-02, Op stap met Sporty): UITSTAPKAMPEN hebben geen materiaalfiche** — alle activiteiten zijn extern (jumppark, bowling, Bokrijk...). Het thema zelf wél invoeren (voor planning en zodat kantoor weet: geen transport), zonder bakken/attributen/verbruik, met een INFO-regel in thema_materiaal die de externe activiteiten opsomt. Geen fiche ≠ fout bestand: check wel even of er geen fiche verderop in de PDF staat.
+
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
 ---
