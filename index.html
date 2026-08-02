@@ -376,8 +376,45 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
 </style>
 </head>
 <body>
+
+<!-- ═══════════════════════════════════════════════════════
+     S3.2: LOGINSCHERM — naam kiezen + pincode, of eerste-gebruik-setup
+═══════════════════════════════════════════════════════ -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:5000;align-items:center;justify-content:center;flex-direction:column">
+  <div style="width:min(360px,92vw);text-align:center">
+    <div style="font-size:40px;margin-bottom:6px">&#9978;</div>
+    <div style="font-weight:700;font-size:18px;margin-bottom:2px">Sporty vzw — Logistiek</div>
+    <div id="login-sub" style="font-size:12px;color:var(--text2);margin-bottom:1.25rem">Log in om verder te gaan</div>
+
+    <div id="login-normal">
+      <select class="inp" id="login-persoon" style="width:100%;height:38px;margin-bottom:.5rem">
+        <option value="">— Kies je naam —</option>
+      </select>
+      <input class="inp" id="login-pincode" type="password" inputmode="numeric" placeholder="Pincode" style="width:100%;height:38px;margin-bottom:.75rem" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="btn-b" style="width:100%;height:38px" onclick="doLogin()">Inloggen</button>
+      <div id="login-error" style="color:var(--red);font-size:12px;margin-top:.5rem"></div>
+    </div>
+
+    <div id="login-setup" style="display:none">
+      <div style="font-size:12px;color:var(--amber-dk);background:var(--amber-bg);border:.5px solid var(--amber);border-radius:var(--r);padding:8px 10px;margin-bottom:.75rem;text-align:left">
+        &#9888;&#65039; Er is nog geen enkele pincode ingesteld. Kies hieronder wie het eerste kantoor-account wordt.
+      </div>
+      <select class="inp" id="setup-persoon" style="width:100%;height:38px;margin-bottom:.5rem">
+        <option value="">— Kies je naam —</option>
+      </select>
+      <input class="inp" id="setup-pincode" type="password" inputmode="numeric" placeholder="Nieuwe pincode (min. 4 tekens)" style="width:100%;height:38px;margin-bottom:.75rem" onkeydown="if(event.key==='Enter')doSetup()">
+      <button class="btn-g" style="width:100%;height:38px" onclick="doSetup()">Eerste pincode instellen</button>
+      <div id="setup-error" style="color:var(--red);font-size:12px;margin-top:.5rem"></div>
+    </div>
+  </div>
+</div>
+
 <div class="app">
   <div class="topbar">
+    <span id="topbar-user" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text2);background:var(--bg2);border:.5px solid var(--border2);border-radius:999px;padding:3px 10px;margin-right:4px">
+      &#128100; <span id="topbar-user-naam"></span>
+      <button onclick="doLogout()" title="Uitloggen" style="background:transparent;border:none;cursor:pointer;color:var(--text3);font-size:11px;padding:0 0 0 4px">&#10132; Uit</button>
+    </span>
     <div class="logo">&#9978;</div>
     <div>
       <div class="topbar-title" style="font-size:15px;font-weight:600;">Sporty vzw &mdash; Logistiek</div>
@@ -395,7 +432,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button onclick="setSimDate('')" style="font-size:11px;background:transparent;border:.5px solid var(--amber);border-radius:4px;padding:2px 6px;cursor:pointer;color:var(--amber-dk)">Reset</button>
     </div>
     <span id="sim-indicator" style="display:none;align-items:center;gap:4px;background:var(--amber-bg);border:.5px solid var(--amber);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;color:var(--amber-dk);cursor:pointer" onclick="toggleTimeMachine()" title="Klik om datum te wijzigen">🕐 <span id="sim-date-label"></span></span>
-    <span class="badge-spoed" id="badge-spoed" style="display:none;background:var(--red);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="goTo('transport-plan')">&#128680; <span id="badge-spoed-n">0</span> spoed</span>
+    <span class="badge-spoed" id="badge-spoed" style="display:none;background:var(--red);color:#fff;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;cursor:pointer" onclick="goTo('transport-noden')">&#128231; <span id="badge-spoed-n">0</span> aanvragen</span>
   </div>
 
   <div class="nav">
@@ -428,16 +465,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <div class="metric"><div class="metric-label">Kamplocaties</div><div class="metric-val g" id="ov-loc">—</div></div>
         <div class="metric"><div class="metric-label">Kampmomenten</div><div class="metric-val b" id="ov-km">—</div></div>
         <div class="metric"><div class="metric-label">Transporten gepland</div><div class="metric-val" id="ov-tp">—</div></div>
-        <div class="metric"><div class="metric-label">Open spoedmeldingen</div><div class="metric-val r" id="ov-sp">—</div></div>
-      </div>
-
-      <!-- Spoedmeldingen -->
-      <div class="card" id="ov-spoed-card" style="display:none;border-color:#F09595">
-        <div class="card-hd" style="color:#A32D2D;display:flex;justify-content:space-between;align-items:center">
-          <span>&#128680; Open spoedleveringen</span>
-          <button class="btn-r" style="font-size:11px;height:26px" onclick="goTo('transport-plan')">Alle transporten &rarr;</button>
-        </div>
-        <div id="ov-spoed-list"></div>
+        <div class="metric" style="cursor:pointer" onclick="goTo('transport-noden')" title="Naar de aanvragen"><div class="metric-label">Nieuwe aanvragen</div><div class="metric-val r" id="ov-sp">—</div></div>
       </div>
 
       <!-- Aankomende transporten -->
@@ -625,6 +653,14 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <input class="inp" id="pers-telefoon" placeholder="Telefoon" style="height:34px">
         <input class="inp" id="pers-email" placeholder="E-mail" style="height:34px">
         <textarea class="inp" id="pers-notities" placeholder="Notities" style="height:60px;resize:vertical"></textarea>
+      </div>
+      <!-- S3.2: kantoor kan hier per persoon een pincode (opnieuw) instellen (alleen bij bewerken, id bestaat pas na opslaan) -->
+      <div id="pers-pincode-blok" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:.5px solid var(--border)">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">🔑 Login-pincode <span id="pers-pincode-status" style="color:var(--text3)"></span></div>
+        <div style="display:flex;gap:6px">
+          <input class="inp" id="pers-pincode-nieuw" type="password" inputmode="numeric" placeholder="Nieuwe pincode (min. 4 tekens)" style="height:32px;flex:1;font-size:12px">
+          <button class="btn-o" style="font-size:11px" onclick="zetPersoonPincode()">Instellen</button>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:1rem">
         <button class="btn-g" onclick="slaaPersoonOp()">Opslaan</button>
@@ -969,6 +1005,30 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" onclick="goTo('transporten')">&#128202; Alle transporten</button>
     </div>
 
+    <!-- ═══ S3.3: AANVRAGEN (vervangt de oude losse spoedmeldingen) ═══ -->
+    <details id="aanvragen-blok" open style="margin-bottom:1rem;border:.5px solid var(--border2);border-radius:var(--rl);padding:.75rem .875rem;background:var(--bg2)">
+      <summary style="font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px">
+        &#128231; Aanvragen
+        <span id="aanvr-teller" style="font-size:11px;font-weight:600;color:var(--red-dk);background:var(--red-bg,#FEE2E2);border-radius:999px;padding:1px 8px;display:none"></span>
+        <button class="btn-g" style="margin-left:auto;font-size:11px;height:26px" onclick="event.preventDefault();openNieuweAanvraag()">+ Nieuwe aanvraag</button>
+      </summary>
+      <div style="display:flex;gap:6px;margin:.75rem 0;flex-wrap:wrap">
+        <select class="sel" id="aanvr-filter-status" style="height:28px;font-size:11px" onchange="renderAanvragen()">
+          <option value="nieuw">&#128312; Nieuw</option>
+          <option value="goedgekeurd">&#9989; Goedgekeurd</option>
+          <option value="afgewezen">&#10060; Afgewezen</option>
+          <option value="afgehandeld">&#128203; Afgehandeld</option>
+          <option value="">Alle statussen</option>
+        </select>
+        <select class="sel" id="aanvr-filter-soort" style="height:28px;font-size:11px" onchange="renderAanvragen()">
+          <option value="">Alle soorten</option>
+          <option value="materiaal">&#128230; Materiaal</option>
+          <option value="kapot">&#128128; Kapot</option>
+        </select>
+      </div>
+      <div id="aanvr-lijst"><div class="empty">Laden…</div></div>
+    </details>
+
     <!-- Filter + actiebalk -->
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.75rem;align-items:center">
       <button class="btn-g" onclick="genereerNoden()" title="Genereer transport-voorstellen op basis van kampen">&#9889; Genereer voorstel</button>
@@ -1117,9 +1177,8 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <button class="kal-subtab" onclick="goTo('transport-plan')">&#9889; Plannen</button>
       <button class="kal-subtab active" onclick="goTo('transporten')">&#128202; Alle transporten</button>
     </div>
-    <!-- Nieuwe spoed/opdracht toevoegen -->
+    <!-- Nieuwe opdracht toevoegen -->
     <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-      <button class="btn-r" onclick="openNieuweSpoed()">&#128680; Spoedlevering melden</button>
       <button class="btn-b" onclick="openNieuweTransport()">+ Transport / opdracht toevoegen</button>
       <button class="btn-o" onclick="exportTransportenCSV()" title="Download als CSV">📥 Export CSV</button>
     </div>
@@ -1131,7 +1190,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
         <button class="fb active" onclick="setTpFilter('alle',this)">Alle</button>
         <button class="fb" onclick="setTpFilter('levering',this)">&#128994; Leveringen</button>
         <button class="fb" onclick="setTpFilter('ophaling',this)">&#128309; Ophalingen</button>
-        <button class="fb" onclick="setTpFilter('spoed',this)">&#128680; Spoed</button>
         <button class="fb" onclick="setTpFilter('opdracht',this)">&#128203; Opdrachten</button>
         <button class="fb" onclick="setTpFilter('gedaan',this)">&#9989; Gedaan</button>
       </div>
@@ -1161,27 +1219,6 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
       <a href="#" onclick="goTo('seizoensoverzicht');return false" style="color:var(--blue);text-decoration:none;font-weight:600">📅 Bekijk het volledige seizoensoverzicht →</a>
     </div>
 
-    <!-- Spoed toevoegen modal trigger hidden form -->
-    <div id="spoed-form-inline" style="display:none" class="card" style="border-color:#F09595">
-      <div class="card-hd" style="color:#A32D2D">&#128680; Nieuwe spoedlevering</div>
-      <div class="fr">
-        <div class="fg grow"><label for="sp-item">Wat ontbreekt?</label><input class="inp" type="text" id="sp-item" placeholder="bv. Wc-papier&hellip;" onkeydown="if(event.key==='Enter')addSpoed()"></div>
-        <div class="fg sm"><label for="sp-qty">Aantal</label><input class="inp" type="number" id="sp-qty" value="1" min="1"></div>
-      </div>
-      <div class="fr">
-        <div class="fg md"><label for="sp-loc">Locatie</label><select class="sel" id="sp-loc"></select></div>
-        <div class="fg md"><label for="sp-prio">Prioriteit</label><select class="sel" id="sp-prio">
-          <option value="hoog">&#128308; Hoog &mdash; zo snel mogelijk</option>
-          <option value="midden">&#128993; Midden &mdash; vandaag nog</option>
-          <option value="laag">&#128309; Laag</option>
-        </select></div>
-        <div class="fg grow"><label for="sp-note">Opmerking</label><input class="inp" type="text" id="sp-note" placeholder="bv. Kinderen wachten&hellip;"></div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-r" onclick="addSpoed()">&#128680; Melden</button>
-        <button class="btn-o" onclick="document.getElementById('spoed-form-inline').style.display='none'">Annuleren</button>
-      </div>
-    </div>
   </div>
 
   </div><!-- /content -->
@@ -1884,29 +1921,6 @@ function _patchSportPlan(setId, week, locId, locName){
   });
 }
 
-async function addSpoed(){
-  const item=document.getElementById('sp-item')?.value.trim();
-  const qty=parseInt(document.getElementById('sp-qty')?.value)||1;
-  const locatie_id=document.getElementById('sp-loc')?.value;
-  const prio=document.getElementById('sp-prio')?.value||'hoog';
-  const note=document.getElementById('sp-note')?.value.trim()||'';
-  if(!item){showToast('Omschrijving is verplicht','warn');document.getElementById('sp-item')?.focus();return;}
-  if(!locatie_id){showToast('Kies een locatie','warn');return;}
-  const r=await api('POST','/spoed',{item,qty,locatie_id:parseInt(locatie_id),prio,note});
-  if(r.error)return;
-  // Reload fresh spoed list
-  S.spoed=await api('GET','/spoed');
-  updateSpoedBadge();
-  // Reset form and hide it
-  ['sp-item','sp-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  const qEl=document.getElementById('sp-qty');if(qEl)qEl.value='1';
-  document.getElementById('spoed-form-inline').style.display='none';
-  showToast('Spoedmelding gemeld!','success');
-  // Re-render current view
-  if(document.getElementById('sec-transporten')?.classList.contains('active')) renderTransportenOV();
-  if(document.getElementById('sec-overzicht')?.classList.contains('active')) renderOverzicht();
-}
-
 // ── DAGRAPPORT PER CHAUFFEUR ──
 
 
@@ -2079,27 +2093,18 @@ async function renderOverzicht(){
   if(wmov) wmov.style.display='none';
   const cov = document.getElementById('conflict-ov');
   if(cov) cov.style.display='none';
-  const [taken,spoed]=await Promise.all([
+  const [taken,aanvragenNieuw]=await Promise.all([
     api('GET','/transport-taken'),
-    api('GET','/spoed'),
+    api('GET','/aanvragen?status=nieuw'),
   ]);
   // Metrics
   document.getElementById('ov-loc').textContent=S.locaties.filter(l=>l.type==='kamp').length;
   document.getElementById('ov-km').textContent=S.kampmomenten.length;
   document.getElementById('ov-tp').textContent=taken.filter(t=>t.status!=='gedaan').length;
-  const openSpoed=spoed.filter(s=>!s.done);
-  document.getElementById('ov-sp').textContent=openSpoed.length;
-  // Spoed badge in topbar
-  const badge=document.getElementById('badge-spoed');
-  if(badge){badge.style.display=openSpoed.length?'inline-block':'none';document.getElementById('badge-spoed-n').textContent=openSpoed.length;}
-  // Spoed card
-  const spoedCard=document.getElementById('ov-spoed-card');
-  spoedCard.style.display=openSpoed.length?'block':'none';
-  document.getElementById('ov-spoed-list').innerHTML=openSpoed.slice(0,4).map(s=>{
-    const loc=S.locaties.find(l=>l.id===s.locatie_id);
-    const pClr={hoog:'var(--red)',midden:'var(--amber)',laag:'var(--blue)'}[s.prio]||'var(--text2)';
-    return `<div class="row"><div class="dot" style="background:${pClr}"></div><div class="ri"><div class="rm">\u00D7${s.qty} ${s.item}</div><div class="rs">${loc?.name||'?'} \u00B7 ${s.created_at}</div></div><button class="bi save" onclick="toggleSpoed(${s.id})">&#x2713;</button></div>`;
-  }).join('')+(openSpoed.length>4?`<div style="font-size:11px;color:var(--text2);padding:6px 10px">+ ${openSpoed.length-4} meer</div>`:'');
+  const nAanvragen=Array.isArray(aanvragenNieuw)?aanvragenNieuw.length:0;
+  document.getElementById('ov-sp').textContent=nAanvragen;
+  // S3.3: badge-infrastructuur hergebruikt voor aantal nieuwe aanvragen (voorheen spoedmeldingen)
+  updateAanvragenBadge(nAanvragen);
 
   // Aankomende transporten (next 7 days)
   const now=_appNow();
@@ -2875,10 +2880,7 @@ function renderTransportPlan(){
 let tpFilter='alle';
 async function renderTransportenOV(){
   // Load fresh data
-  const [taken,spoed]=await Promise.all([
-    api('GET','/transport-taken'),
-    api('GET','/spoed'),
-  ]);
+  const taken=await api('GET','/transport-taken');
   plannerTaken=taken;
 
   const periodeEl=document.getElementById('tp-filter-periode');
@@ -2887,41 +2889,13 @@ async function renderTransportenOV(){
   const now=_appNow();
   const weekEnd=_appNow();weekEnd.setDate(weekEnd.getDate()+7);
 
-  // Combine: transport-taken + open spoed als separate entries
-  const allItems=[];
-
-  // Add transport taken
-  taken.forEach(t=>{
-    allItems.push({...t, _soort:'transport'});
-  });
-
-  // Add open spoed as red items
-  spoed.filter(s=>!s.done).forEach(s=>{
-    const loc=S.locaties.find(l=>l.id===s.locatie_id);
-    allItems.push({
-      _soort:'spoed',
-      id:'sp-'+s.id,
-      _spoedId:s.id,
-      type:'spoed',
-      datum:'',
-      tijd:'',
-      opmerking:`SPOED: \u00D7${s.qty} ${s.item}`,
-      status:s.prio,
-      wie:'',
-      van_locatie_id:null,
-      naar_locatie_id:s.locatie_id,
-      _done:s.done,
-      _note:s.note,
-      _prio:s.prio,
-      _loc:loc?.name||'?',
-    });
-  });
+  // S3.3: spoedmeldingen bestaan niet meer als apart concept (opgegaan in /api/aanvragen).
+  const allItems=taken.map(t=>({...t, _soort:'transport'}));
 
   // Filter by type
   let filtered=allItems;
-  if(tpFilter==='alle') filtered=allItems.filter(t=>t.status!=='gedaan'&&!t._done);
-  else if(tpFilter==='spoed') filtered=allItems.filter(t=>t._soort==='spoed');
-  else if(tpFilter==='gedaan') filtered=allItems.filter(t=>t.status==='gedaan'||t._done);
+  if(tpFilter==='alle') filtered=allItems.filter(t=>t.status!=='gedaan');
+  else if(tpFilter==='gedaan') filtered=allItems.filter(t=>t.status==='gedaan');
   else if(tpFilter==='opdracht') filtered=allItems.filter(t=>t.type==='opdracht'||t.type==='extra');
   else filtered=allItems.filter(t=>t.type===tpFilter&&t.status!=='gedaan');
 
@@ -2929,8 +2903,7 @@ async function renderTransportenOV(){
   if(periode==='aankomend') filtered=filtered.filter(t=>{if(!t.datum)return true;return t.datum>=isoLocal(now);});
   else if(periode==='week') filtered=filtered.filter(t=>{if(!t.datum)return true;const d=new Date(t.datum+'T12:00:00');return d>=now&&d<=weekEnd;});
 
-  // Sort: spoed (0) → noden zonder datum (1) → geplande transporten op datum (2)
-  const _grp=t=>t._soort==='spoed'?0:(!t.datum?1:2);
+  const _grp=t=>(!t.datum?1:2);
   filtered.sort((a,b)=>{
     const ga=_grp(a),gb=_grp(b);
     if(ga!==gb)return ga-gb;
@@ -2944,14 +2917,11 @@ async function renderTransportenOV(){
   el.innerHTML='';
   let lastKey='';
   filtered.forEach(t=>{
-    const key=t._soort==='spoed'?'__spoed':(!t.datum?'__nood':t.datum);
+    const key=!t.datum?'__nood':t.datum;
     if(key!==lastKey){
       lastKey=key;
       const dh=document.createElement('div');
-      if(key==='__spoed'){
-        dh.style.cssText='font-size:11px;font-weight:600;color:var(--red-dk);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
-        dh.innerHTML='&#128680; Spoedleveringen';
-      } else if(key==='__nood'){
+      if(key==='__nood'){
         dh.style.cssText='font-size:11px;font-weight:600;color:var(--amber-dk);padding:4px 0 6px;margin-top:10px;border-bottom:.5px solid var(--border);';
         dh.innerHTML='&#128229; Nog op te stellen — niet ingepland';
       } else {
@@ -2964,12 +2934,7 @@ async function renderTransportenOV(){
 
     const card=document.createElement('div');
 
-    if(t._soort==='spoed'){
-      const pClr={hoog:'var(--red)',midden:'var(--amber)',laag:'var(--blue)'}[t._prio]||'var(--text2)';
-      card.className='tp-taak';
-      card.style.cssText=`border-left:3px solid ${pClr};margin-bottom:.5rem;`;
-      card.innerHTML=`<div class="tp-hd"><span style="font-size:16px">&#128680;</span><div style="flex:1"><div style="font-size:13px;font-weight:500">${t.opmerking}</div><div style="font-size:11px;color:var(--text2)">&#128205; ${t._loc}${t._note?' \u00B7 '+t._note:''}</div></div><span class="pill" style="background:${pClr}22;color:${pClr}">${{hoog:'Hoog',midden:'Midden',laag:'Laag'}[t._prio]||t._prio}</span><button class="bi save" onclick="toggleSpoed(${t._spoedId})" title="Afgehandeld">&#x2713;</button><button class="bi" style="color:var(--red)" onclick="deleteSpoed(${t._spoedId})" title="Verwijderen">&#128465;</button></div>`;
-    } else {
+    {
       const icn={levering:'&#128994;',ophaling:'&#128309;',extra:'&#128993;',opdracht:'&#128203;'}[t.type]||'&#128230;';
       const van=S.locaties.find(l=>l.id===t.van_locatie_id);
       const naar=S.locaties.find(l=>l.id===t.naar_locatie_id);
@@ -3030,14 +2995,6 @@ async function deleteSelectedTransporten(){
   showToast(ids.length+' transport'+(ids.length!==1?'en':'')+' verwijderd','success');
   renderTransportenOV();
   if(document.getElementById('sec-transport-plan')?.classList.contains('active'))renderPlanner();
-}
-
-function openNieuweSpoed(){
-  const form=document.getElementById('spoed-form-inline');
-  if(form){
-    form.style.display=form.style.display==='none'?'block':'none';
-    document.getElementById('sp-loc').innerHTML=S.locaties.map(l=>`<option value="${l.id}">${l.type==='stockage'?'\u{1F4E6}':'\u26FA'} ${l.name}</option>`).join('');
-  }
 }
 
 // Compatibility aliases (lazy - safe to define before dependencies)
@@ -3176,12 +3133,22 @@ let ploegWk=1;
 let editingShiftId=null;
 
 async function loadPloegShifts(){
-  ploegShifts=await api('GET','/ploeg');
+  // S3.1: personen-consolidatie — de Ploegplanning-UI leest nu personeel_shifts (rol='chauffeur')
+  // i.p.v. de oude chauffeurs/ploeg_shifts-tabellen. We vertalen de personeel_shifts-vorm naar
+  // dezelfde {id,chauffeur_id,datum,start_tijd,eind_tijd,type,opmerking}-vorm die de bestaande
+  // grid-renderer al verwacht, zodat renderPloegGrid ongewijzigd kan blijven.
+  const personen=await api('GET','/personeel');
+  const chauffeurs=(personen||[]).filter(p=>p.rol==='chauffeur');
+  S_chauffeurs=chauffeurs.map(c=>({id:c.id,name:c.naam}));
+  fillChaufDatalist();
+  ploegShifts=chauffeurs.flatMap(c=>(c.shifts||[]).map(sh=>({
+    id:sh.id,chauffeur_id:c.id,datum:sh.datum,start_tijd:sh.van_uur||'08:00',eind_tijd:sh.tot_uur||'17:00',
+    type:sh.rol_dag||'vol',opmerking:sh.notities||''
+  })));
 }
 
 async function renderPloeg(){
-  S_chauffeurs=await api('GET','/chauffeurs');fillChaufDatalist();
-S_thema_cats=await api('GET','/thema-categorieen');
+  S_thema_cats=await api('GET','/thema-categorieen');
   await loadPloegShifts();
   if(ploegWk===1&&S.kampmomenten.length){
     ploegWk=[...S.kampmomenten].sort((a,b)=>a.week-b.week)[0].week;
@@ -3333,13 +3300,16 @@ async function saveShift(){
   const type=document.getElementById('sh-type').value;
   const opmerking=document.getElementById('sh-opmerking').value.trim();
   if(!datum){showToast('Vul een datum in.','warn');return;}
+  // S3.1: shifts leven nu in personeel_shifts. van_uur/tot_uur/rol_dag/notities i.p.v.
+  // start_tijd/eind_tijd/type/opmerking — zelfde inhoud, andere kolomnamen.
   if(editingShiftId){
-    const r=await api('PUT','/ploeg/'+editingShiftId,{chauffeur_id,datum,start_tijd,eind_tijd,type,opmerking});
-    ploegShifts=ploegShifts.map(sh=>sh.id===editingShiftId?r:sh);
+    const r=await api('PUT','/personeel-shifts/'+editingShiftId,{datum,van_uur:start_tijd,tot_uur:eind_tijd,rol_dag:type,notities:opmerking});
+    if(r&&r.error){showToast(r.error,'error');return;}
   } else {
-    const r=await api('POST','/ploeg',{chauffeur_id,datum,start_tijd,eind_tijd,type,opmerking});
-    ploegShifts.push(r);
+    const r=await api('POST','/personeel/'+chauffeur_id+'/shifts',{datum,van_uur:start_tijd,tot_uur:eind_tijd,rol_dag:type,notities:opmerking});
+    if(r&&r.error){showToast(r.error,'error');return;}
   }
+  await loadPloegShifts();
   closeModal('modal-shift');
   renderPloegGrid();
 }
@@ -3347,8 +3317,8 @@ async function saveShift(){
 async function deleteShift(){
   if(!editingShiftId)return;
   if(!confirm('Shift verwijderen?'))return;
-  await api('DELETE','/ploeg/'+editingShiftId);
-  ploegShifts=ploegShifts.filter(sh=>sh.id!==editingShiftId);
+  await api('DELETE','/personeel-shifts/'+editingShiftId);
+  await loadPloegShifts();
   closeModal('modal-shift');
   renderPloegGrid();
 }
@@ -3367,11 +3337,21 @@ let spoedFilter='alle',vFilter='alle',plannerFilter='alle';
 let editingTpId=null,tpRegels=[],tpVoorstellen=[],plannerTaken=[];
 
 let _lastNetErr=0;
+// S3.2: sessietoken wordt door de centrale api()-helper op elke call meegestuurd. Bij een 401
+// (niet ingelogd of sessie verlopen) gaan we automatisch terug naar het loginscherm.
 async function api(m,p,b){
   const o={method:m,headers:{'Content-Type':'application/json'}};
+  const _tok=localStorage.getItem('sporty-auth-token');
+  if(_tok)o.headers['x-auth-token']=_tok;
   if(b)o.body=JSON.stringify(b);
   try {
     const res=await fetch(API+p,o);
+    if(res.status===401){
+      localStorage.removeItem('sporty-auth-token');
+      localStorage.removeItem('sporty-auth-user');
+      showLoginScreen();
+      return m==='GET'?[]:{error:'Niet ingelogd'};
+    }
     if(!res.ok){
       const err=await res.json().catch(()=>({error:'HTTP '+res.status}));
       showToast(err.error||'Serverfout '+res.status,'error');
@@ -3389,8 +3369,105 @@ async function api(m,p,b){
     return m==='GET'?[]:{error:'Server niet bereikbaar'};
   }
 }
-async function loadAll(){const[a,b,c,d,e,f,g,h,periodes]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/spoed'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender'),api('GET','/periodes')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,spoed:e,materiaal:f,overzicht:g,locMat:{},periodes:Array.isArray(periodes)?periodes:[]};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
-S_chauffeurs=await api('GET','/chauffeurs');fillChaufDatalist();
+// ── S3.2: LOGIN ──
+let CURRENT_USER=null;
+function _setCurrentUser(u){
+  CURRENT_USER=u;
+  const el=document.getElementById('topbar-user'),naamEl=document.getElementById('topbar-user-naam');
+  if(el&&naamEl&&u){el.style.display='inline-flex';naamEl.textContent=u.naam;}
+  _prefillWieVelden();
+}
+// S3.2: acties op naam — overal waar nu een vrij "wie"-tekstveld bestaat vullen we de
+// ingelogde naam vooraf in en zetten we het veld readonly (het veld blijft bestaan).
+function _prefillWieVelden(){
+  if(!CURRENT_USER)return;
+  const nk=document.getElementById('nk2-wie');
+  if(nk){nk.value=CURRENT_USER.naam;nk.readOnly=true;}
+  const kz=document.getElementById('kz-naam');
+  if(kz){kz.readOnly=true;}
+}
+async function checkLoginOnStart(){
+  const token=localStorage.getItem('sporty-auth-token');
+  if(token){
+    const res=await fetch(API+'/wie-ben-ik',{headers:{'x-auth-token':token}});
+    if(res.ok){
+      const u=await res.json();
+      localStorage.setItem('sporty-auth-user',JSON.stringify(u));
+      _setCurrentUser(u);
+      document.getElementById('login-overlay').style.display='none';
+      bootApp();
+      return;
+    }
+    localStorage.removeItem('sporty-auth-token');
+    localStorage.removeItem('sporty-auth-user');
+  }
+  showLoginScreen();
+}
+async function showLoginScreen(){
+  document.getElementById('login-overlay').style.display='flex';
+  document.getElementById('topbar-user').style.display='none';
+  let status={setup_nodig:false};
+  try{ status=await (await fetch(API+'/login-status')).json(); }catch(e){}
+  const setupMode=!!status.setup_nodig;
+  document.getElementById('login-normal').style.display=setupMode?'none':'block';
+  document.getElementById('login-setup').style.display=setupMode?'block':'none';
+  document.getElementById('login-sub').textContent=setupMode?'Eerste keer opstarten':'Log in om verder te gaan';
+  if(setupMode){
+    // Setup-vangnet: personeel bestaat mogelijk al maar heeft nog geen pincode. We tonen de
+    // volledige personeelslijst zodat de allereerste kantoor-pincode gezet kan worden.
+    let personen=[];
+    try{personen=await (await fetch(API+'/personeel-lijst-login')).json();}catch(e){}
+    const sel=document.getElementById('setup-persoon');
+    sel.innerHTML='<option value="">— Kies je naam —</option>'+(Array.isArray(personen)?personen:[]).map(p=>`<option value="${p.id}">${_escH(p.naam)} (${_rolLabel[p.rol]||p.rol})</option>`).join('');
+  } else {
+    let personen=[];
+    try{personen=await (await fetch(API+'/personeel-lijst-login')).json();}catch(e){}
+    const groepen={kantoor:'🏢 Kantoor',chauffeur:'🚐 Chauffeur',animator:'🎪 Animator',kv:'🏕️ KV'};
+    const sel=document.getElementById('login-persoon');
+    let html='<option value="">— Kies je naam —</option>';
+    Object.keys(groepen).forEach(rol=>{
+      const lijst=(Array.isArray(personen)?personen:[]).filter(p=>p.rol===rol);
+      if(lijst.length)html+=`<optgroup label="${groepen[rol]}">`+lijst.map(p=>`<option value="${p.id}">${_escH(p.naam)}</option>`).join('')+'</optgroup>';
+    });
+    sel.innerHTML=html;
+  }
+}
+async function doLogin(){
+  const persoon_id=document.getElementById('login-persoon').value;
+  const pincode=document.getElementById('login-pincode').value;
+  const errEl=document.getElementById('login-error');
+  errEl.textContent='';
+  if(!persoon_id||!pincode){errEl.textContent='Kies je naam en vul je pincode in.';return;}
+  const res=await fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persoon_id,pincode})});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){errEl.textContent=data.error||'Inloggen mislukt';return;}
+  localStorage.setItem('sporty-auth-token',data.token);
+  localStorage.setItem('sporty-auth-user',JSON.stringify(data));
+  _setCurrentUser(data);
+  document.getElementById('login-overlay').style.display='none';
+  bootApp();
+}
+async function doSetup(){
+  const persoon_id=document.getElementById('setup-persoon').value;
+  const pincode=document.getElementById('setup-pincode').value;
+  const errEl=document.getElementById('setup-error');
+  errEl.textContent='';
+  if(!persoon_id||!pincode||pincode.length<4){errEl.textContent='Kies je naam en een pincode van minstens 4 tekens.';return;}
+  const res=await fetch(API+'/setup-eerste-pincode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persoon_id,pincode})});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){errEl.textContent=data.error||'Setup mislukt';return;}
+  showToast('Eerste pincode ingesteld — log nu in','success');
+  showLoginScreen();
+}
+async function doLogout(){
+  const token=localStorage.getItem('sporty-auth-token');
+  if(token){try{await fetch(API+'/logout',{method:'POST',headers:{'x-auth-token':token}});}catch(e){}}
+  localStorage.removeItem('sporty-auth-token');
+  localStorage.removeItem('sporty-auth-user');
+  location.reload();
+}
+
+async function loadAll(){const[a,b,c,d,f,g,h,periodes]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender'),api('GET','/periodes')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,materiaal:f,overzicht:g,locMat:{},periodes:Array.isArray(periodes)?periodes:[]};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
 S_thema_cats=await api('GET','/thema-categorieen');
 // Stel de actieve periode in: eerste periode of de eerste met kampmomenten
 if(S.periodes.length){const metKamp=S.periodes.find(p=>S.kampmomenten.some(k=>k.periode_id===p.id));S.activePeriode=metKamp||S.periodes[0];}
@@ -3398,13 +3475,13 @@ const tbl=document.getElementById('topbar-periode');if(tbl&&S.activePeriode)tbl.
 // Initialiseer kalender navigatiedatum op start actieve periode
 if(S.activePeriode&&!ovDate)ovDate=new Date(S.activePeriode.start_datum+'T12:00:00');
 else if(!ovDate)ovDate=new Date(2026,6,1);
-updateSpoedBadge();}
+const _nAanv=await api('GET','/aanvragen?status=nieuw');
+updateAanvragenBadge(Array.isArray(_nAanv)?_nAanv.length:0);}
 
-function updateSpoedBadge(){
-  const n=(S.spoed||[]).filter(s=>!s.done).length;
+// S3.3: badge-infrastructuur hergebruikt voor het aantal 'nieuw'-aanvragen (voorheen spoedmeldingen).
+function updateAanvragenBadge(n){
   const b=document.getElementById('badge-spoed');if(b)b.style.display=n?'inline-block':'none';
   const bn=document.getElementById('badge-spoed-n');if(bn)bn.textContent=n;
-  const ob=document.getElementById('spoed-badge');if(ob){ob.style.display=n?'flex':'none';ob.textContent=n;}
   const ovSp=document.getElementById('ov-sp');if(ovSp)ovSp.textContent=n;
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
@@ -6536,9 +6613,10 @@ async function renderPlanner(){
   plannerRitten=await api('GET','/ritten');
   noden=plannerTaken.filter(t=>!t.rit_id);
   await _zorgMatData();
-  // Load chauffeurs if needed
-  if(!S_chauffeurs.length) S_chauffeurs=await api('GET','/chauffeurs');fillChaufDatalist();
-S_thema_cats=await api('GET','/thema-categorieen');
+  // Load chauffeurs (uit personeel, rol='chauffeur') if needed
+  if(!S_chauffeurs.length) await loadPloegShifts();
+  fillChaufDatalist();
+  S_thema_cats=await api('GET','/thema-categorieen');
   renderPlannerKalender();
   updatePlannerMetrics();
   renderBacklogStrip();
@@ -6874,9 +6952,15 @@ async function saveRit(){
   if(!editingRitId)return;
   const datum=document.getElementById('rit-datum').value;
   if(!datum){showToast('Datum is verplicht','warn');return;}
+  const chaufNaam=document.getElementById('rit-chauffeur').value.trim();
+  // S3.1: UI kiest chauffeur uit personeel (rol='chauffeur') via de datalist die door
+  // fillChaufDatalist()/S_chauffeurs gevuld wordt. We herleiden personeel_id via naam-match
+  // en sturen zowel personeel_id als de naam mee (de naam blijft het bestaande vrije tekstveld).
+  const chaufPersoon=(S_chauffeurs||[]).find(c=>c.name.toLowerCase()===chaufNaam.toLowerCase());
   const r=await api('PUT','/ritten/'+editingRitId,{
     datum,
-    chauffeur:document.getElementById('rit-chauffeur').value.trim(),
+    chauffeur:chaufNaam,
+    personeel_id:chaufPersoon?chaufPersoon.id:null,
     voertuig:(()=>{const v=document.getElementById('rit-voertuig').value;return v==='__anders'?(prompt('Voertuig naam:')||''):v;})(),
     status:document.getElementById('rit-status').value,
     opmerking:document.getElementById('rit-opmerking').value.trim()
@@ -6915,19 +6999,24 @@ function renderChauffeursBeheer(){
 }
 
 async function addChauf(){
+  // S3.1: chauffeurs zijn nu gewoon personeel met rol='chauffeur'.
   const name=document.getElementById('pl-chauf-name').value.trim();if(!name)return;
-  const r=await api('POST','/chauffeurs',{name});
+  const r=await api('POST','/personeel',{naam:name,rol:'chauffeur'});
   if(r.error){showToast(r.error,'error');return;}
-  S_chauffeurs.push(r);S_chauffeurs.sort((a,b)=>a.name.localeCompare(b.name));
+  S_chauffeurs.push({id:r.id,name:r.naam});S_chauffeurs.sort((a,b)=>a.name.localeCompare(b.name));
+  fillChaufDatalist();
   document.getElementById('pl-chauf-name').value='';
   renderChauffeursBeheer();
   renderPlannerKalender(); // refresh filter dropdown
 }
 
 async function deleteChauf(id){
-  await api('DELETE','/chauffeurs/'+id);
+  if(!confirm('Chauffeur verwijderen? Dit verwijdert de persoon uit Personeel.'))return;
+  await api('DELETE','/personeel/'+id);
   S_chauffeurs=S_chauffeurs.filter(c=>c.id!==id);
+  await loadPloegShifts();
   renderChauffeursBeheer();
+  renderPloegGrid();
 }
 
 function setPlannerFilter(f,btn){} // stub - no longer used, kept for compat
@@ -6950,6 +7039,75 @@ async function renderNoden(){
   await _zorgMatData();
   _vulTbWekFilter();
   renderTransportBeheer();
+  renderAanvragen();
+}
+
+// ── S3.3: AANVRAGEN ──
+async function renderAanvragen(){
+  const el=document.getElementById('aanvr-lijst'); if(!el)return;
+  const status=document.getElementById('aanvr-filter-status')?.value||'';
+  const soort=document.getElementById('aanvr-filter-soort')?.value||'';
+  let qs=[]; if(status)qs.push('status='+encodeURIComponent(status)); if(soort)qs.push('soort='+encodeURIComponent(soort));
+  const lijst=await api('GET','/aanvragen'+(qs.length?'?'+qs.join('&'):''));
+  const nNieuw=(await api('GET','/aanvragen?status=nieuw'));
+  updateAanvragenBadge(Array.isArray(nNieuw)?nNieuw.length:0);
+  const tEl=document.getElementById('aanvr-teller');
+  if(tEl){const n=Array.isArray(nNieuw)?nNieuw.length:0;tEl.style.display=n?'inline-block':'none';tEl.textContent=n+' nieuw';}
+  if(!Array.isArray(lijst)||!lijst.length){el.innerHTML='<div class="empty">Geen aanvragen gevonden.</div>';return;}
+  const stKleur={nieuw:'var(--amber-dk)',goedgekeurd:'var(--green-dk)',afgewezen:'var(--red-dk)',afgehandeld:'var(--text3)'};
+  const stLbl={nieuw:'🔶 Nieuw',goedgekeurd:'✅ Goedgekeurd',afgewezen:'❌ Afgewezen',afgehandeld:'📋 Afgehandeld'};
+  el.innerHTML=lijst.map(a=>`<div style="border:.5px solid var(--border);border-radius:var(--r);padding:8px 10px;margin-bottom:6px;background:var(--bg)">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:${stKleur[a.status]||'var(--text2)'}">${stLbl[a.status]||a.status}</span>
+      <span style="font-size:10px;color:var(--text3)">${a.soort==='kapot'?'💔 kapot':'📦 materiaal'}</span>
+      <span style="flex:1"></span>
+      <span style="font-size:10px;color:var(--text3)">${_escH((a.created_at||'').substring(0,16))}${a.persoon_naam?' · '+_escH(a.persoon_naam):''}</span>
+    </div>
+    <div style="font-size:13px;margin:4px 0">${_escH(a.tekst||'')}</div>
+    ${a.km_locatie?`<div style="font-size:11px;color:var(--text3)">📍 Week ${a.km_week} — ${_escH(a.km_locatie)}</div>`:''}
+    ${a.reden?`<div style="font-size:11px;color:var(--text2);font-style:italic">Reden: ${_escH(a.reden)}</div>`:''}
+    ${a.spoed_taak_id?`<div style="font-size:11px;color:var(--green-dk)">🚚 Spoedtransport aangemaakt (taak #${a.spoed_taak_id})</div>`:''}
+    ${a.behandeld_door?`<div style="font-size:10px;color:var(--text3)">Behandeld door ${_escH(a.behandeld_door)} · ${_escH((a.behandeld_op||'').substring(0,16))}</div>`:''}
+    ${a.status==='nieuw'?`<div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn-g" style="font-size:11px;height:26px" onclick="behandelAanvraag(${a.id},'goedgekeurd')">✅ Goedkeuren</button>
+      <button class="btn-o" style="font-size:11px;height:26px" onclick="behandelAanvraag(${a.id},'afgewezen')">❌ Afwijzen</button>
+    </div>`:a.status==='goedgekeurd'?`<div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn-b" style="font-size:11px;height:26px" onclick="behandelAanvraag(${a.id},'afgehandeld')">📋 Afhandelen</button>
+    </div>`:''}
+  </div>`).join('');
+}
+
+function openNieuweAanvraag(){
+  const tekst=prompt('Aanvraag omschrijving:');
+  if(!tekst||!tekst.trim())return;
+  const soort=confirm('OK = materiaal-aanvraag, Annuleren = kapot-melding')?'materiaal':'kapot';
+  api('POST','/aanvragen',{soort,tekst:tekst.trim(),persoon_id:CURRENT_USER?.id||null}).then(r=>{
+    if(r&&r.error){showToast(r.error,'error');return;}
+    showToast('Aanvraag aangemaakt','success');
+    renderAanvragen();
+  });
+}
+
+async function behandelAanvraag(id,status){
+  let reden='';
+  if(status==='afgewezen'){
+    reden=prompt('Reden voor afwijzen:')||'';
+    if(reden===null)return;
+  }
+  let maak_spoedtransport=false,spoedtransport=null;
+  if(status==='goedgekeurd'){
+    reden=prompt('Reden/motivatie bij goedkeuring (optioneel):')||'';
+    maak_spoedtransport=confirm('Meteen een spoedtransport aanmaken voor deze aanvraag?');
+    if(maak_spoedtransport){
+      const a=(await api('GET','/aanvragen?status=nieuw')).find(x=>x.id===id);
+      spoedtransport={item:a?a.tekst:'Aanvraag #'+id,qty:1};
+    }
+  }
+  const r=await api('PUT','/aanvragen/'+id+'/status',{status,reden,maak_spoedtransport,spoedtransport});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  showToast('Aanvraag bijgewerkt','success');
+  renderAanvragen();
+  if(document.getElementById('sec-overzicht')?.classList.contains('active')) renderOverzicht();
 }
 function _vulTbWekFilter(){
   const sel=document.getElementById('tb-filter-week');
@@ -7258,23 +7416,6 @@ async function deleteTpTaak(){
 // SPOED
 
 
-
-async function toggleSpoed(id){
-  const r=await api('PUT','/spoed/'+id+'/toggle');
-  S.spoed=S.spoed.map(s=>s.id===id?r:s);
-  updateSpoedBadge();
-  if(document.getElementById('sec-overzicht')?.classList.contains('active')) renderOverzicht();
-  if(document.getElementById('sec-transporten')?.classList.contains('active')) renderTransportenOV();
-}
-async function deleteSpoed(id){
-  if(!confirm('Spoedmelding verwijderen?'))return;
-  await api('DELETE','/spoed/'+id);
-  S.spoed=S.spoed.filter(s=>s.id!==id);
-  updateSpoedBadge();
-  if(document.getElementById('sec-overzicht')?.classList.contains('active')) renderOverzicht();
-  if(document.getElementById('sec-transporten')?.classList.contains('active')) renderTransportenOV();
-  showToast('Verwijderd','info');
-}
 
 document.querySelectorAll('.modal-bg').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open');}));
 document.addEventListener('keydown',e=>{
@@ -7742,7 +7883,9 @@ async function openRitKlaarzetten(ritId){
   _kzRitId=ritId;
   const rit=plannerRitten.find(r=>r.id===ritId);
   document.getElementById('kz-titel').textContent='📦 Klaarzetten — '+(rit?fIso(rit.datum)+' '+(rit.chauffeur?'('+rit.chauffeur+')':''):'');
-  document.getElementById('kz-naam').value='';
+  // S3.2: acties op naam — vooringevuld met de ingelogde gebruiker, readonly (blijft bestaan als veld).
+  document.getElementById('kz-naam').value=CURRENT_USER?.naam||'';
+  document.getElementById('kz-naam').readOnly=!!CURRENT_USER;
   const data=await api('GET','/ritten/'+ritId+'/checks');
   if(!data||data.error){showToast('Kon checklist niet laden','error');return;}
   if(!data.checks||!data.checks.length){
@@ -7965,27 +8108,32 @@ function printInventaris() {
 
 
 // ── NIEUWE 5-TAB ROUTING ──
-loadAll()
-  .then(()=>{
-    handleQrScan();
-    // Re-render whatever tab is currently visible (incl. if user clicked a tab during loading)
-    const _initRenderMap={
-      overzicht:renderOverzicht,
-      planning:renderPlanning,
-      materiaal:renderMateriaal,
-      'transport-noden':renderNoden,
-      'transport-plan':renderTransportPlan,
-      transporten:renderTransportenOV,
-    };
-    const _activeTab=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten']
-      .find(t=>document.getElementById('sec-'+t)?.classList.contains('active'))||'overzicht';
-    try{const p=_initRenderMap[_activeTab]?.();if(p instanceof Promise)p.catch(e=>console.error(e));}
-    catch(e){console.error('Init render error:',e);}
-  })
-  .catch(err=>{
-    console.error('Load failed:',err);
-    showToast('Server niet bereikbaar. Is de server gestart op poort 3001?','error');
-  });
+function bootApp(){
+  loadAll()
+    .then(()=>{
+      handleQrScan();
+      // Re-render whatever tab is currently visible (incl. if user clicked a tab during loading)
+      const _initRenderMap={
+        overzicht:renderOverzicht,
+        planning:renderPlanning,
+        materiaal:renderMateriaal,
+        'transport-noden':renderNoden,
+        'transport-plan':renderTransportPlan,
+        transporten:renderTransportenOV,
+      };
+      const _activeTab=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten']
+        .find(t=>document.getElementById('sec-'+t)?.classList.contains('active'))||'overzicht';
+      try{const p=_initRenderMap[_activeTab]?.();if(p instanceof Promise)p.catch(e=>console.error(e));}
+      catch(e){console.error('Init render error:',e);}
+    })
+    .catch(err=>{
+      console.error('Load failed:',err);
+      showToast('Server niet bereikbaar. Is de server gestart op poort 3001?','error');
+    });
+}
+// S3.2: app start achter login. checkLoginOnStart() (zie login-blok verderop) toont het
+// loginscherm of, bij een geldig bewaard token, roept meteen bootApp() aan.
+checkLoginOnStart();
 
 // ── CSV EXPORT ──
 function _csvEscape(v){const s=String(v==null?'':v);return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s;}
@@ -8713,6 +8861,7 @@ function openNieuwPersoonModal(){
   document.getElementById('pers-notities').value='';
   document.getElementById('modal-pers-titel').textContent='Persoon toevoegen';
   document.getElementById('pers-verwijder-btn').style.display='none';
+  document.getElementById('pers-pincode-blok').style.display='none';
   document.getElementById('modal-persoon').style.display='flex';
 }
 
@@ -8726,7 +8875,22 @@ function openBewerkPersoon(id){
   document.getElementById('pers-notities').value=p.notities||'';
   document.getElementById('modal-pers-titel').textContent='Persoon bewerken';
   document.getElementById('pers-verwijder-btn').style.display='inline-flex';
+  document.getElementById('pers-pincode-blok').style.display='block';
+  document.getElementById('pers-pincode-status').textContent=p.heeft_pincode?'— al ingesteld (nieuwe pincode overschrijft de oude)':'— nog niet ingesteld';
+  document.getElementById('pers-pincode-nieuw').value='';
   document.getElementById('modal-persoon').style.display='flex';
+}
+
+async function zetPersoonPincode(){
+  const id=document.getElementById('pers-edit-id').value; if(!id)return;
+  const pincode=document.getElementById('pers-pincode-nieuw').value;
+  if(!pincode||pincode.length<4){showToast('Pincode moet minstens 4 tekens zijn','error');return;}
+  const r=await api('POST',`/personeel/${id}/pincode`,{pincode});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  showToast('Pincode ingesteld','success');
+  document.getElementById('pers-pincode-nieuw').value='';
+  document.getElementById('pers-pincode-status').textContent='— al ingesteld (nieuwe pincode overschrijft de oude)';
+  _persData=[]; await _laadPersoneel(); setPersSubtab(_persSubtab,null);
 }
 
 function sluitPersoonModal(){document.getElementById('modal-persoon').style.display='none';}

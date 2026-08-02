@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const initSqlJs = require('sql.js');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1492,9 +1493,152 @@ async function startServer() {
     }
   }
 
+  // ── S3.1/S3.2/S3.3: schema voor personen-consolidatie, login en aanvraagflow ──
+  addColumnIfMissing('personeel','pincode',"TEXT DEFAULT ''");
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS sessies (
+    token TEXT PRIMARY KEY,
+    persoon_id INTEGER NOT NULL,
+    created_at TEXT DEFAULT ''
+  )`);
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS aanvragen (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kampmoment_id INTEGER,
+    persoon_id INTEGER,
+    soort TEXT DEFAULT 'materiaal',
+    tekst TEXT DEFAULT '',
+    foto_data TEXT DEFAULT '',
+    status TEXT DEFAULT 'nieuw',
+    reden TEXT DEFAULT '',
+    spoed_taak_id INTEGER,
+    created_at TEXT DEFAULT '',
+    behandeld_door TEXT DEFAULT '',
+    behandeld_op TEXT DEFAULT ''
+  )`);
+
+  // Migratie 54: ploeg_shifts → personeel_shifts. Vanaf nu wordt chauffeurs/ploeg_shifts niet
+  // meer beschreven vanuit code (S3.1 personen-consolidatie); de tabellen blijven puur als
+  // historisch archief staan zodat er geen dataverlies is.
+  {
+    const _vlag54=get("SELECT naam FROM app_vlaggen WHERE naam='migratie54_klaar'");
+    if(!_vlag54){
+      try{
+        const _oudeShifts=all(`SELECT ps.*, c.personeel_id AS pid FROM ploeg_shifts ps JOIN chauffeurs c ON c.id=ps.chauffeur_id`);
+        let _gemigreerd54=0;
+        _oudeShifts.forEach(sh=>{
+          if(!sh.pid) return; // chauffeur zonder gekoppeld personeel (zou niet mogen na Migratie 48) — overslaan
+          ins(`INSERT INTO personeel_shifts (persoon_id,kampmoment_id,locatie_id,datum,van_uur,tot_uur,rol_dag,notities)
+            VALUES (?,?,?,?,?,?,?,?)`,
+            [sh.pid, null, null, sh.datum, sh.start_tijd||'', sh.eind_tijd||'', sh.type||'', sh.opmerking||'']);
+          _gemigreerd54++;
+        });
+        console.log(`  Migratie 54: ${_gemigreerd54} ploeg_shifts-rijen gemigreerd naar personeel_shifts`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie54_klaar','1')");
+      }catch(e){ console.error('  Migratie 54 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
+  // Migratie 55: oude spoedmeldingen → aanvragen (soort='materiaal'), zodat S1.5/S3.3-consolidatie
+  // geen bestaande data verliest. spoedmeldingen zelf blijft ongemoeid staan als archief.
+  {
+    const _vlag55=get("SELECT naam FROM app_vlaggen WHERE naam='migratie55_klaar'");
+    if(!_vlag55){
+      try{
+        const _oudeSpoed=all('SELECT * FROM spoedmeldingen');
+        let _gemigreerd55=0;
+        _oudeSpoed.forEach(s=>{
+          const tekst=(s.item||'')+(s.qty&&s.qty!==1?` (${s.qty}x)`:'')+(s.note?` — ${s.note}`:'');
+          ins(`INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,status,created_at,behandeld_door,behandeld_op)
+            VALUES (?,?,?,?,?,?,?,?)`,
+            [null, null, 'materiaal', tekst, s.done?'afgehandeld':'nieuw', s.created_at||now(), s.done?'(migratie 55)':'', s.done_time||'']);
+          _gemigreerd55++;
+        });
+        console.log(`  Migratie 55: ${_gemigreerd55} spoedmeldingen gemigreerd naar aanvragen`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie55_klaar','1')");
+      }catch(e){ console.error('  Migratie 55 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
   saveDb();
 
+  // ── S3.2: LOGIN / SESSIES ──
+  function hashPin(pin){ return crypto.createHash('sha256').update(String(pin)).digest('hex'); }
+  function genSessieToken(){ return crypto.randomBytes(24).toString('hex'); }
+  const _sessieCache = new Map(); // token -> {token,persoon_id,naam,rol}  (snelheid; bron van waarheid is de sessies-tabel)
+  function checkSessie(token){
+    if(!token) return null;
+    if(_sessieCache.has(token)) return _sessieCache.get(token);
+    const s = get('SELECT s.token,s.persoon_id,p.naam,p.rol FROM sessies s JOIN personeel p ON p.id=s.persoon_id WHERE s.token=?',[token]);
+    if(s) _sessieCache.set(token,s);
+    return s||null;
+  }
 
+  // PUBLIEK (geen sessietoken vereist): login zelf, login-status/setup-vangnet, de personeelslijst
+  // om het loginscherm te vullen, en /rit/:token (die staat sowieso niet onder /api/*, dus is
+  // vanzelf publiek). MARKER voor de volgende chat (S3.4/S3.5 KV-flow): /kv/:token en zijn
+  // onderliggende data-calls moeten hier ook expliciet als publiek toegevoegd worden.
+  const PUBLIEKE_API_PADEN = new Set(['/api/login','/api/login-status','/api/setup-eerste-pincode','/api/personeel-lijst-login']);
+
+  app.post('/api/login',(req,res)=>{
+    const {persoon_id,pincode}=req.body;
+    if(!persoon_id||!pincode) return res.status(400).json({error:'persoon_id en pincode zijn vereist'});
+    const p=get('SELECT * FROM personeel WHERE id=?',[persoon_id]);
+    if(!p||!p.pincode) return res.status(401).json({error:'Ongeldige login'});
+    if(p.pincode!==hashPin(pincode)) return res.status(401).json({error:'Ongeldige pincode'});
+    const token=genSessieToken();
+    ins('INSERT INTO sessies (token,persoon_id,created_at) VALUES (?,?,?)',[token,p.id,now()]);
+    saveDb();
+    const sessie={token,persoon_id:p.id,naam:p.naam,rol:p.rol};
+    _sessieCache.set(token,sessie);
+    res.json({token,id:p.id,naam:p.naam,rol:p.rol});
+  });
+  app.get('/api/login-status',(req,res)=>{
+    const n=get("SELECT COUNT(*) as n FROM personeel WHERE pincode IS NOT NULL AND pincode<>''").n;
+    res.json({setup_nodig: n===0});
+  });
+  app.post('/api/setup-eerste-pincode',(req,res)=>{
+    const n=get("SELECT COUNT(*) as n FROM personeel WHERE pincode IS NOT NULL AND pincode<>''").n;
+    if(n>0) return res.status(400).json({error:'Setup is al voltooid — log in via het gewone loginscherm.'});
+    const {persoon_id,pincode}=req.body;
+    if(!persoon_id||!pincode||String(pincode).length<4) return res.status(400).json({error:'persoon_id en een pincode van minstens 4 tekens zijn vereist'});
+    const p=get('SELECT * FROM personeel WHERE id=?',[persoon_id]);
+    if(!p) return res.status(404).json({error:'Persoon niet gevonden'});
+    run('UPDATE personeel SET rol=?, pincode=? WHERE id=?',['kantoor',hashPin(pincode),p.id]);
+    saveDb();
+    res.json({ok:true});
+  });
+  app.get('/api/personeel-lijst-login',(req,res)=>{
+    res.json(all("SELECT id,naam,rol FROM personeel ORDER BY rol,naam"));
+  });
+
+  // Auth-poort voor alle overige /api/*-routes. Zonder geldig token → 401. De bestaande
+  // APP_PASSWORD-basic-auth (bovenaan dit bestand) blijft daarbuiten als buitenmuur staan.
+  app.use((req,res,next)=>{
+    if(!req.path.startsWith('/api/')) return next();
+    if(PUBLIEKE_API_PADEN.has(req.path)) return next();
+    const token = req.headers['x-auth-token'] || (req.headers['authorization']||'').replace(/^Bearer\s+/i,'');
+    const sessie = checkSessie(token);
+    if(!sessie) return res.status(401).json({error:'Niet ingelogd'});
+    req.persoon = sessie;
+    next();
+  });
+
+  app.get('/api/wie-ben-ik',(req,res)=>{
+    res.json({id:req.persoon.persoon_id,naam:req.persoon.naam,rol:req.persoon.rol});
+  });
+  app.post('/api/personeel/:id/pincode',(req,res)=>{
+    const {pincode}=req.body;
+    if(!pincode||String(pincode).length<4) return res.status(400).json({error:'Pincode van minstens 4 tekens vereist'});
+    const p=get('SELECT * FROM personeel WHERE id=?',[req.params.id]);
+    if(!p) return res.status(404).json({error:'Persoon niet gevonden'});
+    run('UPDATE personeel SET pincode=? WHERE id=?',[hashPin(pincode),p.id]);
+    saveDb();
+    res.json({ok:true});
+  });
+  app.post('/api/logout',(req,res)=>{
+    const token = req.headers['x-auth-token'] || (req.headers['authorization']||'').replace(/^Bearer\s+/i,'');
+    if(token){ run('DELETE FROM sessies WHERE token=?',[token]); _sessieCache.delete(token); saveDb(); }
+    res.json({ok:true});
+  });
 
   // ── LOCATIES ──
   app.get('/api/locaties',(req,res)=>res.json(all('SELECT * FROM locaties ORDER BY type,name')));
@@ -1869,25 +2013,58 @@ async function startServer() {
   app.post('/api/gesloten',(req,res)=>{const{datum,reden}=req.body;try{const id=ins('INSERT INTO gesloten_dagen (datum,reden) VALUES (?,?)',[datum,reden||'']);res.json(get('SELECT * FROM gesloten_dagen WHERE id=?',[id]));}catch(e){res.status(400).json({error:'Datum bestaat al'});}});
   app.delete('/api/gesloten/:id',(req,res)=>{run('DELETE FROM gesloten_dagen WHERE id=?',[req.params.id]);res.json({ok:true});});
 
-  // ── SPOED ──
-  app.get('/api/spoed',(req,res)=>res.json(all('SELECT * FROM spoedmeldingen ORDER BY done ASC,id DESC')));
-  app.post('/api/spoed',(req,res)=>{
-    const{item,qty,locatie_id,prio,note}=req.body;
-    const id=ins('INSERT INTO spoedmeldingen (item,qty,locatie_id,prio,note,created_at) VALUES (?,?,?,?,?,?)',[item,qty||1,locatie_id,prio||'midden',note||'',now()]);
-    const loc=locatie_id?get('SELECT name FROM locaties WHERE id=?',[locatie_id]):null;
-    logAct('spoed','aangemaakt',`🚨 ${item} (${qty||1}x) — prioriteit: ${prio||'midden'}`,locatie_id||null,loc?.name||null);
-    res.json(get('SELECT * FROM spoedmeldingen WHERE id=?',[id]));
+  // ── S3.3: AANVRAGEN (vervangt de oude losse spoedmeldingen, zie Migratie 55) ──
+  // Publiek bereikbaar in principe (komt straks van de KV-link, S3.4/S3.5), maar ligt hier
+  // achter de S3.2-auth-poort omdat de KV-link zelf nog niet bestaat in deze taak — kantoor/
+  // chauffeur kunnen nu al aanvragen aanmaken en behandelen.
+  app.get('/api/aanvragen',(req,res)=>{
+    const {status,soort,kampmoment_id}=req.query;
+    let sql='SELECT a.*, p.naam AS persoon_naam, km.week AS km_week, l.name AS km_locatie FROM aanvragen a '
+      +'LEFT JOIN personeel p ON p.id=a.persoon_id '
+      +'LEFT JOIN kampmomenten km ON km.id=a.kampmoment_id '
+      +'LEFT JOIN locaties l ON l.id=km.locatie_id WHERE 1=1';
+    const params=[];
+    if(status){sql+=' AND a.status=?';params.push(status);}
+    if(soort){sql+=' AND a.soort=?';params.push(soort);}
+    if(kampmoment_id){sql+=' AND a.kampmoment_id=?';params.push(kampmoment_id);}
+    sql+=' ORDER BY a.id DESC';
+    res.json(all(sql,params));
   });
-  app.put('/api/spoed/:id/toggle',(req,res)=>{
-    const s=get('SELECT * FROM spoedmeldingen WHERE id=?',[req.params.id]);
-    const nd=s.done?0:1;
-    const t=new Date().toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});
-    run('UPDATE spoedmeldingen SET done=?,done_time=? WHERE id=?',[nd,nd?t:'',req.params.id]);
-    const loc=s.locatie_id?get('SELECT name FROM locaties WHERE id=?',[s.locatie_id]):null;
-    logAct('spoed',nd?'opgelost':'heropend',`${nd?'✅':'🔁'} Spoedmelding "${s.item}" ${nd?'opgelost':'heropend'}`,s.locatie_id||null,loc?.name||null);
-    res.json(get('SELECT * FROM spoedmeldingen WHERE id=?',[req.params.id]));
+  app.post('/api/aanvragen',(req,res)=>{
+    const{kampmoment_id,persoon_id,soort,tekst,foto_data}=req.body;
+    if(!tekst||!tekst.trim())return res.status(400).json({error:'Tekst is verplicht'});
+    const id=ins('INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,status,created_at) VALUES (?,?,?,?,?,?,?)',
+      [kampmoment_id||null,persoon_id||null,soort||'materiaal',tekst.trim(),foto_data||'','nieuw',now()]);
+    logAct('aanvraag','aangemaakt',`📨 Nieuwe aanvraag (${soort||'materiaal'}): ${tekst.trim()}`,null,null);
+    res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
-  app.delete('/api/spoed/:id',(req,res)=>{run('DELETE FROM spoedmeldingen WHERE id=?',[req.params.id]);res.json({ok:true});});
+  app.put('/api/aanvragen/:id/status',(req,res)=>{
+    const{status,reden,maak_spoedtransport,spoedtransport}=req.body;
+    const a=get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]);
+    if(!a)return res.status(404).json({error:'Aanvraag niet gevonden'});
+    if(!['nieuw','goedgekeurd','afgewezen','afgehandeld'].includes(status))return res.status(400).json({error:'Ongeldige status'});
+    const behandeld_door=(req.persoon&&req.persoon.naam)||'';
+    let spoed_taak_id=a.spoed_taak_id;
+    if(status==='goedgekeurd'&&maak_spoedtransport&&!spoed_taak_id){
+      const st=spoedtransport||{};
+      const naam=(st.item||a.tekst||'').trim();
+      const aantal=Math.max(1,parseInt(st.qty)||1);
+      const ts=now();
+      const spoedDatum=st.datum||isoDate(new Date());
+      const ritId=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
+        [spoedDatum,'','Spoedtransport (aanvraag #'+a.id+')','gepland',ts]);
+      const taakId=ins(
+        'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        ['extra',spoedDatum,st.tijd||'09:00',st.van_locatie_id||null,st.naar_locatie_id||null,'🚨 Spoed (aanvraag #'+a.id+'): '+naam,'','gepland',ts,st.kind||'',st.ref_id||0,0,ritId]);
+      ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam)]);
+      spoed_taak_id=taakId;
+    }
+    run('UPDATE aanvragen SET status=?,reden=?,spoed_taak_id=?,behandeld_door=?,behandeld_op=? WHERE id=?',
+      [status,reden||'',spoed_taak_id||null,behandeld_door,now(),req.params.id]);
+    saveDb();
+    logAct('aanvraag',status,`Aanvraag #${a.id} → ${status}`+(reden?` (${reden})`:''),null,null);
+    res.json(get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]));
+  });
 
   // ── MATERIAAL ──
   app.get('/api/materiaal',(req,res)=>{const items=all('SELECT * FROM materiaal_items ORDER BY cat,name');const eenheden=all('SELECT * FROM materiaal_eenheden');res.json(items.map(i=>({...i,eenheden:eenheden.filter(e=>e.item_id===i.id)})));});
@@ -1907,47 +2084,10 @@ async function startServer() {
     run('DELETE FROM thema_categorieen WHERE id=?',[req.params.id]);res.json({ok:true});
   });
 
-  // ── CHAUFFEURS ──
-  app.get('/api/chauffeurs',(req,res)=>res.json(all('SELECT * FROM chauffeurs ORDER BY name')));
-  app.post('/api/chauffeurs',(req,res)=>{
-    const{name}=req.body;if(!name)return res.status(400).json({error:'Naam vereist'});
-    try{
-      let p=get('SELECT id FROM personeel WHERE LOWER(naam)=LOWER(?) AND rol=?',[name,'chauffeur']);
-      if(!p) p={id:ins('INSERT INTO personeel (naam,rol) VALUES (?,?)',[name,'chauffeur'])};
-      const id=ins('INSERT INTO chauffeurs (name,personeel_id) VALUES (?,?)',[name,p.id]);
-      res.json(get('SELECT * FROM chauffeurs WHERE id=?',[id]));
-    }
-    catch(e){res.status(400).json({error:'Naam bestaat al'});}
-  });
-  app.delete('/api/chauffeurs/:id',(req,res)=>{run('DELETE FROM chauffeurs WHERE id=?',[req.params.id]);res.json({ok:true});});
-
-  // ── PLOEGPLANNING ──
-  app.get('/api/ploeg',(req,res)=>{
-    const shifts=all('SELECT ps.*,c.name as chauffeur_name FROM ploeg_shifts ps JOIN chauffeurs c ON c.id=ps.chauffeur_id ORDER BY ps.datum,ps.start_tijd');
-    res.json(shifts);
-  });
-  app.get('/api/ploeg/week',(req,res)=>{
-    const{van,tot}=req.query;
-    const shifts=all('SELECT ps.*,c.name as chauffeur_name FROM ploeg_shifts ps JOIN chauffeurs c ON c.id=ps.chauffeur_id WHERE ps.datum>=? AND ps.datum<=? ORDER BY ps.datum,ps.start_tijd',[van||'2026-01-01',tot||'2026-12-31']);
-    res.json(shifts);
-  });
-  app.post('/api/ploeg',(req,res)=>{
-    const{chauffeur_id,datum,start_tijd,eind_tijd,type,opmerking}=req.body;
-    if(!chauffeur_id||!datum)return res.status(400).json({error:'chauffeur_id en datum zijn vereist'});
-    const id=ins('INSERT INTO ploeg_shifts (chauffeur_id,datum,start_tijd,eind_tijd,type,opmerking) VALUES (?,?,?,?,?,?)',[chauffeur_id,datum,start_tijd||'08:00',eind_tijd||'17:00',type||'vol',opmerking||'']);
-    const shift=get('SELECT ps.*,c.name as chauffeur_name FROM ploeg_shifts ps JOIN chauffeurs c ON c.id=ps.chauffeur_id WHERE ps.id=?',[id]);
-    res.json(shift);
-  });
-  app.put('/api/ploeg/:id',(req,res)=>{
-    const{chauffeur_id,datum,start_tijd,eind_tijd,type,opmerking}=req.body;
-    run('UPDATE ploeg_shifts SET chauffeur_id=?,datum=?,start_tijd=?,eind_tijd=?,type=?,opmerking=? WHERE id=?',[chauffeur_id,datum,start_tijd||'08:00',eind_tijd||'17:00',type||'vol',opmerking||'',req.params.id]);
-    const shift=get('SELECT ps.*,c.name as chauffeur_name FROM ploeg_shifts ps JOIN chauffeurs c ON c.id=ps.chauffeur_id WHERE ps.id=?',[req.params.id]);
-    res.json(shift);
-  });
-  app.delete('/api/ploeg/:id',(req,res)=>{
-    run('DELETE FROM ploeg_shifts WHERE id=?',[req.params.id]);
-    res.json({ok:true});
-  });
+  // ── CHAUFFEURS/PLOEGPLANNING: S3.1 verwijderd, opgegaan in /api/personeel (rol='chauffeur')
+  // + /api/personeel/:id/shifts + personeel_shifts. Zie Migratie 54 voor de datamigratie en
+  // MASTERPLAN FASE S3 voor de achtergrond. De oude tabellen chauffeurs/ploeg_shifts blijven
+  // in de database staan als archief maar worden vanuit code niet meer beschreven.
 
   // ── VERBRUIKSSTOCK ──
   app.get('/api/verbruik', (req,res)=>{
@@ -2325,22 +2465,28 @@ async function startServer() {
     res.json(ritten.map(_ritMetTaken));
   });
   app.post('/api/ritten',(req,res)=>{
-    const {datum,chauffeur,opmerking,status,taak_ids}=req.body;
+    let {datum,chauffeur,personeel_id,opmerking,status,taak_ids}=req.body;
     if(!datum) return res.status(400).json({error:'Datum is verplicht'});
-    const id=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
-      [datum,chauffeur||'',opmerking||'',status||'gepland',now()]);
+    // S3.1: UI kiest chauffeur voortaan uit personeel (rol='chauffeur'). We slaan personeel_id
+    // op ÉN blijven de naam in het bestaande vrije-tekstveld chauffeur zetten, zodat alles wat
+    // de naam toont (rit-kaartjes, /rit/:token, filters) blijft werken zonder aan te passen.
+    if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
+    const id=ins('INSERT INTO transport_ritten (datum,chauffeur,personeel_id,opmerking,status,created_at) VALUES (?,?,?,?,?,?)',
+      [datum,chauffeur||'',personeel_id||null,opmerking||'',status||'gepland',now()]);
     if(Array.isArray(taak_ids)) taak_ids.forEach(tid=>{
       run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[id,datum,chauffeur||'',tid]);
     });
     res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[id])));
   });
   app.put('/api/ritten/:id',(req,res)=>{
-    const {datum,chauffeur,opmerking,status,voertuig}=req.body;
+    let {datum,chauffeur,personeel_id,opmerking,status,voertuig}=req.body;
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
-    run('UPDATE transport_ritten SET datum=?,chauffeur=?,opmerking=?,status=?,voertuig=? WHERE id=?',
+    if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
+    run('UPDATE transport_ritten SET datum=?,chauffeur=?,personeel_id=?,opmerking=?,status=?,voertuig=? WHERE id=?',
       [datum||rit.datum,
        chauffeur!==undefined?chauffeur:rit.chauffeur,
+       personeel_id!==undefined?(personeel_id||null):rit.personeel_id,
        opmerking!==undefined?opmerking:rit.opmerking,
        status||rit.status,
        voertuig!==undefined?voertuig:(rit.voertuig||''),
@@ -2653,39 +2799,19 @@ async function startServer() {
     res.json({ok:true});
   });
 
-  // ── DATA EXPORT / IMPORT ──
+  // ── S3.8: DATA EXPORT / IMPORT — dynamisch over ALLE tabellen ──
+  // Loopt over sqlite_master i.p.v. een hardcoded (en dus steeds verouderende) tabellenlijst.
+  // sqlite_-interne tabellen worden overgeslagen.
+  function _alleTabellen(){
+    return all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map(r=>r.name);
+  }
+  function _kolommenVan(tabel){
+    const info=db.exec(`PRAGMA table_info(${tabel})`)[0];
+    return info?info.values.map(r=>r[1]):[];
+  }
   app.get('/api/export', (req, res) => {
-    const data = {
-      versie: 2,
-      datum: new Date().toISOString(),
-      locaties: all('SELECT * FROM locaties'),
-      themas: all('SELECT * FROM themas'),
-      thema_categorieen: all('SELECT * FROM thema_categorieen'),
-      thema_materiaal: all('SELECT * FROM thema_materiaal'),
-      standaard_materiaal: all('SELECT * FROM standaard_materiaal'),
-      kampmomenten: all('SELECT * FROM kampmomenten'),
-      kampmoment_themas: all('SELECT * FROM kampmoment_themas'),
-      kalender_dagen: all('SELECT * FROM kalender_dagen'),
-      gesloten_dagen: all('SELECT * FROM gesloten_dagen'),
-      spoedmeldingen: all('SELECT * FROM spoedmeldingen'),
-      locatie_materiaal: all('SELECT * FROM locatie_materiaal'),
-      materiaal_items: all('SELECT * FROM materiaal_items'),
-      materiaal_eenheden: all('SELECT * FROM materiaal_eenheden'),
-      verplaatsingen: all('SELECT * FROM verplaatsingen'),
-      set_planning: all('SELECT * FROM set_planning'),
-      verbruik_stock: all('SELECT * FROM verbruik_stock'),
-      verbruik_log: all('SELECT * FROM verbruik_log'),
-      transport_taken: all('SELECT * FROM transport_taken'),
-      transport_regels: all('SELECT * FROM transport_regels'),
-      transport_ritten: all('SELECT * FROM transport_ritten'),
-      chauffeurs: all('SELECT * FROM chauffeurs'),
-      ploeg_shifts: all('SELECT * FROM ploeg_shifts'),
-      verhuis_checks: all('SELECT * FROM verhuis_checks'),
-      locatie_kleuren: all('SELECT * FROM locatie_kleuren'),
-      thema_bakken: all('SELECT * FROM thema_bakken'),
-      bak_items: all('SELECT * FROM bak_items'),
-      voertuig_types: all('SELECT * FROM voertuig_types'),
-    };
+    const data = { versie: 3, datum: new Date().toISOString() };
+    _alleTabellen().forEach(t=>{ try{ data[t]=all(`SELECT * FROM ${t}`); }catch(e){ data[t]=[]; } });
     res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
     res.setHeader('Content-Type', 'application/json');
     res.json(data);
@@ -2707,58 +2833,40 @@ async function startServer() {
     let themas=0; try{ themas=get('SELECT count(*) as n FROM themas').n; }catch(e){}
     res.json({ db_path: DB_PATH, data_dir: DATA_DIR, railway_volume_env: process.env.RAILWAY_VOLUME_MOUNT_PATH || null, dirname: __dirname, themas });
   });
-  // Reset: wis alle data voor import
+  // Reset: wis alle data voor import (dynamisch, alle levende tabellen behalve app_vlaggen/sessies
+  // — die twee moeten een reset overleven zodat migratievlaggen en ingelogde sessies niet
+  // per ongeluk verdwijnen bij een import-rondje).
   app.post('/api/import/reset', (req, res) => {
     try {
-      const tables = ['ploeg_shifts','transport_regels','transport_taken','transport_ritten','verbruik_log',
-        'verbruik_stock','set_planning','verplaatsingen','materiaal_eenheden','materiaal_items',
-        'locatie_materiaal','spoedmeldingen','gesloten_dagen','kalender_dagen',
-        'kampmoment_themas','kampmomenten','standaard_materiaal','thema_materiaal',
-        'thema_categorieen','themas','locaties','chauffeurs'];
+      const tables = _alleTabellen().filter(t=>t!=='app_vlaggen'&&t!=='sessies');
       tables.forEach(t => { try { db.run('DELETE FROM ' + t); } catch(e) {} });
       saveDb();
-      res.json({ ok: true });
+      res.json({ ok: true, tables });
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
-  // Importeer één tabel per keer
+  // Importeer één tabel per keer — kolommen worden afgeleid uit de data zelf, gefilterd op
+  // kolommen die écht in de tabel bestaan (dynamisch i.p.v. hardcoded, S3.8).
   app.post('/api/import/tabel', (req, res) => {
     const { table, rows } = req.body;
     if (!table || !rows) return res.status(400).json({ error: 'Tabel of rijen ontbreken' });
-    const colMap = {
-      locaties: ['id','name','addr','type','contact_naam','contact_tel','notities'],
-      thema_categorieen: ['id','name'],
-      themas: ['id','name','color','categorie'],
-      thema_materiaal: ['id','thema_id','name','qty'],
-      standaard_materiaal: ['id','name','qty','cat'],
-      kampmomenten: ['id','locatie_id','week'],
-      kampmoment_themas: ['id','kampmoment_id','thema_id'],
-      kalender_dagen: ['id','locatie_id','datum','open'],
-      gesloten_dagen: ['id','datum','reden'],
-      spoedmeldingen: ['id','item','qty','locatie_id','prio','note','done','done_time','created_at'],
-      locatie_materiaal: ['id','locatie_id','name','qty','cat'],
-      materiaal_items: ['id','name','tracking','cat','created_at'],
-      materiaal_eenheden: ['id','item_id','label','qty','locatie_id'],
-      verplaatsingen: ['id','eenheid_id','van_locatie_id','naar_locatie_id','qty','reden','datum'],
-      set_planning: ['id','eenheid_id','locatie_id','week'],
-      verbruik_stock: ['id','item_id','locatie_id','qty','minimum','eenheid'],
-      verbruik_log: ['id','item_id','locatie_id','delta','reden','wie','transport_id','datum','created_at'],
-      transport_taken: ['id','type','datum','tijd','van_locatie_id','naar_locatie_id','opmerking','wie','kampmoment_id','status','created_at','rit_id'],
-      transport_regels: ['id','taak_id','naam','qty','soort'],
-      transport_ritten: ['id','datum','chauffeur','opmerking','status','created_at'],
-      chauffeurs: ['id','name'],
-      ploeg_shifts: ['id','chauffeur_id','datum','start_tijd','eind_tijd','type','opmerking'],
-    };
-    const cols = colMap[table];
-    if (!cols) return res.status(400).json({ error: 'Onbekende tabel: ' + table });
+    const bestaandeKolommen = _kolommenVan(table);
+    if (!bestaandeKolommen.length) return res.status(400).json({ error: 'Onbekende tabel: ' + table });
+    if (!rows.length) return res.json({ ok: true, count: 0 });
+    // Kolommen afleiden uit de union van sleutels in de data, beperkt tot wat de tabel heeft.
+    const dataKolommen = new Set();
+    rows.forEach(r => Object.keys(r).forEach(k => dataKolommen.add(k)));
+    const cols = bestaandeKolommen.filter(c => dataKolommen.has(c));
+    if (!cols.length) return res.status(400).json({ error: 'Geen overeenkomende kolommen voor tabel: ' + table });
     try {
+      let count=0;
       rows.forEach(r => {
         const vals = cols.map(c => r[c] !== undefined ? r[c] : null);
         const ph = cols.map(() => '?').join(',');
-        try { db.run('INSERT OR IGNORE INTO ' + table + ' (' + cols.join(',') + ') VALUES (' + ph + ')', vals); } catch(e) {}
+        try { db.run('INSERT OR IGNORE INTO ' + table + ' (' + cols.join(',') + ') VALUES (' + ph + ')', vals); count++; } catch(e) {}
       });
       saveDb();
-      res.json({ ok: true, count: rows.length });
+      res.json({ ok: true, count });
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
@@ -2812,7 +2920,8 @@ async function startServer() {
       LEFT JOIN kampmomenten km ON km.id=ps.kampmoment_id
       LEFT JOIN locaties l ON l.id=COALESCE(ps.locatie_id,km.locatie_id)
       ORDER BY ps.datum,ps.van_uur`);
-    res.json(personen.map(p=>({...p,shifts:shifts.filter(s=>s.persoon_id===p.id)})));
+    // pincode is een hash, maar wordt hier toch nooit meegestuurd — enkel of iemand er al één heeft.
+    res.json(personen.map(p=>{const{pincode,...rest}=p;return{...rest,heeft_pincode:!!pincode,shifts:shifts.filter(s=>s.persoon_id===p.id)};}));
   });
   app.post('/api/personeel',(req,res)=>{
     const{naam,rol,telefoon,email,notities}=req.body;
