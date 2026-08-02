@@ -134,3 +134,11 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 - [Experimenteerfabriek] Bak 1/2 heeft code D35 = zelfde code als Survival-curver (L5, informatief) — verifiëren. Bouwpakket zenuwspiraal (Opitec, 32x) als verbruik in bak 2/2 gezet hoewel fiche "apart meenemen" zegt.
 - [FC Sporty girls] Geen materiaalfiche ("zie materiaalfiche") — bak opgebouwd uit de fotolijst p10-13, code onbekend. Voetbal holes set (voetgolf) als attribuut. Relatie met FC Sporty (kleuters)-voetbalkisten en WK-materiaal: gedeeld of apart? Medailles 1/kind aangenomen.
 - [Festivalfood] Bundel is een "(practical_info_leader)"-bestand maar bevat een volwaardige fiche — gewoon ingevoerd. Kookpool: kookbak/afwasbak/oven.
+
+### Batch 11a (ingevoerd door Fable)
+- [Fun on ice] Schaatskamp zonder fiche -> thema-only + INFO (partijvestjes, klein materiaal). OK zo?
+- [Geef acht!] 3-daagse bundel heet intern "4-DAAGSE" (fiche identiek). Geocache-bak gedeeld gekoppeld (zelfde als Actie & Avontuur/Survival). Nerf/autobanden/zwarte doeken als attributen, plek onbekend.
+- [Jump around] Colorslide, Swing him off, Levende tafelvoetbal en Hindernisbaan LS toegevoegd aan de springkasteel-pool - blazer-behoefte per structuur onbekend. Is de "Hindernisbaan" hier dezelfde als de Kleuterhindernisbaan? Aanname: nee (aparte LS-structuur).
+- [Klimwereld] Bundel volledig gescand (3 pagina's, geen tekst) - thema aangemaakt zonder materiaal; samen bekijken.
+- [Koekiemonsters] Houten schijfjes zonder aantal (1 + verifieren); geen KV-lijst in bundel (eieren/boter niet vermeld - vermoedelijk vergeten op de fiche?).
+- [Lego Legends] Bak 2/2 bevat sub-bakken (5 bakjes wieltjes, 7 zwarte bakken, +-8 curverbakken ongesorteerd) - als items ingevoerd; fysieke transporteenheid verifieren (mogelijk zijn die +-8 curvers aparte bakken).
