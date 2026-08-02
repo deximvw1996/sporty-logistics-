@@ -21,7 +21,7 @@ De app beheert de volledige logistiek van Sporty vzw-kampen: kampen plannen, mat
 
 **Vaste ontwerpregels (uit de testcase-gesprekken met Maxim — NIET van afwijken):**
 
-1. **Chauffeur ziet bakken, geen inhoud.** Een transportlijst voor de chauffeur = bakken + attributen met hun magazijncode (bv. "KL bak — N08", "Decor Alice"). Nooit item-detail.
+1. **Chauffeur ziet bakken, geen inhoud.** Een transportlijst voor de chauffeur = bakken + attributen met hun magazijncode (bv. "KL bak — N08", "Decor Alice"). Nooit item-detail. **De bak is de kleinste transporteenheid** (Maxim 2026-08-02: "een halve bak gaan we normaal nooit meenemen") — splitsen van taken gebeurt dus altijd op bak-niveau.
 2. **Kantoor ziet inhoud.** Elke bak heeft een itemlijst met gewenst aantal per item; elk item verwijst verplicht naar de centrale catalogus (`item_types`). "Knutsellijm in bak E26" = hetzelfde item als "Knutsellijm in de voorraad". Dat is de kern van stockbeheer.
 3. **Verbruiksitem vs. duurzaam.** Verbruiksitems (diploma's, kranten, lijm...) raken op en worden telkens aangevuld/aangekocht; duurzame items enkel vervangen bij kapot/verloren.
 4. **Alles met een code ligt in de Rozenweg.** Bakken en attributen met een magazijncode (G11, D17, N08...) staan fysiek in de Rozenweg. Kamplocaties zijn GEEN stockageplaats.
