@@ -1607,8 +1607,8 @@ async function saveLocEigenschap(locId, veld, val){
   if(_kpSelKmId) selectKpCell(_kpSelKmId);
 }
 
-async function saveLocatieConfig(locId, vastType, aantal, conditieType, conditieWaarde){
-  await api('POST','/locatie-config',{kamplocatie_id:locId,vast_type:vastType,aantal:parseInt(aantal)||1,conditie_type:conditieType,conditie_waarde:conditieWaarde||''});
+async function saveLocatieConfig(locId, vastType, aantal, conditieType, conditieWaarde, pauzeGedrag){
+  await api('POST','/locatie-config',{kamplocatie_id:locId,vast_type:vastType,aantal:parseInt(aantal)||1,conditie_type:conditieType,conditie_waarde:conditieWaarde||'',pauze_gedrag:pauzeGedrag||'blijven'});
   if(typeof renderLocatieDetail==='function') renderLocatieDetail();
 }
 async function verwijderLocatieConfig(cfgId){
@@ -5322,14 +5322,18 @@ async function renderLocatieDetail(){
 
       <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Locatieconfig (vaste exemplaren)</div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Welk vast type materiaal hoort standaard op deze locatie, hoeveel exemplaren, en onder welke voorwaarde.</div>
-      ${locConfig.map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:.5px solid var(--border)">
+      ${locConfig.map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:.5px solid var(--border);flex-wrap:wrap">
           <span style="flex:1;font-size:12px">${_escH(c.vast_type)}</span>
-          <input type="number" value="${c.aantal}" min="1" style="width:44px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',this.value,'${c.conditie_type}','${_attrH(c.conditie_waarde||'')}')">
-          <select style="font-size:11px" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',${c.aantal},this.value,'${c.conditie_type==='leeftijdsgroep'?(c.conditie_waarde||''):''}')">${condOpties(c.conditie_type)}</select>
-          ${c.conditie_type==='leeftijdsgroep'?`<select style="font-size:11px" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',${c.aantal},'leeftijdsgroep',this.value)">
+          <input type="number" value="${c.aantal}" min="1" style="width:44px;font-size:11px;border:.5px solid var(--border);border-radius:3px;padding:1px 4px;text-align:center" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',this.value,'${c.conditie_type}','${_attrH(c.conditie_waarde||'')}','${c.pauze_gedrag||'blijven'}')">
+          <select style="font-size:11px" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',${c.aantal},this.value,'${c.conditie_type==='leeftijdsgroep'?(c.conditie_waarde||''):''}','${c.pauze_gedrag||'blijven'}')">${condOpties(c.conditie_type)}</select>
+          ${c.conditie_type==='leeftijdsgroep'?`<select style="font-size:11px" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',${c.aantal},'leeftijdsgroep',this.value,'${c.pauze_gedrag||'blijven'}')">
               <option value="kleuters" ${c.conditie_waarde==='kleuters'?'selected':''}>kleuters</option>
               <option value="lagere school" ${c.conditie_waarde==='lagere school'?'selected':''}>lagere school</option>
             </select>`:''}
+          <select style="font-size:11px" title="Wat gebeurt er met dit type als de locatie tijdelijk sluit en later heropent?" onchange="saveLocatieConfig(${l.id},'${_attrH(c.vast_type)}',${c.aantal},'${c.conditie_type}','${_attrH(c.conditie_waarde||'')}',this.value)">
+            <option value="blijven" ${(c.pauze_gedrag||'blijven')==='blijven'?'selected':''}>⏸️ blijft bij pauze</option>
+            <option value="ophalen" ${c.pauze_gedrag==='ophalen'?'selected':''}>🔄 mee terug bij pauze</option>
+          </select>
           <button class="bi" style="color:var(--red)" onclick="verwijderLocatieConfig(${c.id})" title="Verwijder">🗑️</button>
         </div>`).join('')}
       <div style="display:flex;gap:6px;margin-top:8px">

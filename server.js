@@ -1529,6 +1529,11 @@ async function startServer() {
   addColumnIfMissing('verhuis_checks','gelost_op',"TEXT DEFAULT ''");
   addColumnIfMissing('verhuis_checks','taak_id','INTEGER');
 
+  // ── Migratie 58 — S5-uitbreiding (Maxim 2026-08-02): pauze-gedrag per locatieconfig-regel.
+  // 'blijven' (default, bindende regel: standaardmateriaal blijft staan bij tijdelijke sluiting)
+  // of 'ophalen' (dit type gaat wél mee terug tijdens een pauze en wordt herleverd bij heropening).
+  addColumnIfMissing('locatie_config','pauze_gedrag',"TEXT DEFAULT 'blijven'");
+
   // ── Migratie 57 — S3.5: KV-scherm telt ook attributen aanwezig/beschadigd ──
   // nakijk_sessies kende al bak_type 'thema'/'vast' met thema_bak_id/vaste_bak_id; 'attribuut'
   // is een derde bak_type met een eigen FK-kolom. kv_status krijgt een nieuwe tussenwaarde
@@ -1702,15 +1707,16 @@ async function startServer() {
     res.json(all('SELECT * FROM locatie_config WHERE kamplocatie_id=? ORDER BY vast_type',[req.params.locatie_id]));
   });
   app.post('/api/locatie-config',(req,res)=>{
-    const{kamplocatie_id,vast_type,aantal,conditie_type,conditie_waarde}=req.body;
+    const{kamplocatie_id,vast_type,aantal,conditie_type,conditie_waarde,pauze_gedrag}=req.body;
     if(!kamplocatie_id||!vast_type)return res.status(400).json({error:'kamplocatie_id en vast_type verplicht'});
+    const pg=(pauze_gedrag==='ophalen')?'ophalen':'blijven';
     const bestaat=get('SELECT id FROM locatie_config WHERE kamplocatie_id=? AND vast_type=?',[kamplocatie_id,vast_type]);
     if(bestaat){
-      run('UPDATE locatie_config SET aantal=?,conditie_type=?,conditie_waarde=? WHERE id=?',
-        [aantal||1,conditie_type||'altijd',conditie_waarde||'',bestaat.id]);
+      run('UPDATE locatie_config SET aantal=?,conditie_type=?,conditie_waarde=?,pauze_gedrag=? WHERE id=?',
+        [aantal||1,conditie_type||'altijd',conditie_waarde||'',pg,bestaat.id]);
     } else {
-      ins('INSERT INTO locatie_config (kamplocatie_id,vast_type,aantal,conditie_type,conditie_waarde) VALUES (?,?,?,?,?)',
-        [kamplocatie_id,vast_type,aantal||1,conditie_type||'altijd',conditie_waarde||'']);
+      ins('INSERT INTO locatie_config (kamplocatie_id,vast_type,aantal,conditie_type,conditie_waarde,pauze_gedrag) VALUES (?,?,?,?,?,?)',
+        [kamplocatie_id,vast_type,aantal||1,conditie_type||'altijd',conditie_waarde||'',pg]);
     }
     saveDb();
     res.json(all('SELECT * FROM locatie_config WHERE kamplocatie_id=? ORDER BY vast_type',[kamplocatie_id]));
@@ -2540,6 +2546,33 @@ async function startServer() {
           });
           Object.entries(byStockage(locConfigTerug)).forEach(([sid,mat])=>{
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling vast materiaal week '+km.week+' — '+loc.name});
+          });
+        }
+
+        // Pauze-gedrag (Migratie 58, Maxim): config-regels met pauze_gedrag='ophalen' gaan wél
+        // tijdelijk mee terug bij een pauze en worden herleverd bij heropening. Alles met
+        // 'blijven' (default) volgt de bindende regel: laten staan tijdens tijdelijke sluiting.
+        if(!heeftOpvolger && !isLaatsteVanPeriode){
+          // Laatste open week vóór een pauze → ophaal van de 'ophalen'-types
+          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          const pauzeTerug=_actieveLocatieConfig(km).filter(cfg=>cfg.pauze_gedrag==='ophalen').flatMap(cfg=>{
+            let exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[cfg.vast_type,loc.id,cfg.aantal||1]);
+            if(!exemplaren.length)
+              exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' ORDER BY volgorde,id LIMIT ?",[cfg.vast_type,cfg.aantal||1]);
+            return exemplaren.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
+          });
+          Object.entries(byStockage(pauzeTerug)).forEach(([sid,mat])=>{
+            voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Pauze-ophaling vast materiaal na week '+km.week+' — '+loc.name+' (heropent later)'});
+          });
+        }
+        if(!isOpvolgend && !isEersteVanPeriode){
+          // Eerste open week ná een pauze → herlevering van de 'ophalen'-types
+          const pauzeLever=_actieveLocatieConfig(km).filter(cfg=>cfg.pauze_gedrag==='ophalen').flatMap(cfg=>{
+            const vrij=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' ORDER BY volgorde,id LIMIT ?",[cfg.vast_type,cfg.aantal||1]);
+            return vrij.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
+          });
+          Object.entries(byStockage(pauzeLever)).forEach(([sid,mat])=>{
+            voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'08:30',open_dagen:openDagen,materiaal:mat,opmerking:'Herlevering vast materiaal week '+km.week+' — '+loc.name+' (na pauze)'});
           });
         }
         if(!heeftOpvolger){
