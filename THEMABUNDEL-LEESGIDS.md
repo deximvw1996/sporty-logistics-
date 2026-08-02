@@ -51,6 +51,18 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L13 (idem): een "X en Y"-regel zijn twee aparte items** tenzij het aantoonbaar één set is. "Bus rode en roze verf" = 1 bus rode + 1 bus roze verf.
 
+**L14 (2026-08-02, 1001 Ballen en Bellen 3-daagse): een thema kan meerdere bundelvarianten hebben (5-daagse en 3-daagse voor kortere kampweken door feestdag/brugdag) — dat is HETZELFDE thema met dezelfde fysieke bakken.** Nooit een tweede thema aanmaken. Verschillen tussen de twee fiches (item-verdeling over bakken, ontbrekende items) zijn vrijwel zeker fiche-fouten: verschillen melden aan Maxim, de DB-indeling niet herschuiven, en de echte indeling bij de eerste nakijk verifiëren.
+
+**L15 (2026-08-02, Alles op wieltjes): voertuigen (fietsen, steps, loopwagens, zitfietsen, easy rollers, rolplanken...) zijn een GEDEELDE POOL over thema's heen** — vervoerd met camion/camionette/remorque, niets speciaals. Invoeren per soort met het totale aantal dat Sporty bezit (vast_type-exemplaren), níét per thema; per thema leg je alleen vast hoeveel er van elke soort nodig is. Fiche-aantallen zijn de themabehoefte, niet het bezit — bezitstotalen bij Maxim verifiëren.
+
+**L16 (idem): sterk gelijkende bundels kunnen tóch aparte thema's zijn** ("Ypie fietst" lijkt hard op "Alles op wieltjes" maar is een eigen thema met mogelijk eigen bundel). Verschil met L14: 3-/5-daagse van dezelfde bundelnaam = zelfde thema; andere themanaam = ander thema.
+
+**L17 (idem): identieke koffers op de fiche (verkeerskoffer 1/2/3) = pool-exemplaren; meestal gaat er maar 1 mee per locatie.** De verkeerskoffers staan allemaal bij de fietsen in de Rozenweg. Ook hier: fiche-fouten mogelijk (F40 stond als "grijze curver" maar is de zwárte curver; kleine inhoudsverschillen tussen koffers = verifiëren bij eerste nakijk).
+
+**L18 (idem): bij elk springkasteel/opblaasstructuur horen standaard een blazer én een verlengdraadkoffer** (koffers vol verlengdraden en domino's, zelfde model als de EHBO-koffers). Elk springkasteel hoort in de app een foto te krijgen: opgeplooid én opgezet (bouwpunt).
+
+**L19 (idem): "pak + pet"-verkleedkledij = 2 aparte items die bij elkaar horen** (notitie), géén 1 set — de Alice-setregel geldt alleen als de fiche het expliciet als één geheel presenteert.
+
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
 ---
