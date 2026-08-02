@@ -1529,6 +1529,30 @@ async function startServer() {
   addColumnIfMissing('verhuis_checks','gelost_op',"TEXT DEFAULT ''");
   addColumnIfMissing('verhuis_checks','taak_id','INTEGER');
 
+  // ── Migratie 59 — VERSE START 2 (Maxim 2026-08-02): alle thema's en materialen opnieuw gewist
+  // voor een foutloze heropbouw waarbij Maxim élk onderdeel uit de themabundels zelf valideert.
+  // Blijft: sportpakketten (sport_items/sets/planning), locaties, personeel, kampmomenten
+  // (enkel de thema-koppelingen gaan eruit), locatie_config-structuur. Gegate: draait 1×.
+  {
+    const _vlag59=get("SELECT naam FROM app_vlaggen WHERE naam='migratie59_klaar'");
+    if(!_vlag59){
+      try{
+        ['kampmoment_themas','thema_bak','thema_attribuut','bak_items','bak_fotos','bak_nakijk_log',
+         'bakken','attributen','item_type_stock','nakijk_regels','nakijk_sessies',
+         'locatie_kleuren','kleurenborden_stock','verhuis_checks','transport_regels',
+         'transport_taken','transport_ritten','aanvragen','themas'
+        ].forEach(t=>{ db.run('DELETE FROM '+t); });
+        // Catalogus: enkel item_types behouden waar sport nog naar verwijst
+        db.run(`DELETE FROM item_types WHERE id NOT IN (
+          SELECT item_type_id FROM sport_items WHERE item_type_id IS NOT NULL
+        )`);
+        const _n59=get('SELECT COUNT(*) as n FROM item_types').n;
+        console.log(`  Migratie 59: verse start — thema's/materialen gewist; item_types over: ${_n59} (enkel sport)`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie59_klaar','1')");
+      }catch(e){ console.error('  Migratie 59 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
   // ── Migratie 58 — S5-uitbreiding (Maxim 2026-08-02): pauze-gedrag per locatieconfig-regel.
   // 'blijven' (default, bindende regel: standaardmateriaal blijft staan bij tijdelijke sluiting)
   // of 'ophalen' (dit type gaat wél mee terug tijdens een pauze en wordt herleverd bij heropening).
