@@ -240,6 +240,9 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Sportymove] bijlage: Thema Sportymove - Fiches trekken en duwen.pdf
 - [Sportymove] bijlage: Thema Sportymove - Fiches vangen en werpen.pdf
 - [Sportymove] bijlage: Thema Sportymove - Fiches wandelen en lopen.pdf
+- [Atleet voor één dag (TD)] bijlage: Thema Atleet voor één dag - activiteitenfiche atletiek.pdf
+- [Boog- en lasershooting (TD)] bijlage: Thema boog- en lasershooting - Activiteitenfiche Lasershoot.pdf
+- [Boog- en lasershooting (TD)] bijlage: Thema boog- en lasershooting - Activiteitenfiche Pijl en kruisboogschieten.pdf
 - [Van kop tot teen (TD)] Rubriek "Creamateriaal" (zwart papier, wit krijt, reepjes wit papier) als verbruik gelezen (analoog Terug in de tijd); zelfde bak I14 als het themamateriaal — bevestigen dat crea-spullen in dezelfde bak zitten.
 - [Van kop tot teen (TD)] "Opdrachtkaarten bewegingen" zonder aantal op fiche; activiteitenpagina p.4 zegt 40 — 40 ingevoerd met bron-notitie (L11).
 - [Waterpret en bellen (TD)] "waterballonnen" en "extra bellenblaas" staan onder Vast themamateriaal maar zijn verbruiksaard — als verbruik ingevoerd met notitie, aantallen onbekend (L7).
@@ -250,3 +253,16 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Winterwonderland (TD)] Activiteit sneeuwpop (5-6 j) gebruikt "blauwe stroken 2/kind" die niet op de fiche staan (fiche heeft zwarte/bruine/oranje stroken) — niets extra ingevoerd, mogelijk fiche-fout.
 - [Zomerzotten (TD)] Drie transporteenheden delen code J21 (koffer, grijze curver, houten schijf — L5). "Houten schijf 3/3" functie onduidelijk (mogelijk onderdeel draairad) — verifiëren.
 - [Zomerzotten (TD)] Fiche noemt bij gelamineerde ijsbollen "geel" twee keer — letterlijk genoteerd, echte kleurenset verifiëren.
+- [Apenstreken (TD)] Saboteur-kaarten: fiche p.1 zegt "19 gewone, 3 saboteurs", speluitleg p.8 zegt "17 gewone, 3 saboteurs" (20 kaarten) — fiche p.1 aangehouden als 1 set, aantal verifiëren bij eerste nakijk.
+- [Apenstreken (TD)] "Extra meenemen: Kookvuur" — als kookpool-INFO (niet dubbel geregistreerd).
+- [Art @ Sporty (TD)] Beide themabakken (1/2 én 2/2) staan op dezelfde code I37 (L5, gedeelde code — informatief). Naam met suffix "(themadag)" wegens kamp "Art @ Sporty" (4126).
+- [Art @ Sporty (TD)] "acrylverf (blauw, geel, rood, zwart, wit)" per kleur gesplitst in 5 verbruiksitems (L13); "Penselen" zonder aantal → 1 met verifieer-notitie (L7).
+- [Atleet voor één dag (TD)] Fiche-bak J33 is inhoudelijk identiek aan de al ingevoerde bak J33 van themadag "Mini atletiek" (4189) — bestaande bak 12300 GEKOPPELD i.p.v. dubbel aangemaakt (TD-regel 4, zelfde code). Verschillen: fiche hier zegt "elastiek" (bak: 5 springelastieken) en noemt geen minihordes/ballonnen — niets herschoven, aanname zelfde fysieke bak; verifiëren.
+- [Boog- en lasershooting (TD)] Aantallen inconsistent binnen de bundel: fiche p.1 "6 bogen, 30 pijlen met zuignap", p.3 "8 bogen + 20 pijlen met punt en 10 met zuignap; doelwitten 4 voor punten en 2 plastic doelen" — geen eigen bakken aangemaakt; bestaande gedeelde eenheden gekoppeld (Houten kist kruisbogen 12237, KL bak lasershoot-geweren 12000, attributen losse bogen/pijlen met punt/rozen-doelen/5 targets). Aanname: TD gebruikt dezelfde fysieke pool als Play Factory; echte aantallen verifiëren.
+- [Boog- en lasershooting (TD)] Fiche noemt in de lasershoot-bak ook doosjes lege/volle batterijen en 2+2 schroevendraaiers — niet als items toegevoegd aan de gedeelde pool-bak (niets herschuiven), wel INFO-regel; inhoud verifiëren bij eerste nakijk.
+- [Bouwen met Lego (TD)] Fiche is identiek aan kamp "Lego Legends" (C07+C08) — bestaande bakken 12187/12188 gekoppeld (TD-regel 4), geen eigen thema-inhoud.
+- [Clic-it (TD)] Naambotsing met kamp "CLIC IT" (4131) beoordeeld: fiche ("2 bakken Clics - 1 bak wieltjes") = exact de clics-pool; gekozen: apart TD-thema "Clic-it (themadag)" met INFO-regel naar de clics-pool (zelfde aanpak als het kamp), geen eigen bakken.
+- [Creatief met papier (TD)] Activiteitenpagina cyanotype noemt "houten plaatjes" en "glazen plaatjes" die niet op de materiaalfiche staan — niets ingevoerd (L11/L13-grens), mogelijk zitten ze bij de 14 kaders; verifiëren.
+- [Creatief met papier (TD)] "4 priknaalden en matten" gesplitst in priknaalden ×4 + matten ×4 (L13); "Maatbekertje en roerstaafje" gesplitst in 2 items; "Houten letters" zonder aantal → 1 met verifieer-notitie.
+- [Bake off (TD)] Fiche nummert de curver I40 als "Themabak 2/2" en de groene klikbak I39 als "Themabak 1/2" (volgorde omgekeerd op de fiche) — letterlijk overgenomen. "Peper en zout" gesplitst (L13); "Muffinvormen" zonder aantal → 1 met verifieer-notitie.
+- [De bakkerij (TD)] Suffix "(themadag)" wegens kamp "De bakkerij" (4086); TD heeft eigen bakken K45/K47 (kamp: eigen 1/2+2/2) — niets van het kamp herschoven. "Plastic spuitzakken" zonder aantal → 1 met verifieer-notitie.
