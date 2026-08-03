@@ -18,7 +18,8 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 // gewoon meegedeployed worden bij een git push — dit is geen runtime-upload-map.
 const BUNDELS_DIR = path.join(__dirname, 'bundels');
 try { if (!fs.existsSync(BUNDELS_DIR)) fs.mkdirSync(BUNDELS_DIR, { recursive: true }); } catch(e) { console.warn('Bundels-map aanmaken mislukt:', e.message); }
-app.use('/bundels', express.static(BUNDELS_DIR));
+// Reviewfix Fable: /bundels wordt pas NA de Basic-auth-muur gemount (zie verderop) — anders
+// staan alle themabundel-PDF's op productie zonder wachtwoord open.
 
 // ── PROCES-FOUTAFHANDELING ──
 // Vangt onverwachte fouten op zodat de server niet stil crasht.
@@ -52,6 +53,8 @@ app.use((req, res, next) => {
   res.set('WWW-Authenticate', 'Basic realm="Sporty Logistiek"');
   return res.status(401).send('Wachtwoord vereist');
 });
+// Reviewfix Fable (S4.7): bundel-PDF's achter de Basic-auth-buitenmuur serveren.
+app.use('/bundels', express.static(BUNDELS_DIR));
 // Zoek frontend: eerst ../frontend (lokaal), dan zelfde map (Railway flat deploy)
 let FRONTEND_PATH = path.join(__dirname, '../frontend');
 if (!fs.existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
@@ -2015,6 +2018,9 @@ async function startServer() {
   app.post('/api/themas/:id/bundels',(req,res)=>{
     const{bestand,label}=req.body;
     if(!bestand||!bestand.trim())return res.status(400).json({error:'bestand is verplicht'});
+    // Reviewfix Fable: alleen kale bestandsnamen uit de bundels-map zelf — geen padscheiders of
+    // '..' (path-traversal: '..\\server.js' werd anders gewoon gekoppeld).
+    if(bestand!==path.basename(bestand)||bestand.includes('..'))return res.status(400).json({error:'Ongeldige bestandsnaam'});
     if(!fs.existsSync(path.join(BUNDELS_DIR,bestand)))return res.status(400).json({error:'Dit bestand staat niet (meer) in de bundels-map'});
     const maxOrd=(get('SELECT MAX(volgorde) as m FROM thema_bundels WHERE thema_id=?',[req.params.id])||{}).m||0;
     const id=ins('INSERT INTO thema_bundels (thema_id,bestand,label,volgorde) VALUES (?,?,?,?)',[req.params.id,bestand,label||'',maxOrd+10]);
