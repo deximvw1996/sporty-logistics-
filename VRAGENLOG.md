@@ -313,3 +313,30 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Play Factory (TD)] bijlage: Thema Play Factory - Mölkky spelregels.pdf
 - [Push & play (TD)] bijlage: Thema Push & play - Activiteitenfiche Gaga bal.pdf
 - [Push & play (TD)] bijlage: Thema Push & play - Activiteitenfiche Push The Button.pdf
+
+### TD-batch 9 LS slot (Showtime t/m Zomerse cocktails, ingevoerd door batch-agent 2026-08-04)
+- [Showtime (TD)] Items zonder aantal (veiligheidsspelden, naalden, plakband, elastiekjes, tandenstokers) → 1/doosje + verifieer-notitie (L7). "Potloden en pennen" gesplitst naar p4-aantallen (4+5, L13/L11). Ballonnen 4/kind uit crea-pagina (128). "Magic Speldoos (schap gezelschapspelen)" = nieuw attribuut, code/plek onbekend.
+- [Spellenspektakel (TD)] XL spelen gekoppeld aan bestaande attributen (Vier op een rij XL, Sjoelbak, Roll-it XL, Exago XL); fiche zegt "Sjoelbakken" (meervoud) maar pool heeft 1 sjoelbak-attribuut — aantal verifiëren.
+- [Spellenspektakel (TD)] Gezelschapsspellen-overlap met Play Factory "Curverbak gezelschapsspelen" beoordeeld: TD heeft eigen KLS-bak N12 met eigen benoemde spellen, kampbak heeft geen code/inhoudsopgave → NIET gekoppeld (TD-regel 4 eist zelfde code); fysieke overlap bij eerste nakijk verifiëren.
+- [Spionnen gezocht (TD)] Batch-instructie verwachtte een kampthema "Spionnen gezocht" (suffix + bak-koppeling op gelijke codes), maar er bestaat GEEN kamp met die naam in de DB en geen bestaande bakken K04/K13 → géén suffix toegepast, eigen bakken aangemaakt. Als het kamp later wordt ingevoerd: deze bakken koppelen.
+- [Spionnen gezocht (TD)] Cluedo-kaartsets: fiche zegt 16 kaartjes/set, p6 zegt 15 + 4 losse bloedspoorkaartjes — als 4 sets ingevoerd met verifieer-notitie. "Beetje bloem" staat onder vast themamateriaal maar raakt op — verifiëren.
+- [Sporty records (TD)] Bakken 2/3 (Kapla) en 3/3 (Domino bruggen) delen code "K2" (L5; mogelijk K02?) — verifiëren; geen inhoudsopgave → 1 verzamel-item per bak (L27). Mogelijke overlap met Play a game/Play Factory domino- en bruggen-bakken — verifiëren. WC-rolletjes = verzamelstroom (L29). Veel vast-items zonder aantal → 1 + verifieer-notitie (L7). Pagina 3-13 van de bundel zijn gescand (leeg in extractie) — activiteitencontext ontbrak.
+- [Sticks & bats (TD)] Alleen Sportmateriaal-rubriek = echte transporteenheden (L2): 4 pakketten als eigen bakken (I51 ×2 gedeelde code L5, I55, I56). Kamp "Slag- en balsporten" (4156) heeft nog geen bakken — daar te zijner tijd koppelen indien zelfde pakketten.
+- [Under construction (TD)] "3 KISTEN MET HOUTEN BLOKKEN (F32 – F47)" → bestaande pool "Koffer houten blokken" (2 in systeem, fiche zegt 3 kisten) — INFO-regel, aantal + codes verifiëren. Spijkers 30/kind (fiche) vs 65/kind (p4) — fiche aangehouden met notitie. "Apart mee te nemen" (16 plankjes + MDF A4/kind) als codeloze eenheid ingevoerd.
+- [Van creatie tot constructie (TD)] Creatool OPLA (kist XL) + SPOK pakket = bestaande vaste pool (TD-regel 4) → INFO-regel; pool-eenheden zijn geen thema-bakken, dus geen bak_id-koppeling mogelijk. Enig vast materiaal "4x bol touw" zonder bak/code → codeloze eenheid met verifieer-notitie.
+- [Voetbalmadness (TD)] Suffix "(themadag)" wegens kamp "Voetbal madness" (4148); gedeelde bak "Voetbalkisten (gedeeld voetbalmateriaal)" (12174) GEKOPPELD (L30). Themazak 1/1 heeft geen code op de fiche — verifiëren.
+- [Wafels en pannenkoeken (TD)] KV-eieren: fiche p1 zegt 24 voor 32 kinderen, tekst p3 zegt 16 voor 2×16 — per-32-fiche (24) aangehouden (L23), verifiëren. "Extra meenemen: afwasbak" = kookpool-INFO (L25).
+- [Wereldkeuken (themadag)] Suffix wegens kamp "Wereldkeuken" (4151); kampbakken E33–E40 ≠ TD-code K58 → eigen bak, geen koppeling. Kruiden/oliën zonder aantal → 1 + verifieer-notitie; kookbak/afwasbak/kookvuurtjes = kookpool-INFO.
+- [Wereldreizigers (TD)] Fiche toont één itemlijst onder de koppen van bak 1/2 (K27) én 2/2 (K29) samen — alle items in bak 1/2 gezet, bak 2/2 leeg aangemaakt; echte verdeling bij eerste nakijk verifiëren. Fichekop zegt letterlijk "TD-Thema"; naam van p2 (Wereldreizigers). WC-papier-rollen = verzamelstroom-notitie (L29).
+- [Zoete toetjes (themadag)] Suffix wegens kamp "Zoete toetjes" (4155). Instructie "kamp-bakken koppelen waar codes overeenkomen": kampcodes E51/E55/E57/N32 ≠ TD-codes K31/K33 → géén overlap, dus geen koppeling. Kookvuur = kookpool-INFO.
+- [Zomerse cocktails (TD)] Los materiaal zit in eigen bak 2/2 (I45); items zonder aantal (rietjes, citroensap, sprinkles, ananas, pot kersen) → 1 + verifieer-notitie (L7).
+- [Spellenspektakel (TD)] bijlage: handleidingen-bundel (60 p, gescand — niet geëxtraheerd; "map met alle handleidingen" zit ook als item in bak N12)
+- [Spionnen gezocht (TD)] bijlage: Thema Spionnen gezocht - Bijlage geheimschrift.pdf
+- [Spionnen gezocht (TD)] bijlage: Thema Spionnen gezocht - Oplossing morsecode.pdf
+- [Spionnen gezocht (TD)] bijlage: Thema Spionnen gezocht - Oplossing morsecode 2.pdf
+- [Sticks & bats (TD)] bijlage: Thema Sticks & bats - Activiteitenfiche Bounceball.pdf
+- [Sticks & bats (TD)] bijlage: Thema Sticks & bats - Activiteitenfiche Hockey.pdf
+- [Sticks & bats (TD)] bijlage: Thema Sticks & bats - Activiteitenfiche Honkbal.pdf
+- [Sticks & bats (TD)] bijlage: Thema Sticks & bats - Activiteitenfiche Lacrosse.pdf
+- [Van creatie tot constructie (TD)] bijlage: Thema Van creatie tot constructie - Opdrachtkaarten OPLA.pdf
+- [Van creatie tot constructie (TD)] bijlage: Thema Van creatie tot constructie - Opdrachtkaarten SPOK.pdf
