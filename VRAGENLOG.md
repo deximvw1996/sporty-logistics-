@@ -266,3 +266,28 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Creatief met papier (TD)] "4 priknaalden en matten" gesplitst in priknaalden ×4 + matten ×4 (L13); "Maatbekertje en roerstaafje" gesplitst in 2 items; "Houten letters" zonder aantal → 1 met verifieer-notitie.
 - [Bake off (TD)] Fiche nummert de curver I40 als "Themabak 2/2" en de groene klikbak I39 als "Themabak 1/2" (volgorde omgekeerd op de fiche) — letterlijk overgenomen. "Peper en zout" gesplitst (L13); "Muffinvormen" zonder aantal → 1 met verifieer-notitie.
 - [De bakkerij (TD)] Suffix "(themadag)" wegens kamp "De bakkerij" (4086); TD heeft eigen bakken K45/K47 (kamp: eigen 1/2+2/2) — niets van het kamp herschoven. "Plastic spuitzakken" zonder aantal → 1 met verifieer-notitie.
+- [De bal gaat aan het rollen (TD)] Alleen Sportmateriaal-rubriek (3 pakketten K53/K55/K52, L2); geen vast/los themamateriaal op fiche. Voet- en basketballen: voorraadrij Kantoor qty 0 (L8).
+- [De bouwbrigade (TD)] Fiche p.1 geeft geen aantallen bamboestokken; activiteitenpagina p.5 zegt 300x60cm + 500x90cm — die ingevoerd met bron-notitie (L11). Alle 3 eenheden op code "RGE" (rode gang E? — stockagezone Rozenweg, geen rek+cijfer); code-formaat verifiëren.
+- [De bouwbrigade (TD)] Gelamineerde bouwfiches (4: piramide/stertoren/sterrenbol/klapkroon) staan alleen op activiteitenpagina p.7 "in de themabak" — toegevoegd aan bak 3/3 met bron-notitie (L11). "Lakens": meervoud zonder aantal → 2 met verifieer-notitie (L7).
+- [Druk er op los (TD)] Zelfde naam als kamp "We knallen er op los"? Nee — uniek TD-thema, geen suffix. Afwassponsjes/wattenstaafjes/keukenrol staan onder VAST maar ogen verbruiksaard — fiche gevolgd (vast), verifiëren.
+- [Expeditie Sportyson (TD)] Kamp "Expeditie Survival" (4133) bestaat en de kampbundel-p2 heette ook "EXPEDITIE SPORTYSON", maar bakcodes verschillen volledig (TD: K41; kamp: D21/D33/D35/D32/D00) — beoordeeld: eigen TD-bak aangemaakt, NIETS gekoppeld (TD-regel 4 eist zelfde code). Als het toch dezelfde fysieke bak is: melden.
+- [Expeditie Sportyson (TD)] Fiche heeft 2x een regel "Bekers" (20 bij Quick wins + zonder aantal bij Waterproeven) — 2 aparte items, tweede met verifieer-notitie. "2 bezemstelen" onder "Extra meenemen" — als bak-item met notitie ingevoerd.
+- [Experimenteeratelier (TD)] Kamp "Experimenteerfabriek" (4134) bestaat maar bakcodes verschillen (TD: D59/D60; kamp: D35/D37) — eigen TD-bakken, niet gekoppeld; verwantschap alleen in naam.
+- [Experimenteeratelier (TD)] Ropitec sleutelhanger + LT-raketvoertuig staan op fiche onder vast EN los — als verbruiksitems (1/knd = 32) in bak 1 ingevoerd met voorraadrij (bouwpakketten Opitec, telkens aan te kopen). "Verlangkabel" letterlijk (L20).
+- [Fit & fun (TD)] "Invulformulieren (20tal)" onder Los-rubriek maar vermoedelijk zelf printbaar — verbruik met 🖨️-notitie, GEEN voorraadrij (L12); verifiëren.
+- [Flock Fun (TD)] "2 strijkplanken (K15)" staan als aparte regel buiten de curver op dezelfde code — als attribuut "Strijkplanken (2)" ingevoerd (passen niet in de bak); verifiëren.
+- [Fun in the farwest (TD)] "2x blaaspijp (30cm) per kind" → 64 (2/kind, 32 knd); het zijn PVC-buizen die ter plekke gezaagd worden — aankoop-verbruik met voorraadrij. Activiteitenpagina noemt ook "Pvc buizen" en crêpepapier die niet op de fiche staan — niets extra ingevoerd (L11).
+- [Fun in the farwest (TD)] "Kosteloos materiaal om torentjes te bouwen" en "5 tal tijdschriften" als verzamelstroom behandeld (geen voorraadrij, L29-analoog) — verifiëren.
+- [Games of empire (TD)] Actie & Avontuur (4124) heeft al de eenheid "Games of empire (set)" (bak 12138) met dezelfde materialen (bamboe/big bags/skilatten/brancards/alcoholbrillen/balken/touwtrektouwen/kasseien/handtassen) — bestaande set GEKOPPELD i.p.v. dubbel. Fiche noemt extra "Bogen en pijlen" + "Staande wip" → bestaande pool-attributen 77/78/65 gekoppeld. "Rekkers" (los/verbruik, geen bak) als INFO-regel.
+- [Groene vingers (TD)] Kamp "Plan(t)trekkers" (4146) bestaat maar bakcodes verschillen (TD: J07/K20; kamp: D25/D27/D29) — eigen TD-bakken, niet gekoppeld. "Apart: potgrond" als INFO-regel (aankoop, geen bak).
+- [Groene vingers (TD)] Zaadjes tuinkers/rucola/radijs/waterkers gesplitst in 4 items à 2 zakjes (L13). Kurken 4/kind=128, wc-rolletjes/doppen/eierdozen = verzamelstroom (L29). "Chillipoeder" letterlijk (L20).
+- [Homo Universalis (TD)] Suffix "(themadag)" wegens kamp "Wie wordt Homo Universalis?" (4152). Eigen bakken I52/I53. Fiche-aantallen wijken af van de activiteitenpagina's (bv. 20 waterspuiten vs "16 waterspuiten", 300 paperclips vs 240, 20 theelichtjes vs 48!) — fiche p.1 leidend gehouden (L11-context), theelichtjes-aantal verifiëren bij eerste nakijk.
+- [Homo Universalis (TD)] Sudoku + woordzoeker (1/kind) als zelf-printbaar behandeld (🖨️, geen voorraadrij, L12); "Aan te kopen door KV: 20 patatten" → KV-regel.
+- [Jumpen XL (TD)] Geen materiaalfiche in de map — thema-only + INFO-regel (aanname Maxim: ongeveer zelfde pool als kampversie; springkastelen-pool). Welke kastelen precies bij "XL" horen: verifiëren.
+- [De bal gaat aan het rollen (TD)] bijlage: Thema De bal gaat aan het rollen - Activiteitenfiche Basketbal.pdf
+- [De bal gaat aan het rollen (TD)] bijlage: Thema De bal gaat aan het rollen - Activiteitenfiche Kinball.pdf
+- [Experimenteeratelier (TD)] bijlage: Thema Experimenteeratelier - handleiding raketvoertuig.pdf
+- [Experimenteeratelier (TD)] bijlage: Thema Experimenteeratelier - handleiding sleutelhanger.pdf
+- [Fit & fun (TD)] bijlage: Thema Fit & fun - Duo.pdf
+- [Fit & fun (TD)] bijlage: Thema Fit & fun - Fysieke testbatterij fit en fun.pdf
+- [Games of empire (TD)] bijlage: Thema Games of empire - activiteitenfiche.pdf
