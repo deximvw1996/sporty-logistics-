@@ -2660,6 +2660,61 @@ async function renderVasteBakken(){
   }).join('');
 }
 function _vbToggle(id){_vbOpen[id]=!_vbOpen[id];renderVasteBakken();}
+// S4.6: springkasteel/waterstructuur-eenheden krijgen twee foto-vakken (opgeplooid/opgezet).
+const VB_FOTO_TYPES=['springkasteel','waterstructuur'];
+function _vbFotoSlotHtml(bak,slot,label){
+  const src=slot==='opgeplooid'?bak.foto_opgeplooid:bak.foto_opgezet;
+  const inputId=`vbf-${slot}-${bak.id}`;
+  return `<div style="flex:1;min-width:110px">
+    <div style="font-size:10px;color:var(--text2);margin-bottom:3px;text-align:center">${label}</div>
+    ${src
+      ? `<div style="position:relative">
+          <img src="${src}" alt="${label}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--r);border:.5px solid var(--border);cursor:pointer" onclick="_toonFotoGroot('${src.replace(/'/g,"\\'")}')">
+          <button class="bi del" style="position:absolute;top:2px;right:2px;background:#fff" title="Verwijderen" onclick="event.stopPropagation();verwijderVasteBakFoto(${bak.id},'${slot}')">🗑️</button>
+        </div>`
+      : `<label for="${inputId}" style="display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:1;border:1.5px dashed var(--border2);border-radius:var(--r);color:var(--text3);font-size:20px;cursor:pointer">📷</label>`}
+    <input type="file" accept="image/*" capture="environment" id="${inputId}" style="display:none" onchange="uploadVasteBakFoto(${bak.id},'${slot}',this)">
+  </div>`;
+}
+function _vbFotoSectieHtml(bak){
+  if(!VB_FOTO_TYPES.includes(bak.vast_type))return '';
+  return `<div style="display:flex;gap:8px;margin-bottom:10px">
+    ${_vbFotoSlotHtml(bak,'opgeplooid','Opgeplooid')}
+    ${_vbFotoSlotHtml(bak,'opgezet','Opgezet')}
+  </div>`;
+}
+async function uploadVasteBakFoto(bakId,slot,inputEl){
+  const file=inputEl.files&&inputEl.files[0];
+  if(!file)return;
+  try{
+    const foto_data=await _resizeFotoVoorUpload(file);
+    const r=await api('POST',`/vaste-bakken/${bakId}/foto-slot`,{slot,foto_data});
+    if(r&&r.error){showToast(r.error,'error');return;}
+    const idx=(_vasteBakken||[]).findIndex(b=>b.id===bakId);
+    if(idx>=0)_vasteBakken[idx]=r;
+    showToast('Foto opgeslagen','success');
+    renderVasteBakken();
+  }catch(e){showToast('Foto verwerken mislukt','error');}
+}
+async function verwijderVasteBakFoto(bakId,slot){
+  if(!confirm('Foto verwijderen?'))return;
+  const r=await api('DELETE',`/vaste-bakken/${bakId}/foto-slot/${slot}`);
+  const idx=(_vasteBakken||[]).findIndex(b=>b.id===bakId);
+  if(idx>=0&&r&&!r.error)_vasteBakken[idx]=r;
+  renderVasteBakken();
+}
+function _toonFotoGroot(src){
+  let m=document.getElementById('modal-foto-groot');
+  if(!m){
+    m=document.createElement('div');
+    m.id='modal-foto-groot';
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
+    m.innerHTML='<img id="modal-foto-groot-img" style="max-width:100%;max-height:100%;border-radius:8px">';
+    m.onclick=()=>m.remove();
+    document.body.appendChild(m);
+  }
+  document.getElementById('modal-foto-groot-img').src=src;
+}
 function _renderVasteBakInhoud(bak,vast,verbruik){
   const itemRij=(i)=>`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:.5px solid var(--border)">
     <span style="flex:1;font-size:12px">${_escH(i.naam)}</span>
@@ -2674,8 +2729,10 @@ function _renderVasteBakInhoud(bak,vast,verbruik){
     <label style="font-size:11px;display:flex;align-items:center;gap:3px"><input type="checkbox" id="vbi-verbruik-${bak.id}"> Verbruik</label>
     <button class="btn-g btn-xs" onclick="addVasteBakItem(${bak.id})">+ Item</button>
   </div>`;
-  if(!vast.length&&!verbruik.length) return '<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Nog geen items.</div>'+addForm;
-  return (vast.length?`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Vast materiaal</div>${vast.map(itemRij).join('')}`:'')
+  const fotoSectie=_vbFotoSectieHtml(bak);
+  if(!vast.length&&!verbruik.length) return fotoSectie+'<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Nog geen items.</div>'+addForm;
+  return fotoSectie
+    +(vast.length?`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Vast materiaal</div>${vast.map(itemRij).join('')}`:'')
     +(verbruik.length?`<div style="font-size:11px;font-weight:600;color:var(--text2);margin:8px 0 4px">🔄 Verbruik</div>${verbruik.map(itemRij).join('')}`:'')
     +addForm;
 }
@@ -3686,9 +3743,16 @@ function openThemaPopup(themaId){
   if(!t){showToast('Thema niet gevonden','warn');return;}
   const mats=(t.materiaal||[]);
   const ged=(_invGedeeld||[]).filter(g=>(g.gebruik||[]).some(u=>u.thema_id===themaId));
-  const matLis = mats.length
-    ? mats.map(m=>`<li>${_escH(m.name)}${m.qty>1?` <span style="color:var(--text3)">&times;${m.qty}</span>`:''}${m.stockage_code?` <span style="color:var(--text3)">&middot; &#128205;${_escH(m.stockage_code)}</span>`:''}</li>`).join('')
+  // S4.8: "KV: "-regels (verse waren, de KV koopt zelf) en "INFO: "-regels (losse notities)
+  // horen niet tussen het gewone materiaal — eigen secties, prefix gestript.
+  const gewoneMats=mats.filter(m=>!/^KV:\s*/i.test(m.name)&&!/^INFO:\s*/i.test(m.name));
+  const kvMats=mats.filter(m=>/^KV:\s*/i.test(m.name));
+  const infoMats=mats.filter(m=>/^INFO:\s*/i.test(m.name));
+  const matLis = gewoneMats.length
+    ? gewoneMats.map(m=>`<li>${_escH(m.name)}${m.qty>1?` <span style="color:var(--text3)">&times;${m.qty}</span>`:''}${m.stockage_code?` <span style="color:var(--text3)">&middot; &#128205;${_escH(m.stockage_code)}</span>`:''}</li>`).join('')
     : '<li style="color:var(--text3)">Geen los materiaal</li>';
+  const kvLis = kvMats.map(m=>`<li>${_escH(m.name.replace(/^KV:\s*/i,''))}${m.qty>1?` <span style="color:var(--text3)">&times;${m.qty}</span>`:''}</li>`).join('');
+  const infoLis = infoMats.map(m=>`<li>${_escH(m.name.replace(/^INFO:\s*/i,''))}</li>`).join('');
   const gedLis = ged.length
     ? ged.map(g=>{const u=(g.gebruik||[]).find(x=>x.thema_id===themaId);const q=u&&u.qty?u.qty:1;return `<li>&#128295; ${_escH(g.name)}${q>1?` <span style="color:var(--text3)">&times;${q}</span>`:''} <span style="color:var(--text3);font-size:11px">(gedeeld, ${g.totaal||1} totaal)</span></li>`;}).join('')
     : '<li style="color:var(--text3)">Geen gedeeld materiaal</li>';
@@ -3728,12 +3792,64 @@ function openThemaPopup(themaId){
        <h4 style="margin:6px 0 4px">📦 Bakken <span style="color:var(--text3);font-weight:400" id="thd-bakken-teller"></span> <button class="btn-xs btn-g" onclick="voegBakToe(${themaId})" style="font-size:10px;margin-left:6px">+ Bak</button></h4>
        <div id="thd-bakken-lijst" style="margin:0 0 12px">Laden...</div>
      </div>
-     <h4 style="margin:6px 0 4px">Materiaal <span style="color:var(--text3);font-weight:400">(${mats.length})</span></h4>
+     <h4 style="margin:6px 0 4px">Materiaal <span style="color:var(--text3);font-weight:400">(${gewoneMats.length})</span></h4>
      <ul style="margin:0 0 12px;padding-left:18px">${matLis}</ul>
+     ${kvMats.length?`<h4 style="margin:6px 0 4px">🛒 KV koopt vers <span style="color:var(--text3);font-weight:400">(${kvMats.length})</span></h4>
+     <ul style="margin:0 0 12px;padding-left:18px">${kvLis}</ul>`:''}
+     ${infoMats.length?`<h4 style="margin:6px 0 4px">ℹ️ Info</h4>
+     <ul style="margin:0 0 12px;padding-left:18px">${infoLis}</ul>`:''}
      <h4 style="margin:6px 0 4px">Gedeeld materiaal <span style="color:var(--text3);font-weight:400">(${ged.length})</span></h4>
-     <ul style="margin:0;padding-left:18px">${gedLis}</ul>`;
+     <ul style="margin:0 0 12px;padding-left:18px">${gedLis}</ul>
+     <div id="thd-bundels-sectie">
+       <h4 style="margin:6px 0 4px">📄 Themabundel <span style="color:var(--text3);font-weight:400" id="thd-bundels-teller"></span></h4>
+       <div id="thd-bundels-lijst" style="margin:0 0 8px">Laden...</div>
+       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+         <select class="sel" id="thd-bundel-sel" style="flex:1;min-width:160px;height:30px;font-size:12px"><option value="">— kies bestand —</option></select>
+         <input class="inp" id="thd-bundel-label" placeholder="label (optioneel)" style="width:120px;height:30px;font-size:12px">
+         <button class="btn-xs btn-g" onclick="koppelThemaBundel(${themaId})">+ Koppelen</button>
+       </div>
+     </div>`;
   openModal('modal-thema-detail');
   laadThemaBakken(themaId);
+  laadThemaBundels(themaId);
+}
+async function laadThemaBundels(themaId){
+  const lijstEl=document.getElementById('thd-bundels-lijst');
+  const selEl=document.getElementById('thd-bundel-sel');
+  const telEl=document.getElementById('thd-bundels-teller');
+  if(!lijstEl)return;
+  const [bundels,bestanden]=await Promise.all([
+    api('GET','/themas/'+themaId+'/bundels'),
+    api('GET','/bundels/bestanden')
+  ]);
+  if(telEl)telEl.textContent='('+(bundels?.length||0)+')';
+  lijstEl.innerHTML=(bundels&&bundels.length)
+    ? bundels.map(b=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid var(--border)">
+        <a href="/bundels/${encodeURIComponent(b.bestand)}" target="_blank" rel="noopener" class="btn-xs btn-g" style="text-decoration:none">📄 ${_escH(b.label||b.bestand)}</a>
+        <span style="flex:1;font-size:11px;color:var(--text3)">${_escH(b.bestand)}</span>
+        <button class="bi del" onclick="ontkoppelThemaBundel(${themaId},${b.id})" title="Ontkoppelen">🗑️</button>
+      </div>`).join('')
+    : '<div style="font-size:12px;color:var(--text3)">Nog geen bundel gekoppeld.</div>';
+  if(selEl){
+    const gekoppeld=new Set((bundels||[]).map(b=>b.bestand));
+    const opties=(Array.isArray(bestanden)?bestanden:[]).filter(f=>!gekoppeld.has(f));
+    selEl.innerHTML='<option value="">— kies bestand —</option>'+opties.map(f=>`<option value="${_attrH(f)}">${_escH(f)}</option>`).join('');
+  }
+}
+async function koppelThemaBundel(themaId){
+  const bestand=document.getElementById('thd-bundel-sel')?.value;
+  const label=document.getElementById('thd-bundel-label')?.value?.trim()||'';
+  if(!bestand){showToast('Kies eerst een bestand','warn');return;}
+  const r=await api('POST','/themas/'+themaId+'/bundels',{bestand,label});
+  if(r&&r.error){showToast(r.error,'error');return;}
+  document.getElementById('thd-bundel-label').value='';
+  showToast('Bundel gekoppeld','success');
+  laadThemaBundels(themaId);
+}
+async function ontkoppelThemaBundel(themaId,bundelId){
+  if(!confirm('Bundel ontkoppelen?'))return;
+  await api('DELETE','/thema-bundels/'+bundelId);
+  laadThemaBundels(themaId);
 }
 async function laadThemaBakken(themaId){
   const el=document.getElementById('thd-bakken-lijst');
@@ -5178,6 +5294,29 @@ let _locDetailMap=null;
 
 function _escH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _attrH(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+
+// S4.6: foto's als base64 in SQLite — schaal vóór upload naar max ~1200px breed zodat de
+// database niet dichtslibt met volledige telefooncamera-foto's (vaak 3000px+).
+function _resizeFotoVoorUpload(file,maxBreedte=1200,kwaliteit=0.82){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Bestand lezen mislukt'));
+    reader.onload=e=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error('Afbeelding laden mislukt'));
+      img.onload=()=>{
+        const schaal=Math.min(1,maxBreedte/img.width);
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.round(img.width*schaal);
+        canvas.height=Math.round(img.height*schaal);
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',kwaliteit));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 function renderLocatiesTab(){
   const listEl=document.getElementById('loc-tab-list');

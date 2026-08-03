@@ -14,6 +14,11 @@ console.log('Database pad:', DB_PATH);
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 try { if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch(e) { console.warn('Uploads map aanmaken mislukt:', e.message); }
 app.use('/uploads', express.static(UPLOADS_DIR));
+// S4.7: themabundel-PDF's staan IN de repo (__dirname, niet het DATA_DIR-volume) zodat ze
+// gewoon meegedeployed worden bij een git push — dit is geen runtime-upload-map.
+const BUNDELS_DIR = path.join(__dirname, 'bundels');
+try { if (!fs.existsSync(BUNDELS_DIR)) fs.mkdirSync(BUNDELS_DIR, { recursive: true }); } catch(e) { console.warn('Bundels-map aanmaken mislukt:', e.message); }
+app.use('/bundels', express.static(BUNDELS_DIR));
 
 // ── PROCES-FOUTAFHANDELING ──
 // Vangt onverwachte fouten op zodat de server niet stil crasht.
@@ -1574,6 +1579,18 @@ async function startServer() {
     }
   }
 
+  // ── Migratie 61 — S4.6/S4.7: foto's op pool-eenheden (springkasteel/waterstructuur) +
+  // themabundel-PDF-koppeling. Kolomtoevoegingen/nieuwe tabel, geen datamigratie nodig.
+  addColumnIfMissing('bakken','foto_opgeplooid',"TEXT DEFAULT ''");
+  addColumnIfMissing('bakken','foto_opgezet',"TEXT DEFAULT ''");
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS thema_bundels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thema_id INTEGER NOT NULL,
+    bestand TEXT NOT NULL,
+    label TEXT DEFAULT '',
+    volgorde INTEGER DEFAULT 0
+  )`);
+
   // ── Migratie 57 — S3.5: KV-scherm telt ook attributen aanwezig/beschadigd ──
   // nakijk_sessies kende al bak_type 'thema'/'vast' met thema_bak_id/vaste_bak_id; 'attribuut'
   // is een derde bak_type met een eigen FK-kolom. kv_status krijgt een nieuwe tussenwaarde
@@ -1830,10 +1847,20 @@ async function startServer() {
       return {id:a.id, code:a.code, naam:a.naam, status:s?(s.notities||null):null};
     });
     const aanvragen=all("SELECT * FROM aanvragen WHERE kampmoment_id=? AND soort='materiaal' ORDER BY id DESC",[km.id]);
+    // S4.8: KV-boodschappenlijst — "KV: "-regels van de gekoppelde thema's (verse waren die
+    // de kampverantwoordelijke zelf koopt, interim opgeslagen in thema_materiaal met prefix).
+    const ktsKm=all('SELECT thema_id FROM kampmoment_themas WHERE kampmoment_id=?',[km.id]);
+    const themaIdsKm=[...new Set(ktsKm.map(k=>k.thema_id))];
+    let boodschappen=[];
+    if(themaIdsKm.length){
+      const ph=themaIdsKm.map(()=>'?').join(',');
+      boodschappen=all(`SELECT id,name,qty FROM thema_materiaal WHERE thema_id IN (${ph}) AND name LIKE 'KV:%'`,themaIdsKm)
+        .map(r=>({id:r.id,naam:r.name.replace(/^KV:\s*/,''),qty:r.qty}));
+    }
     res.json({
       kampNaam:(loc?loc.name:'?')+' — week '+km.week,
       kvNaam:_kvNaam(km),
-      bakken:bakkenOut, attributen:attributenOut, aanvragen
+      bakken:bakkenOut, attributen:attributenOut, aanvragen, boodschappen
     });
   });
 
@@ -1968,10 +1995,35 @@ async function startServer() {
   app.get('/api/themas',(req,res)=>{const t=all('SELECT * FROM themas ORDER BY name');const m=all('SELECT * FROM thema_materiaal');res.json(t.map(x=>({...x,materiaal:m.filter(y=>y.thema_id===x.id)})));});
   app.post('/api/themas',(req,res)=>{const{name,color,categorie,leeftijdsgroep,thema_type}=req.body;if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});const id=ins('INSERT INTO themas (name,color,categorie,leeftijdsgroep,thema_type) VALUES (?,?,?,?,?)',[name.trim(),color||'#1D9E75',categorie||'',leeftijdsgroep||'',thema_type||'eigen_materiaal']);res.json({...get('SELECT * FROM themas WHERE id=?',[id]),materiaal:[]});});
   app.put('/api/themas/:id',(req,res)=>{const cur=get('SELECT * FROM themas WHERE id=?',[req.params.id]);if(!cur)return res.status(404).json({error:'Thema niet gevonden'});const{name,color,categorie,leeftijdsgroep,thema_type}=req.body;const nm=(name!==undefined&&name!==null)?name:cur.name;if(!nm||!nm.trim())return res.status(400).json({error:'Naam is verplicht'});run('UPDATE themas SET name=?,color=?,categorie=?,leeftijdsgroep=?,thema_type=? WHERE id=?',[nm.trim(),color||cur.color||'#1D9E75',categorie!==undefined?categorie:(cur.categorie||''),leeftijdsgroep!==undefined?leeftijdsgroep:(cur.leeftijdsgroep||''),thema_type||cur.thema_type||'eigen_materiaal',req.params.id]);res.json(get('SELECT * FROM themas WHERE id=?',[req.params.id]));});
-  app.delete('/api/themas/:id',(req,res)=>{run('DELETE FROM thema_materiaal WHERE thema_id=?',[req.params.id]);run('DELETE FROM themas WHERE id=?',[req.params.id]);res.json({ok:true});});
+  app.delete('/api/themas/:id',(req,res)=>{run('DELETE FROM thema_materiaal WHERE thema_id=?',[req.params.id]);run('DELETE FROM thema_bundels WHERE thema_id=?',[req.params.id]);run('DELETE FROM themas WHERE id=?',[req.params.id]);res.json({ok:true});});
   app.post('/api/themas/:id/materiaal',(req,res)=>{const{name,qty,stockage_locatie_id,stockage_code}=req.body;const item_type_id=resolveItemTypeId(name);const id=ins('INSERT INTO thema_materiaal (thema_id,name,qty,stockage_locatie_id,stockage_code,item_type_id) VALUES (?,?,?,?,?,?)',[req.params.id,name,qty||1,stockage_locatie_id||null,stockage_code||'',item_type_id]);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[id]));});
   app.put('/api/themas/:tid/materiaal/:mid',(req,res)=>{const{name,qty,stockage_locatie_id,stockage_code}=req.body;const cur=get('SELECT * FROM thema_materiaal WHERE id=?',[req.params.mid]);run('UPDATE thema_materiaal SET name=?,qty=?,stockage_locatie_id=?,stockage_code=? WHERE id=? AND thema_id=?',[name,qty,stockage_locatie_id||null,stockage_code!==undefined?stockage_code:(cur?cur.stockage_code||'':''),req.params.mid,req.params.tid]);res.json(get('SELECT * FROM thema_materiaal WHERE id=?',[req.params.mid]));});
   app.delete('/api/themas/:tid/materiaal/:mid',(req,res)=>{run('DELETE FROM thema_materiaal WHERE id=? AND thema_id=?',[req.params.mid,req.params.tid]);res.json({ok:true});});
+
+  // ── S4.7: THEMABUNDEL-PDF'S ──
+  // Bestandsnamen komen letterlijk uit bundels/ (repo-map, meegedeployed) — geen upload-flow,
+  // enkel koppelen aan wat daar al staat (dropdown, zie GET /api/bundels/bestanden).
+  app.get('/api/bundels/bestanden',(req,res)=>{
+    let bestanden=[];
+    try{ bestanden=fs.readdirSync(BUNDELS_DIR).filter(f=>f.toLowerCase().endsWith('.pdf')).sort((a,b)=>a.localeCompare(b,'nl')); }
+    catch(e){ bestanden=[]; }
+    res.json(bestanden);
+  });
+  app.get('/api/themas/:id/bundels',(req,res)=>{
+    res.json(all('SELECT * FROM thema_bundels WHERE thema_id=? ORDER BY volgorde,id',[req.params.id]));
+  });
+  app.post('/api/themas/:id/bundels',(req,res)=>{
+    const{bestand,label}=req.body;
+    if(!bestand||!bestand.trim())return res.status(400).json({error:'bestand is verplicht'});
+    if(!fs.existsSync(path.join(BUNDELS_DIR,bestand)))return res.status(400).json({error:'Dit bestand staat niet (meer) in de bundels-map'});
+    const maxOrd=(get('SELECT MAX(volgorde) as m FROM thema_bundels WHERE thema_id=?',[req.params.id])||{}).m||0;
+    const id=ins('INSERT INTO thema_bundels (thema_id,bestand,label,volgorde) VALUES (?,?,?,?)',[req.params.id,bestand,label||'',maxOrd+10]);
+    res.json(get('SELECT * FROM thema_bundels WHERE id=?',[id]));
+  });
+  app.delete('/api/thema-bundels/:id',(req,res)=>{
+    run('DELETE FROM thema_bundels WHERE id=?',[req.params.id]);
+    res.json({ok:true});
+  });
 
   // ── PLANNING-IMPORT (materiaallijst uit de foto's) ──
   // Leest data/materiaallijst_foto1..10.json server-side, voegt thema's met
@@ -3445,6 +3497,26 @@ async function startServer() {
   app.get('/api/vaste-bakken',(req,res)=>{
     res.json(all("SELECT * FROM bakken WHERE soort='vast' ORDER BY vast_type,volgorde,naam"));
   });
+  // S4.6: foto's op pool-eenheden (o.a. springkasteel/waterstructuur) — opgeplooid + opgezet,
+  // zelfde base64-in-SQLite-patroon als attributen.foto_data / bak_fotos.
+  app.post('/api/vaste-bakken/:id/foto-slot',(req,res)=>{
+    const{slot,foto_data}=req.body;
+    if(!['opgeplooid','opgezet'].includes(slot))return res.status(400).json({error:"slot moet 'opgeplooid' of 'opgezet' zijn"});
+    if(!foto_data)return res.status(400).json({error:'Geen foto data'});
+    const cur=get("SELECT * FROM bakken WHERE id=? AND soort='vast'",[req.params.id]);
+    if(!cur)return res.status(404).json({error:'Vaste bak niet gevonden'});
+    const kolom=slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
+    run(`UPDATE bakken SET ${kolom}=? WHERE id=?`,[foto_data,req.params.id]);
+    saveDb();
+    res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/vaste-bakken/:id/foto-slot/:slot',(req,res)=>{
+    if(!['opgeplooid','opgezet'].includes(req.params.slot))return res.status(400).json({error:"ongeldig slot"});
+    const kolom=req.params.slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
+    run(`UPDATE bakken SET ${kolom}='' WHERE id=?`,[req.params.id]);
+    saveDb();
+    res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
+  });
   app.post('/api/vaste-bakken',(req,res)=>{
     const{naam,code,vast_type,thuislocatie_id}=req.body;
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
@@ -4309,6 +4381,7 @@ input::placeholder,textarea::placeholder{color:#9a9a95}
 <div id="kv-blok2" style="padding:28px 16px 0;display:none"></div>
 <div id="kv-blok3" style="padding:28px 16px 0;display:none"></div>
 <div id="kv-blok4" style="padding:28px 16px 0;display:none"></div>
+<div id="kv-blok5" style="padding:28px 16px 0;display:none"></div>
 <div style="height:24px"></div>
 
 <div id="kv-footer" style="display:none;position:sticky;bottom:0;z-index:20;background:#fff;border-top:.5px solid rgba(0,0,0,.11);padding:12px 16px calc(12px + env(safe-area-inset-bottom))">
@@ -4323,8 +4396,8 @@ input::placeholder,textarea::placeholder{color:#9a9a95}
 
 <script>
 const TOKEN=${JSON.stringify(req.params.token)};
-let DATA=null, ACTIEF='blok1', OPEN_BAK=null, LOCAL={}, ATTR_LOCAL={}, KAPOT_OPEN=false, KAPOT_FOTO=null;
-const TABS=[['blok1','Wat moet er staan'],['blok2','Vrijdagcontrole'],['blok3','Iets nodig?'],['blok4','Iets kapot?']];
+let DATA=null, ACTIEF='blok1', OPEN_BAK=null, LOCAL={}, ATTR_LOCAL={}, KAPOT_OPEN=false, KAPOT_FOTO=null, BOODSCHAP_VINK={};
+let TABS=[['blok1','Wat moet er staan'],['blok2','Vrijdagcontrole'],['blok3','Iets nodig?'],['blok4','Iets kapot?']];
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 async function kvApi(method,path,body){
@@ -4337,6 +4410,8 @@ async function kvApi(method,path,body){
 async function init(){
   try{ DATA=await kvApi('GET','/data'); }
   catch(e){ document.body.innerHTML='<div style="padding:2rem;font-family:system-ui"><h2>Link niet gevonden of verlopen.</h2></div>'; return; }
+  // S4.8: enkel een 5de tabblad "Boodschappen" tonen als dit kampmoment KV-boodschappen heeft.
+  if((DATA.boodschappen||[]).length)TABS=[...TABS,['blok5','Boodschappen']];
   renderHeader();
   renderTabs();
   renderAll();
@@ -4385,6 +4460,7 @@ function renderAll(){
   if(ACTIEF==='blok2')renderBlok2();
   if(ACTIEF==='blok3')renderBlok3();
   if(ACTIEF==='blok4')renderBlok4();
+  if(ACTIEF==='blok5')renderBlok5();
   if(ACTIEF==='blok2')renderFooter();
 }
 
@@ -4591,6 +4667,29 @@ async function verstuurKapot(){
     alert('Kapotmelding verstuurd.');
   }catch(e){ alert(e.message); }
 }
+
+// S4.8: KV-boodschappenlijst — enkel lokaal in de sessie afvinkbaar (geen persistentie nodig).
+function renderBlok5(){
+  const el=document.getElementById('kv-blok5');
+  const lijst=DATA.boodschappen||[];
+  const gevinkt=lijst.filter(b=>BOODSCHAP_VINK[b.id]).length;
+  const rijen=lijst.map(b=>{
+    const aan=!!BOODSCHAP_VINK[b.id];
+    return '<label style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:.5px solid rgba(0,0,0,.08);cursor:pointer">'
+      +'<input type="checkbox" '+(aan?'checked':'')+' onchange="toggleBoodschap('+b.id+')" style="width:22px;height:22px;flex-shrink:0">'
+      +'<span style="flex:1;font-size:15px;line-height:1.35;'+(aan?'text-decoration:line-through;color:#9a9a95':'')+'">'+esc(b.naam)+(b.qty>1?' <span style="color:#6b6b67">×'+b.qty+'</span>':'')+'</span>'
+      +'</label>';
+  }).join('');
+  el.innerHTML=
+    '<div class="seclabel" style="margin-bottom:6px">Blok 5</div>'
+    +'<div class="bloktitel">Boodschappen</div>'
+    +'<div class="blokintro">Verse waren die je zelf koopt voor dit thema. Afvinken helpt tijdens het winkelen — dit wordt niet bewaard.</div>'
+    +'<div class="card" style="padding:14px;margin-top:12px">'
+    +'<div style="font-size:13px;font-weight:600;color:#6b6b67;margin-bottom:4px">'+gevinkt+' van '+lijst.length+' afgevinkt</div>'
+    +'<div>'+(rijen||'<div style="color:#9a9a95;font-size:13px">Geen boodschappen.</div>')+'</div></div>'
+    +'<div style="font-size:12px;color:#6b6b67;margin-top:16px;line-height:1.5;text-align:center">Vraag een factuur: Sporty Creactief, E. Solvaystraat 2, 3010 Kessel-Lo (geen BTW-nummer)</div>';
+}
+function toggleBoodschap(id){ BOODSCHAP_VINK[id]=!BOODSCHAP_VINK[id]; renderBlok5(); }
 
 init();
 </script>
