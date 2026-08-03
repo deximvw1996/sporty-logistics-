@@ -291,3 +291,25 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Fit & fun (TD)] bijlage: Thema Fit & fun - Duo.pdf
 - [Fit & fun (TD)] bijlage: Thema Fit & fun - Fysieke testbatterij fit en fun.pdf
 - [Games of empire (TD)] bijlage: Thema Games of empire - activiteitenfiche.pdf
+- [Koekjesfabriek (TD)] Suffix "(themadag)" wegens kleuterkamp "Koekjesfabriek" (4101). Bestaande bakken K37 (1/3) en K39 (3/3) van TD Koekiemonstertjes (4187) GEKOPPELD (niet dubbel aangemaakt, cf. eerdere VRAGENLOG-regel); inhoud kwam al exact overeen met deze fiche. Bak 2/3 (ingrediënten) nieuw aangemaakt en deelt code K37 met bak 1/3 (L5) — verifiëren.
+- [Koekjesfabriek (TD)] "Extra: oventjes + afwasbak" = kookuitrusting-pool → INFO-regel. KV-lijst (32 eieren, 500g boter) ingevoerd; "snuifjes zout" zonder aantal → 1 met verifieer-notitie.
+- [Laat je rollen (TD)] Geen materiaalfiche in de bundel (alleen lege pagina''s) — thema-only + INFO-regel naar de voertuigenpool (aanname Maxim: ongeveer zelfde pool als kampversie "Alles op wieltjes"); precieze voertuigenset verifiëren.
+- [Let''s escape (TD)] Beide groene curvers hebben géén magazijncode op de fiche — codes verifiëren. Rubriekkop zegt "Vast materiaal ... telkens nieuw aangekocht" (tegenstrijdig); inhoud is duurzaam escape-materiaal → als vast (geen verbruik) ingevoerd.
+- [Let''s escape (TD)] Kistjes met sub-inhoud (legoblokjes, sleutel, decoder, muntjes...) als 1 item per kistje met inhoud-notitie ingevoerd (kistje = geheel); map "Moord in de V-express" zonder gespecificeerde prints — verifiëren.
+- [Luilekkerland (TD)] Kookthemadag zonder per-32-ingrediëntenlijst achterin; losse ingrediënten (honingpot, cacao, kokosolie, havermout, olijfolie) zonder aantallen → 1 met verifieer-notitie + voorraadrij Rozenweg. KV-lijst (avocado''s/bananen/eieren/yoghurt) ingevoerd.
+- [Missie avontuur (TD)] "Extra: houten bak kruisboogschieten + materiaal boogschieten" = gedeelde boogschieten-pool (L30): attribuut Rozen/doelen gekoppeld + INFO-regel naar houten kist kruisbogen en losse bogen/pijlen; geen eigen exemplaren aangemaakt.
+- [Olympische spelen (TD)] Apart LS-thema naast kleuter-TD "Mini Olympische spelen" (4191) — geen suffix nodig (geen kamp met deze naam). "Ballonnen" zonder aantal → 1 met verifieer-notitie. Activiteit noemt 4 hoepels (niet op fiche) — niet ingevoerd (L11).
+- [Op expeditie (TD)] "Verf groen en zwart" gesplitst (L13); "Sjortouw" zonder aantal → 1 met verifieer-notitie + voorraadrij.
+- [Paralympics (TD)] Kamp Sportymadness (4147) heeft ook paralympics-materiaal; deze TD heeft een eigen bak K43 met eigen code → eigen bak ingevoerd (TD-regel 3/4: geen gedeelde code aantoonbaar), overlap (boccia set/rinkelbal/speednet) verifiëren bij eerste nakijk.
+- [Play Factory (TD)] Suffix "(themadag)" wegens kamp "Play Factory" (4087). Fiche noemt J3 (domino''s), J4 (Kubb en Mölkky) en M00 (kleuterbak lasershooting) — de kampbakken hebben géén codes maar zijn duidelijk dezelfde eenheden: gekoppeld = dominoblokjes 1+2, trapjes en bruggen 1+2, Curverbak KUBB, Curverbak Fins kegelspel (=Mölkky), KL bak lasershoot-geweren + attribuut 5 targets. Spanning: fiche zegt 1 curver J3 voor domino en 1 curver J4 voor Kubb+Mölkky samen, kampinventaris heeft meer/aparte bakken — codes en match verifiëren; "speciale domino"-bak en clics-bakken NIET gekoppeld (niet op TD-fiche).
+- [Professor Kanniboemski (TD)] Veel items zonder aantal (petflesjes, rietjes, bekers, ...) → 1 met verifieer-notitie waar echt onzeker; "enkele blikjes cola light" → 2 (laagste zekere) met verifieer-notitie; "potloden scharen en fluostiften" gesplitst (L13); "2 blikjes coca cola en 2 cola light" gesplitst.
+- [Push & play (TD)] Alleen Sportmateriaal-rubriek (L2): Gaga bal-set op "RGD" (betekenis onbekend — verifiëren) en Push the button-set op kantoor; geen codes → 2 eenheden zonder code ingevoerd, thuislocatie-info als INFO-regel. Geen gaga-/button-pool gevonden in bestaande data (niets dubbel).
+- [Ravot je rot (TD)] "Waterballonnen" staat onder vast themamateriaal maar oogt verbruik — fiche gevolgd (vast) met verifieer-notitie. "Bingolevenskaartjes" en "lege mastermindkaarten" zonder aantal → 1 met verifieer-notitie. Cijferkaartjes: 10 per kleur ×4 = 40 + notitie reserveset per kleur.
+- [Laat je rollen (TD)] bijlage: Thema Laat je rollen - fietsspelletjes.pdf
+- [Let''s escape (TD)] bijlage: Thema Let''s escape - Ontmantel de bom.pdf (gescand)
+- [Let''s escape (TD)] bijlage: Thema Let''s escape - V express.pdf (gescand)
+- [Play Factory (TD)] bijlage: Thema Play Factory - Activiteitenfiche Lasershoot.pdf
+- [Play Factory (TD)] bijlage: Thema Play Factory - Kubb spelregels.pdf
+- [Play Factory (TD)] bijlage: Thema Play Factory - Mölkky spelregels.pdf
+- [Push & play (TD)] bijlage: Thema Push & play - Activiteitenfiche Gaga bal.pdf
+- [Push & play (TD)] bijlage: Thema Push & play - Activiteitenfiche Push The Button.pdf
