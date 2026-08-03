@@ -209,6 +209,21 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Op avontuur in de ruimte] "Apart: frame + themadoek TD4" → 2 nieuwe attributen (patroon TD3/Circus). "Beige, bruin en lichtbruin papier" gesplitst (L13). WC rol = verzamelstroom (L29). Cutter als verbruiksitem onder Los — klopt dat, of is dit duurzaam gereedschap?
 - [Op stap in de jungle (themadag)] Kampthema (4109) bestaat → suffix. "Frame + doek" = bestaand attribuut 50 ("Frame en doek "Op stap in de jungle"") hergebruikt — zelfde fysieke decor als het kamp? Verifiëren.
 - [Op stap in de jungle (themadag)] Fiche noemt zowel "Kooi met vier hangsloten + sleutels" als los "4 sleutels" — beide letterlijk ingevoerd (L20), mogelijke dubbeling verifiëren.
+- [Pinguïns en Eskimo's] p.3 noemt "een groot themadoek met frame", staat NIET op de fiche → attribuut aangemaakt met verifieer-notitie (patroon western-TD); bestaan en plek verifiëren.
+- [Pinguïns en Eskimo's] "Apart: Iglo blokken – TD8" zonder aantal → bak TD8 met 1 verzamel-item "Grote witte iglo blokken", aantal/inhoud verifiëren (L27). Kleurenreeksen crêpe-/A4-papier gesplitst per kleur (L13).
+- [Pizza pronto] "Kleurplaten in thema" niet als "print" geprefixt → als aankoop-verbruiksitem met voorraadrij ingevoerd, maar vermoedelijk zelf printbaar — welke lezing klopt?
+- [Pizza pronto] Kookbak/afwasbak/2 ovens op de fiche onder Vast themamateriaal = kookpool → INFO-regel (L25), niet als bak-items.
+- [Reis rond de wereld (themadag)] Kampthema (4110) bestaat → suffix. Gouden munten en houten blokken zonder aantal → 1 + verifieer-notitie (L7).
+- [Ridders en prinsessen] Veel los-aantallen onbekend (rekkers, wol, pijpenragers, stempels, glitters, crêpepapier, prints) → telkens 1 + verifieer-notitie (L7).
+- [Schattenjacht (themadag)] Kampthema (4111) bestaat → suffix. Bak 2/2 is een schatkist (vorm van de fiche overgenomen, L3). Eierdozen = verzamelstroom-aanname (analoog wc-rollen, L29) — klopt dat?
+- [Schip ahoi, kapitein!] p.3 noemt decor-frame "grote piratenboot", NIET op de fiche → attribuut met verifieer-notitie. "Waterkoker + thee" en "verkleedkledij (piraat + kapitein)" gesplitst (L13/L19). Stroken zwart papier = maaksel-notitie (L9b).
+- [School voor hekserij en hocus pocus] Tovenaarsdiploma (1/kind) niet als "print" geprefixt maar vermoedelijk printbaar → 🖨️-aanname, geen voorraadrij. Frame + themadoek TD7 als 2 attributen (patroon TD1/TD3/TD4).
+- [Sportymove] Uniek TD-thema, geen naambotsing → geen suffix. Fiches-bijlagen (4 bewegingsthema's) gelogd onder Bijlagen.
+- [Sprookjesland (themadag)] Kampthema (4114) bestaat → suffix. "Paddenstoelen 4 kleuren" → 4 (laagste zekere, 1/kleur, L7). Print wolfmasker zonder aantal → 1 + notitie. Kamp-attribuut 56 ("Decor Sprookjesland: frame en doek") NIET hergebruikt: TD-fiche noemt expliciet themadoek TD1 → eigen attributen; zelfde fysieke decor? Verifiëren.
+- [Superdeluxe kleuterorkest] Bordjes (3-4j, 2/kind) en knopen (5-6j, 8/kind) gelezen per leeftijdshelft van 16 kinderen → 32 resp. 128; lezing verifiëren. Bak 1/2 (I35) = volledig verbruik, bak 2/2 (I36) = vast — volgorde van de fiche overgenomen.
+- [Superhelden (themadag)] Kampthema (4115) bestaat → suffix. "Verkleedkledij: 2 Superheldenpakken" staat op de fiche bóven de bak → als bak-item ingevoerd (Alice-regel: themaverkleedkledij hoort in de bak); klopt dat, of is het apart?
+- [Terug in de tijd] Rubriek heet "Creamateriaal" i.p.v. "Los materiaal / telkens nieuw" → als verbruik gelezen; aantallen onbekend → 1 + verifieer-notitie (L7).
+- [Van auto tot zeppelin] "Rondel" (1/kind) letterlijk overgenomen (L20) — betekenis onduidelijk, verifiëren. "Rondjes karton" = maaksel-aanname (knippen uit karton, L9b). "Deksel eierdoos 12 eieren" = verzamelstroom-aanname (L29) — klopt dat?
 
 ## Bijlagen voor S4.7-koppeling
 - [Alles op wieltjes (themadag)] bijlage: Thema Alles op wieltjes - fietsspelletjes.pdf
@@ -221,3 +236,7 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Minigym] bijlage: Thema mini gym - Bewegingskaarten banken 1.pdf
 - [Minigym] bijlage: Thema mini gym - Bewegingskaarten banken 2.pdf
 - [Minigym] bijlage: Thema mini gym - Bewegingskaarten banken 3.pdf
+- [Sportymove] bijlage: Thema Sportymove - Fiches sluipen en kruipen.pdf
+- [Sportymove] bijlage: Thema Sportymove - Fiches trekken en duwen.pdf
+- [Sportymove] bijlage: Thema Sportymove - Fiches vangen en werpen.pdf
+- [Sportymove] bijlage: Thema Sportymove - Fiches wandelen en lopen.pdf
