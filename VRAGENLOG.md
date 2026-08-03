@@ -178,6 +178,20 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [De 4 seizoenen] Veel fiche-regels zonder aantal (maatschepjes, ijsblokvormpjes, kranten, krijt, pomponnetjes, pijpenragers, wiebeloogjes, maiszetmeel, conditioner, diepvrieszakjes, kraaltjes, knopen) → telkens 1 + verifieer-notitie (L7); "Kraaltjes, knopen" gesplitst (L13).
 - [Spookje Poef] Leeg sjabloon (TD-regel 5): thema + 1 lege bak zonder code + INFO-regel "bundel nog niet geschreven".
 
+### TD-batch 2 kleuters (themadagen, ingevoerd door batch-agent 2026-08-03)
+- [De techniekfabriek (themadag)] Los-materiaal zonder aantallen (kartonnen bordje, friscostokje, rondjes dun karton) — aanname 1/kind (32) uit de doolhof-activiteit, verifiëren.
+- [De wondere kabouterwereld] Fiche vs activiteitenpagina verschilt: balletjes 8 vs 4, kaboutermutsen knutselrubber 18 vs 16 — fiche aangehouden (L14-logica). Estafette noemt ook hoepels, touw/waslijn, houten blokken en "witte stippen (velcro)" die niet op de fiche staan (hoepels = sportkoffer; stippen horen vermoedelijk bij de paddenstoelen — notitie gezet). "Emmer 100 natuurblokken 2/2 (1 mayo pot)" als tweede eenheid op I38 (gedeelde code, L5).
+- [Diep in de zee] De vaste rubriek eindigt op "- 8 waterverstuivers …" met puntjes — bakinhoud mogelijk onvolledig op de fiche, verifiëren bij eerste nakijk.
+- [Het wilde wilde Westen] p.2 vermeldt "een groot themadoek met frame" dat NIET op de materiaalfiche staat → attribuut "Frame en themadoek western (themadag)" aangemaakt met verifieer-notitie. Bundelfiche noemt het thema "Het wilde Westen TD", map + titelpagina zeggen "Het wilde wilde Westen" — die laatste gekozen.
+- [Hoeden en petten] Bak 2/3 én 3/3 dragen allebei code I24 op de fiche (gedeelde code, L5) — verifiëren.
+- [Hoera 't is feest] Veel crea-aantallen onbekend (bakpapier, zijdepapier, froezelpapier, confetti, serpentines, ballonnen, spaghetti, pomponnetjes, partytoeters/-poppers/feesthoedjes) → telkens 1 + verifieer-notitie (L7). Wc-rolletjes en kranten = verzamelstroom (L29), geen voorraadrij.
+- [Holderdebolder (themadag)] Bundel-PDF bevat GEEN fiche (3 vrijwel lege pagina's) → thema-only + INFO-regel (TD-regel 6, aanname: ±zelfde pool als kampversie). Naamkeuze: map zegt "Holderbolder", titelpagina bundel én kamp zeggen "Holderdebolder" → thema heet "Holderdebolder (themadag)".
+- [Ik word kunstenaar] "Schildersezel 2/2 : I00" = los ding zonder telbare inhoud → als attribuut ingevoerd (notitie: plek I00). Akkoord, of liever een lege bak-eenheid?
+- [In dromenland (themadag)] Naambotsing beoordeeld: kamp "Spelen in dromenland" (4112) bestaat en is verwarrend dichtbij → suffix toegepast, thema heet "In dromenland (themadag)".
+- [In dromenland (themadag)] "8 zaklampen + reservebatterijen" gesplitst (L13); aantal batterijen onbekend → 1 + verifieer-notitie.
+
 ## Bijlagen voor S4.7-koppeling
 - [Alles op wieltjes (themadag)] bijlage: Thema Alles op wieltjes - fietsspelletjes.pdf
 - [Circus Krokofant (themadag)] bijlage: Thema Circus krokofant - activiteitenfiche circus.pdf
+- [Het kraaiende kinderkoor] bijlage: Thema Het kraaiende kinderkoor - songteksten.pdf
+- [Holderdebolder (themadag)] bijlage: Thema Holderdebolder - Activiteitenfiche Wesco.pdf
