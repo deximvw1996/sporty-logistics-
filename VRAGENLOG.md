@@ -240,3 +240,13 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Sportymove] bijlage: Thema Sportymove - Fiches trekken en duwen.pdf
 - [Sportymove] bijlage: Thema Sportymove - Fiches vangen en werpen.pdf
 - [Sportymove] bijlage: Thema Sportymove - Fiches wandelen en lopen.pdf
+- [Van kop tot teen (TD)] Rubriek "Creamateriaal" (zwart papier, wit krijt, reepjes wit papier) als verbruik gelezen (analoog Terug in de tijd); zelfde bak I14 als het themamateriaal — bevestigen dat crea-spullen in dezelfde bak zitten.
+- [Van kop tot teen (TD)] "Opdrachtkaarten bewegingen" zonder aantal op fiche; activiteitenpagina p.4 zegt 40 — 40 ingevoerd met bron-notitie (L11).
+- [Waterpret en bellen (TD)] "waterballonnen" en "extra bellenblaas" staan onder Vast themamateriaal maar zijn verbruiksaard — als verbruik ingevoerd met notitie, aantallen onbekend (L7).
+- [We slaan er op los (TD)] Kamp "We slaan in het rond" (4118) bestaat; naam én bakken verschillen (TD: J31+J42; kamp: 2×G13/2×G12) — beoordeeld als APART thema (L16). Als Maxim ze als één thema ziet: samenvoegen.
+- [Welkom op de boerderij (TD)] Activiteit "Bescherm je ei" noemt "4 rubberen eieren", fiche alleen "25 plastic eieren" — niets extra ingevoerd, verifiëren of de rubberen eieren apart bestaan.
+- [Wij worden kleuterchefs (TD)] Zoutdeeg-activiteit noemt verf, 8 kommetjes, 8 lepels, 8 bekers die niet op de materiaalfiche staan — aanname: crea-/kookkoffer; niets extra ingevoerd (L11).
+- [Wij zijn bij de brandweer (TD)] Fiche heeft geen "Los materiaal"-rubriek; papier-, wol- en krijt-items zijn als verbruik gelezen met notitie — rubriekloze fiche, lezing verifiëren.
+- [Winterwonderland (TD)] Activiteit sneeuwpop (5-6 j) gebruikt "blauwe stroken 2/kind" die niet op de fiche staan (fiche heeft zwarte/bruine/oranje stroken) — niets extra ingevoerd, mogelijk fiche-fout.
+- [Zomerzotten (TD)] Drie transporteenheden delen code J21 (koffer, grijze curver, houten schijf — L5). "Houten schijf 3/3" functie onduidelijk (mogelijk onderdeel draairad) — verifiëren.
+- [Zomerzotten (TD)] Fiche noemt bij gelamineerde ijsbollen "geel" twee keer — letterlijk genoteerd, echte kleurenset verifiëren.
