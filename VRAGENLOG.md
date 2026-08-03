@@ -165,3 +165,19 @@ Vragen en aannames voor Maxim, verzameld tijdens de zelfstandige invoer.
 ## Antwoordenronde Maxim (2026-08-02) - verwerkt
 Beantwoord en doorgevoerd: voetbalkisten gedeeld (1 set), GPS-bak gedeeld (mogelijk 2e ex.), boogschieten omgebouwd (kist kruisbogen + losse bogen/pijlen), hindernisbanen apart (LS = 2 delen; waterglijbaan = springkasteel met 1 blazer), bilibo-set gedeeld, kerstboom = 1 (ontdubbeld), verkleedsets bevestigd, wc-rolletjes = verzamelstroom (L29), Ypie-pak = 1 mascotte gedeeld, Schattenjacht-verrassing = KV koopt, verhuurmodule -> FASE S9 backlog.
 Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse obstakels), Klimwereld-bundel (gescand), naam Sportymadness, bouwmateriaal-bezitstotalen (duplo/softlego/clics/kruiwagens/LEONARDO/Creatool), WK voetbal LS-kist bevestigd via gedeelde set, Koekiemonsters-KV-lijst, "10 potloden per kind", Reis rond de wereld bak 4/6-5/6, nerf "enkele sets" en bamboe "2 sets" - exacte tellingen.
+
+### TD-batch 1 kleuters (themadagen, ingevoerd door batch-agent 2026-08-03)
+- [1001 ballen (themadag)] Kampthema "1001 Ballen en Bellen" bestaat → suffix " (themadag)" toegepast (TD-regel 2, "bijna dezelfde naam") — akkoord? Gele zakken J43/J44/J45 als gewone themabakken ingevoerd (TD-regel 8).
+- [1001 ballen (themadag)] Fiche zegt "1 pakket mousseballen (18 stuks)", p.3 zegt "20 kleine mousse ballen" — fiche (18) aangehouden, verifiëren.
+- [Alles op wieltjes (themadag)] Verkeerskoffer + ±25 fietsen/loopfietsen/gekke trappers = bestaande pool, als INFO-regel; themabehoefte via S4.5.
+- [Balanceren op één been (themadag)] Beide TD-bakken dragen code M00 (gedeelde code, L5). Kampthema 4089 heeft 2 bakken zónder codes met vergelijkbare inhoud — zijn dit fysiek dezelfde bakken? Niet aantoonbaar (TD-regel 4 eist zelfde code), dus eigen bakken aangemaakt; verifiëren.
+- [Bij de politie] Aanname printbaar (🖨️, geen voorraadrij): invulbladen cluedo, extra kleurplaten, sjabloon politiepet, print sleutel. Politielogo op stickervel = wél voorraadrij (stickervellen aankopen). Verifiëren.
+- [Blokkenbouwdoos] Volledig pool-thema (L22, geen eigen bak). Nieuw in pool aangemaakt: 20 bouwhelmen + 2 koffers houten blokken (thuislocatie Rozenweg) — bezitstotalen verifiëren bij Maxim (fiche: "2 koffers houten blokjes, 20 helmen"). Duplo "bakken" zonder aantal op fiche.
+- [Circus Krokofant (themadag)] "Extra: Frame / Themadoek – TD3" als 2 nieuwe attributen — is het frame hetzelfde als kamp-attribuut "Decor Circus Krokofant: frame met doek"? Verifiëren.
+- [Creakriebels] "Wit A4 papier" zonder aantal → 1 pak + verifieer-notitie (L7).
+- [De 4 seizoenen] Veel fiche-regels zonder aantal (maatschepjes, ijsblokvormpjes, kranten, krijt, pomponnetjes, pijpenragers, wiebeloogjes, maiszetmeel, conditioner, diepvrieszakjes, kraaltjes, knopen) → telkens 1 + verifieer-notitie (L7); "Kraaltjes, knopen" gesplitst (L13).
+- [Spookje Poef] Leeg sjabloon (TD-regel 5): thema + 1 lege bak zonder code + INFO-regel "bundel nog niet geschreven".
+
+## Bijlagen voor S4.7-koppeling
+- [Alles op wieltjes (themadag)] bijlage: Thema Alles op wieltjes - fietsspelletjes.pdf
+- [Circus Krokofant (themadag)] bijlage: Thema Circus krokofant - activiteitenfiche circus.pdf
