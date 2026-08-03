@@ -190,8 +190,34 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [In dromenland (themadag)] Naambotsing beoordeeld: kamp "Spelen in dromenland" (4112) bestaat en is verwarrend dichtbij → suffix toegepast, thema heet "In dromenland (themadag)".
 - [In dromenland (themadag)] "8 zaklampen + reservebatterijen" gesplitst (L13); aantal batterijen onbekend → 1 + verifieer-notitie.
 
+### TD-batch 3 kleuters (themadagen, ingevoerd door batch-agent 2026-08-03)
+- [In smurfenland (themadag)] Naambotsing beoordeeld: kamp "Sporty in smurfenland" (4113) is bijna dezelfde naam → suffix toegepast, thema heet "In smurfenland (themadag)". Eigen bak J09, niets van het kamp herschoven.
+- [In smurfenland (themadag)] Los-aantallen onbekend (diamantjes, acrylstiften, acrylverf, stickers 3D) → telkens 1 + verifieer-notitie (L7).
+- [Jumpen (themadag)] Springdieren-bak = zelfde fysieke bak N17/18 als kamp "Jumpen!" → bestaande bak 12071 gekoppeld (TD-regel 4). TD-fiche noemt óók "Bakje met tjoepkes" (niet op kampfiche) → aangevuld in de gedeelde bak met bron-notitie; verifiëren.
+- [Jumpen (themadag)] Compressor-pool "Compressor 1" aangemaakt (TD-regel 7) — aantal compressors bij Sporty onbekend.
+- [Jumpen (themadag)] "2 kleine springkastelen (3x3m)": pool heeft geen expliciete 3x3-exemplaren (enkel "Klein springkasteel - jungle") → INFO-regel, mapping op pool-exemplaren verifiëren.
+- [Knuffeldag] Waterballetjes en rekkertjes zonder aantal op fiche; knutselwerkje gebruikt 1/kind → toch 1 + verifieer-notitie (L7). I02 = "Bak met knuffels" zonder inhoudsopgave → 1 verzamel-item (L27).
+- [Koekiemonstertjes] Apart kleuterthema naast LS-kamp "Koekiemonsters" (4142): andere naam, andere bakken → geen suffix nodig, naam "Koekiemonstertjes" letterlijk van de bundel.
+- [Koekiemonstertjes] Fiche gebruikt bakken van themadag Koekjesfabriek: K37 (1/3) en K39 (3/3) hier aangemaakt; bak 2/3 komt op deze fiche niet voor. Als de LS-themadag "Koekjesfabriek" wordt ingevoerd moet die deze bestaande bakken KOPPELEN (niet dubbel aanmaken).
+- [Koekiemonstertjes] "Extra"-rubriek (oventjes, afwasbak) = kookpool → INFO-regel. Losse keukenspullen (lepels, mengkommen, mixers...) staan op de fiche ín bak K39 → daar als items ingevoerd; overlap met kookbak-pool verifiëren.
+- [Kriebelbeestjes] Beoordeling t.o.v. kamp "Kriebeldiertjes" (4102): andere naam, eigen bak I25 (kamp: H39/H37), andere inhoud → APART thema ingevoerd. Bij twijfel graag bevestigen.
+- [Kriebelbeestjes] Sportmateriaal-rubriek ontbreekt op de fiche (zoals bij het kamp).
+- [Mini atletiek] Fiche zegt "6 slingeraars + bal", p.3 zegt "6 komeetballen + slingeraar" — als 1 item (qty 6) met verifieer-notitie. "10 meterband" letterlijk overgenomen (vermoedelijk meetlint 10 m, cf. kamp Jumpen!).
+- [Minigym] Fiche geeft 2 KLS-bakken die allebei M00 dragen (gedeelde code, L5) zonder item-verdeling → alle items in bak 1/2 met verifieer-notitie, bak 2/2 leeg. Zijn dit dezelfde M00-bakken als bij "Balanceren op één been (themadag)" (4165) of kamp Jumpen! (airtracks M00)? Verifiëren.
+- [Mini Olympische spelen] Sportmateriaal-rubriek = echte bakken (L2): K57 (groene curver) + K00 (kartonnen doos hordes, aantal hordes onbekend). Etiketten vlaggen/prenten zonder aantal → 1 + verifieer-notitie (L7).
+- [Minidisco (themadag)] Kampthema "Minidisco" (4106) bestaat → suffix toegepast. Eigen bak I16; kranten zonder aantal → 1 + notitie (vast op fiche, dus geen verzamelstroom-verbruik).
+- [Op avontuur in de ruimte] "Apart: frame + themadoek TD4" → 2 nieuwe attributen (patroon TD3/Circus). "Beige, bruin en lichtbruin papier" gesplitst (L13). WC rol = verzamelstroom (L29). Cutter als verbruiksitem onder Los — klopt dat, of is dit duurzaam gereedschap?
+- [Op stap in de jungle (themadag)] Kampthema (4109) bestaat → suffix. "Frame + doek" = bestaand attribuut 50 ("Frame en doek "Op stap in de jungle"") hergebruikt — zelfde fysieke decor als het kamp? Verifiëren.
+- [Op stap in de jungle (themadag)] Fiche noemt zowel "Kooi met vier hangsloten + sleutels" als los "4 sleutels" — beide letterlijk ingevoerd (L20), mogelijke dubbeling verifiëren.
+
 ## Bijlagen voor S4.7-koppeling
 - [Alles op wieltjes (themadag)] bijlage: Thema Alles op wieltjes - fietsspelletjes.pdf
 - [Circus Krokofant (themadag)] bijlage: Thema Circus krokofant - activiteitenfiche circus.pdf
 - [Het kraaiende kinderkoor] bijlage: Thema Het kraaiende kinderkoor - songteksten.pdf
 - [Holderdebolder (themadag)] bijlage: Thema Holderdebolder - Activiteitenfiche Wesco.pdf
+- [Jumpen (themadag)] bijlage: Thema Jumpen - Activiteitenfiche Springkastelen - kleuters.pdf
+- [Mini atletiek] bijlage: Thema Mini atletiek - Activiteitenfiche Atletiek.pdf
+- [Minigym] bijlage: Thema mini gym - Activiteitenfiche Kleuteracrobatie.pdf
+- [Minigym] bijlage: Thema mini gym - Bewegingskaarten banken 1.pdf
+- [Minigym] bijlage: Thema mini gym - Bewegingskaarten banken 2.pdf
+- [Minigym] bijlage: Thema mini gym - Bewegingskaarten banken 3.pdf
