@@ -340,3 +340,7 @@ Nog open (Maxim kijkt na of samen bekijken): lasershoot-obstakeltelling (+ losse
 - [Sticks & bats (TD)] bijlage: Thema Sticks & bats - Activiteitenfiche Lacrosse.pdf
 - [Van creatie tot constructie (TD)] bijlage: Thema Van creatie tot constructie - Opdrachtkaarten OPLA.pdf
 - [Van creatie tot constructie (TD)] bijlage: Thema Van creatie tot constructie - Opdrachtkaarten SPOK.pdf
+
+### Na TD-slotbatch (Fable, 2026-08-04)
+- [Spionnen gezocht!] Kampthema was in de kamp-run gemist (TD-slotbatch ontdekte het) - alsnog ingevoerd (4265): LS bak 1/3 + blauwe curvers 2/3 "Ontmantel de bom" en 3/3 "Moord in de V-express", alle codes onbekend. VRAAG: zijn die twee escape-curvers dezelfde fysieke kisten als de 2 groene curvers van TD "Let's escape" (4241, ook codeloos, zelfde scenarios als bijlagen)? Zo ja, koppelen we ze.
+- [1001 Ballen en Bellen / Alice] Hadden nog geen categorie (ingevoerd voor de categorie-afspraak) - op "kamp" gezet.
