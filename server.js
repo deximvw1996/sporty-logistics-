@@ -1594,6 +1594,147 @@ async function startServer() {
     volgorde INTEGER DEFAULT 0
   )`);
 
+  // ── Migratie 62 — S4.5: Themabehoefte aan pool-materiaal ──
+  // (a) thema_behoefte: "N stuks van vast_type X nodig" per thema (zoals locatie_config, maar
+  // thema-gedreven i.p.v. locatie-gedreven). (b) blazers_nodig op bakken: enkel relevant voor
+  // vast_type springkasteel/waterstructuur, default 1. (c) frame-herstructurering (L31): de losse
+  // "alleen frame"-attributen worden pool-eenheden (vast_type='themaframe') + een thema_behoefte-
+  // regel "1×themaframe"; combinatie-attributen ("Frame en doek X") blijven ONGEMOEID staan — dat
+  // zijn thema-eigen fysieke stukken, geen generiek pool-frame (documentatie in eindrapport S4.5c).
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS thema_behoefte (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    thema_id INTEGER NOT NULL,
+    vast_type TEXT NOT NULL DEFAULT '',
+    aantal INTEGER DEFAULT 1,
+    notitie TEXT DEFAULT ''
+  )`);
+  addColumnIfMissing('bakken','blazers_nodig','INTEGER DEFAULT 1');
+  addColumnIfMissing('bakken','notitie',"TEXT DEFAULT ''");
+  {
+    const _vlag62=get("SELECT naam FROM app_vlaggen WHERE naam='migratie62_klaar'");
+    if(!_vlag62){
+      try{
+        // (b) blazerbehoefte per springkasteel/waterstructuur-exemplaar
+        run("UPDATE bakken SET blazers_nodig=2 WHERE naam='Kleuterhindernisbaan' AND vast_type='springkasteel'");
+        run("UPDATE bakken SET blazers_nodig=2, notitie='aanname Maxim 2026-08-04: 2 blazers voor 2 delen — verifiëren' WHERE naam='Hindernisbaan lagere school (2 delen)' AND vast_type='springkasteel'");
+        run("UPDATE bakken SET blazers_nodig=1 WHERE naam LIKE 'Waterglijbaan%' AND vast_type IN ('springkasteel','waterstructuur')");
+        run("UPDATE bakken SET blazers_nodig=1 WHERE vast_type IN ('springkasteel','waterstructuur') AND blazers_nodig IS NULL");
+
+        // (c) frame-pool: 3 themaframe-exemplaren, aantal onbekend (voorlopig)
+        const _thuisId62=(get("SELECT id FROM locaties WHERE name LIKE '%Rozenweg%' LIMIT 1")||{}).id||null;
+        for(let i=1;i<=3;i++){
+          ins('INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status,notitie) VALUES (?,?,?,?,?,?,?,?)',
+            ['Themaframe #'+i,'','vast','themaframe',_thuisId62,_thuisId62,'thuis','aantal frames verifiëren (Maxim) — voorlopig 3 aangemaakt, S4.5c']);
+        }
+        // "Alleen frame"-attributen → 1×themaframe-behoefte, attribuut + themakoppeling weg.
+        // Combinatie-attributen ("Frame en/met doek...") blijven bestaan — zie migratieopmerking hierboven.
+        const _alleenFrameNamen=[
+          'Frame (Circus Krokofant themadag)',
+          'Frame (Op avontuur in de ruimte themadag)',
+          'Frame grote piratenboot (themadag)',
+          'Frame (School voor hekserij themadag)',
+          'Frame (Sprookjesland themadag)'
+        ];
+        let _framesGeconverteerd=0;
+        _alleenFrameNamen.forEach(naam=>{
+          const attr=get('SELECT * FROM attributen WHERE naam=?',[naam]);
+          if(!attr)return;
+          const koppelingen=all('SELECT thema_id FROM thema_attribuut WHERE attribuut_id=?',[attr.id]);
+          koppelingen.forEach(k=>{
+            const bestaat=get("SELECT id FROM thema_behoefte WHERE thema_id=? AND vast_type='themaframe'",[k.thema_id]);
+            if(!bestaat) ins("INSERT INTO thema_behoefte (thema_id,vast_type,aantal,notitie) VALUES (?,?,1,?)",
+              [k.thema_id,'themaframe','omgezet uit attribuut "'+naam+'" (S4.5c, 2026-08-04)']);
+          });
+          run('DELETE FROM thema_attribuut WHERE attribuut_id=?',[attr.id]);
+          run('DELETE FROM attributen WHERE id=?',[attr.id]);
+          _framesGeconverteerd++;
+        });
+
+        // (f) eerste themabehoefte-data uit de bestaande INFO-regels (thema-namen exact zoals in db)
+        function _behoefteVoorNaam(naam,regels){
+          const th=get('SELECT id FROM themas WHERE name=?',[naam]);
+          if(!th){ console.error('  Migratie 62: thema "'+naam+'" niet gevonden — behoefte-regels overgeslagen'); return; }
+          regels.forEach(r=>{
+            const bestaat=get('SELECT id FROM thema_behoefte WHERE thema_id=? AND vast_type=?',[th.id,r.vt]);
+            if(!bestaat) ins('INSERT INTO thema_behoefte (thema_id,vast_type,aantal,notitie) VALUES (?,?,?,?)',
+              [th.id,r.vt,r.aantal||1,r.notitie||'']);
+          });
+        }
+        _behoefteVoorNaam('Alles op wieltjes',[
+          {vt:'verkeerskoffer',aantal:1},
+          {vt:'kleuterfiets',aantal:17},
+          {vt:'loopfiets',aantal:4},
+          {vt:'loopwagen',aantal:5},
+          {vt:'zitfiets',aantal:2},
+          {vt:'easy_roller',aantal:3},
+          {vt:'springkasteel',aantal:1,notitie:'fietsparcours'}
+        ]);
+        // Holderdebolder: 2 springkastelen (jungle+kasteel) + kleuterhindernisbaan (apart geteld,
+        // want eigen blazers_nodig=2) + 4 wesco — thema_behoefte heeft geen UNIQUE op (thema,vast_type),
+        // dus één samengevoegde regel aantal=3 met notitie die het opsplitst (i.p.v. 2 losse rijen
+        // die niet te onderscheiden zouden zijn).
+        _behoefteVoorNaam('Holderdebolder',[
+          {vt:'springkasteel',aantal:3,notitie:'2× jungle/kasteel (1 blazer elk) + 1× kleuterhindernisbaan (2 blazers) — piekbehoefte via dagplanning, zie S4.5e'},
+          {vt:'wesco_pakket',aantal:4}
+        ]);
+        _behoefteVoorNaam('Jumpen!',[
+          {vt:'springkasteel',aantal:3,notitie:'klein (jungle) + groot (kasteel) ma-do, kleuterhindernisbaan vrijdag — piek per dag is lager dan de som, zie S4.5e; mapping verifiëren'}
+        ]);
+        _behoefteVoorNaam('Jumpen (themadag)',[
+          {vt:'springkasteel',aantal:2,notitie:'2 kleine springkastelen 3x3m; mapping verifiëren'},
+          {vt:'compressor',aantal:1,notitie:'aantal compressors bij Sporty onbekend'}
+        ]);
+        _behoefteVoorNaam('Jumpen XL',[
+          {vt:'springkasteel',aantal:2,notitie:'aanname Maxim: zelfde pool als kampversie, geen materiaalfiche — verifiëren'}
+        ]);
+        _behoefteVoorNaam('Jump around',[
+          {vt:'springkasteel',aantal:4,notitie:'4 opblaasstructuren (Colorslide, Swing him off, Levende tafelvoetbal, Hindernisbaan LS) — blazer-behoefte per structuur verifiëren'}
+        ]);
+        _behoefteVoorNaam('CLIC IT',[
+          {vt:'clics_bak',aantal:2,notitie:'fiche: bouwsteentjes in 12 dozen/grote plox — mapping op 4 geregistreerde clics-bakken verifiëren'}
+        ]);
+        _behoefteVoorNaam('Clic-it (themadag)',[
+          {vt:'clics_bak',aantal:2,notitie:'fiche: 2 bakken Clics + 1 bak wieltjes — zelfde pool als CLIC IT'}
+        ]);
+        _behoefteVoorNaam('Blokkenbouwdoos',[
+          {vt:'houtenblokken_koffer',aantal:2},
+          {vt:'duplo_bak',aantal:7},
+          {vt:'kruiwagen',aantal:16},
+          {vt:'softlego_bak',aantal:2},
+          {vt:'bouwhelm',aantal:20}
+        ]);
+        // Kookthema's: kookvuur/oven/afwasbak/kookbak/verlengdraadkoffer uit hun INFO-regels
+        _behoefteVoorNaam('De vloek van de farao',[{vt:'oven',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Feestje bouwen!',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Koekjesfabriek',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'oven',aantal:2}]);
+        _behoefteVoorNaam('Later als ik groot ben',[{vt:'verkeerskoffer',aantal:1,notitie:'verifiëren'},{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Sprookjesland',[{vt:'kookbak',aantal:1,notitie:'verifiëren, alleen 5-daagse fiche'},{vt:'afwasbak',aantal:1,notitie:'verifiëren, alleen 5-daagse fiche'}]);
+        _behoefteVoorNaam('Ambachtenacademie',[{vt:'kookvuur',aantal:1,notitie:'verifiëren'},{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'oven',aantal:2}]);
+        _behoefteVoorNaam('Dagelijkse Sportykost',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'kookvuur',aantal:2},{vt:'oven',aantal:2},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Experimenteerfabriek',[{vt:'kookvuur',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Festivalfood',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'oven',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Koekiemonsters',[{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'oven',aantal:2}]);
+        _behoefteVoorNaam('Wereldkeuken',[{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Zoete toetjes',[{vt:'oven',aantal:2},{vt:'kookvuur',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:2},{vt:'verlengdraadkoffer',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Koekiemonstertjes',[{vt:'oven',aantal:1,notitie:'"oventjes", exact aantal verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Pizza pronto',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'oven',aantal:2}]);
+        _behoefteVoorNaam('Wij worden kleuterchefs',[{vt:'oven',aantal:2},{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Apenstreken',[{vt:'kookvuur',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Apero go',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Bake off',[{vt:'oven',aantal:2},{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'kookbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('De bakkerij (themadag)',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'oven',aantal:2}]);
+        _behoefteVoorNaam('Koekjesfabriek (themadag)',[{vt:'oven',aantal:1,notitie:'"oventjes", exact aantal verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Wafels en pannenkoeken',[{vt:'afwasbak',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Wereldkeuken (themadag)',[{vt:'kookbak',aantal:1,notitie:'verifiëren'},{vt:'afwasbak',aantal:1,notitie:'verifiëren'},{vt:'kookvuur',aantal:1,notitie:'verifiëren'}]);
+        _behoefteVoorNaam('Zoete toetjes (themadag)',[{vt:'kookvuur',aantal:1,notitie:'verifiëren'}]);
+
+        const _nBehoefte62=(get('SELECT COUNT(*) AS n FROM thema_behoefte')||{}).n||0;
+        console.log(`  Migratie 62: S4.5 themabehoefte gebouwd — ${_nBehoefte62} regels, ${_framesGeconverteerd} frame-attributen omgezet, 3 themaframe-exemplaren aangemaakt`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie62_klaar','1')");
+      }catch(e){ console.error('  Migratie 62 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
   // ── Migratie 57 — S3.5: KV-scherm telt ook attributen aanwezig/beschadigd ──
   // nakijk_sessies kende al bak_type 'thema'/'vast' met thema_bak_id/vaste_bak_id; 'attribuut'
   // is een derde bak_type met een eigen FK-kolom. kv_status krijgt een nieuwe tussenwaarde
@@ -2459,6 +2600,53 @@ async function startServer() {
     const defaultPeriode=allPeriodes[0]||{id:1,start_datum:'2026-06-29',eind_datum:'2026-09-06'};
     const voorstellen=[];
 
+    // S4.5d: themabehoefte aan pool-materiaal (zoals locConfigRegels, maar thema-gedreven i.p.v.
+    // locatie-gedreven — zelfde kiesmechanisme: vrije exemplaren status='thuis' bij levering,
+    // 'op_locatie'-exemplaren (fallback 'thuis') bij ophaling). Springkasteel/waterstructuur ⇒
+    // automatisch de blazers_nodig van het GEKOZEN exemplaar erbij + 1 verlengdraadkoffer per
+    // levering (L18c: 1 per levering/locatie, ook bij meerdere springkastelen).
+    function _themaBehoefteRegels(km,kmThemasSubset,terugnemen){
+      const themaIds=[...new Set(kmThemasSubset.map(kt=>kt.thema_id))];
+      if(!themaIds.length)return [];
+      const ph=themaIds.map(()=>'?').join(',');
+      const behoefte=all(`SELECT * FROM thema_behoefte WHERE thema_id IN (${ph})`,themaIds);
+      const regels=[];
+      let verlengdraadNodig=false;
+      const gebruikteBlazerIds=new Set(); // voorkomt dat dezelfde fysieke blazer 2x wordt ingepland
+      behoefte.forEach(b=>{
+        let exemplaren;
+        if(terugnemen){
+          exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[b.vast_type,km.locatie_id,b.aantal||1]);
+          if(!exemplaren.length)exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' LIMIT ?",[b.vast_type,b.aantal||1]);
+        } else {
+          exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' ORDER BY volgorde,id LIMIT ?",[b.vast_type,b.aantal||1]);
+        }
+        exemplaren.forEach(ex=>{
+          regels.push({naam:'Bak '+ex.naam+(ex.code?' ('+ex.code+')':''),qty:1,soort:'vast',stockage_id:ex.thuislocatie_id||sportStockageId,bak_id:ex.id});
+          if(ex.vast_type==='springkasteel'||ex.vast_type==='waterstructuur'){
+            verlengdraadNodig=true;
+            const nBlazers=ex.blazers_nodig||1;
+            // Ruim genoeg opvragen en al gebruikte exemplaren binnen deze generatie uitsluiten,
+            // anders wordt dezelfde fysieke blazer aan meerdere kastelen tegelijk toegewezen.
+            const kandidaten=terugnemen
+              ? (()=>{let e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='blazer' AND status='op_locatie' AND huidige_locatie_id=? ORDER BY volgorde,id",[km.locatie_id]);
+                       if(!e.length)e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='blazer' AND status='thuis' ORDER BY volgorde,id");return e;})()
+              : all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='blazer' AND status='thuis' ORDER BY volgorde,id");
+            const blazers=kandidaten.filter(bl=>!gebruikteBlazerIds.has(bl.id)).slice(0,nBlazers);
+            blazers.forEach(bl=>{ gebruikteBlazerIds.add(bl.id); regels.push({naam:'Bak '+bl.naam+(bl.code?' ('+bl.code+')':''),qty:1,soort:'vast',stockage_id:bl.thuislocatie_id||sportStockageId,bak_id:bl.id}); });
+          }
+        });
+      });
+      if(verlengdraadNodig){
+        const vd=terugnemen
+          ? (()=>{let e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='op_locatie' AND huidige_locatie_id=? LIMIT 1",[km.locatie_id]);
+                   if(!e.length)e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='thuis' LIMIT 1");return e;})()
+          : all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='thuis' ORDER BY volgorde,id LIMIT 1");
+        vd.forEach(v=>regels.push({naam:'Bak '+v.naam+(v.code?' ('+v.code+')':''),qty:1,soort:'vast',stockage_id:v.thuislocatie_id||sportStockageId,bak_id:v.id}));
+      }
+      return regels;
+    }
+
     function getOpenDagen(km){
       const periode=allPeriodes.find(p=>p.id===(km.periode_id||1))||defaultPeriode;
       const ws=new Date(periode.start_datum+'T12:00:00');ws.setDate(ws.getDate()+(km.week-1)*7);
@@ -2531,6 +2719,9 @@ async function startServer() {
           const vrij=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='thuis' ORDER BY volgorde,id LIMIT ?",[cfg.vast_type,cfg.aantal||1]);
           return vrij.map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'vast',stockage_id:b.thuislocatie_id||sportStockageId,bak_id:b.id}));
         }):[];
+        // S4.5d: themabehoefte-exemplaren (springkasteel, verkeerskoffer, kookuitrusting...) bij de
+        // eerste levering van dit kampmoment — zelfde timing als locConfigRegels.
+        const themaBehoefteRegels=_themaBehoefteRegels(km,kmThemas,false);
         // Basis-materiaal met per-item stockage (fallback: sportStockageId)
         const basisRegels=locMat.map(m=>({naam:m.name,qty:m.qty,soort:'basis',stockage_id:m.stockage_locatie_id||sportStockageId}));
 
@@ -2571,7 +2762,7 @@ async function startServer() {
           });
         }
         if(!isOpvolgend){
-          Object.entries(byStockage([...themaMatRegelsEersteLevering,...locConfigRegels])).forEach(([sid,mat])=>{
+          Object.entries(byStockage([...themaMatRegelsEersteLevering,...locConfigRegels,...themaBehoefteRegels])).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevD,tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', van '+sLoc.name:'')+')'});
           });
@@ -2644,6 +2835,13 @@ async function startServer() {
           });
           Object.entries(byStockage(locConfigTerug)).forEach(([sid,mat])=>{
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling vast materiaal week '+km.week+' — '+loc.name});
+          });
+          // S4.5d: themabehoefte-exemplaren (springkasteel+blazers+verlengdraadkoffer, kookuitrusting...)
+          // gaan mee terug bij de laatste open week (sluitingsregels S5 gelden hier ook: dit blok
+          // draait enkel op isLaatsteVanPeriode, dus tijdelijke sluiting = géén ophaling, zoals boven).
+          const themaBehoefteTerug=_themaBehoefteRegels(km,kmThemas,true);
+          Object.entries(byStockage(themaBehoefteTerug)).forEach(([sid,mat])=>{
+            voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling themabehoefte-materiaal week '+km.week+' — '+loc.name});
           });
         }
 
@@ -3024,7 +3222,8 @@ async function startServer() {
   // Alle bakken van alle themas in één call (voor Themabakken-tab)
   app.get('/api/alle-bakken',(req,res)=>{
     const themas=all('SELECT * FROM themas ORDER BY name');
-    res.json(themas.map(t=>({...t,bakken:_bakkenVanThema(t.id),attributen:_attributenVanThema(t.id)})));
+    res.json(themas.map(t=>({...t,bakken:_bakkenVanThema(t.id),attributen:_attributenVanThema(t.id),
+      behoefte:all('SELECT * FROM thema_behoefte WHERE thema_id=? ORDER BY vast_type',[t.id])})));
   });
   // POST: koppel een bestaande bak (bak_id) OF maak een nieuwe bak+koppel (label/code/...)
   app.post('/api/themas/:id/bakken',(req,res)=>{
@@ -3550,11 +3749,11 @@ async function startServer() {
     res.json(get('SELECT * FROM bakken WHERE id=?',[id]));
   });
   app.put('/api/vaste-bakken/:id',(req,res)=>{
-    const{naam,code,vast_type,thuislocatie_id,status}=req.body;
+    const{naam,code,vast_type,thuislocatie_id,status,blazers_nodig,notitie}=req.body;
     const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Niet gevonden'});
-    run('UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=? WHERE id=?',
-      [naam??cur.naam,code??cur.code,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,req.params.id]);
+    run('UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=?,blazers_nodig=?,notitie=? WHERE id=?',
+      [naam??cur.naam,code??cur.code,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,blazers_nodig??cur.blazers_nodig,notitie??cur.notitie,req.params.id]);
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id',(req,res)=>{
@@ -3628,6 +3827,30 @@ async function startServer() {
   });
   app.delete('/api/themas/:themaId/attributen/:attrId',(req,res)=>{
     run('DELETE FROM thema_attribuut WHERE thema_id=? AND attribuut_id=?',[req.params.themaId,req.params.attrId]);
+    res.json({ok:true});
+  });
+
+  // ── S4.5a: THEMABEHOEFTE AAN POOL-MATERIAAL ──
+  app.get('/api/themas/:id/behoefte',(req,res)=>{
+    res.json(all('SELECT * FROM thema_behoefte WHERE thema_id=? ORDER BY vast_type',[req.params.id]));
+  });
+  app.post('/api/themas/:id/behoefte',(req,res)=>{
+    const{vast_type,aantal,notitie}=req.body;
+    if(!vast_type)return res.status(400).json({error:'vast_type verplicht'});
+    const id=ins('INSERT INTO thema_behoefte (thema_id,vast_type,aantal,notitie) VALUES (?,?,?,?)',
+      [req.params.id,vast_type,aantal||1,notitie||'']);
+    res.json(get('SELECT * FROM thema_behoefte WHERE id=?',[id]));
+  });
+  app.put('/api/themas/:themaId/behoefte/:id',(req,res)=>{
+    const cur=get('SELECT * FROM thema_behoefte WHERE id=? AND thema_id=?',[req.params.id,req.params.themaId]);
+    if(!cur)return res.status(404).json({error:'Niet gevonden'});
+    const{vast_type,aantal,notitie}=req.body;
+    run('UPDATE thema_behoefte SET vast_type=?,aantal=?,notitie=? WHERE id=?',
+      [vast_type??cur.vast_type,aantal??cur.aantal,notitie??cur.notitie,req.params.id]);
+    res.json(get('SELECT * FROM thema_behoefte WHERE id=?',[req.params.id]));
+  });
+  app.delete('/api/themas/:themaId/behoefte/:id',(req,res)=>{
+    run('DELETE FROM thema_behoefte WHERE id=? AND thema_id=?',[req.params.id,req.params.themaId]);
     res.json({ok:true});
   });
 
@@ -4899,6 +5122,53 @@ init();
               bericht:`Week ${km.week} — ${km.loc_nm}: locatieconfig vraagt ${cfg.aantal||1}× "${cfg.vast_type}", maar slechts ${vrij} vrij exemplaar/exemplaren beschikbaar (van ${alleExemplaren.length} totaal)`});
           }
         });
+      });
+    }
+    // 9. S4.5e "pool_tekort": totale themabehoefte (thema_behoefte) aan een vast_type over alle
+    // geplande kampmomenten in dezelfde week > aantal beschikbare exemplaren in de pool. Los van
+    // conflict #8 (locatieconfig_onvolledig), die enkel locatie_config-rijen leest — géén overlap
+    // met dezelfde exemplaren want thema_behoefte en locatie_config zijn aparte tabellen/behoeftes.
+    {
+      const weken9=[...new Set(kampen.map(k=>k.week).filter(w=>w!=null))].sort((a,b)=>a-b);
+      const alleBehoefteTypes=[...new Set(all('SELECT DISTINCT vast_type FROM thema_behoefte').map(r=>r.vast_type))];
+      const alleKmThemas=all('SELECT kampmoment_id,thema_id FROM kampmoment_themas');
+      weken9.forEach(week=>{
+        const kmsWeek=kampen.filter(k=>k.week===week);
+        alleBehoefteTypes.forEach(vt=>{
+          let nodigTotaal=0; const perLocatie=[];
+          kmsWeek.forEach(km=>{
+            const themaIds=alleKmThemas.filter(r=>r.kampmoment_id===km.id).map(r=>r.thema_id);
+            if(!themaIds.length)return;
+            const ph=themaIds.map(()=>'?').join(',');
+            const behoefteHier=all(`SELECT * FROM thema_behoefte WHERE vast_type=? AND thema_id IN (${ph})`,[vt,...themaIds]);
+            const som=behoefteHier.reduce((s,b)=>s+(b.aantal||1),0);
+            if(som>0){ nodigTotaal+=som; perLocatie.push(`${km.loc_nm}: ${som}`); }
+          });
+          if(!nodigTotaal)return;
+          const beschikbaar=(get("SELECT COUNT(*) AS n FROM bakken WHERE soort='vast' AND vast_type=?",[vt])||{}).n||0;
+          if(nodigTotaal>beschikbaar){
+            conflicten.push({type:'pool_tekort',ernst:'hoog',
+              bericht:`Week ${week}: ${nodigTotaal}× "${vt}" themabehoefte (${perLocatie.join(', ')}), maar slechts ${beschikbaar} beschikbaar in de pool`});
+          }
+        });
+        // Blazer-piek (L18b): per locatie geldt de piek-gelijktijdigheid van de dagplanning; die
+        // wordt hier niet gemodelleerd, dus de som van de gevraagde springkastelen/waterstructuren
+        // (kleuterhindernisbaan telt dubbel) geldt als BOVENGRENS, met expliciete verfijningsmelding.
+        const totaalBlazers=(get("SELECT COUNT(*) AS n FROM bakken WHERE soort='vast' AND vast_type='blazer'")||{}).n||0;
+        let blazersNodig=0; const blazerPerLoc=[];
+        kmsWeek.forEach(km=>{
+          const themaIds=alleKmThemas.filter(r=>r.kampmoment_id===km.id).map(r=>r.thema_id);
+          if(!themaIds.length)return;
+          const ph=themaIds.map(()=>'?').join(',');
+          const behoefteHier=all(`SELECT * FROM thema_behoefte WHERE vast_type IN ('springkasteel','waterstructuur') AND thema_id IN (${ph})`,themaIds);
+          let som=0;
+          behoefteHier.forEach(b=>{ const perStuk=/kleuterhindernisbaan/i.test(b.notitie||'')?2:1; som+=(b.aantal||1)*perStuk; });
+          if(som>0){ blazersNodig+=som; blazerPerLoc.push(`${km.loc_nm}: ${som}`); }
+        });
+        if(blazersNodig>totaalBlazers){
+          conflicten.push({type:'pool_tekort',ernst:'hoog',
+            bericht:`Week ${week}: blazers — ${blazersNodig} nodig (${blazerPerLoc.join(', ')}) tegenover ${totaalBlazers} beschikbaar (piek-gelijktijdigheid per locatie niet gemodelleerd — som van de kastelen als bovengrens; verfijn met dagplanning)`});
+        }
       });
     }
     res.json(conflicten);
