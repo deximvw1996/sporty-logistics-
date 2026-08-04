@@ -1053,6 +1053,12 @@ async function startServer() {
     )`);
     addColumnIfMissing('locaties','heeft_eigen_sportmateriaal',"INTEGER DEFAULT 0");
     addColumnIfMissing('locaties','heeft_eigen_oven',"INTEGER DEFAULT 0");
+  }
+  // Walkthrough Maxim 2026-08-04: "zelf kuisen"-eigenschap per locatie (zoals de oven-vlag),
+  // bruikbaar als voorwaarde voor kuisbak/borstel/aftrekker in de locatieconfig. Buiten de
+  // migratie-38-gate zodat hij ook op bestaande databases bijkomt.
+  addColumnIfMissing('locaties','zelf_kuisen',"INTEGER DEFAULT 0");
+  {
     // Zaai de 7 standaarddozen
     const _dozen38=[
       {naam:'EHBO Koffer',opslagcode:'',conditie_type:'altijd',conditie_waarde:'',qty_default:1,volgorde:1,items:[
@@ -1996,9 +2002,9 @@ async function startServer() {
     res.json(loc);
   });
   app.put('/api/locaties/:id',(req,res)=>{
-    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven}=req.body;
-    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=?,heeft_eigen_sportmateriaal=?,heeft_eigen_oven=? WHERE id=?',
-      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,heeft_eigen_sportmateriaal?1:0,heeft_eigen_oven?1:0,req.params.id]);
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven,zelf_kuisen}=req.body;
+    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=?,heeft_eigen_sportmateriaal=?,heeft_eigen_oven=?,zelf_kuisen=? WHERE id=?',
+      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,heeft_eigen_sportmateriaal?1:0,heeft_eigen_oven?1:0,zelf_kuisen?1:0,req.params.id]);
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
     logAct('locatie','bewerkt',`Locatie "${loc.name}" bewerkt`,loc.id,loc.name);
     res.json(loc);
@@ -2037,9 +2043,11 @@ async function startServer() {
     const themas=all('SELECT t.* FROM themas t JOIN kampmoment_themas kt ON kt.thema_id=t.id WHERE kt.kampmoment_id=?',[km.id]);
     const heeftKoken=themas.some(t=>t.heeft_kookactiviteit);
     const leeftijden=new Set(themas.map(t=>t.leeftijdsgroep).filter(Boolean));
+    const loc=get('SELECT * FROM locaties WHERE id=?',[km.locatie_id]);
     return cfgs.filter(c=>{
       if(c.conditie_type==='leeftijdsgroep') return leeftijden.has(c.conditie_waarde);
       if(c.conditie_type==='kookthema') return heeftKoken;
+      if(c.conditie_type==='zelf_kuisen') return !!(loc&&loc.zelf_kuisen); // walkthrough Maxim 2026-08-04
       return true; // 'altijd'
     });
   }

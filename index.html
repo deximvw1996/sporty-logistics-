@@ -5677,7 +5677,8 @@ async function renderLocatieDetail(){
     try{locConfig=await api('GET',`/locatie-config/${l.id}`);}catch(e){}
     const condOpties=(cur)=>`<option value="altijd" ${cur==='altijd'?'selected':''}>altijd</option>
       <option value="leeftijdsgroep" ${cur==='leeftijdsgroep'?'selected':''}>bij leeftijdsgroep</option>
-      <option value="kookthema" ${cur==='kookthema'?'selected':''}>bij kookthema</option>`;
+      <option value="kookthema" ${cur==='kookthema'?'selected':''}>bij kookthema</option>
+      <option value="zelf_kuisen" ${cur==='zelf_kuisen'?'selected':''}>bij zelf kuisen</option>`;
     h+=`<div class="card" style="margin-top:.75rem">
       <div class="card-hd">⚙️ Locatie-instellingen</div>
 
@@ -5690,6 +5691,10 @@ async function renderLocatieDetail(){
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
           <input type="checkbox" ${l.heeft_eigen_oven?'checked':''} onchange="saveLocEigenschap(${l.id},'heeft_eigen_oven',this.checked)">
           Heeft eigen oven
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px">
+          <input type="checkbox" ${l.zelf_kuisen?'checked':''} onchange="saveLocEigenschap(${l.id},'zelf_kuisen',this.checked)">
+          🧹 Zelf kuisen (kuisbak, borstel, aftrekker mee)
         </label>
       </div>
 
