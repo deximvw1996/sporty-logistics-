@@ -2706,7 +2706,7 @@ async function renderVasteBakken(){
     const vastTypePill=bak.vast_type?`<span class="pill" style="background:var(--blue-bg);color:var(--blue-dk);font-size:10px">${_escH(bak.vast_type)}</span>`:'';
     const codePill=bak.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.code)}</span>`:'';
     // S4.5g: bulk-materiaal (enkel het aantal telt) toont ×N i.p.v. een aparte rij per exemplaar.
-    const bulkPill=bak.is_bulk?`<span class="pill" style="background:var(--amber-bg);color:var(--amber-dk);font-size:10px" title="Bulk-materiaal: totaal in bezit">×${bak.aantal}</span>`:'';
+    const bulkPill=bak.is_bulk?`<span class="pill" style="background:var(--amber-bg);color:var(--amber-dk);font-size:10px;cursor:pointer" title="Bulk-materiaal: totaal in bezit — klik om aan te passen" onclick="event.stopPropagation();_vbZetAantal(${bak.id},${bak.aantal})">×${bak.aantal} ✏️</span>`:'';
     return `<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
       <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg2);cursor:pointer" onclick="_vbToggle(${bak.id})">
         <span style="font-size:16px">🗃️</span>
@@ -2721,6 +2721,16 @@ async function renderVasteBakken(){
   }).join('');
 }
 let _vbSpreiding={};
+async function _vbZetAantal(id,huidig){
+  const v=prompt('Totaal aantal in bezit:',huidig);
+  if(v===null)return;
+  const n=parseInt(v);
+  if(isNaN(n)||n<0){showToast('Geef een geldig aantal','warn');return;}
+  await api('PUT','/vaste-bakken/'+id,{aantal:n});
+  _vasteBakken=null;_vbSpreiding={};
+  showToast('Aantal bijgewerkt naar '+n,'success');
+  renderVasteBakken();
+}
 async function _vbToggle(id){
   _vbOpen[id]=!_vbOpen[id];
   const bak=(_vasteBakken||[]).find(b=>b.id===id);

@@ -3946,11 +3946,25 @@ async function startServer() {
     res.json(get('SELECT * FROM bakken WHERE id=?',[id]));
   });
   app.put('/api/vaste-bakken/:id',(req,res)=>{
-    const{naam,code,vast_type,thuislocatie_id,status,blazers_nodig,notitie}=req.body;
+    const{naam,code,vast_type,thuislocatie_id,status,blazers_nodig,notitie,aantal}=req.body;
     const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Niet gevonden'});
     run('UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=?,blazers_nodig=?,notitie=? WHERE id=?',
       [naam??cur.naam,code??cur.code,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,blazers_nodig??cur.blazers_nodig,notitie??cur.notitie,req.params.id]);
+    // Walkthrough Maxim 2026-08-04: totaal-aantal van bulk-materiaal aanpasbaar in de app.
+    // Het verschil wordt op de thuislocatie bijgeboekt in bulk_spreiding (nooit onder 0).
+    if(cur.is_bulk&&aantal!==undefined&&aantal!==null){
+      const nieuw=Math.max(0,parseInt(aantal)||0);
+      const delta=nieuw-(cur.aantal||0);
+      run('UPDATE bakken SET aantal=? WHERE id=?',[nieuw,req.params.id]);
+      const thuis=cur.thuislocatie_id;
+      if(thuis&&delta!==0){
+        const rij=get('SELECT * FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[cur.id,thuis]);
+        if(rij)run('UPDATE bulk_spreiding SET aantal=MAX(0,aantal+?) WHERE id=?',[delta,rij.id]);
+        else ins('INSERT INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[cur.id,thuis,Math.max(0,delta)]);
+      }
+    }
+    saveDb();
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id',(req,res)=>{
