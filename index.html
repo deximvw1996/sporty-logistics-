@@ -2526,7 +2526,7 @@ async function renderThemabakken(){
       <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:${t.color||'#1D9E75'}18;cursor:pointer" onclick="_tbToggle(${t.id})">
         <span style="width:10px;height:10px;border-radius:50%;background:${t.color||'#1D9E75'};flex-shrink:0"></span>
         <span style="font-weight:600;flex:1">${_escH(t.name)}</span>
-        ${lgBadge}${typeLabel}
+        ${lgBadge}${categorieBadge(t.categorie)}${typeLabel}
         <span style="font-size:11px;color:var(--text3)">${bakken.length} bak${bakken.length!==1?'ken':''} · ${totItems} items</span>
         <span style="font-size:12px;color:var(--text3)">${open?'▲':'▼'}</span>
       </div>
@@ -2579,7 +2579,20 @@ function _renderThemaBakkenInhoud(thema,bakken){
       ${verbruikItems.length?`<div style="font-size:11px;color:var(--text2);margin-top:2px">🔄 Verbruik: ${verbruikItems.map(i=>`${_escH(i.naam||i.name||'')} ×${i.qty}`).join(', ')}</div>`:''}
     </div>`;
   }).join('');
-  return bakkenHtml+_renderThemaAttributen(thema)+_renderThemaBehoefte(thema);
+  return bakkenHtml+_renderThemaAttributen(thema)+_renderThemaBehoefte(thema)+_renderThemaKvInfo(thema);
+}
+// Walkthrough-fix Maxim 2026-08-04: de 🛒 KV- en ℹ️ INFO-secties waren alleen zichtbaar in
+// Thema's beheer — nu ook in de Themabakken-weergave (daar kijkt kantoor het vaakst).
+function _renderThemaKvInfo(thema){
+  const mats=thema.materiaal||[];
+  const kv=mats.filter(m=>/^KV:\s*/i.test(m.name));
+  const info=mats.filter(m=>/^INFO:\s*/i.test(m.name));
+  if(!kv.length&&!info.length)return '';
+  const kvHtml=kv.length?`<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:6px 0 3px">🛒 KV koopt vers</div>
+    <ul style="margin:0;padding-left:18px;font-size:12px">${kv.map(m=>`<li>${_escH(m.name.replace(/^KV:\s*/i,''))}${m.qty>1?` <span style="color:var(--text3)">×${m.qty}</span>`:''}</li>`).join('')}</ul>`:'';
+  const infoHtml=info.length?`<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin:6px 0 3px">ℹ️ Info</div>
+    <ul style="margin:0;padding-left:18px;font-size:11px;color:var(--text3)">${info.map(m=>`<li>${_escH(m.name.replace(/^INFO:\s*/i,''))}</li>`).join('')}</ul>`:'';
+  return `<div style="margin-top:8px;border-top:.5px dashed var(--border);padding-top:6px">${kvHtml}${infoHtml}</div>`;
 }
 // ── S4.5a: THEMABEHOEFTE aan pool-materiaal ("N × vast_type nodig", zoals locatieconfig maar thema-gedreven) ──
 let _behoefteVastTypes=[];
@@ -2587,7 +2600,7 @@ function _renderThemaBehoefte(thema){
   const regels=thema.behoefte||[];
   const opts=(_behoefteVastTypes||[]).map(t=>`<option value="${_attrH(t)}">`).join('');
   const lijst=regels.map(r=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;flex-wrap:wrap">
-      <span style="font-size:12px">🚚 ${r.aantal}× ${_escH(r.vast_type)}</span>
+      <span style="font-size:12px">🚚 ${r.aantal}× ${_escH(r.bak_naam||r.vast_type)}${r.bak_naam?` <span style="color:var(--text3);font-size:10px">[${_escH(r.vast_type)}]</span>`:''}</span>
       ${r.notitie?`<span style="font-size:10px;color:var(--text3)">(${_escH(r.notitie)})</span>`:''}
       <button class="bi" style="font-size:11px" onclick="_behoefteVerwijder(${thema.id},${r.id})" title="Verwijderen">✕</button>
     </div>`).join('');
@@ -4838,7 +4851,7 @@ function renderThemas(){
         hd.innerHTML=`<input type="checkbox" class="th-sel-cb" ${_themaSel.has(t.id)?'checked':''} onclick="event.stopPropagation()" onchange="toggleThemaSel(${t.id},this)" title="Selecteer" style="width:15px;height:15px;flex-shrink:0;cursor:pointer">
           <span class="thema-swatch" style="background:${t.color}"></span>
           <span class="th-naam">${t.name}</span>
-          <span class="th-leeftijd">${leeftijdBadge(t.leeftijdsgroep)}</span>
+          <span class="th-leeftijd">${leeftijdBadge(t.leeftijdsgroep)}${categorieBadge(t.categorie)}</span>
           <span style="width:62px;flex-shrink:0;text-align:center">${_themaOrgBadge(t.thema_type)}</span>
           <span style="width:110px;flex-shrink:0;text-align:center">${_themaMatBadge(t.thema_type)}</span>
           <span class="th-items" title="materiaalitems">${mat.length+koppel.length}</span>
@@ -7951,6 +7964,14 @@ function leeftijdBadge(lg){
   const lbl={'kleuters':'Kleuters','lagere school':'Lagere school','beide':'Beide'};
   const c=map[n]||'#888780';
   return `<span style="display:inline-block;background:${c}22;color:${c};border:.5px solid ${c}66;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle">${lbl[n]||n}</span>`;
+}
+// Walkthrough Maxim 2026-08-04: elk thema toont een kamp/themadag-tag (sommige themadagen
+// hebben dat niet in hun naam staan) — zelfde stijl als de leeftijdsbadge.
+function categorieBadge(cat){
+  if(!cat) return '';
+  const c=cat==='themadag'?'#A855F7':'#1D9E75';
+  const lbl=cat==='themadag'?'Themadag':'Kamp';
+  return `<span style="display:inline-block;background:${c}22;color:${c};border:.5px solid ${c}66;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle">${lbl}</span>`;
 }
 
 let _importThemasActie=null;  // functie die op 'Importeren' wordt uitgevoerd

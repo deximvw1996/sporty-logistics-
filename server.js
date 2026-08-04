@@ -1610,6 +1610,49 @@ async function startServer() {
   )`);
   addColumnIfMissing('bakken','blazers_nodig','INTEGER DEFAULT 1');
   addColumnIfMissing('bakken','notitie',"TEXT DEFAULT ''");
+  addColumnIfMissing('thema_behoefte','bak_id','INTEGER');
+  // Migratie 64 (walkthrough Maxim 2026-08-04): springkasteel-behoeften wijzen een SPECIFIEK
+  // kasteel aan (naam in de regel, niet in een notitie) + standaardmateriaal-pool + escape-koppeling.
+  {
+    const _vlag64=get("SELECT naam FROM app_vlaggen WHERE naam='migratie64_klaar'");
+    if(!_vlag64){
+      try{
+        const kasteel=n=>get("SELECT id FROM bakken WHERE soort='vast' AND vast_type='springkasteel' AND naam LIKE ?",[n]);
+        const zet=(themaNaam,kasteelNamen)=>{
+          const th=get('SELECT id FROM themas WHERE name=?',[themaNaam]); if(!th)return;
+          run("DELETE FROM thema_behoefte WHERE thema_id=? AND vast_type='springkasteel' AND (bak_id IS NULL OR bak_id='')",[th.id]);
+          kasteelNamen.forEach(kn=>{const k=kasteel(kn); if(k&&!get('SELECT id FROM thema_behoefte WHERE thema_id=? AND bak_id=?',[th.id,k.id]))
+            ins('INSERT INTO thema_behoefte (thema_id,vast_type,aantal,notitie,bak_id) VALUES (?,?,1,?,?)',[th.id,'springkasteel','Migratie 64: specifiek exemplaar (Maxim: naam in de regel)',k.id]);});
+        };
+        zet('Holderdebolder',['Klein springkasteel - jungle','Groot springkasteel - kasteel','Kleuterhindernisbaan']);
+        zet('Holderdebolder (themadag)',['Klein springkasteel - jungle','Groot springkasteel - kasteel','Kleuterhindernisbaan']);
+        zet('Alles op wieltjes',['Opblaasbaar fietsparcours']);
+        zet('Jumpen!',['Klein springkasteel - jungle']);
+        zet('Jumpen (themadag)',['Klein springkasteel - jungle']);
+        // Standaardmateriaal-pool (aantallen nog in te vullen door Maxim)
+        const roz=get("SELECT id FROM locaties WHERE name LIKE '%Rozenweg%'");
+        [['Muziekbox','muziekbox'],['Programmabord','programmabord'],['Creakoffer','creakoffer'],
+         ['Sportkoffer lagere school','sportkoffer_ls'],['Sportkoffer kleuters','sportkoffer_kl'],
+         ['Adminkastje','adminkastje'],['Vlagvoet','vlagvoet'],['Vlag','vlag']].forEach(([naam,vt])=>{
+          if(!get("SELECT id FROM bakken WHERE soort='vast' AND vast_type=?",[vt])){
+            const id=ins("INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status,aantal,is_bulk,notitie) VALUES (?,?,?,?,?,?,?,?,?,?)",
+              [naam,'','vast',vt,roz?roz.id:null,roz?roz.id:null,'thuis',1,1,'standaardmateriaal (Maxim 2026-08-04) — totaal aantal nog invullen']);
+            if(roz)ins('INSERT OR IGNORE INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,1)',[id,roz.id]);
+          }
+        });
+        // Escape-curvers ook aan TD "Spionnen gezocht" koppelen
+        const tdSpion=get("SELECT id FROM themas WHERE name='Spionnen gezocht' AND categorie='themadag'");
+        if(tdSpion){
+          all("SELECT id FROM bakken WHERE naam LIKE '%Ontmantel de bom%' OR naam LIKE '%V-express%'").forEach(b=>{
+            if(!get('SELECT id FROM thema_bak WHERE thema_id=? AND bak_id=?',[tdSpion.id,b.id]))
+              ins('INSERT INTO thema_bak (thema_id,bak_id) VALUES (?,?)',[tdSpion.id,b.id]);
+          });
+        }
+        ins("INSERT INTO app_vlaggen (naam) VALUES ('migratie64_klaar')");saveDb();
+        console.log('  Migratie 64: specifieke kasteel-behoeften + standaardmateriaal + escape-TD-koppeling');
+      }catch(e){console.error('  Migratie 64 FOUT:',e.message);}
+    }
+  }
   {
     const _vlag62=get("SELECT naam FROM app_vlaggen WHERE naam='migratie62_klaar'");
     if(!_vlag62){
@@ -2720,6 +2763,24 @@ async function startServer() {
         return uit;
       }
       behoefte.forEach(b=>{
+        // Walkthrough-fix Maxim 2026-08-04: behoefte kan een SPECIFIEK exemplaar aanwijzen
+        // (bak_id, bv. "Klein springkasteel - jungle") i.p.v. een generiek vast_type.
+        if(b.bak_id){
+          const spec=get("SELECT * FROM bakken WHERE id=? AND soort='vast'",[b.bak_id]);
+          if(spec){
+            if(spec.is_bulk){
+              const r=_bulkPreviewRegel(spec,b.aantal||1,false);
+              if(r)regels.push(r);
+            } else {
+              regels.push({naam:'Bak '+spec.naam+(spec.code?' ('+spec.code+')':''),qty:1,soort:'vast',stockage_id:spec.thuislocatie_id||sportStockageId,bak_id:spec.id});
+              if(spec.vast_type==='springkasteel'||spec.vast_type==='waterstructuur'){
+                verlengdraadNodig=true;
+                regels.push(..._blazerRegels(spec.blazers_nodig||1));
+              }
+            }
+            return;
+          }
+        }
         const bulkBak=get("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND is_bulk=1",[b.vast_type]);
         if(bulkBak){
           // Bulk-materiaal is nooit springkasteel/waterstructuur (die blijven per stuk, S4.5d) —
@@ -3349,7 +3410,9 @@ async function startServer() {
   app.get('/api/alle-bakken',(req,res)=>{
     const themas=all('SELECT * FROM themas ORDER BY name');
     res.json(themas.map(t=>({...t,bakken:_bakkenVanThema(t.id),attributen:_attributenVanThema(t.id),
-      behoefte:all('SELECT * FROM thema_behoefte WHERE thema_id=? ORDER BY vast_type',[t.id])})));
+      behoefte:all(`SELECT tb.*, b.naam AS bak_naam, b.code AS bak_code FROM thema_behoefte tb
+        LEFT JOIN bakken b ON b.id=tb.bak_id WHERE tb.thema_id=? ORDER BY tb.vast_type`,[t.id]),
+      materiaal:all('SELECT * FROM thema_materiaal WHERE thema_id=?',[t.id])})));
   });
   // POST: koppel een bestaande bak (bak_id) OF maak een nieuwe bak+koppel (label/code/...)
   app.post('/api/themas/:id/bakken',(req,res)=>{
@@ -3966,9 +4029,18 @@ async function startServer() {
 
   // ── S4.5a: THEMABEHOEFTE AAN POOL-MATERIAAL ──
   app.get('/api/themas/:id/behoefte',(req,res)=>{
-    res.json(all('SELECT * FROM thema_behoefte WHERE thema_id=? ORDER BY vast_type',[req.params.id]));
+    res.json(all(`SELECT tb.*, b.naam AS bak_naam, b.code AS bak_code FROM thema_behoefte tb
+      LEFT JOIN bakken b ON b.id=tb.bak_id WHERE tb.thema_id=? ORDER BY tb.vast_type`,[req.params.id]));
   });
   app.post('/api/themas/:id/behoefte',(req,res)=>{
+    if(req.body&&req.body.bak_id){
+      const{bak_id,aantal,notitie}=req.body;
+      const bak=get("SELECT * FROM bakken WHERE id=? AND soort='vast'",[bak_id]);
+      if(!bak)return res.status(400).json({error:'Onbekend pool-exemplaar'});
+      const id=ins('INSERT INTO thema_behoefte (thema_id,vast_type,aantal,notitie,bak_id) VALUES (?,?,?,?,?)',
+        [req.params.id,bak.vast_type,aantal||1,notitie||'',bak_id]);
+      return res.json(get(`SELECT tb.*, b.naam AS bak_naam FROM thema_behoefte tb LEFT JOIN bakken b ON b.id=tb.bak_id WHERE tb.id=?`,[id]));
+    }
     const{vast_type,aantal,notitie}=req.body;
     if(!vast_type)return res.status(400).json({error:'vast_type verplicht'});
     const id=ins('INSERT INTO thema_behoefte (thema_id,vast_type,aantal,notitie) VALUES (?,?,?,?)',
