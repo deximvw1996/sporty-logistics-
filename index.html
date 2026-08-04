@@ -2681,20 +2681,39 @@ async function renderVasteBakken(){
     const typePill=bak.type==='verbruik'?'<span class="pill" style="background:#F9731622;color:#9A3412;font-size:10px">Wekelijks aanvullen</span>':'<span class="pill" style="background:var(--bg2);color:var(--text2);font-size:10px">Vast</span>';
     const vastTypePill=bak.vast_type?`<span class="pill" style="background:var(--blue-bg);color:var(--blue-dk);font-size:10px">${_escH(bak.vast_type)}</span>`:'';
     const codePill=bak.code?`<span style="font-size:10px;background:var(--bg2);border:.5px solid var(--border2);border-radius:3px;padding:1px 5px;font-family:monospace">${_escH(bak.code)}</span>`:'';
+    // S4.5g: bulk-materiaal (enkel het aantal telt) toont ×N i.p.v. een aparte rij per exemplaar.
+    const bulkPill=bak.is_bulk?`<span class="pill" style="background:var(--amber-bg);color:var(--amber-dk);font-size:10px" title="Bulk-materiaal: totaal in bezit">×${bak.aantal}</span>`:'';
     return `<div style="border:.5px solid var(--border);border-radius:var(--r);margin-bottom:.5rem;overflow:hidden">
       <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg2);cursor:pointer" onclick="_vbToggle(${bak.id})">
         <span style="font-size:16px">🗃️</span>
         <span style="font-weight:600;flex:1">${_escH(bak.naam)}</span>
-        ${codePill}${vastTypePill}${typePill}
+        ${codePill}${vastTypePill}${bulkPill}${typePill}
         <span style="font-size:11px;color:var(--text3)">${items.length} items</span>
         <button class="bi" onclick="event.stopPropagation();deleteVasteBak(${bak.id})" title="Verwijderen">🗑️</button>
         <span style="font-size:12px;color:var(--text3)">${open?'▲':'▼'}</span>
       </div>
-      ${open?`<div style="padding:8px 14px 12px">${_renderVasteBakInhoud(bak,vast,verbruik)}</div>`:''}
+      ${open?`<div style="padding:8px 14px 12px">${_vbSpreidingHtml(bak)}${_renderVasteBakInhoud(bak,vast,verbruik)}</div>`:''}
     </div>`;
   }).join('');
 }
-function _vbToggle(id){_vbOpen[id]=!_vbOpen[id];renderVasteBakken();}
+let _vbSpreiding={};
+async function _vbToggle(id){
+  _vbOpen[id]=!_vbOpen[id];
+  const bak=(_vasteBakken||[]).find(b=>b.id===id);
+  if(_vbOpen[id]&&bak&&bak.is_bulk&&!_vbSpreiding[id]){
+    try{ _vbSpreiding[id]=await api('GET','/vaste-bakken/'+id+'/spreiding'); }catch(e){}
+  }
+  renderVasteBakken();
+}
+function _vbSpreidingHtml(bak){
+  if(!bak.is_bulk)return '';
+  const sp=_vbSpreiding[bak.id];
+  if(!sp)return '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Spreiding laden…</div>';
+  const rijen=(sp.spreiding||[]).filter(r=>r.aantal>0);
+  const tekst=rijen.length?rijen.map(r=>`${r.aantal} ${_escH(r.locatie_naam)}`).join(' / '):'nergens (0)';
+  return `<div style="font-size:11px;color:var(--text2);margin-bottom:8px">📍 Spreiding (${sp.aantal} totaal): ${tekst}</div>`;
+}
+
 // S4.6: springkasteel/waterstructuur-eenheden krijgen twee foto-vakken (opgeplooid/opgezet).
 const VB_FOTO_TYPES=['springkasteel','waterstructuur'];
 function _vbFotoSlotHtml(bak,slot,label){

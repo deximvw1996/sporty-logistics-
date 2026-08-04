@@ -1735,6 +1735,67 @@ async function startServer() {
     }
   }
 
+  // ── Migratie 63 — S4.5g: BULK-POOL ──
+  // Bulk-materiaal (enkel het aantal telt, geen individuele identiteit: kleuterfietsen,
+  // loopfietsen, loopwagens, zitfietsen, easy rollers, rolplanken+stokken, bouwhelmen,
+  // kruiwagens, verlengdraadkoffers, WESCO-pakketten, blazers, duplo-/softlego-/clics-bakken,
+  // compressors, iglo-blokken) vs UNIEKE pool-exemplaren (springkastelen, verkeerskoffers,
+  // kookuitrusting, EHBO-koffers, GPS-bak, themaframes — S4.5d-gedrag, NIET aangeraakt).
+  // Onderscheid via een expliciete `is_bulk`-kolom op `bakken` (i.p.v. een impliciete
+  // vast_type-conventie): duidelijker leesbaar/query'baar, en een toekomstig nieuw vast_type
+  // kan per stuk bewust bulk of uniek gezet worden zonder een aparte lijst te moeten bijhouden.
+  // `aantal` = totaal in bezit (default 1; voor unieke rijen altijd 1). Spreiding per locatie in
+  // de nieuwe tabel bulk_spreiding(bak_id, locatie_id, aantal) — startstand: alles thuis.
+  addColumnIfMissing('bakken','aantal','INTEGER DEFAULT 1');
+  addColumnIfMissing('bakken','is_bulk','INTEGER DEFAULT 0');
+  createTableIfMissing(`CREATE TABLE IF NOT EXISTS bulk_spreiding (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bak_id INTEGER NOT NULL,
+    locatie_id INTEGER NOT NULL,
+    aantal INTEGER DEFAULT 0,
+    UNIQUE(bak_id, locatie_id)
+  )`);
+  {
+    const _vlag63=get("SELECT naam FROM app_vlaggen WHERE naam='migratie63_klaar'");
+    if(!_vlag63){
+      try{
+        let _nSamengevouwen=0,_nRijenVoor=0,_nRijenNa=0;
+        // Reeksen "Naam N" (trailing nummer, zelfde vast_type) samenvouwen tot 1 bulk-rij met
+        // aantal=aantal_rijen. Enkel samenvouwen als alle rijen dezelfde basisnaam (zonder
+        // trailing nummer) delen — anders NIET aanraken en loggen (twijfelgeval, VRAGENLOG).
+        function _vouwSamen(vastType,matchFn,groepLabel){
+          const rijen=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=?",[vastType]).filter(matchFn||(()=>true));
+          _nRijenVoor+=rijen.length;
+          if(rijen.length<2){ _nRijenNa+=rijen.length; return; }
+          const basisNamen=new Set(rijen.map(r=>r.naam.replace(/\s+\d+$/,'').trim()));
+          if(basisNamen.size!==1){
+            console.error(`  Migratie 63: "${groepLabel||vastType}" heeft verschillende basisnamen (${[...basisNamen].join(' | ')}) — NIET samengevouwen (zie VRAGENLOG)`);
+            _nRijenNa+=rijen.length;
+            return;
+          }
+          const basisNaam=[...basisNamen][0];
+          rijen.sort((a,b)=>a.id-b.id);
+          const houder=rijen[0],rest=rijen.slice(1),totaal=rijen.length;
+          run('UPDATE bakken SET naam=?,aantal=?,is_bulk=1 WHERE id=?',[basisNaam,totaal,houder.id]);
+          run('INSERT OR IGNORE INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',
+            [houder.id,houder.thuislocatie_id,totaal]);
+          rest.forEach(r=>run('DELETE FROM bakken WHERE id=?',[r.id]));
+          _nSamengevouwen++;_nRijenNa+=1;
+          console.log(`  Migratie 63: ${groepLabel||vastType} ${totaal}→1 (aantal=${totaal})`);
+        }
+        const _bulkTypes=['kleuterfiets','loopfiets','loopwagen','zitfiets','easy_roller','rolplank','rolplank_stok',
+          'bouwhelm','kruiwagen','verlengdraadkoffer','wesco_pakket','duplo_bak','softlego_bak','clics_bak','compressor','iglo_blok'];
+        _bulkTypes.forEach(vt=>{ if(vt!=='blazer') _vouwSamen(vt,null,vt); });
+        // Blazer: 2 wattage-groepen i.p.v. 1 grote groep (generator maakt zwaarste — 1500W —
+        // eerst op, zie _themaBehoefteRegels/_blazerRegels).
+        _vouwSamen('blazer',r=>r.naam.includes('1500W'),'blazer 1500W');
+        _vouwSamen('blazer',r=>r.naam.includes('1000W'),'blazer 1000W');
+        console.log(`  Migratie 63: BULK-POOL — ${_nSamengevouwen} reeksen samengevouwen, rijen ${_nRijenVoor}→${_nRijenNa}`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie63_klaar','1')");
+      }catch(e){ console.error('  Migratie 63 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
   // ── Migratie 57 — S3.5: KV-scherm telt ook attributen aanwezig/beschadigd ──
   // nakijk_sessies kende al bak_type 'thema'/'vast' met thema_bak_id/vaste_bak_id; 'attribuut'
   // is een derde bak_type met een eigen FK-kolom. kv_status krijgt een nieuwe tussenwaarde
@@ -2612,8 +2673,61 @@ async function startServer() {
       const behoefte=all(`SELECT * FROM thema_behoefte WHERE thema_id IN (${ph})`,themaIds);
       const regels=[];
       let verlengdraadNodig=false;
-      const gebruikteBlazerIds=new Set(); // voorkomt dat dezelfde fysieke blazer 2x wordt ingepland
+      const gebruikteBlazerIds=new Set(); // voorkomt dat dezelfde fysieke blazer 2x wordt ingepland (unieke pool-tak)
+      // S4.5g: bulk-materiaal krijgt EEN regel "N × naam" i.p.v. N losse "Bak naam"-regels — het
+      // aantal komt uit thema_behoefte, beschikbaarheid uit bulk_spreiding (per locatie). Dit is
+      // een PREVIEW (read-only): de spreiding zelf wordt pas bijgewerkt als de taak op 'gedaan'
+      // gezet wordt (PUT /api/transport-taken/:id/status), analoog aan hoe unieke bakken hun
+      // huidige_locatie_id ook pas dán krijgen — niet al bij het genereren van voorstellen.
+      const _blazerReserve={}; // in-memory cache binnen 1 aanroep, voorkomt dubbele toewijzing
+      function _bulkBeschikbaar(bakId,locatieId,useReserve){
+        if(!useReserve){
+          const rij=get('SELECT aantal FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[bakId,locatieId]);
+          return rij?rij.aantal:0;
+        }
+        const key=bakId+'@'+locatieId;
+        if(!(key in _blazerReserve)){
+          const rij=get('SELECT aantal FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[bakId,locatieId]);
+          _blazerReserve[key]=rij?rij.aantal:0;
+        }
+        return _blazerReserve[key];
+      }
+      function _bulkPreviewRegel(bak,aantalNodig,useReserve){
+        let bronLoc=terugnemen?km.locatie_id:(bak.thuislocatie_id||sportStockageId);
+        let beschikbaar=_bulkBeschikbaar(bak.id,bronLoc,useReserve);
+        // Reviewfix-patroon (analoog S5.1 bij unieke exemplaren): bij "vooraf plannen" staat er
+        // op de kamplocatie nog niets (de levering is nog niet 'gedaan' gezet) — val dan terug op
+        // de thuislocatie-voorraad, anders ontbreekt de eind-ophaling in de preview.
+        if(terugnemen&&beschikbaar<=0){
+          bronLoc=bak.thuislocatie_id||sportStockageId;
+          beschikbaar=_bulkBeschikbaar(bak.id,bronLoc,useReserve);
+        }
+        const n=Math.max(0,Math.min(aantalNodig,beschikbaar));
+        if(n<=0)return null;
+        if(useReserve)_blazerReserve[bak.id+'@'+bronLoc]-=n;
+        return {naam:`${n} × ${bak.naam}`,qty:n,soort:'vast',stockage_id:bak.thuislocatie_id||sportStockageId,bak_id:bak.id};
+      }
+      // Blazers "zwaarste eerst": eerst 1500W opmaken, dan 1000W (S4.5g-opdracht).
+      function _blazerRegels(nBlazers){
+        const uit=[];let resterend=nBlazers;
+        ['Blazer 1500W','Blazer 1000W'].forEach(naam=>{
+          if(resterend<=0)return;
+          const bak=get("SELECT * FROM bakken WHERE soort='vast' AND vast_type='blazer' AND naam=? AND is_bulk=1",[naam]);
+          if(!bak)return;
+          const r=_bulkPreviewRegel(bak,resterend,true);
+          if(r){ uit.push(r); resterend-=r.qty; }
+        });
+        return uit;
+      }
       behoefte.forEach(b=>{
+        const bulkBak=get("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND is_bulk=1",[b.vast_type]);
+        if(bulkBak){
+          // Bulk-materiaal is nooit springkasteel/waterstructuur (die blijven per stuk, S4.5d) —
+          // dus geen blazer/verlengdraad-bijlevering hier nodig.
+          const r=_bulkPreviewRegel(bulkBak,b.aantal||1,false);
+          if(r)regels.push(r);
+          return;
+        }
         let exemplaren;
         if(terugnemen){
           exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[b.vast_type,km.locatie_id,b.aantal||1]);
@@ -2626,23 +2740,23 @@ async function startServer() {
           if(ex.vast_type==='springkasteel'||ex.vast_type==='waterstructuur'){
             verlengdraadNodig=true;
             const nBlazers=ex.blazers_nodig||1;
-            // Ruim genoeg opvragen en al gebruikte exemplaren binnen deze generatie uitsluiten,
-            // anders wordt dezelfde fysieke blazer aan meerdere kastelen tegelijk toegewezen.
-            const kandidaten=terugnemen
-              ? (()=>{let e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='blazer' AND status='op_locatie' AND huidige_locatie_id=? ORDER BY volgorde,id",[km.locatie_id]);
-                       if(!e.length)e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='blazer' AND status='thuis' ORDER BY volgorde,id");return e;})()
-              : all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='blazer' AND status='thuis' ORDER BY volgorde,id");
-            const blazers=kandidaten.filter(bl=>!gebruikteBlazerIds.has(bl.id)).slice(0,nBlazers);
-            blazers.forEach(bl=>{ gebruikteBlazerIds.add(bl.id); regels.push({naam:'Bak '+bl.naam+(bl.code?' ('+bl.code+')':''),qty:1,soort:'vast',stockage_id:bl.thuislocatie_id||sportStockageId,bak_id:bl.id}); });
+            regels.push(..._blazerRegels(nBlazers));
           }
         });
       });
       if(verlengdraadNodig){
-        const vd=terugnemen
-          ? (()=>{let e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='op_locatie' AND huidige_locatie_id=? LIMIT 1",[km.locatie_id]);
-                   if(!e.length)e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='thuis' LIMIT 1");return e;})()
-          : all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='thuis' ORDER BY volgorde,id LIMIT 1");
-        vd.forEach(v=>regels.push({naam:'Bak '+v.naam+(v.code?' ('+v.code+')':''),qty:1,soort:'vast',stockage_id:v.thuislocatie_id||sportStockageId,bak_id:v.id}));
+        const vdBak=get("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND is_bulk=1");
+        if(vdBak){
+          const r=_bulkPreviewRegel(vdBak,1,false);
+          if(r)regels.push(r);
+        } else {
+          // Terugval als Migratie 63 nog niet liep (verlengdraadkoffer nog niet samengevouwen).
+          const vd=terugnemen
+            ? (()=>{let e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='op_locatie' AND huidige_locatie_id=? LIMIT 1",[km.locatie_id]);
+                     if(!e.length)e=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='thuis' LIMIT 1");return e;})()
+            : all("SELECT * FROM bakken WHERE soort='vast' AND vast_type='verlengdraadkoffer' AND status='thuis' ORDER BY volgorde,id LIMIT 1");
+          vd.forEach(v=>regels.push({naam:'Bak '+v.naam+(v.code?' ('+v.code+')':''),qty:1,soort:'vast',stockage_id:v.thuislocatie_id||sportStockageId,bak_id:v.id}));
+        }
       }
       return regels;
     }
@@ -3059,14 +3173,26 @@ async function startServer() {
       // S2.4: bakken/attributen in deze taak (via transport_regels.bak_id/attribuut_id) volgen
       // automatisch mee naar naar_locatie_id; status 'thuis' als dat hun thuislocatie is.
       if(taak&&taak.naar_locatie_id&&oudStatus!=='gedaan'){
-        const regels=all('SELECT bak_id,attribuut_id FROM transport_regels WHERE taak_id=?',[req.params.id]);
+        const regels=all('SELECT bak_id,attribuut_id,qty FROM transport_regels WHERE taak_id=?',[req.params.id]);
         const ritRow=taak.rit_id?get('SELECT * FROM transport_ritten WHERE id=?',[taak.rit_id]):null;
         const chauffeurNaam=(ritRow&&ritRow.chauffeur)||taak.wie||'onbekende chauffeur';
         const loc=get('SELECT name FROM locaties WHERE id=?',[taak.naar_locatie_id]);
         regels.forEach(r=>{
           if(r.bak_id){
             const b=get('SELECT * FROM bakken WHERE id=?',[r.bak_id]);
-            if(b){const st=taak.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
+            if(b&&b.is_bulk){
+              // S4.5g: bulk-materiaal — verplaats r.qty eenheden in bulk_spreiding i.p.v. de
+              // hele rij (die het hele bezit vertegenwoordigt) naar 1 plek te verzetten.
+              const vanId=taak.van_locatie_id||b.thuislocatie_id;
+              const n=r.qty||1;
+              const bron=get('SELECT aantal FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[b.id,vanId]);
+              const afTeTrekken=Math.min(n,bron?bron.aantal:0);
+              if(afTeTrekken>0)run('UPDATE bulk_spreiding SET aantal=aantal-? WHERE bak_id=? AND locatie_id=?',[afTeTrekken,b.id,vanId]);
+              const doel=get('SELECT id FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[b.id,taak.naar_locatie_id]);
+              if(doel)run('UPDATE bulk_spreiding SET aantal=aantal+? WHERE bak_id=? AND locatie_id=?',[n,b.id,taak.naar_locatie_id]);
+              else ins('INSERT INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[b.id,taak.naar_locatie_id,n]);
+              logAct('bak','gelost',`Bulk "${b.naam}" ×${n} gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);
+            } else if(b){const st=taak.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
               run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id]);
               logAct('bak','gelost',`Bak "${b.naam}" (${b.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
           }
@@ -3639,6 +3765,14 @@ async function startServer() {
   app.delete('/api/item-types/:id',(req,res)=>{
     run('DELETE FROM item_types WHERE id=?',[req.params.id]);
     res.json({ok:true});
+  });
+  // S4.5g: spreiding van een bulk-pool-rij over de locaties waar er exemplaren staan.
+  app.get('/api/vaste-bakken/:id/spreiding',(req,res)=>{
+    const bak=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
+    if(!bak)return res.status(404).json({error:'Bak niet gevonden'});
+    const rijen=all(`SELECT bs.locatie_id,bs.aantal,l.name AS locatie_naam FROM bulk_spreiding bs
+      JOIN locaties l ON l.id=bs.locatie_id WHERE bs.bak_id=? AND bs.aantal>0 ORDER BY l.name`,[req.params.id]);
+    res.json({bak_id:bak.id,naam:bak.naam,aantal:bak.aantal,is_bulk:!!bak.is_bulk,spreiding:rijen});
   });
 
   // ── STOCK OVERZICHT (per item_type: bakken + voorraad) ──
@@ -5145,7 +5279,10 @@ init();
             if(som>0){ nodigTotaal+=som; perLocatie.push(`${km.loc_nm}: ${som}`); }
           });
           if(!nodigTotaal)return;
-          const beschikbaar=(get("SELECT COUNT(*) AS n FROM bakken WHERE soort='vast' AND vast_type=?",[vt])||{}).n||0;
+          // S4.5g: SUM(aantal) i.p.v. COUNT(*) — voor bulk-materiaal (1 samengevouwen rij met
+          // aantal=totaal) telt COUNT(*) verkeerd (1 i.p.v. het echte bezit); voor unieke rijen
+          // (aantal altijd 1) is SUM(aantal)==COUNT(*), dus geen gedragswijziging daar.
+          const beschikbaar=(get("SELECT COALESCE(SUM(aantal),0) AS n FROM bakken WHERE soort='vast' AND vast_type=?",[vt])||{}).n||0;
           if(nodigTotaal>beschikbaar){
             conflicten.push({type:'pool_tekort',ernst:'hoog',
               bericht:`Week ${week}: ${nodigTotaal}× "${vt}" themabehoefte (${perLocatie.join(', ')}), maar slechts ${beschikbaar} beschikbaar in de pool`});
@@ -5154,7 +5291,7 @@ init();
         // Blazer-piek (L18b): per locatie geldt de piek-gelijktijdigheid van de dagplanning; die
         // wordt hier niet gemodelleerd, dus de som van de gevraagde springkastelen/waterstructuren
         // (kleuterhindernisbaan telt dubbel) geldt als BOVENGRENS, met expliciete verfijningsmelding.
-        const totaalBlazers=(get("SELECT COUNT(*) AS n FROM bakken WHERE soort='vast' AND vast_type='blazer'")||{}).n||0;
+        const totaalBlazers=(get("SELECT COALESCE(SUM(aantal),0) AS n FROM bakken WHERE soort='vast' AND vast_type='blazer'")||{}).n||0;
         let blazersNodig=0; const blazerPerLoc=[];
         kmsWeek.forEach(km=>{
           const themaIds=alleKmThemas.filter(r=>r.kampmoment_id===km.id).map(r=>r.thema_id);
