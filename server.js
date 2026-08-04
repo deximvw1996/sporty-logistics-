@@ -3353,6 +3353,24 @@ async function startServer() {
   });
 
   // Volledige backup: download de hele SQLite-database als bestand (alle data, gegarandeerd compleet)
+  // Herstel-endpoint (prod-zetronde 2026-08-04): vervangt de volledige database door een
+  // geüpload sqlite-bestand. Achter Basic-auth ÉN sessietoken. Maakt eerst een veiligheidskopie
+  // in DATA_DIR/backups, schrijft dan het nieuwe bestand en herstart het proces (Railway start
+  // de service automatisch opnieuw; de nieuwe db wordt dan vers ingeladen, migraties zijn gegate).
+  app.post('/api/herstel-db', express.raw({ type: 'application/octet-stream', limit: '60mb' }), (req, res) => {
+    try {
+      const buf = req.body;
+      if (!buf || buf.length < 100 || buf.slice(0, 15).toString() !== 'SQLite format 3')
+        return res.status(400).json({ error: 'Geen geldig SQLite-bestand' });
+      const backupDir = path.join(DATA_DIR, 'backups');
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+      const ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
+      fs.writeFileSync(path.join(backupDir, 'voor-herstel-' + ts + '.db'), Buffer.from(db.export()));
+      fs.writeFileSync(DB_PATH, buf);
+      res.json({ ok: true, bytes: buf.length, melding: 'Database vervangen — server herstart nu' });
+      setTimeout(() => process.exit(0), 500);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+  });
   app.get('/api/backup-db', (req, res) => {
     try {
       const data = Buffer.from(db.export());
