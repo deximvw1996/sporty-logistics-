@@ -87,6 +87,8 @@ Status leerfase: gestart 2026-08-02 · 0 thema's zonder correcties goedgekeurd (
 
 **L30 (idem): veel groot spelmateriaal is één gedeelde fysieke set over thema's heen** — bevestigd door Maxim voor: voetbalkisten (alle voetbalthema's), GPS-bak (mogelijk 2e exemplaar), bilibo-set, Ypie-mascottepak (1×), nerf (enkele sets), geocache-bak. Boogschieten: kruisbogen zitten in een houten kist; bogen (±16) en pijlen met punt (±32) liggen er LOS bij (geen bak). Bij zulke items: bestaande gedeelde eenheid koppelen, nooit per thema opnieuw aanmaken.
 
+**L31 (2026-08-04, TD-antwoordenronde Maxim): RGA t/m RGE zijn de ruimtes op het gelijkvloers van de Rozenweg** (geen rek+plek-codes maar zone-aanduidingen). Een "code" als RGE op een fiche = de eenheid staat in die benedenruimte. De M-gang bestaat, maar eenheden daar (M00) hebben geen vaste plek in de gang. Themaframes vormen één gedeeld framesysteem met verwisselbare genummerde doeken (TD1, TD3, TD4, TD7, TD8...) — frames zijn pool, doeken thema-eigen; herstructurering volgt bij S4.5.
+
 **L9 (idem): sommige items hebben géén voorraadrij maar een maak-/druk-notitie.** (a) Afdrukbare items (handleidingen): notitie "bijdrukken via pc bij verlies", geen voorraad. (b) Maaksels uit grondstoffen ("PET-fles met rietjes", "vierkant stuk stof", "papiersnippers"): notitie "te maken uit <grondstoffen> (locatie)" — de grondstoffen (lege petflessen, sokken, rietjes, stof, papierafval) zijn de voorraad, niet het maaksel zelf.
 
 ---
