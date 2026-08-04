@@ -2516,7 +2516,15 @@ async function renderThemabakken(){
   const statsEl=document.getElementById('tb-stats');
   if(statsEl) statsEl.textContent=themas.length+' thema\'s';
   if(!themas.length){el.innerHTML='<div class="empty">Geen thema\'s gevonden.</div>';return;}
-  el.innerHTML=themas.map(t=>{
+  // Walkthrough Maxim 2026-08-04: ook hier pagineren (zelfde _pagerBar als Thema's beheer).
+  const _tbSig=zoek+'|'+lgFilter;
+  if(_tbSig!==_tbFilterSig){_tbPage=1;_tbFilterSig=_tbSig;}
+  const _tbTot=themas.length;
+  const _tbTotPg=Math.max(1,Math.ceil(_tbTot/_tbPerPage));
+  if(_tbPage>_tbTotPg)_tbPage=_tbTotPg; if(_tbPage<1)_tbPage=1;
+  themas=themas.slice((_tbPage-1)*_tbPerPage,(_tbPage-1)*_tbPerPage+_tbPerPage);
+  const _tbPb=_pagerBar('tb',_tbPage,_tbPerPage,_tbTot);
+  el.innerHTML=_tbPb+themas.map(t=>{
     const bakken=t.bakken||[];
     const open=_tbOpen[t.id];
     const lgBadge=t.leeftijdsgroep?leeftijdBadge(t.leeftijdsgroep):'';
@@ -2532,8 +2540,11 @@ async function renderThemabakken(){
       </div>
       ${open?`<div style="padding:8px 14px 12px">${_renderThemaBakkenInhoud(t,bakken)}</div>`:''}
     </div>`;
-  }).join('');
+  }).join('')+_tbPb;
 }
+let _tbPage=1,_tbPerPage=20,_tbFilterSig='';
+function tbGoPage(p){_tbPage=p;renderThemabakken();}
+function tbSetPerPage(n){_tbPerPage=parseInt(n)||20;_tbPage=1;renderThemabakken();}
 async function renderWaarIs(){
   const el=document.getElementById('wi-resultaat'); if(!el)return;
   const q=(document.getElementById('wi-zoek')?.value||'').trim();
