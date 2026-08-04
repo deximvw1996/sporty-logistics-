@@ -3938,11 +3938,13 @@ async function startServer() {
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.post('/api/vaste-bakken',(req,res)=>{
-    const{naam,code,vast_type,thuislocatie_id}=req.body;
+    const{naam,code,vast_type,thuislocatie_id,is_bulk,aantal}=req.body;
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
     const thuis=thuislocatie_id||_rozenwegId();
-    const id=ins('INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status) VALUES (?,?,?,?,?,?,?)',
-      [naam.trim(),code||'','vast',vast_type||'',thuis,thuis,'thuis']);
+    const id=ins('INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status,is_bulk,aantal) VALUES (?,?,?,?,?,?,?,?,?)',
+      [naam.trim(),code||'','vast',vast_type||'',thuis,thuis,'thuis',is_bulk?1:0,Math.max(1,parseInt(aantal)||1)]);
+    if(is_bulk&&thuis)ins('INSERT OR IGNORE INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[id,thuis,Math.max(1,parseInt(aantal)||1)]);
+    saveDb();
     res.json(get('SELECT * FROM bakken WHERE id=?',[id]));
   });
   app.put('/api/vaste-bakken/:id',(req,res)=>{
