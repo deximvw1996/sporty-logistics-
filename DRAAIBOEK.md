@@ -34,18 +34,21 @@ Eigenaar: kantoor. **Rollen-besluit: monitoren komen NIET in de app.**
 | 0.9 | Verhuur aan derden: **nu al relevant voor beschikbaarheid** (een verhuurd springkasteel is die dag niet inzetbaar) **+ klaarzet-agenda** (verhuurde spullen worden klaargezet voor afhaling) | ❌ → verhuur = blokkering in de pool-beschikbaarheid + agenda-item; volledige verhuurmodule (S9) later | |
 
 ---
-### FASE 1 — Vakantie plannen (weken vóór de vakantie)
-Eigenaar: kantoor. ❓ Hoe ver vooraf? Wie beslist themaverdeling?
+### FASE 1 — Vakantie plannen (maanden vóór de vakantie) — ✔ besproken met Maxim 28/10 (1.5 nog open)
+Eigenaar: de coördinatoren samen (nu in Excel; maanden vooraf, zodat het tijdig online staat voor ouders).
+**Definitie (Maxim): één kampmoment = één locatie die één week open is**, rekening houdend met feestdagen (de meeste locaties dicht, enkele open). Of er 1 kleutergroep of 10 groepen kleuters+lager+tieners zijn, maakt voor het kampmoment niet uit — dat zijn eigenschappen ván het kampmoment.
+**Groepen:** hangen af van inschrijvingen en mogelijkheden; gemiddeld 2 groepen per thema (kleuters: 3-4 j + 5-6 j; lager: 7-9 j + 10-12 j; ook tieners), samenvoegen bij weinig inschrijvingen. Inschrijven kan tot dag 1; kampen hebben een instelbare limiet en zitten snel vol.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 1.1 | Periode aanmaken (bv. "Herfstvakantie 2026", 2/11–8/11) | 🟠 (zie 0.7) | |
-| 1.2 | Kampmomenten plannen: locatie × week × leeftijdsgroepen, binnen de periode | 🟠 werkt; week-nummering moet uit de periode komen (V2) | |
-| 1.3 | Per kampmoment: thema('s) kiezen (kamp/themadag, leeftijdsgroep passend), sportpakket, ❓ dagthema's bij themadagen-weken? | 🟠 | |
-| 1.4 | KV toewijzen per kampmoment → kv-link ontstaat | ✅ | |
-| 1.5 | Chauffeurs/shifts plannen ❓ (hoe werkt de echte chauffeursplanning: vaste dagen? per rit?) | 🟠 ploegplanning bestaat, half verstopt (D) | |
-| 1.6 | Conflicten zien bij het plannen: dubbel thema, pool-tekort, thema zonder materiaal, locatieconfig onhaalbaar | 🟠 bestaat; periode-lek (B-F3), gaten (B-F10/F11), geen actieknoppen (D) | |
-| 1.7 | ❓ Budget per kamp (vacature noemt het) — hoort dat in deze app? | ❌ | |
-| 1.8 | ❓ Monitorenplanning — andere tool? | ❌ | |
+| 1.1 | Periode aanmaken (vakantie, maar ook sportdag/workshop/opvang/evenement — zie 0.7) | 🟠 (V2) | |
+| 1.2 | Kampmoment plannen = locatie × week (open dagen incl. feestdag-uitzonderingen) + welke leeftijdsgroepen/groepen er draaien | 🟠 werkt; weeknummering uit periode (V2); groepen per leeftijd nog niet als begrip | |
+| 1.3 | Per kampmoment: thema per groep (kamp/themadag, passend bij leeftijd), sportpakket; themadagen-week = thema per dag ❓ (afleiden uit de kampprogramma's in de datamap) | 🟠 thema's per kampmoment bestaan; "thema per groep/dag" nog niet | |
+| 1.4 | Inschrijvingen: limiet per kamp instelbaar; aantal kinderen bepaalt groepen en 16/32-lijsten. **Kampadmin (inschrijvingen bijhouden) is een wens op termijn; logistiek eerst perfect (Maxim)** | ❌ limiet/aantallen nog geen begrip | |
+| 1.5 | KV toewijzen per kampmoment → kv-link/KV-account | ✅ koppeling bestaat; **KV-planning als puzzel** (KV's die geen volledige weken kunnen → wie staat waar wanneer) is een gewenste extra | |
+| 1.6 | **Chauffeursplanning: hoofdlogistiek (een coördinator) bepaalt wie wat wanneer rijdt — KERNTAAK van de app (Maxim)** | 🟠 ploegplanning bestaat maar verstopt (D); moet volwaardig: per dag/rit wie rijdt, beschikbaarheid chauffeurs | |
+| 1.7 | Conflicten zien bij het plannen: dubbel thema, pool-tekort, locatieconfig onhaalbaar, geen transport, **geen KV toegewezen** (Maxim) + ❓ rest van 1.5-antwoord | 🟠 bestaat; periode-lek (B-F3), gaten (B-F10/F11), geen actieknoppen (D) | |
+| 1.8 | ❓ Budget per kamp — in de app of elders? (nog te beantwoorden) | ❌ | |
+| 1.9 | Monitorenplanning — niet in de app (monitoren = geen rol) | — | |
 
 ---
 ### FASE 2 — Materiaal voorbereiden (laatste 1–2 weken vóór de vakantie)
