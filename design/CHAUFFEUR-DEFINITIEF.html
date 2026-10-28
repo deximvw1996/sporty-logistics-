@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chauffeur rit — DEFINITIEF ontwerp (goedgekeurd Maxim 29/10)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#111;padding:8px 14px}
+h1{font-size:14px;font-weight:600;color:#333;margin-bottom:6px}h1 span{color:#777;font-weight:400}
+.rij{display:flex;gap:26px;justify-content:center;align-items:flex-start;zoom:.93}
+.kolom{width:390px}.kolom .lbl{font-size:14px;font-weight:700;color:#222;margin:0 0 6px 4px;min-height:38px}.kolom .lbl small{display:block;font-weight:400;color:#555;font-size:12px}
+.tel{width:390px;height:844px;background:#f3f5f8;border-radius:34px;border:8px solid #1b1b1f;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.scherm{flex:1;overflow-y:auto}.scherm::-webkit-scrollbar{width:0}
+button{font:inherit;cursor:pointer;border:0}
+/* ── tokens (design-system.md) ──
+   primair #2563eb · donker #1e3a8a · tekst #1a1a1a · sec #64748b · lijn #e2e8f0 · vlak #f3f5f8 · kaart #fff
+   groen #16a34a/#dcfce7 · oranje #c2410c/#fff7ed/#fdba74 · rood #b91c1c/#fee2e2/#dc2626 · grijs #94a3b8 · radius 10-14 · knop ≥44 */
+.kop{background:#1e3a8a;color:#fff;padding:12px 16px}
+.kop .t{font-size:16px;font-weight:700;display:flex;justify-content:space-between;align-items:center}.kop .s{font-size:12px;opacity:.85;margin-top:2px}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#fff;color:#1e3a8a}
+.pil.groen{background:#dcfce7;color:#15803d}.pil.grijs{background:#e2e8f0;color:#334155}
+.legenda{margin:8px 12px 0;font-size:11px;color:#64748b;display:flex;gap:12px}.legenda b{color:#334155}
+.nav{display:flex;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid #e2e8f0}
+.nav button{flex:1;height:46px;border-radius:12px;background:#f1f5f9;font-weight:700;font-size:14px;color:#1e3a8a}
+.nav button.rood{background:#fee2e2;color:#b91c1c;flex:0 0 46px;font-size:20px}.nav button.prim{background:#2563eb;color:#fff}
+/* DAG */
+.tl{position:relative;margin:12px 12px 0;padding-left:64px}
+.tl:before{content:"";position:absolute;left:52px;top:6px;bottom:6px;width:3px;background:#cbd5e1;border-radius:2px}
+.ts{position:relative;margin-bottom:10px}
+.ts .tijd{position:absolute;left:-64px;top:14px;width:46px;text-align:right;font-size:13px;font-weight:700;color:#334155}
+.ts .dot{position:absolute;left:-19px;top:16px;width:16px;height:16px;border-radius:50%;background:#94a3b8;border:3px solid #f3f5f8}
+.ts.klaar .dot{background:#16a34a}.ts.nu .dot{background:#2563eb;box-shadow:0 0 0 3px #bfdbfe}
+.ts .box{background:#fff;border-radius:12px;padding:8px 8px 8px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:8px;min-height:64px}
+.ts.nu .box{border:2px solid #2563eb}
+.ts .nm{flex:1;font-size:14px;font-weight:700;line-height:1.25}.ts .nm b{display:block;font-size:11px;color:#64748b;font-weight:600}
+.chip{font-size:10px;font-weight:700;padding:3px 7px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.ts.klaar .chip{background:#dcfce7;color:#15803d}.ts.nu .chip{background:#dbeafe;color:#1d4ed8}
+.slot{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:#f1f5f9;color:#94a3b8}
+.pijlen{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+.pijlen button{width:44px;height:44px;border-radius:10px;background:#fff7ed;color:#c2410c;font-size:16px;border:2px solid #fdba74}
+.pijlen button:disabled{opacity:.35}
+.uitleg{margin:0 12px;padding:10px 12px;background:#fff7ed;border:2px dashed #fdba74;border-radius:12px;font-size:12px;color:#9a3412;text-align:center}
+/* STOP */
+.kaart{background:#fff;margin:12px 12px 0;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px}
+.kaart .soort{font-size:12px;font-weight:700;color:#1e3a8a;text-transform:uppercase;letter-spacing:.04em}
+.kaart .naar{font-size:19px;font-weight:700;margin-top:2px}.kaart .van{font-size:13px;color:#555;margin-top:2px}
+.contact{display:flex;gap:8px;margin-top:10px}.contact a{flex:1;background:#f3f5f8;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.4;color:#1e3a8a;text-decoration:none;min-height:44px}.contact b{display:block;font-size:13px;color:#111}
+.groot{margin:12px;height:48px;border-radius:12px;background:#2563eb;color:#fff;font-size:16px;font-weight:700;width:calc(100% - 24px)}
+.groot.klaar{background:#dcfce7;color:#15803d}
+.rek{margin:12px 12px 0;font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em;display:flex;justify-content:space-between}
+.stuk{background:#fff;margin:6px 12px 0;border-radius:12px;padding:8px 10px;display:flex;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stuk.past{border:2px solid #dc2626;background:#fff1f1}
+.stuk .ph{width:56px;height:56px;border-radius:10px;background:#e2e8f0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden}
+.stuk .nm{flex:1;font-size:14px;line-height:1.3}.stuk .nm b{display:block;font-size:12px;color:#64748b;font-weight:600}.stuk .nm i{display:block;font-size:11px;color:#b91c1c;font-style:normal;font-weight:700}
+.stuk .k{width:50px;height:50px;border-radius:12px;background:#e2e8f0;color:#334155;font-size:10px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.stuk .k.aan{background:#dcfce7;color:#15803d}.stuk .k.rood{background:#fee2e2;color:#b91c1c}.stuk .k span{font-size:17px}
+/* OVERLAYS */
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
+.sheet{background:#fff;width:100%;border-radius:20px 20px 0 0;padding:16px 16px 20px}
+.sheet h3{font-size:17px;font-weight:700}.sheet p{font-size:13px;color:#555;margin-top:4px}
+.sheet .opt{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 10px;border:2px solid #e2e8f0;border-radius:12px;margin-top:8px;font-size:14px;font-weight:600}
+.sheet .opt.gekozen{border-color:#2563eb;background:#eff6ff}
+.sheet textarea{width:100%;min-height:72px;border:2px solid #e2e8f0;border-radius:12px;padding:10px;font:inherit;font-size:14px;margin-top:8px}
+.sheet .foto{height:52px;border:2px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#64748b;margin-top:8px}
+.sheet .knoppen{display:flex;gap:8px;margin-top:12px}
+.sheet .knoppen button{flex:1;height:48px;border-radius:12px;font-weight:700;font-size:15px;background:#f1f5f9;color:#334155}
+.sheet .knoppen button.prim{background:#2563eb;color:#fff}.sheet .knoppen button.rood{background:#dc2626;color:#fff}
+.toast{position:absolute;left:16px;right:16px;bottom:72px;background:#15803d;color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:600;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+</style></head><body>
+<h1>Chauffeur: de rit — DEFINITIEF <span>· goedgekeurd door Maxim 29/10 · Dag (lijst + ▲▼, geen slepen) + Stop + twee overlays · 390×844 · bouwen als exacte kopie</span></h1>
+<div class="rij">
+
+<div class="kolom"><div class="lbl">1. Dag (startscherm van de rit)<small>tijdlijn; 🔒 vast door kantoor; ▲▼ wisselt vrije stops; tijden schuiven mee; wissel wordt gelogd</small></div>
+<div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>Rit vr 31 okt</span><span class="pil">ONDERWEG</span></div><div class="s">Jan · Bestelwagen 2 · 3 stops · 12 van 20 stuks geladen</div></div>
+ <div class="legenda"><span>🔒 <b>vast</b> door kantoor</span><span>▲▼ <b>vrij</b>: wissel van plaats</span></div>
+ <div class="tl">
+  <div class="ts klaar"><div class="tijd">07:30</div><div class="dot"></div><div class="box"><div class="nm">Laden · Rozenweg<b>12 van 20 geladen</b></div><span class="chip">bezig</span><div class="slot">🔒</div></div></div>
+  <div class="ts nu"><div class="tijd">08:30</div><div class="dot"></div><div class="box"><div class="nm">Abdijschool Vlierbeek<b>levering · 5 stuks · KV Lotte</b></div><span class="chip">volgende</span><div class="slot">🔒</div></div></div>
+  <div class="ts"><div class="tijd">10:15</div><div class="dot"></div><div class="box"><div class="nm">Betekom<b>levering · 2 stuks · KV Sam</b></div><span class="chip">gepland</span><div class="pijlen"><button disabled>▲</button><button>▼</button></div></div></div>
+  <div class="ts"><div class="tijd">13:00</div><div class="dot"></div><div class="box"><div class="nm">Kessel-Lo<b>ophaling · 1 stuk · KV Noor</b></div><span class="chip">gepland</span><div class="pijlen"><button>▲</button><button disabled>▼</button></div></div></div>
+  <div class="ts"><div class="tijd">15:00</div><div class="dot"></div><div class="box"><div class="nm">Lossen · Rozenweg<b>ophaling Kessel-Lo terug</b></div><span class="chip">gepland</span><div class="slot">🔒</div></div></div>
+ </div>
+ <div class="uitleg">▲▼ wisselt alleen met een andere vrije stop · Abdijschool staat vast (school open om 08:30)</div>
+</div><div class="nav"><button class="rood">⚠</button><button class="prim">Open stop 1: Abdijschool →</button></div></div></div>
+
+<div class="kolom"><div class="lbl">2. Stop (laden in de Rozenweg én lossen op locatie)<small>← Dag; contact = belbaar; aangekomen; rek-groepen met foto; geladen/gelost per stuk; past niet rood</small></div>
+<div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>← Dag</span><span class="pil">STOP 1 VAN 3</span></div><div class="s">Rit vr 31 okt · Jan · Bestelwagen 2</div></div>
+ <div class="kaart"><div class="soort">Levering · 08:30 · 🔒 vast</div><div class="naar">Abdijschool Vlierbeek</div><div class="van">van Rozenweg · kampweek 1 · Vlierbeeklaan 12, Kessel-Lo</div>
+  <div class="contact"><a href="#"><b>Lotte (KV)</b>📞 0471 12 34 56</a><a href="#"><b>Sleutel · conciërge</b>📞 016 23 45 67</a></div></div>
+ <button class="groot">📍 Ik ben aangekomen</button>
+ <div class="rek"><span>REK N</span><span>2 van 2 geladen</span></div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 1/2 kleuterbak<b>N08 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 2/2<b>N09 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek"><span>REK F</span><span>1 van 1</span></div>
+ <div class="stuk"><div class="ph">🧰</div><div class="nm">Verkeerskoffer 1<b>F40 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek"><span>POOL</span><span>12 van 18</span></div>
+ <div class="stuk"><div class="ph">🚲</div><div class="nm">Kleuterfiets rood<b>12 van 17 geladen · tik voor aantal</b></div><div class="k aan"><span>12</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk past"><div class="ph">🔥</div><div class="nm">Oven<b>Oven 1 · ×1</b><i>past niet → blijft open als nieuwe taak</i></div><div class="k rood"><span>✕</span>past niet</div><div class="k"><span>↓</span>lossen</div></div>
+</div><div class="nav"><button class="rood">⚠</button><button>Past niet / niet gevonden</button><button class="prim">Stop 2 →</button></div></div></div>
+
+<div class="kolom"><div class="lbl">3. Overlay "Past niet / niet gevonden"<small>per stuk; keuze reden; rest blijft open als nieuwe taak voor kantoor</small></div>
+<div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>← Dag</span><span class="pil">STOP 1 VAN 3</span></div><div class="s">Rit vr 31 okt · Jan · Bestelwagen 2</div></div>
+ <div class="kaart" style="opacity:.5"><div class="soort">Levering · 08:30</div><div class="naar">Abdijschool Vlierbeek</div></div>
+</div>
+<div class="dim"><div class="sheet"><h3>Oven (Oven 1) niet mee</h3><p>Wat is er aan de hand? Kantoor maakt er een nieuwe taak van.</p>
+ <div class="opt gekozen">🚚 Past niet meer in de wagen</div><div class="opt">🔍 Niet gevonden in de stockage</div><div class="opt">💥 Kapot / niet bruikbaar</div>
+ <textarea placeholder="Opmerking (optioneel)"></textarea>
+ <div class="knoppen"><button>Annuleren</button><button class="rood">Markeer: blijft open</button></div></div></div>
+</div></div>
+
+<div class="kolom"><div class="lbl">4. Overlay "Probleem melden" + toast<small>per stop; tekst + foto → kantoor én KV; bevestiging onderaan 3 s</small></div>
+<div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>← Dag</span><span class="pil">STOP 1 VAN 3</span></div><div class="s">Rit vr 31 okt · Jan · Bestelwagen 2</div></div>
+ <div class="kaart" style="opacity:.5"><div class="soort">Levering · 08:30</div><div class="naar">Abdijschool Vlierbeek</div></div>
+</div>
+<div class="dim"><div class="sheet"><h3>Probleem bij Abdijschool Vlierbeek</h3><p>Gaat naar kantoor en naar KV Lotte.</p>
+ <div class="opt gekozen">🚪 Locatie gesloten / geen sleutel</div><div class="opt">📦 Materiaal past niet in het lokaal</div><div class="opt">⚠ Iets anders</div>
+ <textarea placeholder="Wat is er aan de hand?"></textarea>
+ <div class="foto">📷 Foto toevoegen</div>
+ <div class="knoppen"><button>Annuleren</button><button class="prim">Versturen</button></div></div></div>
+<div class="toast">✓ Gemeld aan kantoor en Lotte</div>
+</div></div>
+
+</div>
+</body></html>

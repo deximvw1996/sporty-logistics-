@@ -40,7 +40,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 34 | Schrijven batchen per request (A-7) | Architectuur en robuustheid | Bouwchat | later | 4 | vóór zomer |
 | 35 | Catalogus: dubbels, eenheden, ongebruikte types (E) | Data en opschoning | Bouwchat | later | 4 | |
 | 36 | DRAAIBOEK valideren met Maxim | Werkwijze | Maxim | bezig | 1 | brainstorm |
-| 37 | Designsessie KV/chauffeur/navigatie/dashboard | Schermen en navigatie | Fable | bezig | 1 | 29/10: chauffeur eerst; B + dagtijdlijn gekozen; Superdesign-canvas met nulpunt + 3 varianten |
+| 37 | Designsessie KV/chauffeur/navigatie/dashboard | Schermen en navigatie | Fable | bezig | 1 | chauffeursscherm GOEDGEKEURD 29/10 (3 drieluiken; Superdesign afgevoerd); volgende: kantoor Vandaag + navigatie + ritplanning, dan KV |
 | 38 | Herfstplanning 2–8 nov invoeren | Periodes en planning | Fable | open | 1 | gegevens van Maxim nodig |
 | 39 | Generale repetitie + walkthrough 3–8 | Testen | Fable | open | 1 | |
 | 40 | Sollicitatiedossier (deadline 11 nov) | Sollicitatie | Maxim | open | 1 | |
@@ -71,7 +71,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 66 | test-f1-schrijven flaky in volle run (AFGEBROKEN/1 fout, los altijd groen): poller 100 ms | Testen | Bouwchat | open | 3 | GEVONDEN B |
 | 67 | Tekortenlijst-UI: kop 'zonder kampmoment' tonen (backend levert ze al achteraan) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | GEVONDEN B (V2b) |
 | 68 | setActivePeriode (Periodes-lijst) herlaadt kalender niet; andere isoDate-middernacht-plekken (tijdzone) | Periodes en planning | Bouwchat | open | 3 | GEVONDEN B (V2b) |
-| 69 | Dagoverzicht chauffeur met tijdlijn; stops vast (kantoor) of vrij (chauffeur mag verslepen); terug naar vorige stop | Chauffeur | Bouwchat | open | 1 | Maxim 29/10; in designsessie; bouwen na mockup-akkoord |
+| 69 | Dagoverzicht chauffeur met tijdlijn; stops vast (kantoor) of vrij (chauffeur wisselt met ▲▼); terug naar vorige stop | Chauffeur | Bouwchat | gepland | 1 | ontwerp goedgekeurd 29/10 (design/CHAUFFEUR-DEFINITIEF.html); CH1 (C) data/API, CH2 (D) pagina |
 | 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | gekeurd | 1 | V2: ?periode_id, velden, geen_thema |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
@@ -82,6 +82,8 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 1 | B | V1 | Testharnas | 6 | klaar (29/10, 670b19d) |
 | 2 | B | V2 | Dynamische periodes + conflicten-API + kampmoment uniek per periode | 7, 8, 57, 60 | klaar (29/10, 1d0a818) |
 | 8 | B | V2b | KV-sessies per kampmoment, kalender en planner-kiezer dynamisch | 64, 65 | klaar (29/10) |
+| 9 | C | CH1 | Chauffeursscherm deel 1: data/API (slot vast/vrij, wissel, contacten, niet-mee → rest-taak, probleem melden) | 69, 47, 46 | gepland (prompt klaar) |
+| 10 | D | CH2 | Chauffeursscherm deel 2: rit-pagina als exacte kopie van CHAUFFEUR-DEFINITIEF | 69 | idee (na CH1) |
 | 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | klaar (29/10, 7febb80) |
 | 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | klaar (29/10, f389c61) |
 | 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | klaar (29/10, 9e04932) |
