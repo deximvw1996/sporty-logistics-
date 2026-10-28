@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chauffeur rit — drieluik 2 (dag + stop)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#111;padding:8px 14px}
+h1{font-size:14px;font-weight:600;color:#333;margin-bottom:6px}h1 span{color:#777;font-weight:400}
+.rij{display:flex;gap:22px;justify-content:center;align-items:flex-start;zoom:.76}
+.variant{display:flex;flex-direction:column;gap:6px}
+.variant .lbl{font-size:15px;font-weight:700;color:#222}.variant .lbl small{display:block;font-weight:400;color:#555;font-size:13px}
+.paar{display:flex;gap:12px}
+.tel{width:390px;height:844px;background:#f3f5f8;border-radius:34px;border:8px solid #1b1b1f;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.scherm{flex:1;overflow-y:auto}.scherm::-webkit-scrollbar{width:0}
+button{font:inherit;cursor:pointer;border:0}
+.schermnaam{font-size:12px;color:#555;text-align:center;margin-top:4px}
+/* gedeelde B-stijl */
+.kop{background:#1e3a8a;color:#fff;padding:12px 16px 12px}
+.kop .t{font-size:16px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.kop .s{font-size:12px;opacity:.85;margin-top:2px}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#fff;color:#1e3a8a}
+.kaart{background:#fff;margin:12px 12px 0;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px}
+.kaart .soort{font-size:12px;font-weight:700;color:#1e3a8a;text-transform:uppercase;letter-spacing:.04em}
+.kaart .naar{font-size:19px;font-weight:700;margin-top:2px}.kaart .van{font-size:13px;color:#555;margin-top:2px}
+.contact{display:flex;gap:8px;margin-top:10px}
+.contact div{flex:1;background:#f3f5f8;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.4}.contact b{display:block;font-size:13px}
+.groot{margin:12px;height:48px;border-radius:12px;background:#2563eb;color:#fff;font-size:16px;font-weight:700;width:calc(100% - 24px)}
+.rek{margin:12px 12px 0;font-size:11px;font-weight:700;color:#64748b;letter-spacing:.06em}
+.stuk{background:#fff;margin:6px 12px 0;border-radius:12px;padding:8px 10px;display:flex;gap:10px;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stuk.past{border:2px solid #dc2626;background:#fff1f1}
+.stuk .ph{width:56px;height:56px;border-radius:10px;background:#e2e8f0;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px}
+.stuk .nm{flex:1;font-size:14px;line-height:1.3}.stuk .nm b{display:block;font-size:12px;color:#64748b;font-weight:600}
+.stuk .nm i{display:block;font-size:11px;color:#b91c1c;font-style:normal;font-weight:700}
+.stuk .k{width:50px;height:50px;border-radius:12px;background:#e2e8f0;color:#334155;font-size:10px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.stuk .k.aan{background:#dcfce7;color:#15803d}.stuk .k.rood{background:#fee2e2;color:#b91c1c}.stuk .k span{font-size:17px}
+.nav{display:flex;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid #e2e8f0}
+.nav button{flex:1;height:46px;border-radius:12px;background:#f1f5f9;font-weight:700;font-size:14px;color:#1e3a8a}
+.nav button.rood{background:#fee2e2;color:#b91c1c;flex:0 0 46px;font-size:20px}
+.nav button.prim{background:#2563eb;color:#fff}
+/* dagoverzicht tijdlijn */
+.tl{position:relative;margin:12px 12px 0 12px;padding-left:64px}
+.tl:before{content:"";position:absolute;left:52px;top:6px;bottom:6px;width:3px;background:#cbd5e1;border-radius:2px}
+.ts{position:relative;margin-bottom:10px}
+.ts .tijd{position:absolute;left:-64px;top:14px;width:46px;text-align:right;font-size:13px;font-weight:700;color:#334155}
+.ts .dot{position:absolute;left:-19px;top:16px;width:16px;height:16px;border-radius:50%;background:#94a3b8;border:3px solid #f3f5f8}
+.ts.klaar .dot{background:#16a34a}.ts.nu .dot{background:#2563eb;box-shadow:0 0 0 3px #bfdbfe}
+.ts .box{background:#fff;border-radius:12px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:10px;min-height:64px}
+.ts.nu .box{border:2px solid #2563eb}
+.ts .box .nm{flex:1;font-size:14px;font-weight:700;line-height:1.25}.ts .box .nm b{display:block;font-size:11px;color:#64748b;font-weight:600}
+.ts .box .chip{font-size:10px;font-weight:700;padding:3px 7px;border-radius:999px;background:#e2e8f0;color:#334155}
+.ts.klaar .box .chip{background:#dcfce7;color:#15803d}.ts.nu .box .chip{background:#dbeafe;color:#1d4ed8}
+.ts .box .slot{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.ts .box .slot.vast{background:#f1f5f9;color:#64748b}.ts .box .slot.vrij{background:#fff7ed;color:#c2410c;border:2px dashed #fdba74}
+.legenda{margin:6px 12px 0;font-size:11px;color:#64748b;display:flex;gap:12px}
+.legenda span b{font-weight:700;color:#334155}
+.sleep{margin:0 12px;padding:10px 12px;background:#fff7ed;border:2px dashed #fdba74;border-radius:12px;font-size:12px;color:#9a3412;text-align:center}
+/* V2 bolletjes */
+.bollen{display:flex;align-items:center;gap:6px;margin-top:10px}
+.bol{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.bol.klaar{background:#22c55e;color:#fff}.bol.nu{background:#fff;color:#1e3a8a;box-shadow:0 0 0 3px rgba(255,255,255,.5)}
+.lijn{flex:1;height:3px;background:rgba(255,255,255,.3)}.lijn.klaar{background:#22c55e}
+.sheet{background:#fff;border-bottom:1px solid #e2e8f0;box-shadow:0 6px 12px rgba(0,0,0,.08)}
+.sheet .hint{font-size:11px;color:#64748b;text-align:center;padding:8px 0 2px}
+.sheet .tl{margin-top:6px}
+.sheet .sluit{display:block;margin:4px auto 10px;width:64px;height:44px;border-radius:14px;background:#f1f5f9;font-size:14px;color:#334155}
+/* V3 tabs */
+.tabs{display:flex;background:#fff;border-top:1px solid #e2e8f0}
+.tabs button{flex:1;height:56px;background:#fff;font-size:12px;font-weight:700;color:#64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.tabs button.act{color:#2563eb;border-top:3px solid #2563eb}.tabs button span{font-size:20px}
+.dagkop{background:#1e3a8a;color:#fff;padding:12px 16px}
+.dagkop .t{font-size:16px;font-weight:700}.dagkop .s{font-size:12px;opacity:.85;margin-top:2px}
+.prog{height:8px;background:rgba(255,255,255,.25);border-radius:4px;margin-top:10px;overflow:hidden}.prog i{display:block;width:40%;height:100%;background:#22c55e}
+</style></head><body>
+<h1>Chauffeur: de rit — drieluik 2 <span>· keuze Maxim (B + dagoverzicht met tijdlijn, vast/vrij, rek-groepering, rode past-niet) in drie uitvoeringen · per variant het Dag-scherm en het Stop-scherm · 390×844</span></h1>
+<div class="rij">
+
+<!-- ═══════ V1 ═══════ -->
+<div class="variant"><div class="lbl">1. Verticale dagtijdlijn → stopscherm<small>de rit opent op het dagoverzicht; tik op een stop; pijl terug</small></div>
+<div class="paar">
+<div><div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>Rit vr 31 okt</span><span class="pil">ONDERWEG</span></div><div class="s">Jan · Bestelwagen 2 · 3 stops · 12 van 20 stuks geladen</div></div>
+ <div class="legenda"><span>🔒 <b>vast</b> door kantoor</span><span>↕ <b>vrij</b>: versleep naar een andere plek</span></div>
+ <div class="tl">
+  <div class="ts klaar"><div class="tijd">07:30</div><div class="dot"></div><div class="box"><div class="nm">Laden · Rozenweg<b>12 van 20 geladen</b></div><span class="chip">bezig</span><div class="slot vast">🔒</div></div></div>
+  <div class="ts nu"><div class="tijd">08:30</div><div class="dot"></div><div class="box"><div class="nm">Abdijschool Vlierbeek<b>levering · 5 stuks · KV Lotte</b></div><span class="chip">volgende</span><div class="slot vast">🔒</div></div></div>
+  <div class="ts"><div class="tijd">10:15</div><div class="dot"></div><div class="box"><div class="nm">Betekom<b>levering · 2 stuks · KV Sam</b></div><span class="chip">gepland</span><div class="slot vrij">↕</div></div></div>
+  <div class="ts"><div class="tijd">13:00</div><div class="dot"></div><div class="box"><div class="nm">Kessel-Lo<b>ophaling · 1 stuk · KV Noor</b></div><span class="chip">gepland</span><div class="slot vrij">↕</div></div></div>
+  <div class="ts"><div class="tijd">15:00</div><div class="dot"></div><div class="box"><div class="nm">Lossen · Rozenweg<b>ophaling Kessel-Lo terug</b></div><span class="chip">gepland</span><div class="slot vast">🔒</div></div></div>
+ </div>
+ <div class="sleep">Betekom en Kessel-Lo mag je omwisselen · Abdijschool staat vast (school open om 08:30)</div>
+</div><div class="nav"><button class="rood">⚠</button><button class="prim">Open stop 1: Abdijschool →</button></div></div><div class="schermnaam">Dag</div></div>
+<div><div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>← Dag</span><span class="pil">STOP 1 VAN 3</span></div><div class="s">Rit vr 31 okt · Jan · Bestelwagen 2</div></div>
+ <div class="kaart"><div class="soort">Levering · 08:30 · 🔒 vast</div><div class="naar">Abdijschool Vlierbeek</div><div class="van">van Rozenweg · kampweek 1</div>
+  <div class="contact"><div><b>Lotte (KV)</b>📞 0471 12 34 56</div><div><b>Sleutel</b>📞 conciërge 016 23 45 67</div></div></div>
+ <button class="groot">📍 Ik ben aangekomen</button>
+ <div class="rek">REK N</div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 1/2 kleuterbak<b>N08 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 2/2<b>N09 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek">REK F</div>
+ <div class="stuk"><div class="ph">🧰</div><div class="nm">Verkeerskoffer 1<b>F40 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek">POOL</div>
+ <div class="stuk"><div class="ph">🚲</div><div class="nm">Kleuterfiets rood<b>12 van 17 geladen</b></div><div class="k aan"><span>12</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk past"><div class="ph">🔥</div><div class="nm">Oven<b>Oven 1 · ×1</b><i>past niet → blijft open als nieuwe taak</i></div><div class="k rood"><span>✕</span>past niet</div><div class="k"><span>↓</span>lossen</div></div>
+</div><div class="nav"><button class="rood">⚠</button><button>Past niet / niet gevonden</button><button class="prim">Stop 2 →</button></div></div><div class="schermnaam">Stop</div></div>
+</div></div>
+
+<!-- ═══════ V2 ═══════ -->
+<div class="variant"><div class="lbl">2. Bolletjesbalk met uitklapbaar dagoverzicht<small>stopscherm blijft hoofdscherm; tik op de balk klapt de tijdlijn open</small></div>
+<div class="paar">
+<div><div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>Rit vr 31 okt</span><span>Jan · Bestelwagen 2</span></div><div class="s">onderweg · 12 van 20 stuks geladen · tik op de balk voor je dag</div>
+  <div class="bollen"><div class="bol klaar">R</div><div class="lijn klaar"></div><div class="bol nu">1</div><div class="lijn"></div><div class="bol">2</div><div class="lijn"></div><div class="bol">3</div><div class="lijn"></div><div class="bol">R</div></div></div>
+ <div class="sheet"><div class="hint">JOUW DAG · versleep ↕-stops, 🔒-stops staan vast</div>
+  <div class="tl">
+   <div class="ts klaar"><div class="tijd">07:30</div><div class="dot"></div><div class="box"><div class="nm">Laden · Rozenweg<b>12 van 20</b></div><div class="slot vast">🔒</div></div></div>
+   <div class="ts nu"><div class="tijd">08:30</div><div class="dot"></div><div class="box"><div class="nm">Abdijschool Vlierbeek<b>levering · 5 stuks</b></div><div class="slot vast">🔒</div></div></div>
+   <div class="ts"><div class="tijd">10:15</div><div class="dot"></div><div class="box"><div class="nm">Betekom<b>levering · 2 stuks</b></div><div class="slot vrij">↕</div></div></div>
+   <div class="ts"><div class="tijd">13:00</div><div class="dot"></div><div class="box"><div class="nm">Kessel-Lo<b>ophaling · 1 stuk</b></div><div class="slot vrij">↕</div></div></div>
+   <div class="ts"><div class="tijd">15:00</div><div class="dot"></div><div class="box"><div class="nm">Lossen · Rozenweg<b>retour</b></div><div class="slot vast">🔒</div></div></div>
+  </div><button class="sluit">⌃</button></div>
+ <div class="kaart" style="opacity:.55"><div class="soort">Stop 1 van 3 · Levering · 08:30</div><div class="naar">Abdijschool Vlierbeek</div><div class="van">van Rozenweg · kampweek 1</div></div>
+</div><div class="nav"><button class="rood">⚠</button><button>← Rozenweg</button><button>Stop 2: Betekom →</button></div></div><div class="schermnaam">Dag (uitgeklapt over Stop)</div></div>
+<div><div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>Rit vr 31 okt</span><span>Jan · Bestelwagen 2</span></div><div class="s">onderweg · 12 van 20 stuks geladen</div>
+  <div class="bollen"><div class="bol klaar">R</div><div class="lijn klaar"></div><div class="bol nu">1</div><div class="lijn"></div><div class="bol">2</div><div class="lijn"></div><div class="bol">3</div><div class="lijn"></div><div class="bol">R</div></div></div>
+ <div class="kaart"><div class="soort">Stop 1 van 3 · Levering · 08:30 · 🔒 vast</div><div class="naar">Abdijschool Vlierbeek</div><div class="van">van Rozenweg · kampweek 1</div>
+  <div class="contact"><div><b>Lotte (KV)</b>📞 0471 12 34 56</div><div><b>Sleutel</b>📞 conciërge 016 23 45 67</div></div></div>
+ <button class="groot">📍 Ik ben aangekomen</button>
+ <div class="rek">REK N</div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 1/2 kleuterbak<b>N08 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 2/2<b>N09 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek">REK F</div>
+ <div class="stuk"><div class="ph">🧰</div><div class="nm">Verkeerskoffer 1<b>F40 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek">POOL</div>
+ <div class="stuk"><div class="ph">🚲</div><div class="nm">Kleuterfiets rood<b>12 van 17 geladen</b></div><div class="k aan"><span>12</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk past"><div class="ph">🔥</div><div class="nm">Oven<b>Oven 1 · ×1</b><i>past niet → nieuwe taak</i></div><div class="k rood"><span>✕</span>past niet</div><div class="k"><span>↓</span>lossen</div></div>
+</div><div class="nav"><button class="rood">⚠</button><button>← Rozenweg</button><button>Stop 2: Betekom →</button></div></div><div class="schermnaam">Stop</div></div>
+</div></div>
+
+<!-- ═══════ V3 ═══════ -->
+<div class="variant"><div class="lbl">3. Twee tabbladen: Dag en Stop<small>onderaan vaste tabs; stop wisselen gebeurt op het Dag-tabblad</small></div>
+<div class="paar">
+<div><div class="tel"><div class="scherm">
+ <div class="dagkop"><div class="t">Mijn dag · vr 31 okt</div><div class="s">Jan · Bestelwagen 2 · 3 stops · 12 van 20 stuks geladen</div><div class="prog"><i></i></div></div>
+ <div class="legenda"><span>🔒 <b>vast</b></span><span>↕ <b>vrij, versleepbaar</b></span><span>● <b>bezig</b></span></div>
+ <div class="tl">
+  <div class="ts klaar"><div class="tijd">07:30</div><div class="dot"></div><div class="box"><div class="nm">Laden · Rozenweg<b>12 van 20 geladen</b></div><span class="chip">bezig</span><div class="slot vast">🔒</div></div></div>
+  <div class="ts nu"><div class="tijd">08:30</div><div class="dot"></div><div class="box"><div class="nm">Abdijschool Vlierbeek<b>levering · 5 stuks · KV Lotte</b></div><span class="chip">volgende</span><div class="slot vast">🔒</div></div></div>
+  <div class="ts"><div class="tijd">10:15</div><div class="dot"></div><div class="box"><div class="nm">Betekom<b>levering · 2 stuks · KV Sam</b></div><span class="chip">gepland</span><div class="slot vrij">↕</div></div></div>
+  <div class="ts"><div class="tijd">13:00</div><div class="dot"></div><div class="box"><div class="nm">Kessel-Lo<b>ophaling · 1 stuk · KV Noor</b></div><span class="chip">gepland</span><div class="slot vrij">↕</div></div></div>
+  <div class="ts"><div class="tijd">15:00</div><div class="dot"></div><div class="box"><div class="nm">Lossen · Rozenweg<b>retour</b></div><span class="chip">gepland</span><div class="slot vast">🔒</div></div></div>
+ </div>
+ <div class="sleep">Volgorde gewijzigd? Kantoor ziet het meteen.</div>
+</div><div class="tabs"><button class="act"><span>🗓</span>Dag</button><button><span>📍</span>Stop 1</button><button><span>⚠</span>Melden</button></div></div><div class="schermnaam">Tab Dag</div></div>
+<div><div class="tel"><div class="scherm">
+ <div class="kop"><div class="t"><span>Stop 1 van 3</span><span class="pil">🔒 VAST · 08:30</span></div><div class="s">Rit vr 31 okt · Jan · Bestelwagen 2</div></div>
+ <div class="kaart"><div class="soort">Levering</div><div class="naar">Abdijschool Vlierbeek</div><div class="van">van Rozenweg · kampweek 1</div>
+  <div class="contact"><div><b>Lotte (KV)</b>📞 0471 12 34 56</div><div><b>Sleutel</b>📞 conciërge 016 23 45 67</div></div></div>
+ <button class="groot">📍 Ik ben aangekomen</button>
+ <div class="rek">REK N</div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 1/2 kleuterbak<b>N08 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk"><div class="ph">📦</div><div class="nm">Themabak 2/2<b>N09 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek">REK F</div>
+ <div class="stuk"><div class="ph">🧰</div><div class="nm">Verkeerskoffer 1<b>F40 · ×1</b></div><div class="k aan"><span>✓</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="rek">POOL</div>
+ <div class="stuk"><div class="ph">🚲</div><div class="nm">Kleuterfiets rood<b>12 van 17 geladen</b></div><div class="k aan"><span>12</span>geladen</div><div class="k"><span>↓</span>lossen</div></div>
+ <div class="stuk past"><div class="ph">🔥</div><div class="nm">Oven<b>Oven 1 · ×1</b><i>past niet → nieuwe taak</i></div><div class="k rood"><span>✕</span>past niet</div><div class="k"><span>↓</span>lossen</div></div>
+</div><div class="tabs"><button><span>🗓</span>Dag</button><button class="act"><span>📍</span>Stop 1</button><button><span>⚠</span>Melden</button></div></div><div class="schermnaam">Tab Stop</div></div>
+</div></div>
+
+</div>
+</body></html>
