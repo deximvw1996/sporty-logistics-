@@ -1,0 +1,29 @@
+# PROMPT V2 — DYNAMISCHE PERIODES: actieve periode in de server, alles periode-bewust
+**Chat B (Opus) · map `D:\Sporty\sporty-b` · branch `bouw-b` · poort 3302 · verslag `OVERLEG-b.md` · TIJDSLIMIET 2 uur**
+
+Lees eerst `CLAUDE.md` in je map. Begin met `git fetch origin` en `git rebase origin/main` (V1, V3a, V3b, V3c zijn gemerged). Je raakt ALLEEN `routes/planning.js`, `routes/conflicten.js`, `routes/transport.js` (alleen de generator-filters, niet de rit-/taak-/bulklogica van V3a), `routes/sport.js`, `routes/locaties.js` (alleen kleurenborden), `lib/migraties.js` (nieuwe migratie onderaan), `index.html` (alleen de periode-kiezer en de topbalk, geen andere schermen), `scripts/test-keten-periode.mjs`, `scripts/testdata/maak-testdb.mjs` en `OVERLEG-b.md`. Chat C werkt tegelijk in `routes/transport.js` (splits/verwijderen, regels 530–600 en de delete-route) en `routes/bakken.js`: blijf uit die functies; bij een conflict in transport.js: rebase, beide kanten behouden, melden.
+
+## Waarom deze prompt
+Je eigen `test-keten-periode.mjs` (V1) is nog rood en beschrijft precies wat ontbreekt: een tweede kampmoment op dezelfde locatie en week in een andere periode wordt geweigerd ("bestaat al": UNIQUE zonder periode); conflicten mengen zomer en herfst; zomer-sportsets en zomer-kleurenborden lekken in de herfstvoorstellen; er bestaat geen "actieve periode" in de server, dus na een herlaad staat de topbalk weer op "Zomer 2026". De herfstvakantie (2–8 nov) is de eerste echte periode naast de zomer: zonder dit lekt de zomerplanning in alles. Maxim wil de app dynamisch: elke vakantie (herfst, kerst, krokus, pasen, zomer, en later sportdagen) is een periode, en alles rekent binnen de actieve periode.
+
+## Punt 1 — Actieve periode in de server (werklijst 7, T-G7)
+- Migratie: kolom `actief INTEGER DEFAULT 0` op `vakantieperiodes`; precies één rij actief (zet bij de migratie de periode met de meeste kampmomenten actief, anders de laatst aangemaakte).
+- `GET /api/periodes` geeft `actief` mee; `POST /api/periodes/:id/activeer` (alleenKantoor) zet die ene rij op 1 en de rest op 0 (via `updateMetLog`); `GET /api/periodes/actief` geeft de actieve rij. Verwijderen van de actieve periode weigert met 409.
+- `index.html`: de periode-kiezer gebruikt die route; `S.activePeriode` komt van de server bij het laden, niet meer uit "de eerste met kampmomenten"; de hardgecodeerde "Zomer 2026" in de topbalk verdwijnt (tekst komt uit de actieve periode). Nieuwe periode aanmaken activeert NIET automatisch (expliciete knop "Maak actief").
+
+## Punt 2 — Kampmoment uniek per periode (werklijst 8)
+- UNIQUE(locatie_id, week) op `kampmomenten` wordt UNIQUE(locatie_id, week, periode_id). SQLite kan een constraint niet wijzigen: nieuwe tabel aanmaken, data kopiëren, hernoemen, in één migratie met vlag, FK's en indexen behouden (kijk hoe migratie 56/61 dat deden). `POST /api/kampmomenten` neemt `periode_id` uit de body, anders de actieve periode; de catch-all "bestaat al" (werklijst 57) wordt een echte foutmelding met de SQLite-tekst in de serverlog.
+- `klaarzet_door` in `POST /api/ritten/:id/klaarzet` komt uit `req.persoon.naam` (werklijst 57, tweede helft; één regel in transport.js, mag).
+
+## Punt 3 — Alles periode-bewust (werklijst 8, 60; B-F2/F3)
+- `GET /api/conflicten?periode_id=` (standaard: actieve periode): alle detectoren vergelijken alleen kampmomenten binnen die periode; elke melding krijgt gestructureerde velden `{type, ernst, bericht, week, periode_id, locatie_ids:[], kampmoment_ids:[]}` naast de bestaande tekst (chat D haalt week/locatie nu met een regex uit de tekst; met deze velden kan dat weg, maar index.html-conflicten-tab is NIET van jou: laat de tekst compatibel). Voeg de detector "kampmoment zonder thema" toe (type `geen_thema`, ernst laag).
+- Sportplanning (`sport_planning`) en kleurenborden (`locatie_kleuren`) krijgen een kolom `periode_id` (migratie: bestaande rijen → periode van het kampmoment op dezelfde locatie+week als die er is, anders de actieve periode). Hun routes nemen `periode_id` uit de body of de actieve periode. De transport-generator (`POST /api/transport-genereer`) filtert sport- en kleurenbord-leveringen én -ophalingen op de periode van het kampmoment: geen zomer-sets in een herfstlevering, en een set die in de laatste week van de periode nog op locatie staat krijgt een ophaling in die periode.
+- `kv-sessies`/`nakijk_sessies` (B-R11): sessie hoort bij een kampmoment, dus impliciet bij een periode; controleer dat het KV-scherm en de tekortenlijst alleen sessies van kampmomenten in de actieve periode tonen (filter op join, geen schema-wijziging als het zo kan).
+
+## Bewijs
+- `scripts/test-keten-periode.mjs` van rood naar groen, 2×; pas de test alleen aan waar je contractkeuze uit V1 afwijkt van wat je nu bouwt (bv. veldnaam `actief`), en noem elke aanpassing in het verslag.
+- `scripts/testdata/maak-testdb.mjs` zet "Herfst TEST" actief via de nieuwe route; `herfst-test.db` + `.json` opnieuw gegenereerd en gecommit.
+- `node scripts/volle-run.mjs` 2×: alles groen behalve wat vóór jou al rood was (keten-splits is van chat C; staat die nog rood, noteer het). Plak de eindtabel in je verslag.
+- UI-klikpad op poort 3302: periode activeren → F5 → topbalk toont de nieuwe naam; kampmoment aanmaken op Abdijschool week 1 in herfst terwijl zomer week 1 ook bestaat → lukt; Conflicten-tab toont geen zomer-herfst-dubbels.
+- Commit per punt, push `origin HEAD:bouw-b`. NOOIT naar main, NOOIT deploy.bat.
+- Verslag onderaan `OVERLEG-b.md`; laatste bericht aan Maxim eindigt met exact: **VOLLEDIG KLAAR MET DE PROMPT. NU IS HET TERUG AAN DE HOOFDCHAT.** Bij de tijdslimiet: stop, commit, "Stand bij tijdslimiet", push, en eindig met **TIJDSLIMIET BEREIKT: GESTOPT MET EEN TUSSENSTAND. NU IS HET TERUG AAN DE HOOFDCHAT.** Volgorde bij tijdnood: punt 1, dan 3 (conflicten + generator), dan 2.

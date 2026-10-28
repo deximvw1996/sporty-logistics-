@@ -3,3 +3,4 @@ node_modules/
 backups/
 deploy.bat
 BACKLOG.md
+!scripts/testdata/herfst-test.db

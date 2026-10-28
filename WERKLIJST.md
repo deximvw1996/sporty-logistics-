@@ -9,7 +9,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 3 | XSS: ±20 ruwe interpolaties + /rit-pagina + CSP (C-#8) | Veiligheid | Bouwchat | open | 3 | |
 | 4 | Foto-velden begrenzen op type/grootte, kv-kapotroute (C-#10) | Veiligheid | Bouwchat | open | 2 | hangt samen met #23 |
 | 5 | APP_PASSWORD wisselen in Railway (variabele + Deploy, dan privévenster) | Veiligheid | Maxim | open | 1 | |
-| 6 | V1 testharnas: _testhulp, volle-run, regressietests | Testen | Bouwchat | open | 1 | |
+| 6 | V1 testharnas: _testhulp, volle-run, regressietests | Testen | Bouwchat | gekeurd | 1 | chat B; 13 tests in volle-run; herfst-test.db ijk-db |
 | 7 | Periodes: beheer-UI, actieve periode bewaren, 'Zomer 2026'-terugval weg (T-1.4/G7) | Periodes en planning | Bouwchat | open | 1 | V2 deel 1 |
 | 8 | Periode-bewust: generator, conflicten, sport, kleurenborden, kv-sessies (B-F2/F3/R11) | Periodes en planning | Bouwchat | open | 1 | V2 deel 2 |
 | 9 | Conflicten-tab op server-bron + waarschuwing bij themakeuze (T-G5) | Schermen en navigatie | Bouwchat | gekeurd | 1 | V3b chat D; live 29/10 |
@@ -26,9 +26,9 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 20 | Vrijdagcontrole: lege controle, hertellen, aanvullen-validatie (D-#2, B-R5-R7) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | |
 | 21 | KV ziet vaste bakken met 0 items (A-GEVONDEN-4) | KV-scherm | Bouwchat | open | 2 | |
 | 22 | Atomaire database-schrijving + SIGTERM-save (A-1) | Architectuur en robuustheid | Bouwchat | gekeurd | 1 | F1 chat A; live 28/10 |
-| 23 | Foto's uit de database naar uploads-map (A-2) | Architectuur en robuustheid | Bouwchat | open | 2 | |
-| 24 | Mig 47 gaten; KV:/INFO:- en transportregel-rijen uit catalogus (A-5, B-F9) | Data en opschoning | Bouwchat | open | 2 | |
-| 25 | Prod-opschoning: 99-EHBO, 'undefined'-wees, regels-wezen (B-F13, A) | Data en opschoning | Fable | open | 1 | |
+| 23 | Foto's uit de database naar uploads-map (A-2) | Architectuur en robuustheid | Bouwchat | gekeurd | 2 | V3c chat E; migratie 70; backup dekt uploads/ niet (→ 61) |
+| 24 | Mig 47 gaten; KV:/INFO:- en transportregel-rijen uit catalogus (A-5, B-F9) | Data en opschoning | Bouwchat | gebouwd | 2 | V3c: maakAan-vlag + opschoning-catalogus; transport.js-aanroepen → V3d |
+| 25 | Prod-opschoning: 99-EHBO, 'undefined'-wees, regels-wezen (B-F13, A) | Data en opschoning | Fable | bezig | 1 | script klaar (E); droogloop op prod-kopie, dan --doe na OK Maxim |
 | 26 | Voorraad + bakcodes vullen voor herfstthema's (E) | Data en opschoning | Maxim | open | 1 | |
 | 27 | Prompts/confirms → modal; KV-alerts → toasts; stille catches (D-#7/#19) | Schermen en navigatie | Bouwchat | gekeurd | 2 | V3b: index.html 0 prompt/confirm; rit-/kv-pagina alert() nog open (→ 59) |
 | 28 | Navigatie herontwerpen (D-#4) | Schermen en navigatie | Fable | open | 2 | designsessie |
@@ -63,6 +63,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 57 | POST kampmomenten slikt fouten in; klaarzet_door uit body i.p.v. sessie | Periodes en planning | Bouwchat | open | 2 | GEVONDEN A, mee in V2 |
 | 58 | Handmatige verplaatsing + vaste-bak-aantal in bakken.js via verplaatsBulk | Pool en bulk | Bouwchat | open | 1 | GEVONDEN C |
 | 59 | alert() op rit- en kv-pagina → toasts | Chauffeur | Bouwchat | open | 2 | GEVONDEN C/D |
+| 61 | Backup dekt uploads/ (foto's) niet: volume-backup of foto-export | Architectuur en robuustheid | Bouwchat | open | 2 | GEVONDEN E |
 | 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | open | 1 | GEVONDEN D, mee in V2 |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
@@ -70,8 +71,9 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 |---|---|---|---|---|---|
 | ✓ | A | V0 | Veiligheidsnoodronde | 1 | klaar (28/10) |
 | ✓ | A | F1 | Fundament: modules, atomaire schrijving, wijzigingslog | 22, 41 | klaar (28/10, 54d4ee6) |
-| 1 | B | V1 | Testharnas | 6 | gepland |
-| 2 | B | V2 | Dynamische periodes (na V1; Fable-chat A rust na F1) | 7, 8 | gepland |
+| 1 | B | V1 | Testharnas | 6 | klaar (29/10, 670b19d) |
+| 2 | B | V2 | Dynamische periodes + conflicten-API + kampmoment uniek per periode | 7, 8, 57, 60 | gepland (prompt klaar) |
 | 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | klaar (29/10, 7febb80) |
 | 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | klaar (29/10, f389c61) |
-| 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | gepland |
+| 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | klaar (29/10, 9e04932) |
+| 6 | C | V3d | Splits/verwijderen na laden, bulk overal via één functie, catalogus, rit-toasts | 18, 58, 24, 59 | gepland (prompt klaar) |
