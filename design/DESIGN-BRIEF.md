@@ -27,7 +27,17 @@ Meetlat vóór voorleggen: past op 390×844 zonder horizontaal scrollen; alle 8 
 **Keuze Maxim 29/10 (na drieluik 1):** richting B (stop-kaarten) als basis, met de rek-groepering van A bij het laden en de rode 'past niet'-markering van C, plus het nieuwe dagoverzicht met tijdlijn (punt 8) als eerste scherm van de rit, van waaruit elke stop bereikbaar is.
 
 ## Scherm 2 — Kantoor: "Vandaag" + navigatie (desktop 1920×900)
-Later in deze sessie. Inhoud: wat speelt er vandaag (aanvragen te keuren, ritten onderweg, conflicten, tekorten), snelle sprong naar planning / transport / thema's / locaties / voorraad / beheer; actieve periode altijd zichtbaar; max 7 hoofdonderdelen (KERNREGEL twee niveaus).
+**Inhoud die in ELKE richting aanwezig moet zijn (bindend):**
+1. Zeven hoofdonderdelen, nooit meer: Vandaag · Planning (rooster, kampmomenten, periodes) · Transport (ritten, taken, ritplanning met vast/vrij) · Materiaal (thema's, bakken, pool, catalogus) · Locaties · Voorraad & controles (tekorten, nakijken) · Beheer (personeel, export, logboek). Tellers op onderdelen met werk.
+2. Actieve periode altijd zichtbaar en wisselbaar; ingelogde persoon.
+3. Te keuren: aanvragen (materiaal/kapot) van KV's en meldingen van chauffeurs, met de knop om te keuren of af te handelen.
+4. Ritten vandaag per chauffeur met stops, tijden, 🔒 vast / vrij, status; rest-taken die nog ingepland moeten worden; knop "Rit plannen".
+5. Let op: conflicten van de actieve periode (dubbel thema, bak dubbel, capaciteit pool, kampmoment zonder thema), open tekorten.
+6. Deze week: open locaties met thema en KV.
+7. Snelle acties: spoedtaak, aanvraag, rit plannen.
+Meetlat: 1920×900 zonder scrollen; knoppen ≥ 36 px op desktop; één scherm, één vraag ("wat moet ik vandaag doen?").
+
+**Drie richtingen (drieluik 1, `kantoor-drieluik-1.html`):** A linkerbalk + kaartenraster (cijfers boven, drie kolommen Te keuren / Ritten / Let op) · B bovenbalk + één werklijst "Nu eerst" op urgentie (Beslissen / Inplannen / Nakijken) met rechts ritten en deze week · C commandocentrum (icoonrail, donkere strip met tellers, links de gebeurtenissenstroom nieuwste eerst, rechts ritten en locaties).
 
 ## Scherm 3 — KV: "Wat hoort er te staan" + telscherm (mobiel)
 Later; LOGISTIEK EERST. Inhoud: bakken + status, levering verwacht, eigen meldingen en hun status, tellen per bak met aantal typen / alles aanwezig / kapot melden, versturen; monitor-link met alleen het telscherm.
