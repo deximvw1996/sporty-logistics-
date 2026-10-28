@@ -22,7 +22,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 16 | Sportpakket door de hele keten (T-2.3/3.1/4.13/1.14) | Transport en generator | Bouwchat | open | 2 | |
 | 17 | Thema-wissel + rustweek: pool correct (B-F1/F12) | Transport en generator | Bouwchat | open | 3 | kerst |
 | 18 | Taak splitsen/verwijderen na laden (B-F6/F7) | Transport en generator | Bouwchat | open | 2 | |
-| 19 | KV-telscherm: intypen, alles-aanwezig, bevestigingen, tabs, 44px (T-3.2, D) | KV-scherm | Bouwchat | open | 1 | designsessie eerst |
+| 19 | KV-telscherm: intypen, alles-aanwezig, bevestigingen, tabs, 44px (T-3.2, D) | KV-scherm | Bouwchat | open | 3 | LOGISTIEK EERST; designsessie eerst |
 | 20 | Vrijdagcontrole: lege controle, hertellen, aanvullen-validatie (D-#2, B-R5-R7) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | |
 | 21 | KV ziet vaste bakken met 0 items (A-GEVONDEN-4) | KV-scherm | Bouwchat | open | 2 | |
 | 22 | Atomaire database-schrijving + SIGTERM-save (A-1) | Architectuur en robuustheid | Bouwchat | open | 1 | |
@@ -44,12 +44,29 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 38 | Herfstplanning 2–8 nov invoeren | Periodes en planning | Fable | open | 1 | gegevens van Maxim nodig |
 | 39 | Generale repetitie + walkthrough 3–8 | Testen | Fable | open | 1 | |
 | 40 | Sollicitatiedossier (deadline 11 nov) | Sollicitatie | Maxim | open | 1 | |
+| 41 | Wijzigingslog op alle tabellen + terugzetten (Google-Drive-versies) | Architectuur en robuustheid | Bouwchat | open | 2 | F1 legt de tabel + 5 kerntabellen |
+| 42 | Postgres op Railway i.p.v. sql.js-bestand | Architectuur en robuustheid | Bouwchat (Opus) | open | 2 | golf 2, na testharnas |
+| 43 | "Nodig van/tot" per onderdeel: nalevering + deelophaling in de generator | Transport en generator | Bouwchat | open | 2 | golf 2, DRAAIBOEK 3.1/3.4 |
+| 44 | Rooster chauffeurs + voertuigen (wie werkt wanneer, wie rijdt met wat) | Transport en generator | Bouwchat | open | 2 | golf 2 |
+| 45 | Rit: locatie→locatie zonder tussenstop; weekend alleen op keuze | Transport en generator | Bouwchat | open | 2 | golf 2 |
+| 46 | "Probleem melden" op de rit-pagina (foto, naar kantoor/KV) | Chauffeur | Bouwchat | open | 2 | golf 2 |
+| 47 | Locatiedossier: foto's, ruimtes, wifi, poortcodes, contactpersonen, overdrachtsfoto's | Locaties en standaardmateriaal | Bouwchat | open | 2 | golf 2; codes nooit in export |
+| 48 | Meldingen + web-push (KV, chauffeur, kantoor) | Schermen en navigatie | Bouwchat | open | 2 | golf 2 |
+| 49 | Volgscherm KV/coördinator: onderweg, verwacht, ontbreekt, waar staat het | KV-scherm | Bouwchat | open | 3 | golf 3 (LOGISTIEK EERST) |
+| 50 | Monitor-link met tel-token (alleen telscherm) | KV-scherm | Bouwchat | open | 3 | golf 3 |
+| 51 | Verbruikshistoriek per thema/item + inkooplijst per vakantie | Vrijdagcontrole en voorraad | Bouwchat | open | 3 | golf 3 |
+| 52 | Rapporten per vakantie (kapot/weg, kosten, tekort-top, ritten) | Data en opschoning | Bouwchat | open | 3 | golf 3 |
+| 53 | Printlijst per kampmoment + klaarzet-taak toewijsbaar | Pool en bulk | Bouwchat | open | 3 | golf 3 |
+| 54 | Drie stockageplaatsen: ophaling naar de juiste thuisplaats verifiëren | Transport en generator | Bouwchat | open | 2 | golf 2 |
+| 55 | KV-budget per kookkamp | KV-scherm | Bouwchat | later | 4 | wens Maxim |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
 | plaats | chat | prompt | onderwerp | taken | toestand |
 |---|---|---|---|---|---|
 | ✓ | A | V0 | Veiligheidsnoodronde | 1 | klaar (28/10) |
-| 1 | B | V1 | Testharnas | 6 | idee |
-| 2 | A | V2 | Dynamische periodes | 7, 8 | idee |
-| 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15, 22 | idee |
-| 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | idee |
+| 0 | A | F1 | Fundament: modules, atomaire schrijving, wijzigingslog | 22, 41 | bezig (28/10) |
+| 1 | B | V1 | Testharnas | 6 | gepland |
+| 2 | B | V2 | Dynamische periodes (na V1; Fable-chat A rust na F1) | 7, 8 | gepland |
+| 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | gepland |
+| 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | gepland |
+| 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | gepland |

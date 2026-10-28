@@ -1,0 +1,28 @@
+# PROMPT V3a — KETENFIXES TRANSPORT: spoedtaak, rit op gedaan, bulk-boekhouding, ophaallijst
+**Chat C (Opus) · map `D:\Sporty\sporty-c` · branch `bouw-c` · poort 3303 · verslag `OVERLEG-c.md` · TIJDSLIMIET 2 uur**
+
+Lees eerst `CLAUDE.md` in je map. Begin met `git fetch origin` en `git rebase origin/main` (F1 is gemerged: routes staan in `routes/`, db-helpers in `lib/db.js`, wijzigingslog-helpers `insMetLog/updateMetLog/delMetLog`). Je raakt ALLEEN `routes/transport.js`, `routes/aanvragen.js`, eventueel `lib/bulk.js` (nieuw), `scripts/test-v3a-*.mjs` en `OVERLEG-c.md`. `index.html` blijft dicht (chat D werkt daarin). Gebruik voor elke INSERT/UPDATE/DELETE op `bakken`, `transport_taken`, `ritten`, `aanvragen` de log-helpers uit F1, nooit kale SQL.
+
+## Waarom deze prompt
+De chauffeursketen (laden → lossen → gedaan) is de kern van de herfstweek en heeft vier bewezen breuken (DOORLICHTING-V2, allemaal herdraaid op een prod-kloon). Het DRAAIBOEK (fase 3 en 4) zegt wat het moet worden: elk stuk apart afvinken bij laden én lossen, alles traceerbaar, de rit sluit vanzelf, de spoedtaak weet waar hij heen moet. Als chat B al `scripts/test-keten-*.mjs` heeft gepusht (V1), zijn dat je meetlat: die moeten van rood naar groen. Zo niet, bouw je eigen `scripts/test-v3a-*.mjs` naar het patroon van `scripts/test-veiligheid.mjs`.
+
+## Punt 1 — Eén verplaatsfunctie voor bulk (werklijst 13; B-F4, B-F5)
+Vandaag zijn er twee waarheden: `bakken.status/huidige_locatie_id` voor de hele bulk-rij, en `bulk_spreiding` per locatie. Lossen via de rit-token zet de hele rij `op_locatie` en raakt de spreiding niet; taak-gedaan doet het wél, en nog eens `gedaan` verdubbelt (34 van 17). Ophalen van een locatie met 0 stuks telt toch bij op de bestemming.
+- Maak `lib/bulk.js` met één functie `verplaatsBulk(req, bakId, vanLocatieId, naarLocatieId, aantal, context)`: controleert dat er op `van` minstens `aantal` staat (anders fout met duidelijke tekst), verlaagt daar, verhoogt op `naar`, en logt via `logWijziging`. Invariant: som van de spreiding = bezit, altijd.
+- Elk pad dat bulk beweegt (rit-token lossen, taak-gedaan, handmatige verplaatsing, ophaling, terugkomst) roept die ene functie aan. Een taak die al `gedaan` is en opnieuw `gedaan` wordt, beweegt niets (idempotent: bewaar op de taak of regel dat de verplaatsing is uitgevoerd).
+- `bakken.status/huidige_locatie_id` voor een bulk-rij wordt afgeleid: `op_locatie` als er ergens buiten thuis iets staat, anders `thuis`; nooit meer rechtstreeks gezet voor bulk.
+
+## Punt 2 — Rit en taak sluiten vanzelf (werklijst 14; T-G3)
+Als via de rit-token alle regels van een stop gelost zijn, gaat de bijhorende taak op `gedaan` (met dezelfde boekhouding als de knop "gedaan" in kantoor, dus ook punt 1). Zijn alle taken van een rit gedaan, dan gaat de rit op `gedaan`. Daarnaast twee tussenstatussen voor de chauffeur: `onderweg` (eerste stuk geladen) en `aangekomen` per stop (knop op de rit-pagina; alleen de server-kant en de bestaande rit-pagina-HTML in `routes/transport.js`, geen index.html). Kantoor ziet de status in `GET /api/ritten`.
+
+## Punt 3 — Spoedtaak uit aanvraag krijgt van/naar/datum/aantal; afwijzen annuleert (werklijst 11; B-F8)
+`PUT /api/aanvragen/:id/status` met `maak_spoedtransport`: de taak krijgt `van` = de thuis-stockagelocatie van het gevraagde item als dat te herleiden is, anders de Rozenweg; `naar` = de kamplocatie van het kampmoment van de aanvraag; datum = de eerstvolgende werkdag binnen de kampweek (nooit zaterdag/zondag, tenzij de body dat expliciet vraagt); aantal = `spoedtransport.qty` of het getal uit de aanvraagtekst ("3 rollen tape" → 3), anders 1. Een aanvraag die daarna `afgewezen` wordt: de gekoppelde spoedtaak wordt geannuleerd (status `geannuleerd` of verwijderd via `delMetLog`; kies één en documenteer) tenzij ze al geladen is (dan 409 met uitleg). Bewaar de koppeling aanvraag↔taak in een kolom `aanvraag_id` op `transport_taken` (nieuwe migratie in `lib/migraties.js`, alleen die ene regel).
+
+## Punt 4 — Ophaalrit toont de bakkenlijst (werklijst 15; T-G6)
+Een ophalingstaak heeft zijn regels al bij het aanmaken (uit het voorstel). De rit-pagina toont voor een ophaling dezelfde stop-met-bakkenlijst (codes, aantallen, afvinken bij laden op de locatie en lossen in de stockage) als voor een levering, zonder dat kantoor eerst "Klaarzetten" hoeft te doen. Ontbreken de regels toch (oude taken), dan worden ze bij het openen van de rit-token afgeleid uit wat volgens de db op die locatie staat voor dat kampmoment.
+
+## Bewijs
+- `scripts/test-v3a-keten.mjs` (of de V1-ketentests als ze er zijn): levering volledig via rit-token → elke bak `op_locatie`, spreiding klopt, som = bezit, taak én rit `gedaan`; taak terug op gepland en opnieuw gedaan → spreiding ongewijzigd; ophaling vanaf een locatie met 0 stuks → fout, geen bijtelling; ophaalrit-token toont de lijst; aanvraag → goedkeuren → spoedtaak met van/naar/datum-in-week/aantal 3 → afwijzen → taak geannuleerd; `wijzigingen`-tabel bevat voor elke stap een regel.
+- `test-veiligheid` + alle `scripts/test-*.mjs` die `transport`, `bulk`, `aanvragen` of `ritten` raken (grep op de naam): 2× groen. Rode tests van chat B die jouw gedrag beschrijven: groen maken is je opdracht; rode tests van anderen: GEVONDEN.
+- Commit per punt, push `origin HEAD:bouw-c`. NOOIT naar main, NOOIT deploy.bat.
+- Verslag onderaan `OVERLEG-c.md`; laatste bericht aan Maxim eindigt met exact: **VOLLEDIG KLAAR MET DE PROMPT. NU IS HET TERUG AAN DE HOOFDCHAT.** Bij de tijdslimiet: stop, commit, "Stand bij tijdslimiet", push, en eindig met **TIJDSLIMIET BEREIKT: GESTOPT MET EEN TUSSENSTAND. NU IS HET TERUG AAN DE HOOFDCHAT.** Volgorde bij tijdnood: punt 1 en 2 eerst, die dragen de herfstweek.
