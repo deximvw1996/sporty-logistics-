@@ -41,6 +41,24 @@ Run 1 identiek behalve f1-schrijven 1 fout (zie GEVONDEN). `test-veiligheid` 2×
 - Spoedtaak na afwijzen: aanvaard = verwijderd of status `geannuleerd`.
 - Taak verwijderen na laden: aanvaard = bakken terug `thuis` (en geen verweesde checks) OF 4xx met `error`; de test drukt af welke.
 
+### Na rebase op origin/main af04bf5 (V3a/V3b van C/D gemerged) — volle run 2×, identiek
+
+| test | uitslag | ok | fout | tijd |
+|---|---|---|---|---|
+| f1-modules | GROEN | 82 | 0 | 1.6 s |
+| f1-schrijven | GROEN | 22 | 0 | 12.2 s |
+| f1-wijzigingen | GROEN | 46 | 0 | 3.2 s |
+| keten-aanvraag | GROEN | 12 | 0 | 0.6 s |
+| keten-levering | GROEN | 44 | 0 | 1.1 s |
+| keten-ophaling | GROEN | 7 | 0 | 0.8 s |
+| keten-periode | ROOD (7 fout) | 6 | 7 | 1.1 s |
+| keten-splits | ROOD (4 fout) | 6 | 4 | 0.7 s |
+| v3a-keten | GROEN | 52 | 0 | 1.3 s |
+| v3b-ui | GROEN | 15 | 0 | 0.9 s |
+| veiligheid | GROEN | 58 | 0 | 1.1 s |
+
+9/11 groen. Mijn ketentests bevestigen dus onafhankelijk de V3a/V3b-fixes voor werklijst 11/12/13/14/15 (rood vóór de merge, groen erna). **Nog open (overdracht):** keten-periode (werklijst 7/8 = V2) en keten-splits (werklijst 18) — oorzaken zoals hierboven beschreven. GEVONDEN 1 (f1-modules) is intussen door de hoofdchat opgelost (af04bf5).
+
 ### GEVONDEN (buiten mijn opdracht, niet gefixt)
 1. `test-f1-modules.mjs` is rood (2 fout) en blijft dat: hij vergelijkt de route-inventaris met `origin/main` als monoliet ("origin/main: 3 routes, verwacht ≥ 220"); sinds F1 gemerged is, staat de monoliet niet meer op main. Eenmalige migratietest → hoort uit de volle run of moet tegen een vaste commit vergelijken.
 2. `test-f1-schrijven.mjs` was 1× rood (1 fout) in volle-run 1, daarna 4× groen (2× los, 1× in volle run, + run 2). Timing-gevoelig (pollt sporty.db elke 100 ms); niet verder uitgezocht.
