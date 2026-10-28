@@ -133,3 +133,42 @@ Bestaande tests van de geraakte functies: er bestaan nog geen `scripts/test-*.mj
 - Migratie 56 kan SHA-256 niet rechtstreeks naar scrypt omzetten (pincode niet gekend); ze labelt de hashes (`sha256$…`) en de login-route doet de omzetting per persoon bij succes. Vlag enkel na geslaagde labeling, precies zoals gevraagd.
 - Rolcontrole voor kv is ruimer dan de beheerlijst (403 op alle `/api/*` behalve wie-ben-ik/logout), conform "kv = niets op de admin-API". Chauffeur-schrijfroutes buiten de beheerlijst zijn níét beperkt (zou featuregedrag raken; volgende ronde).
 - `import-themas/*` kreeg ook `alleenKantoor` (ze geven al 410, maar de code erachter is importcode).
+
+---
+
+## Verslag PROMPT F1 — FUNDAMENT (chat A, 2026-10-28, 22:51 → 23:20, limiet 3 u)
+
+Branch `bouw-a`, gerebased op origin/main (`2781e83`). Commits: `85519b8` (deel 1), `44a37d0` (deel 2), `87e810b` (deel 3). Niet naar main, geen deploy. `index.html` en `MASTERPLAN.md` onaangeraakt.
+
+### Deel 1 — modules (af)
+- `server.js`: 5589 → 104 regels (Basic-muur, statics, db openen, ctx, migraties → auth → gedeeld → routes, catch-all `GET *`, foutafhandeling, `app.listen`).
+- `lib/db.js` (sql.js, `get/all/run/ins`, `saveDb/flush`, `backupDb`, `now`, `isoDate`, `_genToken`, `resolveItemTypeId`, `logAct`, factory met getter/setter `db`), `lib/migraties.js` (migratieblok letterlijk, `__dirname` → `ctx.ROOT_DIR` voor migratie 42), `lib/auth.js` (login/sessies/rate-limit/poort/`vereisRol`/`alleenKantoor`/wie-ben-ik/pincode/logout), `lib/gedeeld.js` (`_actieveLocatieConfig`, `_kvVerwacht`/`_kvKampmoment`/`_kvNaam`/`_bakItems`, `effectiefMateriaal`, `ensureGedeeldStock`).
+- `routes/`: locaties, kv (kv-API + `/kv/:token`-pagina), themas, planning, aanvragen, voorraad, transport (incl. `/rit/:token`, spoed, terugkomst, voertuigen), bakken, beheer (export/import/herstel-db/dbinfo/activiteitenlog/PWA), personeel, sport, conflicten. Volgorde van middleware identiek; statisch gecontroleerd dat geen twee routes met dezelfde methode elkaars pad matchen (0 overlaps / 220), dus groepering per gebied verandert de matching niet.
+- Afwijkingen: `DELETE /api/locaties/:id` + `/api/locaties/geocode` naar locaties.js; `GET *` blijft in server.js.
+- Bewijs: `scripts/test-f1-modules.mjs` — inventaris origin/main = nieuw = 220 routes; 67 GET-routes + poortchecks < 500; 80 ok / 0 FOUT, 2× groen (later 82 ok na toevoegen routes deel 2/3). `test-veiligheid` 58/58, 2×.
+
+### Deel 2 — atomair + batching (af)
+- `flush()` schrijft `sporty.db.tmp` → `fs.renameSync` (getest op Windows), alleen als `vuil`; backup 1/dag, 14 bewaren vanuit flush. `run`/`ins` zetten enkel `vuil=true`.
+- `server.js`: middleware `res.on('finish', flush)` vóór de routes, timer 5 s (unref), SIGTERM/SIGINT → flush + exit 0, flush in `uncaughtException`-handler.
+- **Gekozen lijn `saveDb`**: `saveDb()` = geforceerde flush (voor code die rechtstreeks `db.run` doet). De ±55 losse aanroepen in routes/auth zijn weggehaald; bewaard in `routes/beheer.js` (import/reset) en `lib/migraties.js` (afsluitende flush na migraties).
+- SIGTERM op Windows: `child.kill('SIGTERM')` is TerminateProcess zonder handler. Daarom testhaak `SPORTY_TESTHOOK=1` → `POST /api/_test/sigterm` (`process.emit('SIGTERM')`) en `GET /api/_test/schrijfacties`; zonder env bestaan die routes niet (test bewijst 404); achter Basic + sessiepoort.
+- Bewijs: `scripts/test-f1-schrijven.mjs` (poort 3312) — 50 schrijvende calls → server telde 50 flushes, poller (100 ms) zag 3 bestandswijzigingen (≤ 50, > 0); harde kill → herstart → laatste wijziging teruggelezen; SIGTERM via haak → exit 0, geen `.tmp`, wijziging staat na herstart. 22 ok / 0 FOUT, 2× groen.
+
+### Deel 3 — wijzigingslog (af)
+- Migratie 65 (`migratie65_klaar`, vlag alleen bij succes): tabel `wijzigingen` zoals gespecificeerd + index `(tabel, rij_id)`.
+- Helpers in `lib/db.js` via ctx: `logWijziging`, `insMetLog`, `updateMetLog`, `delMetLog`; object-vorm én raw-SQL-vorm (selecteert eerst de getroffen rijen, logt per id → berekende SET, WHERE op niet-id en bulk-DELETE gedekt). Log-fout blokkeert de schrijving nooit. Zonder sessie: persoon null, context 'kv-link'/'rit-link'/'systeem'.
+- Tabelnaam ritten = `transport_ritten` (niet `ritten`).
+- Omgezette statements (54): aanvragen.js (POST aanvragen; PUT :id/status → ins rit, ins taak, upd aanvraag); bakken.js (POST themas/:id/bakken, PUT/DELETE bakken/:id, foto-slot 2×, POST/PUT/DELETE vaste-bakken, POST bakken/:id/verplaats); kv.js (POST kv/:token/aanvraag en /kapot, context kv-link); locaties.js (PUT transport-taken/:id/rit 2×); planning.js (POST/PUT/DELETE kampmomenten incl. bulk del transport_taken per rij, kv-token); transport.js (bulk ontkoppelen/koppelen/verwijderen, kopieer-taak, POST/PUT/DELETE transport-taken, PUT :id/status incl. upd bakken, verplaats/datum, POST/PUT/DELETE ritten, klaarzet, `_pasBakAttribuutStatusToe` 2× upd bakken context rit-link, spoedtransport, rit-token).
+- Grep `INSERT INTO|UPDATE|DELETE FROM` op de vijf tabellen in `routes/`, `lib/gedeeld.js`, `lib/auth.js` buiten `…MetLog(req`: leeg (hoofdchat herdraaid: 0).
+- Route `GET /api/wijzigingen?tabel=&rij_id=&limit=` (`alleenKantoor`, 100 standaard, max 1000, nieuwste eerst) in `routes/beheer.js`.
+- Bewijs: `scripts/test-f1-wijzigingen.mjs` (poort 3313) — kampmoment insert/update/delete met exacte oud/nieuw en persoon "Claude (API)"; bak-update via rit-token/laden → rit-link, persoon null; aanvraag via kv-link; filters/limit; chauffeur → 403; zonder Basic/token 401. 46 ok / 0 FOUT, 2× groen. Alle vier scripts ook na rebase groen; hoofdchat herdraaide schrijven/wijzigingen/veiligheid onafhankelijk: groen.
+
+### GEVONDEN (niet gefixt)
+- `POST /api/kampmomenten` slikt elke fout in als 400 "bestaat al" (catch-all zonder logging).
+- `POST /api/ritten/:id/klaarzet` schrijft `klaarzet_door` uit de body i.p.v. `req.persoon.naam`.
+- Lokale `sporty.db` van chat A was al gemigreerd (56-vlag); vervangen door verse kopie uit sporty-railway voor de tests.
+
+### Buiten mijn gebied
+- `scripts/test-f1-modules.mjs` kreeg een whitelist voor `/api/_test/*` en `GET /api/wijzigingen`.
+- `_pasBakAttribuutStatusToe` (routes/transport.js) kreeg een extra `req`-parameter.
+- Push naar bouw-a 2× met `--force-with-lease` (rebase op vooruitgelopen origin/main herschreef eigen commits; inhoud identiek, main onaangeraakt).
