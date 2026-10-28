@@ -51,15 +51,21 @@ Eigenaar: de coördinatoren samen (nu in Excel; maanden vooraf, zodat het tijdig
 | 1.9 | Monitorenplanning — niet in de app (monitoren = geen rol) | — | |
 
 ---
-### FASE 2 — Materiaal voorbereiden (laatste 1–2 weken vóór de vakantie)
-Eigenaar: kantoor (magazijnwerk Rozenweg).
+### FASE 2 — Materiaal voorbereiden (laatste 1–2 weken vóór de vakantie) — ✔ besproken met Maxim 28/10
+Eigenaar: kantoor (magazijnwerk Rozenweg). Geen vaste persoon: coördinatoren én chauffeurs krijgen dit als taak. Vandaag: geprinte Excels.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 2.1 | Per kampmoment zien wat er mee moet: themabakken + attributen + pool + locatieconfig + sport + kleurenborden | 🟠 ("Week materiaal" + genereer-preview) | |
-| 2.2 | Verbruik aanvullen: tekorten uit vorige controles + bestellijst onder minimum → aankopen → voorraad bijwerken | 🟠 flow bestaat (S6); zinloos tot voorraad gevuld (E) | |
-| 2.3 | KV-boodschappenlijst (verse waren) bij kookthema's beschikbaar voor de KV | ✅ | |
-| 2.4 | Bakken klaarzetten/nakijken vóór vertrek ❓ (gebeurt er een fysieke check met de app in de hand? wie?) | 🟠 nakijk-flow bestaat; "verifiëren bij eerste nakijk"-notities (608 stuks) zijn hiervoor de werklijst | |
-| 2.5 | ❓ Printwerk (🖨️-items: diploma's, kampmap-formulieren, affiches) — lijstje per kampmoment "wat moet geprint"? | ❌ (alleen notities op items) | |
+| 2.1 | Per kampmoment zien wat er mee moet: themabakken + attributen + pool + locatieconfig + sport + kleurenborden; **als taak toewijsbaar aan een coördinator of chauffeur**, printbaar | 🟠 ("Week materiaal" + genereer-preview) | taak-eigenaar ontbreekt |
+| 2.2 | Verbruik aanvullen: tekorten uit vorige controles + bestellijst onder minimum → aankopen → voorraad bijwerken. Praktijk: grote inslag vóór de zomer, bijkopen tijdens de vakantie. Kopers = coördinatoren én chauffeurs | 🟠 flow bestaat (S6); zinloos tot voorraad gevuld (E) | inkooplijst per vakantie gewenst |
+| 2.3 | KV-boodschappenlijst (verse waren) bij kookthema's beschikbaar voor de KV; **later: KV-budget per kookkamp** (bedrag in euro, aankopen uit themabundel) | ✅ lijst; ❌ budget | budget = wens, na logistiek (werklijst) |
+| 2.4 | Bakken nakijken vóór vertrek: gebeurt alleen bij tijd; meestal enkel aanvullen wat KV's doorgaven — en die info is vaak fout omdat KV's de bak niet deftig laten natellen. Gevolg: de app moet (a) de KV-telling verplicht en simpel maken (fase 5/6) en (b) kantoor een korte "te verifiëren"-lijst geven i.p.v. een volledige hertelling | 🟠 nakijk-flow bestaat; 608 "verifiëren bij eerste nakijk"-notities = die lijst | |
+| 2.5 | Printwerk (diploma's, kampmap-formulieren, affiches): coördinatoren op kantoor; wordt vergeten als de KV er niet aan herinnert → **lijst "te printen voor kampmoment X"**, afvinkbaar | ❌ (alleen notities op items) | nieuw punt |
+| 2.6 | **Foto bij elk materiaal/bak** zodat een chauffeur weet wat een "rebounder" is | 🟠 foto-upload bestaat (bakken); dekking laag; foto's nog in db (werklijst 23) | |
+| 2.7 | **Capaciteitsconflict pool**: 5 ovens nodig in dezelfde week, 4 in voorraad → zichtbaar bij planning, niet pas bij het laden | 🟠 pool_tekort bestaat maar mist types (werklijst 10) | |
+| 2.8 | **Eén kanaal voor tekorten** (wc-papier op → KV meldt in de app → kantoor keurt → wordt vanzelf een taak op de rit van de volgende chauffeur). Geen sms-ketting coördinator→chauffeur | 🟠 aanvraag→spoedtaak bestaat, kapot zonder van/naar (werklijst 11) | kernpunt |
+
+**Pijnpunten die de app hier moet wegnemen (Maxim 28/10):** foute telinfo van KV's/monitoren · tijdsgebrek coördinatoren · vergeetachtigheid (KV én kantoor) · chauffeur vergeet in-/uitladen (oven niet mee naar oven-locatie) · bak verwisseld bij inladen · materiaal niet herkend (geen foto) · hoofdlogistiek vergeet iets op de lijst · tekort-melding verdwaalt in sms-ketting.
+→ Ontwerpgevolg: de laadlijst van de chauffeur komt **uit de planning** (locatie heeft oven → oven staat op de lijst), niet uit het hoofd van de hoofdlogistiek; afvinken per stuk bij in- én uitladen (fase 4).
 
 ---
 ### FASE 3 — Transport plannen (week vóór + tijdens de vakantie)
