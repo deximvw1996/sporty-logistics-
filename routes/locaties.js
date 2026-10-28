@@ -135,13 +135,15 @@ module.exports = function(ctx){
   });
 
   // ── KLEURENBORDEN PER LOCATIE EN WEEK ──
+  // V2: kleurenborden horen bij een periode (?periode_id= of body.periode_id, standaard de actieve).
+  const _kbPeriode=(v)=>parseInt(v)||(get('SELECT id FROM vakantieperiodes WHERE actief=1')||{}).id||null;
   app.get('/api/kleurenborden',(req,res)=>{
-    res.json(all('SELECT kb.*,l.name as locatie_naam FROM locatie_kleuren kb LEFT JOIN locaties l ON l.id=kb.locatie_id ORDER BY kb.locatie_id,kb.week,kb.kleur'));
+    res.json(all('SELECT kb.*,l.name as locatie_naam FROM locatie_kleuren kb LEFT JOIN locaties l ON l.id=kb.locatie_id WHERE kb.periode_id=? ORDER BY kb.locatie_id,kb.week,kb.kleur',[_kbPeriode(req.query.periode_id)]));
   });
   app.post('/api/kleurenborden',(req,res)=>{
     const{locatie_id,week,kleur,aantal}=req.body;
     if(!locatie_id||!week||!kleur)return res.status(400).json({error:'locatie_id, week en kleur zijn verplicht'});
-    try{const id=ins('INSERT INTO locatie_kleuren (locatie_id,week,kleur,aantal) VALUES (?,?,?,?)',[locatie_id,week,(kleur+'').toUpperCase(),aantal||1]);res.json(get('SELECT * FROM locatie_kleuren WHERE id=?',[id]));}
+    try{const id=ins('INSERT INTO locatie_kleuren (locatie_id,week,kleur,aantal,periode_id) VALUES (?,?,?,?,?)',[locatie_id,week,(kleur+'').toUpperCase(),aantal||1,_kbPeriode(req.body.periode_id)]);res.json(get('SELECT * FROM locatie_kleuren WHERE id=?',[id]));}
     catch(e){res.status(400).json({error:'Combinatie bestaat al'});}
   });
   app.put('/api/kleurenborden/:id',(req,res)=>{
@@ -156,9 +158,10 @@ module.exports = function(ctx){
   app.post('/api/kleurenborden/bulk',(req,res)=>{
     const{locatie_id,week,kleuren}=req.body;
     if(!locatie_id||!week||!Array.isArray(kleuren))return res.status(400).json({error:'locatie_id, week en kleuren[] zijn verplicht'});
-    run('DELETE FROM locatie_kleuren WHERE locatie_id=? AND week=?',[locatie_id,week]);
+    const pid=_kbPeriode(req.body.periode_id);
+    run('DELETE FROM locatie_kleuren WHERE locatie_id=? AND week=? AND periode_id=?',[locatie_id,week,pid]);
     kleuren.filter(k=>k.kleur&&k.aantal>0).forEach(k=>{
-      ins('INSERT INTO locatie_kleuren (locatie_id,week,kleur,aantal) VALUES (?,?,?,?)',[locatie_id,week,(k.kleur+'').toUpperCase(),k.aantal]);
+      ins('INSERT INTO locatie_kleuren (locatie_id,week,kleur,aantal,periode_id) VALUES (?,?,?,?,?)',[locatie_id,week,(k.kleur+'').toUpperCase(),k.aantal,pid]);
     });
     res.json({ok:true,opgeslagen:kleuren.length});
   });

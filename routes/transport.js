@@ -40,7 +40,7 @@ module.exports = function(ctx){
       ||stockageTopLevel.find(l=>l.stockage_rol==='thema'||l.stockage_rol==='beide')?.id||stockageTopLevel[0]?.id||null;
 
     const allPeriodes=all('SELECT * FROM vakantieperiodes');
-    const defaultPeriode=allPeriodes[0]||{id:1,start_datum:'2026-06-29',eind_datum:'2026-09-06'};
+    const defaultPeriode=allPeriodes.find(p=>p.actief)||allPeriodes[0]; // V2: geen hardgecodeerde zomer meer
     const voorstellen=[];
 
     // S4.5d: themabehoefte aan pool-materiaal (zoals locConfigRegels, maar thema-gedreven i.p.v.
@@ -162,7 +162,8 @@ module.exports = function(ctx){
     }
 
     function getOpenDagen(km){
-      const periode=allPeriodes.find(p=>p.id===(km.periode_id||1))||defaultPeriode;
+      const periode=allPeriodes.find(p=>p.id===km.periode_id)||defaultPeriode;
+      if(!periode)return [];
       const ws=new Date(periode.start_datum+'T12:00:00');ws.setDate(ws.getDate()+(km.week-1)*7);
       const eind=new Date(periode.eind_datum+'T23:59:59');
       const days=[];
@@ -174,9 +175,10 @@ module.exports = function(ctx){
 
     // ── PER LOCATIE: basis + thema transport ──
     const perLocatie={};
-    kms.forEach(km=>{if(!perLocatie[km.locatie_id])perLocatie[km.locatie_id]=[];perLocatie[km.locatie_id].push(km);});
+    kms.forEach(km=>{const sl=km.locatie_id+'|'+(km.periode_id||0);if(!perLocatie[sl])perLocatie[sl]=[];perLocatie[sl].push(km);});
 
-    Object.entries(perLocatie).forEach(([locId,kmListAll])=>{
+    Object.entries(perLocatie).forEach(([sleutel,kmListAll])=>{
+      const locId=sleutel.split('|')[0];
       const loc=locs.find(l=>l.id==locId);if(!loc)return;
       const locMat=(allLocMat.filter(m=>m.locatie_id==locId).length?allLocMat.filter(m=>m.locatie_id==locId):standaard);
 
@@ -246,7 +248,7 @@ module.exports = function(ctx){
         // Kleurenborden voor deze locatie+week: eerste open week van de periode = volledige
         // levering; latere open weken (aansluitend of na een gap) = enkel het positieve verschil
         // t.o.v. wat al staat (kleurenStand); nooit tussentijds terughalen.
-        const kleurenHuidig=allKleuren.filter(k=>k.locatie_id==loc.id&&k.week===km.week);
+        const kleurenHuidig=allKleuren.filter(k=>k.locatie_id==loc.id&&k.week===km.week&&k.periode_id===km.periode_id);
         let kleurenRegels=[];
         if(isEersteVanPeriode){
           kleurenRegels=kleurenHuidig.map(k=>({naam:`Kleurenbord ${k.kleur} ×${k.aantal}`,qty:k.aantal,soort:'basis',stockage_id:sportStockageId}));
@@ -292,7 +294,7 @@ module.exports = function(ctx){
           // worden afgehandeld door het "DIRECT THEMA-TRANSFER" blok → hier overslaan.
           const aankomendeViaStockage=aankomende.filter(kt=>{
             const kwamVanAndereLocatie=kts.some(kt2=>kt2.thema_id===kt.thema_id&&kt2.kampmoment_id!==km.id&&
-              (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.week===km.week-1&&km2.locatie_id!==km.locatie_id;})());
+              (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.periode_id===km.periode_id&&km2.week===km.week-1&&km2.locatie_id!==km.locatie_id;})());
             return !kwamVanAndereLocatie;
           });
           // S5.1: symmetrische fix — een VERTREKKEND thema waarvoor een directe transfer bestaat
@@ -302,7 +304,7 @@ module.exports = function(ctx){
           // dezelfde bakken (simulatie-bevinding 1). Eén thema-verplaatsing = precies één voorstel.
           const vertrekkende=vertrekkendeAll.filter(kt=>{
             const gaatDirectNaarAndereLocatie=kts.some(kt2=>kt2.thema_id===kt.thema_id&&kt2.kampmoment_id!==prevKm.id&&
-              (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.week===prevKm.week+1&&km2.locatie_id!==prevKm.locatie_id;})());
+              (()=>{const km2=kms.find(k=>k.id===kt2.kampmoment_id);return km2&&km2.periode_id===prevKm.periode_id&&km2.week===prevKm.week+1&&km2.locatie_id!==prevKm.locatie_id;})());
             return !gaatDirectNaarAndereLocatie;
           });
           if(vertrekkende.length||aankomendeViaStockage.length){
@@ -403,9 +405,10 @@ module.exports = function(ctx){
       const kmsMetThema=kts.filter(kt=>kt.thema_id===thId)
         .map(kt=>kms.find(km=>km.id===kt.kampmoment_id))
         .filter(km=>km && km.type!=='themadag')
-        .sort((a,b)=>a.week-b.week);
+        .sort((a,b)=>(a.periode_id-b.periode_id)||(a.week-b.week));
       for(let i=0;i<kmsMetThema.length-1;i++){
         const kmA=kmsMetThema[i],kmB=kmsMetThema[i+1];
+        if(kmA.periode_id!==kmB.periode_id)continue;
         if(kmA.locatie_id===kmB.locatie_id)continue;
         if(kmB.week!==kmA.week+1)continue;
         const locA=locs.find(l=>l.id===kmA.locatie_id);
@@ -429,8 +432,15 @@ module.exports = function(ctx){
     const allSportSets=all('SELECT ss.*,si.name as item_naam,si.stockage_locatie_id as item_stockage_id FROM sport_sets ss LEFT JOIN sport_items si ON si.id=ss.item_id');
     const allSportPlanning=all('SELECT * FROM sport_planning ORDER BY set_id,week');
 
+    const kmVan=p=>kms.find(km=>km.locatie_id===p.locatie_id&&km.week===p.week&&km.periode_id===p.periode_id);
+    const sportPerSetPeriode=[];
     allSportSets.forEach(set=>{
-      const setPlanning=allSportPlanning.filter(p=>p.set_id===set.id).sort((a,b)=>a.week-b.week);
+      const perPer={};
+      allSportPlanning.filter(p=>p.set_id===set.id).forEach(p=>{(perPer[p.periode_id||0]=perPer[p.periode_id||0]||[]).push(p);});
+      Object.values(perPer).forEach(pl=>sportPerSetPeriode.push([set,pl]));
+    });
+    sportPerSetPeriode.forEach(([set,planningVanPeriode])=>{
+      const setPlanning=planningVanPeriode.sort((a,b)=>a.week-b.week);
       if(!setPlanning.length)return;
       const homeStockageId=set.item_stockage_id||sportStockageId;
       if(!homeStockageId)return;
@@ -438,14 +448,14 @@ module.exports = function(ctx){
 
       // Levering vanuit home-stockage voor eerste geplande week
       const fp=setPlanning[0];
-      const fKm=kms.find(km=>km.locatie_id===fp.locatie_id&&km.week===fp.week);
+      const fKm=kmVan(fp);
       if(fKm){const fo=getOpenDagen(fKm);if(fo.length){const fLoc=locs.find(l=>l.id===fp.locatie_id);voorstellen.push({type:'levering',locatie:fLoc?.name||'?',locatie_id:fp.locatie_id,van_locatie_id:homeStockageId,datum:prevWorkday(fo[0]),tijd:'08:30',materiaal:[{naam:setNaam,qty:1,soort:'sport'}],opmerking:'Sport levering: '+setNaam+' → '+(fLoc?.name||'?')+' (week '+fp.week+')'});}}
 
       // Transities tussen opeenvolgende geplande weken
       for(let i=0;i<setPlanning.length-1;i++){
         const pA=setPlanning[i],pB=setPlanning[i+1];
         if(pA.locatie_id===pB.locatie_id)continue; // zelfde locatie → geen transport
-        const kmA=kms.find(km=>km.locatie_id===pA.locatie_id&&km.week===pA.week);
+        const kmA=kmVan(pA);
         if(!kmA)continue;
         const openA=getOpenDagen(kmA);if(!openA.length)continue;
         const locA=locs.find(l=>l.id===pA.locatie_id);
@@ -458,14 +468,14 @@ module.exports = function(ctx){
         } else {
           // Gap → via home-stockage: ophaling na week A, levering voor week B
           voorstellen.push({type:'ophaling',locatie:locA?.name||'?',locatie_id:pA.locatie_id,naar_locatie_id:homeStockageId,datum:transferDatum,tijd:'17:00',materiaal:[{naam:setNaam,qty:1,soort:'sport'}],opmerking:'Sport ophaling: '+setNaam+' ← '+(locA?.name||'?')});
-          const kmB=kms.find(km=>km.locatie_id===pB.locatie_id&&km.week===pB.week);
+          const kmB=kmVan(pB);
           if(kmB){const openB=getOpenDagen(kmB);if(openB.length){voorstellen.push({type:'levering',locatie:locB?.name||'?',locatie_id:pB.locatie_id,van_locatie_id:homeStockageId,datum:prevWorkday(openB[0]),tijd:'08:30',materiaal:[{naam:setNaam,qty:1,soort:'sport'}],opmerking:'Sport levering: '+setNaam+' → '+(locB?.name||'?')+' (week '+pB.week+')'});}}
         }
       }
 
       // Ophaling naar home-stockage na laatste geplande week
       const lp=setPlanning[setPlanning.length-1];
-      const lKm=kms.find(km=>km.locatie_id===lp.locatie_id&&km.week===lp.week);
+      const lKm=kmVan(lp);
       if(lKm){const lo=getOpenDagen(lKm);if(lo.length){const lLoc=locs.find(l=>l.id===lp.locatie_id);voorstellen.push({type:'ophaling',locatie:lLoc?.name||'?',locatie_id:lp.locatie_id,naar_locatie_id:homeStockageId,datum:nextWorkday(lo[lo.length-1]),tijd:'17:00',materiaal:[{naam:setNaam,qty:1,soort:'sport'}],opmerking:'Sport ophaling (einde): '+setNaam+' ← '+(lLoc?.name||'?')});}}
     });
 
@@ -786,7 +796,7 @@ module.exports = function(ctx){
   });
   // Markeer rit als klaargezet
   app.post('/api/ritten/:id/klaarzet',(req,res)=>{
-    const{naam}=req.body;
+    const naam=(req.persoon&&req.persoon.naam)||req.body?.naam; // werklijst 57: wie klaarzette = wie ingelogd is
     if(!naam)return res.status(400).json({error:'Naam is verplicht'});
     const tijdstip=now();
     updateMetLog(req,'UPDATE transport_ritten SET klaarzet_status=?,klaarzet_door=?,klaarzet_op=? WHERE id=?',['klaar',naam,tijdstip,req.params.id]);
