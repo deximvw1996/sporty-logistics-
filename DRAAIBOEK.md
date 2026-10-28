@@ -46,7 +46,7 @@ Eigenaar: de coördinatoren samen (nu in Excel; maanden vooraf, zodat het tijdig
 | 1.4 | Inschrijvingen: limiet per kamp instelbaar; aantal kinderen bepaalt groepen en 16/32-lijsten. **Kampadmin (inschrijvingen bijhouden) is een wens op termijn; logistiek eerst perfect (Maxim)** | ❌ limiet/aantallen nog geen begrip | |
 | 1.5 | KV toewijzen per kampmoment → kv-link/KV-account | ✅ koppeling bestaat; **KV-planning als puzzel** (KV's die geen volledige weken kunnen → wie staat waar wanneer) is een gewenste extra | |
 | 1.6 | **Chauffeursplanning: hoofdlogistiek (een coördinator) bepaalt wie wat wanneer rijdt — KERNTAAK van de app (Maxim)** | 🟠 ploegplanning bestaat maar verstopt (D); moet volwaardig: per dag/rit wie rijdt, beschikbaarheid chauffeurs | |
-| 1.7 | Conflicten zien bij het plannen: dubbel thema, pool-tekort, locatieconfig onhaalbaar, geen transport, **geen KV toegewezen** (Maxim) + ❓ rest van 1.5-antwoord | 🟠 bestaat; periode-lek (B-F3), gaten (B-F10/F11), geen actieknoppen (D) | |
+| 1.7 | Conflicten zien bij het plannen (Maxim 28/10): dubbel thema, pool-tekort, locatieconfig onhaalbaar, geen transport, **geen KV toegewezen**, **verhuurd materiaal botst met een kamp**, **kookactiviteit op een locatie zonder vuur/oven** — ook als het thema niet "kook" is maar op 1 van de 5 dagen kookt → **per thema: kookdag(en) vastleggen** (niet alleen een ja/nee-vlag), zodat de app voor dié dag een vuur verwacht | 🟠 bestaat deels; periode-lek (B-F3), gaten (B-F10/F11), geen actieknoppen (D); verhuur-, KV- en kookdag-conflicten te bouwen; `heeft_kookactiviteit` wordt "kookdagen" | |
 | 1.8 | ❓ Budget per kamp — in de app of elders? (nog te beantwoorden) | ❌ | |
 | 1.9 | Monitorenplanning — niet in de app (monitoren = geen rol) | — | |
 
