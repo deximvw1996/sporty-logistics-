@@ -4,7 +4,8 @@
 module.exports = function(ctx){
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── LOCATIES ──
-  app.get('/api/locaties',(req,res)=>res.json(all('SELECT * FROM locaties ORDER BY type,name')));
+  // CH1: contact_telefoon/adres als leesbare aliassen naast contact_tel/addr.
+  app.get('/api/locaties',(req,res)=>res.json(all('SELECT * FROM locaties ORDER BY type,name').map(l=>({...l,contact_telefoon:l.contact_tel||'',adres:l.addr||''}))));
   app.post('/api/locaties',(req,res)=>{
     const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id}=req.body;
     if(!name||!name.trim())return res.status(400).json({error:'Naam is verplicht'});
@@ -15,6 +16,17 @@ module.exports = function(ctx){
     res.json(loc);
   });
   app.put('/api/locaties/:id',(req,res)=>{
+    // CH1: contact_telefoon/adres = aliassen van de bestaande kolommen contact_tel/addr; sleutel_info nieuw.
+    // Contactgegevens en sleutel-info wijzigt alleen kantoor.
+    const b=req.body||{};
+    const cur0=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
+    if(!cur0)return res.status(404).json({error:'Locatie niet gevonden'});
+    // Alias wint als hij iets nieuws zegt (een client kan het hele GET-object met beide namen terugsturen).
+    if(b.contact_telefoon!==undefined&&(b.contact_tel===undefined||b.contact_telefoon!==(cur0.contact_tel||'')))b.contact_tel=b.contact_telefoon;
+    if(b.adres!==undefined&&(b.addr===undefined||b.adres!==(cur0.addr||'')))b.addr=b.adres;
+    const raaktContact=['contact_naam','contact_tel','sleutel_info'].some(k=>b[k]!==undefined&&(b[k]||'')!==(cur0[k]||''));
+    if(raaktContact&&(!req.persoon||req.persoon.rol!=='kantoor'))return res.status(403).json({error:'Contactgegevens en sleutel-info van een locatie wijzigt alleen kantoor'});
+    if(b.sleutel_info!==undefined)run('UPDATE locaties SET sleutel_info=? WHERE id=?',[(b.sleutel_info||'').toString(),req.params.id]);
     const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven,zelf_kuisen}=req.body;
     run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=?,heeft_eigen_sportmateriaal=?,heeft_eigen_oven=?,zelf_kuisen=? WHERE id=?',
       [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,heeft_eigen_sportmateriaal?1:0,heeft_eigen_oven?1:0,zelf_kuisen?1:0,req.params.id]);

@@ -21,6 +21,8 @@ module.exports = function(ctx){
     // Veiligheidsronde (DOORLICHTING-c #3): sessietokens nooit exporteren; pincode-hashes strippen.
     _alleTabellen().filter(t=>t!=='sessies').forEach(t=>{ try{ data[t]=all(`SELECT * FROM ${t}`); }catch(e){ data[t]=[]; } });
     if(Array.isArray(data.personeel)) data.personeel=data.personeel.map(p=>{const{pincode,...rest}=p;return rest;});
+    // CH1 (DRAAIBOEK 3.7): telefoon van locatiecontacten en sleutel-info nooit in een export.
+    if(Array.isArray(data.locaties)) data.locaties=data.locaties.map(l=>{const{contact_tel,contact_telefoon,sleutel_info,...rest}=l;return rest;});
     res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
     res.setHeader('Content-Type', 'application/json');
     res.json(data);
