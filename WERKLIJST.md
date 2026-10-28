@@ -10,8 +10,8 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 4 | Foto-velden begrenzen op type/grootte, kv-kapotroute (C-#10) | Veiligheid | Bouwchat | open | 2 | hangt samen met #23 |
 | 5 | APP_PASSWORD wisselen in Railway (variabele + Deploy, dan privévenster) | Veiligheid | Maxim | open | 1 | |
 | 6 | V1 testharnas: _testhulp, volle-run, regressietests | Testen | Bouwchat | gekeurd | 1 | chat B; 13 tests in volle-run; herfst-test.db ijk-db |
-| 7 | Periodes: beheer-UI, actieve periode bewaren, 'Zomer 2026'-terugval weg (T-1.4/G7) | Periodes en planning | Bouwchat | open | 1 | V2 deel 1 |
-| 8 | Periode-bewust: generator, conflicten, sport, kleurenborden, kv-sessies (B-F2/F3/R11) | Periodes en planning | Bouwchat | open | 1 | V2 deel 2 |
+| 7 | Periodes: beheer-UI, actieve periode bewaren, 'Zomer 2026'-terugval weg (T-1.4/G7) | Periodes en planning | Bouwchat | gekeurd | 1 | V2 chat B: migratie 71, /api/periodes/actief + activeer; live 29/10 |
+| 8 | Periode-bewust: generator, conflicten, sport, kleurenborden, kv-sessies (B-F2/F3/R11) | Periodes en planning | Bouwchat | gekeurd | 1 | V2: generator/conflicten/sport/kleurenborden klaar; kv-sessies → 64 |
 | 9 | Conflicten-tab op server-bron + waarschuwing bij themakeuze (T-G5) | Schermen en navigatie | Bouwchat | gekeurd | 1 | V3b chat D; live 29/10 |
 | 10 | pool_tekort ziet kastelen/blazers; ontbrekend_transport bij pool-only (B-F10/F11) | Transport en generator | Bouwchat | open | 2 | |
 | 11 | Spoedtaak uit aanvraag: locatie, datum in kampweek, aantal; afwijzen annuleert (B-F8) | Transport en generator | Bouwchat | gekeurd | 1 | V3a chat C; live 29/10 |
@@ -60,13 +60,16 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 54 | Drie stockageplaatsen: ophaling naar de juiste thuisplaats verifiëren | Transport en generator | Bouwchat | open | 2 | golf 2 |
 | 55 | KV-budget per kookkamp | KV-scherm | Bouwchat | later | 4 | wens Maxim |
 | 56 | Backup-knop UI: downloadBackup() zonder token → 401 | Schermen en navigatie | Bouwchat | open | 2 | GEVONDEN A |
-| 57 | POST kampmomenten slikt fouten in; klaarzet_door uit body i.p.v. sessie | Periodes en planning | Bouwchat | open | 2 | GEVONDEN A, mee in V2 |
+| 57 | POST kampmomenten slikt fouten in; klaarzet_door uit body i.p.v. sessie | Periodes en planning | Bouwchat | gekeurd | 2 | V2: 409 met tekst + log; klaarzet_door = sessie |
 | 58 | Handmatige verplaatsing + vaste-bak-aantal in bakken.js via verplaatsBulk | Pool en bulk | Bouwchat | gekeurd | 1 | V3d: zetBezit/controleerSom; live 29/10 |
 | 59 | alert() op rit- en kv-pagina → toasts | Chauffeur | Bouwchat | gebouwd | 2 | V3d: rit-pagina klaar; kv-pagina nog open |
 | 61 | Backup dekt uploads/ (foto's) niet: volume-backup of foto-export | Architectuur en robuustheid | Bouwchat | open | 2 | GEVONDEN E |
 | 62 | herstel-db: proces stopte met exit 0 en Railway herstartte niet (prod 10 min plat); hotfix exit 1 door Fable; nette oplossing = herladen zonder exit | Architectuur en robuustheid | Bouwchat | gebouwd | 1 | hotfix live 29/10 |
 | 63 | test-v3c-fotos leest de lokale sporty.db i.p.v. herfst-test.db (resultaat hangt van de map af) | Testen | Bouwchat | open | 3 | GEVONDEN C |
-| 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | open | 1 | GEVONDEN D, mee in V2 |
+| 64 | KV-sessies periode-veilig: nakijk_sessies.kampmoment_id (migratie+backfill), kv.js en voorraad.js erop | KV-scherm | Bouwchat | open | 1 | GEVONDEN B (V2); herfst-KV overschrijft anders zomer-sessie |
+| 65 | Kalender hardcodeert juli-augustus; planner-periodekiezer zet actief lokaal; _activePeriode-terugval 'Zomer 2026' | Periodes en planning | Bouwchat | open | 2 | GEVONDEN B (V2) |
+| 66 | test-f1-schrijven flaky in volle run (AFGEBROKEN/1 fout, los altijd groen): poller 100 ms | Testen | Bouwchat | open | 3 | GEVONDEN B |
+| 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | gekeurd | 1 | V2: ?periode_id, velden, geen_thema |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
 | plaats | chat | prompt | onderwerp | taken | toestand |
@@ -74,7 +77,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | ✓ | A | V0 | Veiligheidsnoodronde | 1 | klaar (28/10) |
 | ✓ | A | F1 | Fundament: modules, atomaire schrijving, wijzigingslog | 22, 41 | klaar (28/10, 54d4ee6) |
 | 1 | B | V1 | Testharnas | 6 | klaar (29/10, 670b19d) |
-| 2 | B | V2 | Dynamische periodes + conflicten-API + kampmoment uniek per periode | 7, 8, 57, 60 | gepland (prompt klaar) |
+| 2 | B | V2 | Dynamische periodes + conflicten-API + kampmoment uniek per periode | 7, 8, 57, 60 | klaar (29/10, 1d0a818) |
 | 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | klaar (29/10, 7febb80) |
 | 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | klaar (29/10, f389c61) |
 | 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | klaar (29/10, 9e04932) |
