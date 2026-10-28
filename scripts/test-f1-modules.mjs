@@ -1,0 +1,177 @@
+// Testscript F1 deel 1 — server.js opgedeeld in lib/ en routes/ (chat A).
+// 1) Route-inventaris: alle app.get/post/put/delete in server.js + lib/ + routes/ moet exact de set
+//    van `git show origin/main:server.js` zijn (220 routes).
+// 2) Eigen server op poort 3311 met een wegwerp-db-kopie BUITEN de worktree (D:\Sporty\sporty-a-f1test),
+//    login als "Claude (API)" (id 10, pincode 1111), en ELKE GET-route aanroepen: status < 500 verwacht.
+// Gebruik: node scripts/test-f1-modules.mjs   (vanuit D:\Sporty\sporty-a)
+import { spawn, execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const initSqlJs = require('sql.js');
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PORT = 3311;
+const TESTDIR = path.resolve(ROOT, '..', 'sporty-a-f1test');
+const BRON_DB = path.join(ROOT, 'sporty.db');
+const TEST_DB = path.join(TESTDIR, 'sporty.db');
+const APP_PASSWORD = 'f1test';
+const BASIC = 'Basic ' + Buffer.from('sporty:' + APP_PASSWORD).toString('base64');
+const BASE = `http://localhost:${PORT}`;
+
+let fouten = 0, oks = 0;
+const ok = (m) => { oks++; console.log('ok    ' + m); };
+const fout = (m) => { fouten++; console.log('FOUT  ' + m); };
+const check = (cond, m) => (cond ? ok(m) : fout(m));
+
+// ── 1. Route-inventaris ──
+const ROUTE_RE = /^\s*app\.(get|post|put|delete)\(\s*(['"`])([^'"`]+)\2/gm;
+function inventaris(tekst) {
+  const s = new Set();
+  for (const m of tekst.matchAll(ROUTE_RE)) s.add(m[1].toUpperCase() + ' ' + m[3]);
+  return s;
+}
+const bronBestanden = ['server.js', ...fs.readdirSync(path.join(ROOT, 'lib')).map((f) => 'lib/' + f), ...fs.readdirSync(path.join(ROOT, 'routes')).map((f) => 'routes/' + f)];
+const nieuw = new Set();
+for (const f of bronBestanden) for (const r of inventaris(fs.readFileSync(path.join(ROOT, f), 'utf8'))) {
+  if (nieuw.has(r)) fout(`route dubbel geregistreerd: ${r} (in ${f})`);
+  nieuw.add(r);
+}
+const origTekst = execSync('git show origin/main:server.js', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+const oud = inventaris(origTekst);
+const ontbreekt = [...oud].filter((r) => !nieuw.has(r));
+const extra = [...nieuw].filter((r) => !oud.has(r));
+check(oud.size === 220, `inventaris origin/main: ${oud.size} routes (verwacht 220)`);
+check(nieuw.size === oud.size && !ontbreekt.length && !extra.length,
+  `inventaris nieuw: ${nieuw.size} routes, identiek aan origin/main` + (ontbreekt.length ? ` — ONTBREEKT: ${ontbreekt.join(', ')}` : '') + (extra.length ? ` — EXTRA: ${extra.join(', ')}` : ''));
+const wcServer = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8').split('\n').length;
+check(wcServer < 300, `server.js is ${wcServer} regels (richtcijfer < 300)`);
+
+// ── 2. Wegwerp-db klaarzetten ──
+fs.mkdirSync(TESTDIR, { recursive: true });
+fs.mkdirSync(path.join(TESTDIR, 'uploads'), { recursive: true });
+fs.copyFileSync(BRON_DB, TEST_DB);
+
+async function leesDb(sql) {
+  const SQL = await initSqlJs();
+  const db = new SQL.Database(fs.readFileSync(TEST_DB));
+  let r = [];
+  try { r = db.exec(sql); } catch (e) { r = []; }
+  db.close();
+  return r[0] ? r[0].values : [];
+}
+async function eersteId(sql) { const v = await leesDb(sql); return v[0]?.[0] ?? null; }
+
+// ── 3. Server starten ──
+const server = spawn(process.execPath, ['server.js'], {
+  cwd: ROOT,
+  env: { ...process.env, PORT: String(PORT), DATA_DIR: TESTDIR, APP_PASSWORD },
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+let serverLog = '';
+server.stdout.on('data', (d) => (serverLog += d));
+server.stderr.on('data', (d) => (serverLog += d));
+const stop = () => { try { server.kill(); } catch {} };
+process.on('exit', stop);
+
+async function wachtOpServer() {
+  const t0 = Date.now();
+  while (Date.now() - t0 < 20000) {
+    try { const r = await fetch(BASE + '/api/login-status', { headers: { authorization: BASIC } }); if (r.ok) return true; } catch {}
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return false;
+}
+async function call(method, p, { token, body } = {}) {
+  const headers = { authorization: BASIC };
+  if (token) headers['x-auth-token'] = token;
+  let b;
+  if (body !== undefined) { b = JSON.stringify(body); headers['content-type'] = 'application/json'; }
+  const res = await fetch(BASE + p, { method, headers, body: b, redirect: 'manual' });
+  const text = await res.text();
+  let json = null; try { json = JSON.parse(text); } catch {}
+  return { status: res.status, text, json };
+}
+
+try {
+  if (!(await wachtOpServer())) { fout('server op ' + PORT + ' kwam niet op binnen 20 s\n' + serverLog); process.exit(1); }
+  ok('server op poort ' + PORT + ' met wegwerp-db ' + TEST_DB);
+
+  let r = await call('POST', '/api/login', { body: { persoon_id: 10, pincode: '1111' } });
+  check(r.status === 200 && r.json?.token, `login Claude (API) → 200 (kreeg ${r.status})`);
+  const kantoor = r.json?.token;
+  if (!kantoor) { console.log('NIET GROEN'); process.exit(1); }
+
+  // ── 4. Padparameters invullen uit de wegwerp-db (eerste bestaande id; anders 1) ──
+  const ids = {
+    bak: await eersteId('SELECT id FROM bakken ORDER BY id LIMIT 1'),
+    vasteBak: await eersteId("SELECT id FROM bakken WHERE soort='vast' ORDER BY id LIMIT 1"),
+    bakFoto: await eersteId('SELECT id FROM bak_fotos ORDER BY id LIMIT 1'),
+    locatie: await eersteId('SELECT id FROM locaties ORDER BY id LIMIT 1'),
+    thema: await eersteId('SELECT id FROM themas ORDER BY id LIMIT 1'),
+    rit: await eersteId('SELECT id FROM transport_ritten ORDER BY id LIMIT 1'),
+    ritToken: await eersteId("SELECT rit_token FROM transport_ritten WHERE rit_token IS NOT NULL AND rit_token<>'' ORDER BY id LIMIT 1"),
+    kvToken: await eersteId("SELECT kv_token FROM kampmomenten WHERE kv_token IS NOT NULL AND kv_token<>'' ORDER BY id LIMIT 1"),
+    sport: await eersteId('SELECT id FROM sport_items ORDER BY id LIMIT 1'),
+    itemType: await eersteId('SELECT id FROM item_types ORDER BY id LIMIT 1'),
+  };
+  const nietGevonden = Object.entries(ids).filter(([, v]) => v == null).map(([k]) => k);
+  if (nietGevonden.length) console.log('      (geen id gevonden, gebruik 1/placeholder voor: ' + nietGevonden.join(', ') + ')');
+  const v = (x) => (x == null ? 1 : x);
+  const vulIn = (pad) => pad
+    .replace('/api/bak-fotos/:id', `/api/bak-fotos/${v(ids.bakFoto)}`)
+    .replace('/api/bakken/:id', `/api/bakken/${v(ids.bak)}`)
+    .replace('/api/vaste-bakken/:id', `/api/vaste-bakken/${v(ids.vasteBak)}`)
+    .replace('/api/catalogus-item/:type/:id', `/api/catalogus-item/sport/${v(ids.sport)}`)
+    .replace('/api/kleurenborden-stock/:locatie_id', `/api/kleurenborden-stock/${v(ids.locatie)}`)
+    .replace('/api/locatie-config/:locatie_id', `/api/locatie-config/${v(ids.locatie)}`)
+    .replace('/api/locaties/:id', `/api/locaties/${v(ids.locatie)}`)
+    .replace('/api/themas/:id', `/api/themas/${v(ids.thema)}`)
+    .replace('/api/ritten/:id', `/api/ritten/${v(ids.rit)}`)
+    .replace('/api/personeel/week/:week', '/api/personeel/week/1')
+    .replace('/api/kv/:token', `/api/kv/${ids.kvToken || 'geen-token'}`)
+    .replace('/kv/:token', `/kv/${ids.kvToken || 'geen-token'}`)
+    .replace('/rit/:token', `/rit/${ids.ritToken || 'geen-token'}`);
+
+  // ── 5. Elke GET-route aanroepen ──
+  const gets = [...nieuw].filter((r) => r.startsWith('GET ')).map((r) => r.slice(4)).filter((p) => p !== '*');
+  let geteld = 0;
+  for (const pad of gets) {
+    const url = vulIn(pad);
+    if (/:\w+/.test(url)) { fout(`GET ${pad}: padparameter niet ingevuld (${url})`); continue; }
+    let st;
+    try { st = (await call('GET', url, { token: kantoor })).status; } catch (e) { st = 'EXC ' + e.message; }
+    geteld++;
+    check(typeof st === 'number' && st < 500, `GET ${pad}${url !== pad ? ' → ' + url : ''} → ${st}`);
+  }
+  // catch-all '*' (index.html)
+  r = await call('GET', '/', { token: kantoor });
+  check(r.status === 200 && /<html/i.test(r.text), `GET / (catch-all *) → ${r.status}, levert index.html`);
+  ok(`${geteld} GET-routes aangeroepen`);
+
+  // ── 6. Volgorde middleware: zonder token → 401 op /api, publiek blijft publiek, Basic-muur eerst ──
+  r = await call('GET', '/api/locaties');
+  check(r.status === 401, `zonder sessietoken: /api/locaties → 401 (kreeg ${r.status})`);
+  r = await fetch(BASE + '/api/login-status'); // geen Basic
+  check(r.status === 401, `zonder Basic-auth: /api/login-status → 401 (kreeg ${r.status})`);
+  r = await call('GET', '/api/login-status');
+  check(r.status === 200, `publiek pad met Basic, zonder token: /api/login-status → 200 (kreeg ${r.status})`);
+  r = await call('POST', '/api/logout', { token: kantoor });
+  check(r.status === 200, `logout → 200 (kreeg ${r.status})`);
+  r = await call('GET', '/api/locaties', { token: kantoor });
+  check(r.status === 401, `na logout: /api/locaties → 401 (kreeg ${r.status})`);
+
+  const serverFouten = serverLog.split('\n').filter((l) => /API-fout|ReferenceError|TypeError|is not defined/.test(l));
+  check(serverFouten.length === 0, `geen ReferenceError/TypeError/API-fout in de serverlog` + (serverFouten.length ? ':\n' + serverFouten.slice(0, 10).join('\n') : ''));
+} catch (e) {
+  fout('onverwachte fout in testscript: ' + (e.stack || e));
+} finally {
+  stop();
+}
+
+console.log(`\n${oks} ok, ${fouten} FOUT`);
+if (fouten === 0) { console.log('ALLES GROEN'); process.exit(0); }
+console.log('NIET GROEN'); process.exit(1);
