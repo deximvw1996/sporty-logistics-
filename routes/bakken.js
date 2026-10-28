@@ -3,6 +3,7 @@
 'use strict';
 module.exports = function(ctx){
   const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR); // V3c: foto's als bestand, db bewaart pad + URL
+  const bulk=require('../lib/bulk')(ctx); // V3d: bulk enkel via lib/bulk.js
   const fotoFout=(res,e)=>res.status(e.status||500).json({error:e.status?e.message:'Foto opslaan mislukt'});
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── THEMA BAKKEN (S2.1: uniforme bakken-tabel, deelbaar via thema_bak) ──
@@ -178,20 +179,21 @@ module.exports = function(ctx){
     const{naam,code,vast_type,thuislocatie_id,status,blazers_nodig,notitie,aantal}=req.body;
     const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Niet gevonden'});
-    updateMetLog(req,'UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=?,blazers_nodig=?,notitie=? WHERE id=?',
-      [naam??cur.naam,code??cur.code,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,blazers_nodig??cur.blazers_nodig,notitie??cur.notitie,req.params.id]);
-    // Walkthrough Maxim 2026-08-04: totaal-aantal van bulk-materiaal aanpasbaar in de app.
-    // Het verschil wordt op de thuislocatie bijgeboekt in bulk_spreiding (nooit onder 0).
+    // V3d: eerst het nieuwe bezit controleren (409 → niets gewijzigd).
     if(cur.is_bulk&&aantal!==undefined&&aantal!==null){
-      const nieuw=Math.max(0,parseInt(aantal)||0);
-      const delta=nieuw-(cur.aantal||0);
-      updateMetLog(req,'UPDATE bakken SET aantal=? WHERE id=?',[nieuw,req.params.id]);
-      const thuis=cur.thuislocatie_id;
-      if(thuis&&delta!==0){
-        const rij=get('SELECT * FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[cur.id,thuis]);
-        if(rij)run('UPDATE bulk_spreiding SET aantal=MAX(0,aantal+?) WHERE id=?',[delta,rij.id]);
-        else ins('INSERT INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[cur.id,thuis,Math.max(0,delta)]);
-      }
+      const opThuis=(get('SELECT aantal FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[cur.id,cur.thuislocatie_id])||{}).aantal||0;
+      const elders=bulk.spreidingSom(cur.id)-opThuis, nieuw=parseInt(aantal);
+      if(isNaN(nieuw)||nieuw<0)return res.status(400).json({error:'Ongeldig aantal'});
+      if(nieuw<elders)return res.status(409).json({error:`Er staan nog ${elders} × "${cur.naam}" op kamplocaties — het bezit kan niet lager dan ${elders}. Haal ze eerst op.`});
+    }
+    // Bulk: status wordt afgeleid uit bulk_spreiding, nooit rechtstreeks gezet.
+    updateMetLog(req,'UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=?,blazers_nodig=?,notitie=? WHERE id=?',
+      [naam??cur.naam,code??cur.code,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,cur.is_bulk?cur.status:(status??cur.status),blazers_nodig??cur.blazers_nodig,notitie??cur.notitie,req.params.id]);
+    // Walkthrough Maxim 2026-08-04: totaal-aantal van bulk-materiaal aanpasbaar in de app.
+    // V3d: via bulk.zetBezit — verschil op de thuislocatie, gelogd, nooit onder nul.
+    if(cur.is_bulk&&aantal!==undefined&&aantal!==null){
+      try{ bulk.zetBezit(req,cur.id,aantal,'bezit aangepast'); }
+      catch(e){ return res.status(e.status||500).json({error:e.message}); }
     }
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
@@ -313,6 +315,17 @@ module.exports = function(ctx){
     if(!naar_locatie_id||!reden?.trim())return res.status(400).json({error:'naar_locatie_id en reden zijn verplicht'});
     const b=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!b)return res.status(404).json({error:'Bak niet gevonden'});
+    // V3d: bulk-materiaal → een aantal verplaatsen via verplaatsBulk (status wordt afgeleid).
+    if(b.is_bulk){
+      const n=parseInt(req.body.aantal);
+      if(!(n>0))return res.status(400).json({error:`Geef aan hoeveel × "${b.naam}" je verplaatst (aantal is verplicht voor bulk-materiaal)`});
+      const van=req.body.van_locatie_id||bulk.standaardVan(b.id);
+      try{ bulk.verplaatsBulk(req,b.id,van,naar_locatie_id,n,'handmatig: '+reden.trim()); }
+      catch(e){ return res.status(e.status||500).json({error:e.message}); }
+      const lv=get('SELECT name FROM locaties WHERE id=?',[van]), ln=get('SELECT name FROM locaties WHERE id=?',[naar_locatie_id]);
+      logAct('bak','verplaatst',`Bulk "${b.naam}" ×${n} handmatig van ${lv?.name||van} naar ${ln?.name||naar_locatie_id} — reden: ${reden.trim()}`,naar_locatie_id,ln?.name);
+      return res.json({...get('SELECT * FROM bakken WHERE id=?',[b.id]),som:bulk.controleerSom(b.id)});
+    }
     const nieuweStatus=naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
     updateMetLog(req,'UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[naar_locatie_id,nieuweStatus,req.params.id]);
     const loc=get('SELECT name FROM locaties WHERE id=?',[naar_locatie_id]);
