@@ -168,6 +168,18 @@ De werkstroom waarmee Maxim en Claude alle thema's stuk per stuk terugzetten.
 - [ ] S6.3 Conflictdetectie compleet: dubbel thema, materiaaltekort (op item_type_stock), ontbrekend transport, locatieconfig onvolledig
 - **Bewijs:** het knutsellijm-scenario uit de testcase (4 gewenst, 1 geteld → 3 bijvullen) volledig herdraaid door drie rollen heen.
 
+### FASE V — VAKANTIEKLAAR (2026-10-28 → 11 november) 🎯
+**Doel: de app draait waterdicht de herfstvakantie (2–8 nov) en draagt Maxims sollicitatie (coördinator vakantiewerking, deadline 11 nov, steffi@sporty.be).** Toetsladder: herfst (1 week) → kerst (2 weken) → zomer (9 weken) — alles dynamisch, niets hardgecodeerd.
+Werkwijze: multi-chat-studio naar onderwereld-model — zie `CLAUDE.md` (hoofdchat Fable keurt+deployt; bouwchats A=Fable, B/C=Opus, D/E=Sonnet op eigen worktree/branch/poort; testchats T draaien testplannen).
+- [ ] V1 **Testharnas**: `scripts/test-*.mjs`-patroon + `scripts/volle-run.mjs` (API-gedreven, eigen poort, ALLES GROEN-conventie) + eerste regressietests voor de kernketens (login, thema's, behoefte, generator, kv-tellen, tekorten)
+- [ ] V2 **Dynamische periodes**: vakantieperiodes CRUD in de UI; álle jaar-/week-/zomer-hardcodes eruit (kalender 2026!); planning, generator, sluitingsregels en conflicten volledig periode-gestuurd; werkt even goed voor 1, 2 als 9 weken
+- [ ] V3 **Waterdicht & poets (S7 opgewaardeerd)**: browser-prompts/alerts → nette modals; foutafhandeling overal zichtbaar; dode knoppen weg; navigatie robuust; mobiel-check chauffeur/KV op 375px
+- [ ] V4 **Veiligheid**: route-audit (alles achter Basic auth + sessietoken), rollenrechten KV/chauffeur strikt, nieuw sterk APP_PASSWORD (Maxim zet het in Railway), geen secrets in de repo
+- [ ] V5 **Herfstvakantie-vulling**: echte planning van 2–8 nov (locaties, thema's, personeel) ingevoerd door hoofdchat; generale repetitie = volledige cyclus op prod-kloon + walkthrough-blokken 3–8 met Maxim
+- [ ] V6 **Live-week** (2–8 nov): schaduwdraaien naast de echte werking; fouten zelfde dag fixen (hoofdchat deployt)
+- [ ] V7 **Sollicitatiedossier**: motivatiebrief (app als bewijs, afgestemd op de vacaturetekst), cv-input, demo-draaiboek 5–10 min
+- **Bewijs:** volle-run groen; volledige cyclus herdraaid op kloon met herfstdata; Maxims walkthrough zonder nieuwe GEVONDEN-punten.
+
 ### FASE S9 (backlog) — Verhuurmodule 🏷️
 Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren (o.a. paintballgeweren — die worden niet met kinderen gebruikt, enkel verhuur). Het logistieke deel daarvan (reserveringen, uitlening, terugname, botsing met kampplanning/pool-beschikbaarheid) moet later ook in de app. Nog niet ontworpen — eerst S6/S7 en de themadagen.
 
