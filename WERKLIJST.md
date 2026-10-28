@@ -25,7 +25,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 19 | KV-telscherm: intypen, alles-aanwezig, bevestigingen, tabs, 44px (T-3.2, D) | KV-scherm | Bouwchat | open | 3 | LOGISTIEK EERST; designsessie eerst |
 | 20 | Vrijdagcontrole: lege controle, hertellen, aanvullen-validatie (D-#2, B-R5-R7) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | |
 | 21 | KV ziet vaste bakken met 0 items (A-GEVONDEN-4) | KV-scherm | Bouwchat | open | 2 | |
-| 22 | Atomaire database-schrijving + SIGTERM-save (A-1) | Architectuur en robuustheid | Bouwchat | open | 1 | |
+| 22 | Atomaire database-schrijving + SIGTERM-save (A-1) | Architectuur en robuustheid | Bouwchat | gekeurd | 1 | F1 chat A; live 28/10 |
 | 23 | Foto's uit de database naar uploads-map (A-2) | Architectuur en robuustheid | Bouwchat | open | 2 | |
 | 24 | Mig 47 gaten; KV:/INFO:- en transportregel-rijen uit catalogus (A-5, B-F9) | Data en opschoning | Bouwchat | open | 2 | |
 | 25 | Prod-opschoning: 99-EHBO, 'undefined'-wees, regels-wezen (B-F13, A) | Data en opschoning | Fable | open | 1 | |
@@ -44,7 +44,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 38 | Herfstplanning 2–8 nov invoeren | Periodes en planning | Fable | open | 1 | gegevens van Maxim nodig |
 | 39 | Generale repetitie + walkthrough 3–8 | Testen | Fable | open | 1 | |
 | 40 | Sollicitatiedossier (deadline 11 nov) | Sollicitatie | Maxim | open | 1 | |
-| 41 | Wijzigingslog op alle tabellen + terugzetten (Google-Drive-versies) | Architectuur en robuustheid | Bouwchat | open | 2 | F1 legt de tabel + 5 kerntabellen |
+| 41 | Wijzigingslog op alle tabellen + terugzetten (Google-Drive-versies) | Architectuur en robuustheid | Bouwchat | bezig | 2 | F1: tabel + 5 kerntabellen live; rest + terugzet-UI open |
 | 42 | Postgres op Railway i.p.v. sql.js-bestand | Architectuur en robuustheid | Bouwchat (Opus) | open | 2 | golf 2, na testharnas |
 | 43 | "Nodig van/tot" per onderdeel: nalevering + deelophaling in de generator | Transport en generator | Bouwchat | open | 2 | golf 2, DRAAIBOEK 3.1/3.4 |
 | 44 | Rooster chauffeurs + voertuigen (wie werkt wanneer, wie rijdt met wat) | Transport en generator | Bouwchat | open | 2 | golf 2 |
@@ -59,12 +59,14 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 53 | Printlijst per kampmoment + klaarzet-taak toewijsbaar | Pool en bulk | Bouwchat | open | 3 | golf 3 |
 | 54 | Drie stockageplaatsen: ophaling naar de juiste thuisplaats verifiëren | Transport en generator | Bouwchat | open | 2 | golf 2 |
 | 55 | KV-budget per kookkamp | KV-scherm | Bouwchat | later | 4 | wens Maxim |
+| 56 | Backup-knop UI: downloadBackup() zonder token → 401 | Schermen en navigatie | Bouwchat | open | 2 | GEVONDEN A |
+| 57 | POST kampmomenten slikt fouten in; klaarzet_door uit body i.p.v. sessie | Periodes en planning | Bouwchat | open | 2 | GEVONDEN A, mee in V2 |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
 | plaats | chat | prompt | onderwerp | taken | toestand |
 |---|---|---|---|---|---|
 | ✓ | A | V0 | Veiligheidsnoodronde | 1 | klaar (28/10) |
-| 0 | A | F1 | Fundament: modules, atomaire schrijving, wijzigingslog | 22, 41 | bezig (28/10) |
+| ✓ | A | F1 | Fundament: modules, atomaire schrijving, wijzigingslog | 22, 41 | klaar (28/10, 54d4ee6) |
 | 1 | B | V1 | Testharnas | 6 | gepland |
 | 2 | B | V2 | Dynamische periodes (na V1; Fable-chat A rust na F1) | 7, 8 | gepland |
 | 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | gepland |
