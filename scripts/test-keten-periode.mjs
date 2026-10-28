@@ -41,8 +41,11 @@ try {
   T.check(cf.status === 200, `conflicten → 200 (kreeg ${cf.status})`);
   const lek = (cf.json || []).filter((c) => /dubbel_thema|dubbelboeking/.test(c.type) && /Boutersem/.test(c.bericht));
   T.check(lek.length === 0, `geen dubbel_thema/dubbelboeking tussen herfst en zomer (kreeg ${lek.length}: ${lek.map((c) => c.type).join(', ')})`);
-  const zonderPeriode = (cf.json || []).filter((c) => /^Week \d+ — /.test(c.bericht) && !/Herfst TEST|Zomer TEST/.test(c.bericht));
-  T.check(zonderPeriode.length === 0, `conflictmeldingen noemen de periode (kreeg ${zonderPeriode.length} zonder)`);
+  // V2-contract: de tekst blijft ongewijzigd (chat D leest hem), de periode zit in het gestructureerde veld periode_id.
+  const zonderPeriode = (cf.json || []).filter((c) => c.periode_id !== herfst || !Array.isArray(c.kampmoment_ids) || !Array.isArray(c.locatie_ids) || !('week' in c));
+  T.check(zonderPeriode.length === 0, `elke conflictmelding draagt periode_id=${herfst}, week, locatie_ids en kampmoment_ids (kreeg ${zonderPeriode.length} zonder)`);
+  const vreemd = (cf.json || []).filter((c) => (c.kampmoment_ids || []).some((id) => !herfstKms.includes(id)));
+  T.check(vreemd.length === 0, `geen enkele herfstmelding verwijst naar een zomer-kampmoment (kreeg ${vreemd.length})`);
 
   // ── Generator: herfstvoorstellen bevatten geen zomer-sport of zomer-kleurenborden ──
   const gen = (await A('POST', '/api/transport-genereer')).json || [];

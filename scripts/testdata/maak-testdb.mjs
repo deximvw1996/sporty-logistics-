@@ -17,10 +17,10 @@ const A = (m, p, b) => T.api(srv.base, tok, m, p, b);
 const moet = (r, wat) => { if (r.status !== 200) throw new Error(`${wat}: ${r.status} ${r.text.slice(0, 300)}`); return r.json; };
 
 try {
-  // ── Periode "Herfst TEST" (2–8 nov 2026). "Actief" bestaat (nog) niet als backend-begrip:
-  // we proberen het te zetten zodat de ijk-db het meteen heeft zodra werklijst 7 het kent.
+  // ── Periode "Herfst TEST" (2–8 nov 2026), actief via de V2-route (een nieuwe periode wordt nooit vanzelf actief).
   const per = moet(await A('POST', '/api/periodes', { naam: 'Herfst TEST', start_datum: '2026-11-02', eind_datum: '2026-11-08' }), 'periode');
-  await A('PUT', `/api/periodes/${per.id}`, { naam: 'Herfst TEST', start_datum: '2026-11-02', eind_datum: '2026-11-08', actief: 1 });
+  const act = moet(await A('POST', `/api/periodes/${per.id}/activeer`), 'periode activeren');
+  if (act.actief !== 1) throw new Error('Herfst TEST is na activeren niet actief');
 
   const locs = moet(await A('GET', '/api/locaties'), 'locaties');
   const loc = (naam) => { const l = locs.find((x) => x.name === naam); if (!l) throw new Error('locatie ontbreekt: ' + naam); return l; };
