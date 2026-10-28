@@ -1152,7 +1152,9 @@ module.exports = function(ctx){
 .fbtn{flex:1;min-height:48px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#334155;font-size:14px;font-weight:600;font-family:inherit}
 .fbtn.done{background:#dcfce7;border-color:#22c55e;color:#166534}
 .rek{margin:10px 10px 2px;font-size:12px;font-weight:700;color:#2563eb}
-.footer{padding:20px 16px;text-align:center;font-size:12px;color:#aaa}</style></head><body>
+.footer{padding:20px 16px;text-align:center;font-size:12px;color:#aaa}
+.toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);max-width:calc(100% - 32px);padding:12px 18px;border-radius:10px;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:10}
+.toast.zicht{opacity:1;transform:translate(-50%,0)}.toast.goed{background:#16a34a}.toast.fout{background:#dc2626}</style></head><body>
 <div class="hdr"><h1>🚚 Rit ${rit.datum}</h1>
 <div class="sub">${rit.chauffeur?'👤 '+rit.chauffeur:''}${rit.voertuig?' · 🚐 '+rit.voertuig:''} · ${taken.length} stop${taken.length!==1?'s':''}</div></div>
 <div class="sec">Stops</div>${stops||'<div style="padding:16px;color:#888">Geen stops gepland.</div>'}
@@ -1160,12 +1162,19 @@ ${checks.length?'<div class="sec">Materiaallijst ('+checks.length+' items)</div>
 <div class="footer">Sporty Logistics</div>
 <script>
 const TOKEN=${JSON.stringify(req.params.token)};
+// V3d: kleine melding onderaan het scherm (3 s, groen/rood) i.p.v. toast().
+function toast(tekst,goed){
+  let t=document.getElementById('toast',false);
+  if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t);}
+  t.textContent=tekst;t.className='toast '+(goed?'goed':'fout')+' zicht';
+  clearTimeout(t._tm);t._tm=setTimeout(()=>t.classList.remove('zicht'),3000);
+}
 async function aangekomen(id){
   const b=document.getElementById('stop-'+id);b.disabled=true;
   try{const r=await fetch('/api/rit-token/'+TOKEN+'/taken/'+id+'/aangekomen',{method:'POST'});const t=await r.json();
-    if(!r.ok){alert(t.error||'Fout bij opslaan');return;}
-    b.textContent=t.status==='gedaan'?'✅ Stop afgerond':'📍 Aangekomen';b.classList.add('done');}
-  catch(e){alert('Netwerkfout — probeer opnieuw.');}finally{b.disabled=false;}
+    if(!r.ok){toast(t.error||'Fout bij opslaan',false);return;}
+    b.textContent=t.status==='gedaan'?'✅ Stop afgerond':'📍 Aangekomen';b.classList.add('done');toast('Aankomst doorgegeven',true);}
+  catch(e){toast('Netwerkfout — probeer opnieuw.',false);}finally{b.disabled=false;}
 }
 async function tog(id,kind){
   const row=document.getElementById('chk-'+id);
@@ -1174,11 +1183,12 @@ async function tog(id,kind){
   try{
     const r=await fetch('/api/rit-token/'+TOKEN+'/checks/'+id+'/'+kind,{method:'POST'});
     const c=await r.json();
-    if(!r.ok){alert(c.error||'Fout bij opslaan');return;}
+    if(!r.ok){toast(c.error||'Fout bij opslaan',false);return;}
     const bl=row.querySelector('.b-laden'), bg=row.querySelector('.b-lossen');
     bl.textContent=c.geladen?'✅ Geladen':'⬆️ Laden'; bl.classList.toggle('done',!!c.geladen);
     bg.textContent=c.gelost?'✅ Gelost':'⬇️ Lossen'; bg.classList.toggle('done',!!c.gelost);
-  }catch(e){alert('Netwerkfout — probeer opnieuw.');}
+    toast(kind==='laden'?(c.geladen?'Geladen':'Laden ongedaan'):(c.gelost?'Gelost':'Lossen ongedaan'),true);
+  }catch(e){toast('Netwerkfout — probeer opnieuw.',false);}
   finally{btns.forEach(b=>b.disabled=false);}
 }
 </script>
