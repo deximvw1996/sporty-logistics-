@@ -116,32 +116,35 @@ Eigenaar: monitoren + KV → kantoor. Monitoren tellen en geven door aan de KV; 
 | 6.6 | ❓ Vrijdag = ook fysieke wissel-voorbereiding (bakken dicht, klaar voor ophaal)? | ❓ | open (klein) |
 
 ---
-### FASE 7 — Week-overgang (alleen meerweekse vakanties)
-Eigenaar: kantoor + chauffeur.
+### FASE 7 — Week-overgang (alleen meerweekse vakanties) — ✔ besproken met Maxim 28/10
+Eigenaar: kantoor + chauffeur. **Geen transport op zaterdag/zondag** (alleen hoogst uitzonderlijk; de generator plant nooit in het weekend). **Locatie → locatie zonder tussenstop** in een stockageplaats is normaal en moet de app kunnen voorstellen.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 7.1 | Thema-wissel: oude themabakken + pool op, nieuwe eraf, in één rit | 🟠 bakken ✅, pool vergeten (B-F1) | |
+| 7.1 | Thema-wissel: oud thema deels/volledig op (zie 3.4), nieuw eraf, liefst in één rit op vrijdag | 🟠 bakken ✅, pool vergeten (B-F1) | |
 | 7.2 | Rustweek (locatie dicht, heropent): vast materiaal + kleurenborden blijven; thema rouleert | 🟠 kleurenborden ✅, pool dubbel geleverd (B-F12) | |
-| 7.3 | Zelfde thema elders nodig → tussentransport bewust plannen (conflict toont het) | 🟠 | |
+| 7.3 | Zelfde thema elders nodig → **rechtstreeks tussentransport locatie A → locatie B** op vrijdag, als voorstel aan de hoofdlogistiek (die beslist) | 🟠 generator kent alleen stockage↔locatie | nieuw |
 
 ---
-### FASE 8 — Sluiting & eindophaling (einde vakantie)
+### FASE 8 — Sluiting & eindophaling (einde vakantie) — ✔ besproken met Maxim 28/10
+**Drie stockageplaatsen**: Rozenweg (het meeste), Kantoor (vooral sportpakketten), Marco (zelden nodig). De app rekent met de thuisplaats per item; een ophaling gaat naar de juiste thuisplaats, niet blind naar de Rozenweg.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 8.1 | Definitief dicht: ALLES terug (thema, pool, kleurenborden, config-uitrusting, sport) | ✅ (S5-bewijs; herbevestigen met pool) | |
-| 8.2 | Alles weer "thuis" in de Rozenweg; spreiding klopt | 🟠 bulk (B-F4/F5) | |
-| 8.3 | ❓ Eindcontrole/inventaris na de vakantie: verifieer-notities afwerken, kapot vervangen, voorraad hertellen | ❌ als flow (losse stukken bestaan) | |
+| 8.1 | Definitief dicht: ALLES terug (thema, pool, kleurenborden, config-uitrusting, sport) naar elk zijn thuisplaats | ✅ keten (S5); thuisplaats per item bestaat (stockage_locatie_id), nog niet in de generator-bestemming geverifieerd | checken |
+| 8.2 | Alles weer "thuis"; spreiding over de drie plaatsen klopt | 🟠 bulk (B-F4/F5) | |
+| 8.3 | Eindcontrole/inventaris in het magazijn: **na de vakantie** als het materiaal niet meer nodig is, **tijdens** als het nog weg moet. Verifieer-notities afwerken, kapot vervangen, voorraad hertellen | ❌ als flow (losse stukken bestaan) | |
 
 ---
-### FASE 9 — Evaluatie & volgende vakantie
+### FASE 9 — Evaluatie & volgende vakantie — ✔ besproken met Maxim 28/10
+"Meten is weten": zoveel data en rapporten als mogelijk.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 9.1 | ❓ Wat wil kantoor achteraf weten: wat is kapot/weg, wat kostte het, welke thema's gedraaid, tekort-top? | ❌ | |
-| 9.2 | Archief: oude periode blijft raadpleegbaar zonder de nieuwe te storen | ❌ (periode-lek B-F2/F3) | |
+| 9.1 | Rapporten per vakantie: kapot/weg, kosten, thema's per locatie, tekort-top, verbruik per item (6.4), ritten per chauffeur/voertuig, aanvragen en doorlooptijd | ❌ | na logistiek; data moet nu al goed gelogd worden |
+| 9.2 | Archief: afgesloten periode blijft raadpleegbaar en **aanpasbaar, maar elke aanpassing omkeerbaar en in een logboek** (versiegeschiedenis zoals Google Drive: wie, wanneer, wat, terugzetten) | ❌ (periode-lek B-F2/F3; geen wijzigingslog) | kernpunt: wijzigingslog op alle tabellen |
 | 9.3 | Thema's bijwerken n.a.v. de praktijk (leesgids-stijl) | 🟠 handmatig | |
 
 ---
 ## Dwarsthema's (gelden overal)
+- **Alles gelogd, alles omkeerbaar (Maxim 28/10):** elke wijziging aan elk gegeven krijgt een regel in een wijzigingslog (wie, wanneer, oud, nieuw) en is terug te zetten; elke verplaatsing van elk stuk staat in de historiek. Niets gaat nog verloren.
 - **LOGISTIEK EERST (Maxim 28/10, bindend voor de bouwvolgorde):** coördinatoren en chauffeurs krijgen voorrang bij alles. Alles voor KV's en monitoren komt pas als het coördinatoren-/chauffeursdeel gebouwd is én volledig werkt. Uitzondering: het KV-/monitorstuk dat essentieel is voor de logistiek (aanvraag indienen, ontvangst bevestigen, telling versturen) mag tegelijk gebouwd worden.
 - **Professioneel, met alles erop en eraan (Maxim 28/10):** één echte database (geen sql.js-bestand dat in het geheugen leeft en in één keer wordt weggeschreven): atomaire schrijfacties, migraties, back-ups, foto's buiten de db. Heel de app moet die lat halen: geen prompt()-vensters, geen halve schermen.
 - **Veiligheid**: rollen gescheiden, alles achter de muren, geen lekken (DOORLICHTING-c → V0-noodronde).
