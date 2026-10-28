@@ -40,7 +40,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 34 | Schrijven batchen per request (A-7) | Architectuur en robuustheid | Bouwchat | later | 4 | vóór zomer |
 | 35 | Catalogus: dubbels, eenheden, ongebruikte types (E) | Data en opschoning | Bouwchat | later | 4 | |
 | 36 | DRAAIBOEK valideren met Maxim | Werkwijze | Maxim | bezig | 1 | brainstorm |
-| 37 | Designsessie KV/chauffeur/navigatie/dashboard | Schermen en navigatie | Fable | open | 1 | |
+| 37 | Designsessie KV/chauffeur/navigatie/dashboard | Schermen en navigatie | Fable | bezig | 1 | 29/10: chauffeur eerst; B + dagtijdlijn gekozen; Superdesign-canvas met nulpunt + 3 varianten |
 | 38 | Herfstplanning 2–8 nov invoeren | Periodes en planning | Fable | open | 1 | gegevens van Maxim nodig |
 | 39 | Generale repetitie + walkthrough 3–8 | Testen | Fable | open | 1 | |
 | 40 | Sollicitatiedossier (deadline 11 nov) | Sollicitatie | Maxim | open | 1 | |

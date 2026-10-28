@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "projectId": "9873fd05-baf0-4d94-9d95-c94cdab436af",
+  "teamId": "fc160b80-44af-41e6-8305-6cd25f414890",
+  "canvas": "https://superdesign.dev/teams/fc160b80-44af-41e6-8305-6cd25f414890/projects/9873fd05-baf0-4d94-9d95-c94cdab436af",
+  "targets": {
+    "/rit/:token": {
+      "kind": "existing",
+      "baselineDraftId": "c7dcc69c-2d3e-4976-bc03-06c5bad1d794",
+      "activeDraftId": "c7dcc69c-2d3e-4976-bc03-06c5bad1d794",
+      "device": "mobile",
+      "model": "gemini-3.1-pro",
+      "direction": "B stop-kaarten + dagoverzicht met tijdlijn (vast/vrij), rek-groepering, rode past-niet (keuze Maxim 29/10)",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "routes/transport.js:1101:1206",
+        ".superdesign/init/theme.md:1:90",
+        "design/DESIGN-BRIEF.md:1:28"
+      ],
+      "sourceCommit": "4c64184",
+      "note": "fingerprints niet vastgelegd; bij een wijziging aan routes/transport.js 1101-1206 het nulpunt opnieuw reproduceren"
+    }
+  }
+}
