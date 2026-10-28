@@ -1742,7 +1742,7 @@ async function savePeriode(){
   const tbl=document.getElementById('topbar-periode');if(tbl&&S.activePeriode)tbl.textContent=S.activePeriode.naam;
 }
 async function deletePeriode(id){
-  if(!confirm('Periode verwijderen?'))return;
+  if(!await bevestig('Periode verwijderen?'))return;
   const r=await api('DELETE','/periodes/'+id);
   if(r&&r.error){showToast(r.error,'error');return;}
   S.periodes=await api('GET','/periodes');
@@ -2113,7 +2113,7 @@ async function updateVoertuigCap(id,val,naam){
   showToast('Capaciteit bijgewerkt','success');
 }
 async function verwijderVoertuig(id){
-  if(!confirm('Voertuigtype verwijderen?'))return;
+  if(!await bevestig('Voertuigtype verwijderen?'))return;
   await api('DELETE','/voertuig-types/'+id);
   renderVoertuigen();
 }
@@ -2675,7 +2675,7 @@ async function _attrKoppel(themaId){
 async function _attrOntkoppel(themaId,attrId){
   const attr=(_attrAlle||[]).find(a=>a.id===attrId);
   const elders=attr&&await api('GET','/themas/'+themaId+'/attributen').then(l=>(l.find(x=>x.id===attrId)?.gedeeld_met||[]).length).catch(()=>0);
-  if(!elders&&!confirm('Dit attribuut is nergens anders gekoppeld. Ontkoppelen? (Het attribuut zelf blijft bestaan.)'))return;
+  if(!elders&&!await bevestig('Dit attribuut is nergens anders gekoppeld. Ontkoppelen? (Het attribuut zelf blijft bestaan.)',{titel:'Attribuut ontkoppelen',bevestigTekst:'Ontkoppelen',gevaarlijk:false}))return;
   await api('DELETE','/themas/'+themaId+'/attributen/'+attrId);
   await _tbVernieuwen();
 }
@@ -2722,9 +2722,9 @@ async function renderVasteBakken(){
 }
 let _vbSpreiding={};
 async function _vbZetAantal(id,huidig){
-  const v=prompt('Totaal aantal in bezit:',huidig);
-  if(v===null)return;
-  const n=parseInt(v);
+  const vm=await vraagModal({titel:'Aantal in bezit',bevestigTekst:'Opslaan',velden:[{naam:'n',label:'Totaal aantal in bezit',type:'number',standaard:huidig,verplicht:true}]});
+  if(vm===null)return;
+  const n=parseInt(vm.n);
   if(isNaN(n)||n<0){showToast('Geef een geldig aantal','warn');return;}
   await api('PUT','/vaste-bakken/'+id,{aantal:n});
   _vasteBakken=null;_vbSpreiding={};
@@ -2785,7 +2785,7 @@ async function uploadVasteBakFoto(bakId,slot,inputEl){
   }catch(e){showToast('Foto verwerken mislukt','error');}
 }
 async function verwijderVasteBakFoto(bakId,slot){
-  if(!confirm('Foto verwijderen?'))return;
+  if(!await bevestig('Foto verwijderen?'))return;
   const r=await api('DELETE',`/vaste-bakken/${bakId}/foto-slot/${slot}`);
   const idx=(_vasteBakken||[]).findIndex(b=>b.id===bakId);
   if(idx>=0&&r&&!r.error)_vasteBakken[idx]=r;
@@ -2859,12 +2859,12 @@ async function addVasteBakItem(bakId){
   renderVasteBakken();
 }
 async function deleteVasteBakItem(id){
-  if(!confirm('Item verwijderen?'))return;
+  if(!await bevestig('Item verwijderen?'))return;
   await api('DELETE',`/vaste-bak-items/${id}`);
   renderVasteBakken();
 }
 async function deleteVasteBak(id){
-  if(!confirm('Vaste bak verwijderen? Alle items worden ook verwijderd.'))return;
+  if(!await bevestig('Vaste bak verwijderen? Alle items worden ook verwijderd.'))return;
   await api('DELETE',`/vaste-bakken/${id}`);
   renderVasteBakken();
 }
@@ -3051,9 +3051,9 @@ async function _vrdSaveStock(item_type_id,locatie_id,qty,minimum){
 async function _vrdVoegLocatieToe(item_type_id){
   const stockLocs=(S.locaties||[]).filter(l=>l.type==='stockage');
   if(!stockLocs.length){showToast('Geen stockagelocaties gevonden','warn');return;}
-  const namen=stockLocs.map((l,i)=>`${i+1}. ${l.name}`).join('\n');
-  const keuze=prompt('Kies stockagelocatie:\n'+namen);
-  const idx=parseInt(keuze)-1;
+  const vl=await vraagModal({titel:'Stockagelocatie kiezen',bevestigTekst:'Toevoegen',velden:[{naam:'idx',label:'Locatie',type:'select',standaard:'0',opties:stockLocs.map((l,i)=>({waarde:String(i),label:l.name}))}]});
+  if(vl===null)return;
+  const idx=parseInt(vl.idx);
   if(isNaN(idx)||!stockLocs[idx])return;
   await api('POST','/voorraad',{item_type_id,locatie_id:stockLocs[idx].id,qty:0,minimum:0});
   _vrdData=[];
@@ -3214,7 +3214,7 @@ function clearTpSelectie(){
 async function deleteSelectedTransporten(){
   const ids=[..._tpSelected];
   if(!ids.length)return;
-  if(!confirm(ids.length+' transport'+(ids.length!==1?'en':'')+' verwijderen? Dit kan niet ongedaan gemaakt worden.'))return;
+  if(!await bevestig(ids.length+' transport'+(ids.length!==1?'en':'')+' verwijderen? Dit kan niet ongedaan gemaakt worden.'))return;
   for(const id of ids){await api('DELETE','/transport-taken/'+id);}
   _tpSelected.clear();
   updateTpBulkBar();
@@ -3435,6 +3435,73 @@ async function syncKampen(){
   kalData = kal;
 }
 
+
+// Eén herbruikbaar dialoogvenster i.p.v. prompt()/confirm(): geeft null bij annuleren/Escape/klik buiten, anders {veldnaam:waarde}.
+// velden: [{naam,label,type:'text'|'number'|'textarea'|'select'|'checkbox'|'date',standaard,verplicht,opties:[{waarde,label}],hint}]
+function vraagModal(o){
+  o=o||{};
+  return new Promise(resolve=>{
+    const vorigeFocus=document.activeElement;
+    const bg=document.createElement('div');
+    bg.className='vraag-bg';
+    bg.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2600;display:flex;align-items:center;justify-content:center;padding:12px';
+    const box=document.createElement('div');
+    box.setAttribute('role','dialog');box.setAttribute('aria-modal','true');
+    box.style.cssText='background:var(--bg);border:.5px solid var(--border);border-radius:var(--rl);padding:1.25rem;width:440px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)';
+    const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const velden=o.velden||[];
+    const inpStijl='width:100%;font-size:14px;padding:8px 10px;min-height:40px;border:.5px solid var(--border2);border-radius:var(--r);background:var(--bg);color:var(--text);font-family:inherit';
+    box.innerHTML=`<div style="font-size:16px;font-weight:600;margin-bottom:${o.tekst?'6':'12'}px">${esc(o.titel||'Bevestigen')}</div>`
+      +(o.tekst?`<div style="font-size:13px;color:var(--text2);margin-bottom:12px;white-space:pre-line">${esc(o.tekst)}</div>`:'')
+      +velden.map((f,i)=>{
+        const id='vm-f-'+i,t=f.type||'text',lab=`<label for="${id}" style="display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px">${esc(f.label||f.naam)}${f.verplicht?' *':''}</label>`;
+        let el;
+        if(t==='textarea')el=`<textarea id="${id}" rows="3" style="${inpStijl}">${esc(f.standaard)}</textarea>`;
+        else if(t==='select')el=`<select id="${id}" style="${inpStijl}">${(f.opties||[]).map(x=>`<option value="${esc(x.waarde)}"${String(x.waarde)===String(f.standaard)?' selected':''}>${esc(x.label)}</option>`).join('')}</select>`;
+        else if(t==='checkbox')return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px;min-height:32px;cursor:pointer"><input type="checkbox" id="${id}" ${f.standaard?'checked':''}> ${esc(f.label||f.naam)}</label>`;
+        else el=`<input id="${id}" type="${t}" value="${esc(f.standaard)}" style="${inpStijl}"${t==='number'?' min="0"':''}>`;
+        return `<div style="margin-bottom:12px">${lab}${el}${f.hint?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(f.hint)}</div>`:''}</div>`;
+      }).join('')
+      +`<div id="vm-fout" style="display:none;color:var(--red,#b42318);font-size:12px;margin-bottom:8px"></div>`
+      +`<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
+        <button type="button" class="btn-o" id="vm-annuleer" style="min-height:44px;padding:0 16px">${esc(o.annuleerTekst||'Annuleren')}</button>
+        <button type="button" class="${o.gevaarlijk?'btn-r':'btn-g'}" id="vm-ok" style="min-height:44px;padding:0 16px;${o.gevaarlijk?'background:#b42318;color:#fff;border-color:#b42318':''}">${esc(o.bevestigTekst||'Bevestigen')}</button></div>`;
+    bg.appendChild(box);document.body.appendChild(bg);
+    const sluit=r=>{document.removeEventListener('keydown',toets,true);bg.remove();try{vorigeFocus&&vorigeFocus.focus&&vorigeFocus.focus();}catch(e){}resolve(r);};
+    const lees=()=>{
+      const r={};
+      for(let i=0;i<velden.length;i++){
+        const f=velden[i],e=document.getElementById('vm-f-'+i),t=f.type||'text';
+        let v=t==='checkbox'?e.checked:e.value;
+        if(t==='number')v=v===''?null:Number(v);
+        else if(typeof v==='string'&&t!=='textarea')v=v.trim();
+        else if(typeof v==='string')v=v.trim();
+        if(f.verplicht&&(v===''||v===null||v===false&&t!=='checkbox')){
+          const m=document.getElementById('vm-fout');m.textContent=(f.label||f.naam)+' is verplicht.';m.style.display='block';e.focus();return undefined;
+        }
+        r[f.naam]=v;
+      }
+      return r;
+    };
+    const ok=()=>{const r=lees();if(r!==undefined)sluit(r);};
+    function toets(ev){
+      if(ev.key==='Escape'){ev.preventDefault();ev.stopPropagation();sluit(null);}
+      else if(ev.key==='Enter'&&!(ev.target&&ev.target.tagName==='TEXTAREA')){ev.preventDefault();ev.stopPropagation();ok();}
+    }
+    document.addEventListener('keydown',toets,true);
+    bg.addEventListener('mousedown',e=>{if(e.target===bg)sluit(null);});
+    box.querySelector('#vm-annuleer').onclick=()=>sluit(null);
+    box.querySelector('#vm-ok').onclick=ok;
+    const eerste=box.querySelector('input:not([type=checkbox]),textarea,select')||box.querySelector('#vm-ok');
+    setTimeout(()=>{eerste.focus();if(eerste.select&&eerste.tagName==='INPUT')eerste.select();},0);
+  });
+}
+// Ja/nee-bevestiging bovenop vraagModal: true bij bevestigen, false bij annuleren.
+async function bevestig(tekst,opt){
+  opt=opt||{};
+  const r=await vraagModal({titel:opt.titel||'Weet je het zeker?',tekst,bevestigTekst:opt.bevestigTekst||'Ja, doorgaan',gevaarlijk:opt.gevaarlijk!==false});
+  return r!==null;
+}
 
 function showToast(msg, type){
   type=type||'info';
@@ -3689,7 +3756,7 @@ async function saveShift(){
 
 async function deleteShift(){
   if(!editingShiftId)return;
-  if(!confirm('Shift verwijderen?'))return;
+  if(!await bevestig('Shift verwijderen?'))return;
   await api('DELETE','/personeel-shifts/'+editingShiftId);
   await loadPloegShifts();
   closeModal('modal-shift');
@@ -3968,7 +4035,7 @@ async function koppelThemaBundel(themaId){
   laadThemaBundels(themaId);
 }
 async function ontkoppelThemaBundel(themaId,bundelId){
-  if(!confirm('Bundel ontkoppelen?'))return;
+  if(!await bevestig('Bundel ontkoppelen?'))return;
   await api('DELETE','/thema-bundels/'+bundelId);
   laadThemaBundels(themaId);
 }
@@ -4002,17 +4069,18 @@ async function laadThemaBakken(themaId){
   }).join('');
 }
 async function voegBakToe(themaId){
-  const label=prompt('Label van de bak (bv. "Themabak 1/2"):');
-  if(!label)return;
-  const code=prompt('Code / locatie in het magazijn (bv. N08, laat leeg als onbekend):');
-  const lg=prompt('Leeftijdsgroep (KL / LS / KLS, laat leeg voor beide):');
-  const b=await api('POST','/themas/'+themaId+'/bakken',{label,code:code||'',leeftijdsgroep:lg||''});
+  const v=await vraagModal({titel:'Bak toevoegen',bevestigTekst:'Bak toevoegen',velden:[
+    {naam:'label',label:'Naam van de bak',verplicht:true,hint:'bv. Themabak 1/2'},
+    {naam:'code',label:'Code in het magazijn',hint:'bv. N08 — leeg laten als onbekend'},
+    {naam:'lg',label:'Leeftijdsgroep',type:'select',standaard:'',opties:[{waarde:'',label:'Beide'},{waarde:'KL',label:'Kleuters (KL)'},{waarde:'LS',label:'Lagere school (LS)'},{waarde:'KLS',label:'Kleuters en lagere school (KLS)'}]}]});
+  if(v===null)return;
+  const b=await api('POST','/themas/'+themaId+'/bakken',{label:v.label,code:v.code||'',leeftijdsgroep:v.lg||''});
   if(b&&b.error){showToast(b.error,'error');return;}
   showToast('Bak aangemaakt','success');
   laadThemaBakken(themaId);
 }
 async function verwijderBak(bakId,themaId){
-  if(!confirm('Wil je deze bak en alle inhoud verwijderen?'))return;
+  if(!await bevestig('Wil je deze bak en alle inhoud verwijderen?'))return;
   await api('DELETE','/bakken/'+bakId);
   showToast('Bak verwijderd','success');
   laadThemaBakken(themaId);
@@ -4677,7 +4745,7 @@ async function saveKampmoment(){
 }
 async function deleteKampmoment(id){
   if(!id){showToast('Geen kampmoment geselecteerd','warn');return;}
-  if(!confirm('Kampmoment verwijderen? De locatie gaat deze week weer dicht en gekoppelde thema\'s/transporten worden losgekoppeld.'))return;
+  if(!await bevestig('Kampmoment verwijderen? De locatie gaat deze week weer dicht en gekoppelde thema\'s/transporten worden losgekoppeld.'))return;
   await api('DELETE','/kampmomenten/'+id);
   S.kampmomenten=S.kampmomenten.filter(k=>k.id!==id);
   closeModal('modal-km');
@@ -4724,7 +4792,7 @@ async function saveThemaMat(themaId, matId){
 }
 
 async function deleteThemaMat(themaId, matId){
-  if(!confirm('Materiaal verwijderen?'))return;
+  if(!await bevestig('Materiaal verwijderen?'))return;
   await api('DELETE','/themas/'+themaId+'/materiaal/'+matId);
   S.themas = S.themas.map(t=>t.id===themaId?{...t,materiaal:(t.materiaal||[]).filter(m=>m.id!==matId)}:t);
   renderThemas();
@@ -4786,7 +4854,7 @@ async function convertNaarGedeeld(themaId,matId,gedeeldId,qty,alreadyLinked){
   const msg=alreadyLinked
     ?'Dit gedeelde materiaal is al gekoppeld aan dit thema. De dubbele thema-materiaalregel verwijderen?'
     :('Deze thema-materiaalregel omzetten naar een koppeling met het gedeelde materiaal "'+(g?g.name:'')+'"?');
-  if(!confirm(msg))return;
+  if(!await bevestig(msg))return;
   const aantal=Math.max(1,parseInt(qty)||1);
   if(!alreadyLinked){
     const r=await api('POST','/gedeeld/'+gedeeldId+'/gebruik',{thema_id:themaId,qty:aantal});
@@ -5058,13 +5126,13 @@ async function addSportSet(itemId){
   setTimeout(()=>{const b=document.getElementById('sport-body-'+itemId);if(b)b.style.display='block';},50);
 }
 async function deleteSportSet(itemId,setId){
-  if(!confirm('Set verwijderen?'))return;
+  if(!await bevestig('Set verwijderen?'))return;
   await api('DELETE','/sport/sets/'+setId);
   _invSport=await api('GET','/sport');
   renderSportMateriaal();
 }
 async function deleteSportItem(itemId){
-  if(!confirm('Sportitem en al zijn sets verwijderen?'))return;
+  if(!await bevestig('Sportitem en al zijn sets verwijderen?'))return;
   await api('DELETE','/sport/'+itemId);
   _invSport=await api('GET','/sport');
   renderSportMateriaal();
@@ -5088,7 +5156,7 @@ async function addThema(){
   showToast(name+' aangemaakt','success');
 }
 async function saveThNm(id){const r=await api('PUT','/themas/'+id,{name:document.getElementById('eth-n-'+id).value.trim(),color:document.getElementById('eth-c-'+id).value});S.themas=S.themas.map(t=>t.id===id?{...t,...r}:t);editingThId=null;renderThemas();}
-async function deleteThema(id){if(!confirm('Thema verwijderen?'))return;await api('DELETE','/themas/'+id);S.themas=S.themas.filter(t=>t.id!==id);if(openThId===id)openThId=null;S.kampmomenten=await api('GET','/kampmomenten');renderThemas();}
+async function deleteThema(id){if(!await bevestig('Thema verwijderen?'))return;await api('DELETE','/themas/'+id);S.themas=S.themas.filter(t=>t.id!==id);if(openThId===id)openThId=null;S.kampmomenten=await api('GET','/kampmomenten');renderThemas();}
 
 // STANDAARD — materiaal per kamplocatie
 let _stdLocId=null;
@@ -5183,7 +5251,7 @@ async function saveBasisItem(id){
   S.standaard=await api('GET','/standaard'); S.locMat={}; _editStdMat=null; renderStandaard(); showToast('Basis bijgewerkt','success');
 }
 async function deleteBasisItem(id){
-  if(!confirm('Dit basisitem bij ELK kamp verwijderen?'))return;
+  if(!await bevestig('Dit basisitem bij ELK kamp verwijderen?'))return;
   await api('DELETE','/standaard/'+id); S.standaard=await api('GET','/standaard'); S.locMat={}; renderStandaard();
 }
 async function toggleBasisVerborgen(locId,sid,verborgen){
@@ -5471,7 +5539,7 @@ function openNieuweLocatie(){_locTabSel='new';editingLoc=null;renderLocatieDetai
 function _refreshLocDetail(){if(document.getElementById('loc-tab-detail'))renderLocatieDetail();}
 
 async function deleteLocTab(id){
-  if(!confirm('Locatie verwijderen?'))return;
+  if(!await bevestig('Locatie verwijderen?'))return;
   await api('DELETE','/locaties/'+id);
   S.locaties=S.locaties.filter(l=>l.id!==id);
   _locTabSel=null;
@@ -5892,7 +5960,7 @@ function themaBulkLeeftijd(){
 async function themaBulkDelete(){
   const ids=[..._themaSel];
   if(!ids.length)return;
-  if(!confirm(ids.length+" thema's verwijderen? Dit kan niet ongedaan worden gemaakt."))return;
+  if(!await bevestig(ids.length+" thema's verwijderen? Dit kan niet ongedaan worden gemaakt."))return;
   let ok=0;
   for(const id of ids){ const r=await api('DELETE','/themas/'+id); if(r&&!r.error)ok++; }
   S.themas=await api('GET','/themas'); S.themas=S.themas.map(t=>({...t,materiaal:t.materiaal||[]}));
@@ -6495,7 +6563,7 @@ async function maakGedeeld(type,id,themaId,locId){
   const msg=dup
     ?('Er bestaat al gedeeld materiaal "'+dup.name+'".\n\nToch een nieuw, apart gedeeld item maken van "'+naam+'"? Het originele item wordt verwijderd.')
     :('"'+naam+'" omzetten naar gedeeld materiaal?\n\nHet originele '+(_catTypeLbl[type]||type).toLowerCase()+'-item wordt verwijderd.');
-  if(!confirm(msg))return;
+  if(!await bevestig(msg))return;
   // 1. Nieuw gedeeld item aanmaken
   const g=await api('POST','/gedeeld',{name:naam,totaal:qty,cat:'gedeeld'});
   if(!g||g.error||!g.id){showToast('Aanmaken van gedeeld item mislukt','error');return;}
@@ -6538,7 +6606,7 @@ function _catSelItems(){
 async function catBulkDelete(){
   const items=_catSelItems();
   if(!items.length)return;
-  if(!confirm(items.length+' geselecteerd(e) item(s) definitief verwijderen?'))return;
+  if(!await bevestig(items.length+' geselecteerd(e) item(s) definitief verwijderen?'))return;
   let ok=0;
   for(const it of items){try{await _catItemDelete(it.type,it.raw_id,it.thema_id);ok++;}catch(e){}}
   _catSel.clear();
@@ -6869,7 +6937,7 @@ function _kaartZoom(id){
 async function geocodeLocatiesBulk(){
   const zonder=(S.locaties||[]).filter(l=>(!l.lat||!l.lng)&&l.addr&&l.addr.trim());
   if(!zonder.length){ showToast('Alle locaties met een adres hebben al een kaartpositie.','info'); return; }
-  if(!confirm('Kaartpositie ophalen voor '+zonder.length+' locatie(s)? Dit kan ~'+Math.ceil(zonder.length*1.2)+' seconden duren.'))return;
+  if(!await bevestig('Kaartpositie ophalen voor '+zonder.length+' locatie(s)? Dit kan ~'+Math.ceil(zonder.length*1.2)+' seconden duren.',{titel:'Kaartposities ophalen',bevestigTekst:'Ophalen',gevaarlijk:false}))
   showToast('📍 Coördinaten ophalen… even geduld','info');
   const r=await api('POST','/locaties/geocode');
   if(r&&!r.error){
@@ -7483,11 +7551,17 @@ async function saveRit(){
   // fillChaufDatalist()/S_chauffeurs gevuld wordt. We herleiden personeel_id via naam-match
   // en sturen zowel personeel_id als de naam mee (de naam blijft het bestaande vrije tekstveld).
   const chaufPersoon=(S_chauffeurs||[]).find(c=>c.name.toLowerCase()===chaufNaam.toLowerCase());
+  let voertuigNaam=document.getElementById('rit-voertuig').value;
+  if(voertuigNaam==='__anders'){
+    const vv=await vraagModal({titel:'Ander voertuig',bevestigTekst:'Opslaan',velden:[{naam:'naam',label:'Naam van het voertuig',verplicht:true}]});
+    if(vv===null)return;
+    voertuigNaam=vv.naam;
+  }
   const r=await api('PUT','/ritten/'+editingRitId,{
     datum,
     chauffeur:chaufNaam,
     personeel_id:chaufPersoon?chaufPersoon.id:null,
-    voertuig:(()=>{const v=document.getElementById('rit-voertuig').value;return v==='__anders'?(prompt('Voertuig naam:')||''):v;})(),
+    voertuig:voertuigNaam,
     status:document.getElementById('rit-status').value,
     opmerking:document.getElementById('rit-opmerking').value.trim()
   });
@@ -7499,7 +7573,7 @@ async function saveRit(){
 }
 async function deleteRit(){
   if(!editingRitId)return;
-  if(!confirm('Rit verwijderen? De transporten gaan terug naar de backlog.'))return;
+  if(!await bevestig('Rit verwijderen? De transporten gaan terug naar de backlog.'))return;
   await api('DELETE','/ritten/'+editingRitId);
   editingRitId=null;
   closeModal('modal-rit');
@@ -7537,7 +7611,7 @@ async function addChauf(){
 }
 
 async function deleteChauf(id){
-  if(!confirm('Chauffeur verwijderen? Dit verwijdert de persoon uit Personeel.'))return;
+  if(!await bevestig('Chauffeur verwijderen? Dit verwijdert de persoon uit Personeel.'))return;
   await api('DELETE','/personeel/'+id);
   S_chauffeurs=S_chauffeurs.filter(c=>c.id!==id);
   await loadPloegShifts();
@@ -7603,31 +7677,43 @@ async function renderAanvragen(){
   </div>`).join('');
 }
 
-function openNieuweAanvraag(){
-  const tekst=prompt('Aanvraag omschrijving:');
-  if(!tekst||!tekst.trim())return;
-  const soort=confirm('OK = materiaal-aanvraag, Annuleren = kapot-melding')?'materiaal':'kapot';
-  api('POST','/aanvragen',{soort,tekst:tekst.trim(),persoon_id:CURRENT_USER?.id||null}).then(r=>{
+async function openNieuweAanvraag(){
+  const v=await vraagModal({titel:'Nieuwe aanvraag',bevestigTekst:'Aanvraag maken',velden:[
+    {naam:'soort',label:'Soort',type:'select',standaard:'materiaal',opties:[{waarde:'materiaal',label:'Materiaal nodig'},{waarde:'kapot',label:'Iets is kapot'}]},
+    {naam:'tekst',label:'Omschrijving',type:'textarea',verplicht:true}]});
+  if(v===null)return;
+  try{
+    const r=await api('POST','/aanvragen',{soort:v.soort,tekst:v.tekst,persoon_id:CURRENT_USER?.id||null});
     if(r&&r.error){showToast(r.error,'error');return;}
     showToast('Aanvraag aangemaakt','success');
     renderAanvragen();
-  });
+  }catch(e){showToast('Aanvraag maken mislukt: '+e.message,'error');}
 }
 
 async function behandelAanvraag(id,status){
   let reden='';
-  if(status==='afgewezen'){
-    reden=prompt('Reden voor afwijzen:')||'';
-    if(reden===null)return;
-  }
   let maak_spoedtransport=false,spoedtransport=null;
-  if(status==='goedgekeurd'){
-    reden=prompt('Reden/motivatie bij goedkeuring (optioneel):')||'';
-    maak_spoedtransport=confirm('Meteen een spoedtransport aanmaken voor deze aanvraag?');
-    if(maak_spoedtransport){
-      const a=(await api('GET','/aanvragen?status=nieuw')).find(x=>x.id===id);
-      spoedtransport={item:a?a.tekst:'Aanvraag #'+id,qty:1};
-    }
+  if(status==='afgewezen'){
+    const v=await vraagModal({titel:'Aanvraag afwijzen',tekst:'Geef kort aan waarom, zodat de aanvrager het ziet.',bevestigTekst:'Afwijzen',gevaarlijk:true,
+      velden:[{naam:'reden',label:'Reden',type:'textarea',verplicht:true}]});
+    if(v===null)return;
+    reden=v.reden;
+  }else if(status==='goedgekeurd'){
+    let a=null;
+    try{a=(await api('GET','/aanvragen?status=nieuw')).find(x=>x.id===id)||null;}catch(e){showToast('Aanvraag ophalen mislukt: '+e.message,'error');return;}
+    const tekstA=a?a.tekst:'Aanvraag #'+id;
+    const getal=(tekstA.match(/\b(\d{1,4})\b/)||[])[1];
+    const d=new Date();do{d.setDate(d.getDate()+1);}while(d.getDay()===0||d.getDay()===6);
+    const dagIso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const v=await vraagModal({titel:'Aanvraag goedkeuren',tekst:tekstA,bevestigTekst:'Goedkeuren',
+      velden:[{naam:'reden',label:'Motivatie (optioneel)',type:'textarea'},
+        {naam:'spoed',label:'Meteen een spoedtransport aanmaken',type:'checkbox',standaard:false},
+        {naam:'qty',label:'Aantal (voor het spoedtransport)',type:'number',standaard:getal?parseInt(getal):1},
+        {naam:'datum',label:'Gewenste dag (spoedtransport)',type:'date',standaard:dagIso}]});
+    if(v===null)return;
+    reden=v.reden;
+    maak_spoedtransport=!!v.spoed;
+    if(maak_spoedtransport)spoedtransport={item:tekstA,qty:v.qty>0?v.qty:1,datum:v.datum||dagIso};
   }
   const r=await api('PUT','/aanvragen/'+id+'/status',{status,reden,maak_spoedtransport,spoedtransport});
   if(r&&r.error){showToast(r.error,'error');return;}
@@ -7783,7 +7869,7 @@ async function bulkActie(type){
     await api('POST','/transport-taken/bulk-ontkoppel',{ids});
     showToast(ids.length+' transporten teruggezet naar backlog','success');
   } else if(type==='delete'){
-    if(!confirm('Wil je '+ids.length+' transporten permanent verwijderen?'))return;
+    if(!await bevestig('Wil je '+ids.length+' transporten permanent verwijderen?'))return;
     await api('POST','/transport-taken/bulk-delete',{ids});
     showToast(ids.length+' transporten verwijderd','success');
   } else if(type==='nieuwe-rit'){
@@ -7804,7 +7890,7 @@ async function bulkActie(type){
   if(typeof _herlaadPlanner==='function')_herlaadPlanner();
 }
 async function verwijderNood(id){
-  if(!confirm('Deze nood verwijderen?'))return;
+  if(!await bevestig('Deze nood verwijderen?'))return;
   await api('DELETE','/transport-taken/'+id);
   await renderNoden();
   if(document.getElementById('sec-transport-plan')?.classList.contains('active'))_herlaadPlanner();
@@ -7955,7 +8041,7 @@ async function saveTpTaak(){
 }
 async function deleteTpTaak(){
   if(!editingTpId)return;
-  if(!confirm('Transport verwijderen?'))return;
+  if(!await bevestig('Transport verwijderen?'))return;
   await api('DELETE','/transport-taken/'+editingTpId);
   editingTpId=null;
   closeModal('modal-transport');
@@ -8116,7 +8202,7 @@ async function addThemaCat(){
 }
 
 async function deleteThemaCat(id, name){
-  if(!confirm(`Categorie "${name}" verwijderen? Thema's in deze categorie krijgen geen categorie meer.`))return;
+  if(!await bevestig(`Categorie "${name}" verwijderen? Thema's in deze categorie krijgen geen categorie meer.`))return;
   await api('DELETE','/thema-categorieen/'+id);
   S_thema_cats = S_thema_cats.filter(c=>c.id!==id);
   renderThemaCatBeheer();
@@ -8570,7 +8656,7 @@ async function setKzNotitie(checkId,notitie){
 }
 async function herlaadKzChecks(){
   if(!_kzRitId)return;
-  if(!confirm('Checklist opnieuw opbouwen vanuit de huidige materiaalregels? Bestaande vinkjes gaan verloren.'))return;
+  if(!await bevestig('Checklist opnieuw opbouwen vanuit de huidige materiaalregels? Bestaande vinkjes gaan verloren.',{titel:'Checklist opnieuw opbouwen',bevestigTekst:'Opnieuw opbouwen'}))return;
   const init=await api('POST','/ritten/'+_kzRitId+'/checks/init');
   if(init&&init.error){showToast(init.error,'warn');return;}
   _kzChecks=init.checks||[];
@@ -9342,7 +9428,7 @@ async function indienKantoor(sessieId,bakId,regelIds){
 }
 
 async function annuleerNk2(sessieId,bakId){
-  if(!confirm('Nakijksessie annuleren?'))return;
+  if(!await bevestig('Nakijksessie annuleren?'))return;
   await api('DELETE','/nakijk/'+sessieId);
   _nk2Open[bakId]=false;
   await laadNakijken();
@@ -9490,7 +9576,7 @@ async function slaaPersoonOp(){
 async function verwijderPersoon(){
   const id=document.getElementById('pers-edit-id').value; if(!id)return;
   const p=(_persData||[]).find(x=>String(x.id)===String(id));
-  if(!confirm(`${p?.naam||'Persoon'} verwijderen?`))return;
+  if(!await bevestig(`${p?.naam||'Persoon'} verwijderen?`))return;
   await api('DELETE',`/personeel/${id}`);
   sluitPersoonModal();
   _persData=[];
@@ -9531,7 +9617,7 @@ async function slaaShiftOp(){
 }
 
 async function verwijderShiftDirect(shiftId,persId){
-  if(!confirm('Shift verwijderen?'))return;
+  if(!await bevestig('Shift verwijderen?'))return;
   await api('DELETE',`/personeel-shifts/${shiftId}`);
   _persData=[];
   await _laadPersoneel();
@@ -9541,7 +9627,7 @@ async function verwijderShiftDirect(shiftId,persId){
 
 async function verwijderShift(){
   const id=document.getElementById('shift-edit-id').value; if(!id)return;
-  if(!confirm('Shift verwijderen?'))return;
+  if(!await bevestig('Shift verwijderen?'))return;
   await api('DELETE',`/personeel-shifts/${id}`);
   document.getElementById('modal-pers-shift').style.display='none';
   _persData=[];
