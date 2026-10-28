@@ -66,9 +66,11 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 61 | Backup dekt uploads/ (foto's) niet: volume-backup of foto-export | Architectuur en robuustheid | Bouwchat | open | 2 | GEVONDEN E |
 | 62 | herstel-db: proces stopte met exit 0 en Railway herstartte niet (prod 10 min plat); hotfix exit 1 door Fable; nette oplossing = herladen zonder exit | Architectuur en robuustheid | Bouwchat | gebouwd | 1 | hotfix live 29/10 |
 | 63 | test-v3c-fotos leest de lokale sporty.db i.p.v. herfst-test.db (resultaat hangt van de map af) | Testen | Bouwchat | open | 3 | GEVONDEN C |
-| 64 | KV-sessies periode-veilig: nakijk_sessies.kampmoment_id (migratie+backfill), kv.js en voorraad.js erop | KV-scherm | Bouwchat | open | 1 | GEVONDEN B (V2); herfst-KV overschrijft anders zomer-sessie |
-| 65 | Kalender hardcodeert juli-augustus; planner-periodekiezer zet actief lokaal; _activePeriode-terugval 'Zomer 2026' | Periodes en planning | Bouwchat | open | 2 | GEVONDEN B (V2) |
+| 64 | KV-sessies periode-veilig: nakijk_sessies.kampmoment_id (migratie+backfill), kv.js en voorraad.js erop | KV-scherm | Bouwchat | gekeurd | 1 | V2b chat B: migratie 72; keten-kv-periode 19/19; live 29/10 |
+| 65 | Kalender hardcodeert juli-augustus; planner-periodekiezer zet actief lokaal; _activePeriode-terugval 'Zomer 2026' | Periodes en planning | Bouwchat | gekeurd | 2 | V2b: kalender uit periode (+ tijdzonefout weg), kiezer via server; live 29/10 |
 | 66 | test-f1-schrijven flaky in volle run (AFGEBROKEN/1 fout, los altijd groen): poller 100 ms | Testen | Bouwchat | open | 3 | GEVONDEN B |
+| 67 | Tekortenlijst-UI: kop 'zonder kampmoment' tonen (backend levert ze al achteraan) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | GEVONDEN B (V2b) |
+| 68 | setActivePeriode (Periodes-lijst) herlaadt kalender niet; andere isoDate-middernacht-plekken (tijdzone) | Periodes en planning | Bouwchat | open | 3 | GEVONDEN B (V2b) |
 | 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | gekeurd | 1 | V2: ?periode_id, velden, geen_thema |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
@@ -78,6 +80,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | ✓ | A | F1 | Fundament: modules, atomaire schrijving, wijzigingslog | 22, 41 | klaar (28/10, 54d4ee6) |
 | 1 | B | V1 | Testharnas | 6 | klaar (29/10, 670b19d) |
 | 2 | B | V2 | Dynamische periodes + conflicten-API + kampmoment uniek per periode | 7, 8, 57, 60 | klaar (29/10, 1d0a818) |
+| 8 | B | V2b | KV-sessies per kampmoment, kalender en planner-kiezer dynamisch | 64, 65 | klaar (29/10) |
 | 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | klaar (29/10, 7febb80) |
 | 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | klaar (29/10, f389c61) |
 | 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | klaar (29/10, 9e04932) |
