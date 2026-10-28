@@ -1,0 +1,28 @@
+{
+  "bron": "sporty.db",
+  "periode": {
+    "id": 2,
+    "naam": "Herfst TEST",
+    "start": "2026-11-02",
+    "eind": "2026-11-08"
+  },
+  "locaties": {
+    "abdijschool": 29,
+    "betekom": 36,
+    "rozenweg": 7
+  },
+  "themas": {
+    "alles_op_wieltjes": 4084,
+    "holderdebolder": 4085
+  },
+  "personen": {
+    "chauffeur": 13,
+    "kv_abdijschool": 14,
+    "kv_betekom": 15,
+    "api": 10
+  },
+  "kampmomenten": {
+    "betekom": 167,
+    "abdijschool": 168
+  }
+}
