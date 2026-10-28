@@ -93,25 +93,27 @@ Eigenaar: chauffeur (+ kantoor volgt). KV helpt bij de levering als die tijd hee
 | 4.6 | ❓ Opbouw springkastelen: wie, en moet de app iets tonen (blazers, zekeringen, foto opgezet)? | 🟠 foto's bestaan | open (klein) |
 
 ---
-### FASE 5 — Kampweek (ma–vr)
-Eigenaar: KV (mobiel), kantoor reageert.
+### FASE 5 — Kampweek (ma–vr) — ✔ besproken met Maxim 28/10
+Eigenaar: KV (mobiel), kantoor reageert. **Bouwvolgorde: pas ná het logistieke deel (zie Dwarsthema "Logistiek eerst").**
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 5.1 | KV opent kv-link: ziet wat er hoort te staan (bakken, attributen, pool, boodschappenlijst) | 🟠 vaste bakken tonen 0 items (A-GEVONDEN-4); bulk-zicht ❓ | |
-| 5.2 | KV dient aanvraag in ("tape op", "extra ballen") → kantoor keurt → spoedtaak of afwijzing mét reden terug naar KV | 🟠 flow bestaat; afwijs-annuleer-bug (D-#1), spoedtaak zonder bestemming (B-F8) | |
-| 5.3 | KV meldt iets kapot (+foto) → kantoor ziet het | 🟠 foto ongelimiteerd base64 in db (A/C) | |
-| 5.4 | Kantoor-dashboard: vandaag — wat speelt er (aanvragen, transporten, conflicten) | 🟠 versnipperd (D) | |
-| 5.5 | ❓ Dagelijkse telling/checks tijdens de week, of alleen vrijdag? | ❓ | |
+| 5.1 | KV opent kv-link: wat hoort er te staan (bakken, attributen, pool, boodschappenlijst) **+ wanneer iets geleverd wordt + opvolging van eigen meldingen/aanvragen** ("wat de KV nodig heeft om een goede KV te zijn") | 🟠 vaste bakken tonen 0 items (A-GEVONDEN-4); levering/opvolging ❌ | |
+| 5.2 | KV dient aanvraag in → **kantoor beslist** (KV meldt en vraagt alleen) → spoedtaak of afwijzing mét reden terug naar KV | 🟠 flow bestaat; afwijs-annuleer-bug (D-#1), spoedtaak zonder bestemming (B-F8) | |
+| 5.3 | KV meldt iets kapot (+foto) → kantoor ziet het en beslist (vervangen/herstellen/leveren) | 🟠 foto ongelimiteerd base64 in db (A/C) | |
+| 5.4 | Kantoor-dashboard: vandaag — aanvragen, transporten, conflicten | 🟠 versnipperd (D) | |
+| 5.5 | Midweekse controle: **mag, geen verplichting** (zelfde telscherm als 6.1, vrijblijvend) | 🟠 | |
 
 ---
-### FASE 6 — Vrijdagcontrole (einde kampweek)
-Eigenaar: KV → kantoor.
+### FASE 6 — Vrijdagcontrole (einde kampweek) — ✔ besproken met Maxim 28/10
+Eigenaar: monitoren + KV → kantoor. Monitoren tellen en geven door aan de KV; sommige KV's tellen zelf. Beiden moeten het kunnen.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 6.1 | KV telt per bak de items (gewenst vs aangetroffen), vinkt attributen, versturen | 🟠 werkt; lege controle verzendbaar (D-#2), alerts (D-#3), hertellen-na-verwerking (B-R5) | |
-| 6.2 | Kantoor ziet tekorten per bak + geaggregeerd dashboard; status besteld/aangevuld/genegeerd; aanvullen boekt voorraad af | 🟠 werkt (S6); randgevallen R6/R7; zinloos tot voorraad gevuld | |
-| 6.3 | Controle afsluiten pas als alles verwerkt | ✅ | |
-| 6.4 | ❓ Vrijdag = ook fysieke wissel-voorbereiding (bakken dicht, klaar voor ophaal/wissel)? | ❓ | |
+| 6.1 | **Telscherm** per bak: per onderdeel aantal typen, afvinken, iets melden (kapot/ontbreekt/opmerking); versturen | 🟠 werkt; lege controle verzendbaar (D-#2), alerts (D-#3), hertellen-na-verwerking (B-R5) | designsessie |
+| 6.2 | **Monitor-link**: een monitor krijgt een link waarmee hij alleen zijn telling invult en niets anders ziet (geen aanvragen, geen andere locaties, geen beheer); KV ziet de ingevulde tellingen en verstuurt | ❌ (alleen kv-token) | nieuw: tel-token per bak/controle, kort geldig |
+| 6.3 | Kantoor ziet tekorten per bak + dashboard; besteld/aangevuld/genegeerd; aanvullen boekt voorraad af; **terugkoppeling naar KV** ("verwerkt, bak 12 aangevuld") | 🟠 werkt (S6); randgevallen R6/R7; terugkoppeling ❌ | |
+| 6.4 | **Verbruikshistoriek per thema/item over de vakanties** ("Bakkerij: 5 lijmstiften verbruikt zomer 2026") → inkoop op data i.p.v. gevoel | ❌ (tellingen worden bewaard, geen rapport) | nieuw; voedt 2.2 inkooplijst |
+| 6.5 | Controle afsluiten pas als alles verwerkt | ✅ | |
+| 6.6 | ❓ Vrijdag = ook fysieke wissel-voorbereiding (bakken dicht, klaar voor ophaal)? | ❓ | open (klein) |
 
 ---
 ### FASE 7 — Week-overgang (alleen meerweekse vakanties)
@@ -140,6 +142,7 @@ Eigenaar: kantoor + chauffeur.
 
 ---
 ## Dwarsthema's (gelden overal)
+- **LOGISTIEK EERST (Maxim 28/10, bindend voor de bouwvolgorde):** coördinatoren en chauffeurs krijgen voorrang bij alles. Alles voor KV's en monitoren komt pas als het coördinatoren-/chauffeursdeel gebouwd is én volledig werkt. Uitzondering: het KV-/monitorstuk dat essentieel is voor de logistiek (aanvraag indienen, ontvangst bevestigen, telling versturen) mag tegelijk gebouwd worden.
 - **Professioneel, met alles erop en eraan (Maxim 28/10):** één echte database (geen sql.js-bestand dat in het geheugen leeft en in één keer wordt weggeschreven): atomaire schrijfacties, migraties, back-ups, foto's buiten de db. Heel de app moet die lat halen: geen prompt()-vensters, geen halve schermen.
 - **Veiligheid**: rollen gescheiden, alles achter de muren, geen lekken (DOORLICHTING-c → V0-noodronde).
 - **Robuust**: geen stille fouten; foute invoer → 400 met uitleg; database-schrijving atomair (A).
