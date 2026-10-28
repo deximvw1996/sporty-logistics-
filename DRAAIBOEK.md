@@ -117,7 +117,7 @@ Eigenaar: monitoren + KV → kantoor. Monitoren tellen en geven door aan de KV; 
 
 ---
 ### FASE 7 — Week-overgang (alleen meerweekse vakanties) — ✔ besproken met Maxim 28/10
-Eigenaar: kantoor + chauffeur. **Geen transport op zaterdag/zondag** (alleen hoogst uitzonderlijk; de generator plant nooit in het weekend). **Locatie → locatie zonder tussenstop** in een stockageplaats is normaal en moet de app kunnen voorstellen.
+Eigenaar: kantoor + chauffeur. **Weekend = uitzondering, geen verbod**: de generator stelt standaard geen zaterdag/zondag voor, maar de planner mag het wel kiezen (sportdagen en evenementen zoals de Leuven Night Run vallen in het weekend). **Locatie → locatie zonder tussenstop** in een stockageplaats is normaal en moet de app kunnen voorstellen.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
 | 7.1 | Thema-wissel: oud thema deels/volledig op (zie 3.4), nieuw eraf, liefst in één rit op vrijdag | 🟠 bakken ✅, pool vergeten (B-F1) | |
