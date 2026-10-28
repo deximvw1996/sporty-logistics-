@@ -75,8 +75,9 @@ module.exports = function(ctx){
   // ── FOTO PER SPORT ITEM ──
   // Veiligheidsronde (DOORLICHTING-c #1): extensie uit een vaste lijst, bestaandsnaam volledig
   // server-side, pad-check binnen UPLOADS_DIR, max 2 MB gedecodeerd.
+  const fotoLib=require('../lib/fotos')(UPLOADS_DIR); // V3c: één waarheid voor limiet + magic bytes
   const FOTO_EXTENSIES=new Set(['jpg','jpeg','png','webp']);
-  const FOTO_MAX_BYTES=2*1024*1024;
+  const FOTO_MAX_BYTES=fotoLib.FOTO_MAX_BYTES;
   app.post('/api/sport/:id/foto',(req,res)=>{
     const{data,ext}=req.body;
     if(!data||typeof data!=='string')return res.status(400).json({error:'Geen afbeeldingsdata'});
@@ -90,6 +91,7 @@ module.exports = function(ctx){
     try{ buf=Buffer.from(data.replace(/^data:[^;]+;base64,/,''),'base64'); }catch(e){ buf=null; }
     if(!buf||!buf.length)return res.status(400).json({error:'Afbeeldingsdata is geen geldige base64'});
     if(buf.length>FOTO_MAX_BYTES)return res.status(400).json({error:`Foto te groot (max ${FOTO_MAX_BYTES/1024/1024} MB)`});
+    if(!fotoLib.detecteer(buf))return res.status(400).json({error:'Ongeldig bestandstype — alleen jpg, png of webp'});
     const filename=`sport-${itemId}-${Date.now()}.${extNorm}`;
     const doel=path.resolve(UPLOADS_DIR,filename);
     if(!doel.startsWith(path.resolve(UPLOADS_DIR)+path.sep))return res.status(400).json({error:'Ongeldige bestandsnaam'});

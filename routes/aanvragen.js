@@ -2,6 +2,7 @@
 // Kopjes: S3.3 AANVRAGEN
 'use strict';
 module.exports = function(ctx){
+  const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR); // V3c
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── S3.3: AANVRAGEN (vervangt de oude losse spoedmeldingen, zie Migratie 55) ──
   // Publiek bereikbaar in principe (komt straks van de KV-link, S3.4/S3.5), maar ligt hier
@@ -23,8 +24,10 @@ module.exports = function(ctx){
   app.post('/api/aanvragen',(req,res)=>{
     const{kampmoment_id,persoon_id,soort,tekst,foto_data}=req.body;
     if(!tekst||!tekst.trim())return res.status(400).json({error:'Tekst is verplicht'});
-    const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,status,created_at) VALUES (?,?,?,?,?,?,?)',
-      [kampmoment_id||null,persoon_id||null,soort||'materiaal',tekst.trim(),foto_data||'','nieuw',now()]);
+    let f={pad:'',url:''};
+    if(foto_data){try{f=fotos.verwerkWaarde(foto_data,'','aanvraag');}catch(e){return res.status(e.status||500).json({error:e.status?e.message:'Foto opslaan mislukt'});}}
+    const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
+      [kampmoment_id||null,persoon_id||null,soort||'materiaal',tekst.trim(),f.url,f.pad,'nieuw',now()]);
     logAct('aanvraag','aangemaakt',`📨 Nieuwe aanvraag (${soort||'materiaal'}): ${tekst.trim()}`,null,null);
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });

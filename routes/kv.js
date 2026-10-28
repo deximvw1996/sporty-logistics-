@@ -129,8 +129,10 @@ module.exports = function(ctx){
     if(!km)return res.status(403).json({error:'Ongeldige of verlopen link'});
     const tekst=(req.body?.tekst||'').trim();
     if(!tekst)return res.status(400).json({error:'Omschrijving is verplicht'});
-    const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,status,created_at) VALUES (?,?,?,?,?,?,?)',
-      [km.id,km.kv_persoon_id||null,'kapot',tekst,req.body?.foto_data||'','nieuw',now()],'kv-link');
+    let f={pad:'',url:''};
+    if(req.body?.foto_data){try{f=require('../lib/fotos')(ctx.UPLOADS_DIR).verwerkWaarde(req.body.foto_data,'','aanvraag');}catch(e){return res.status(e.status||500).json({error:e.status?e.message:'Foto opslaan mislukt'});}}
+    const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
+      [km.id,km.kv_persoon_id||null,'kapot',tekst,f.url,f.pad,'nieuw',now()],'kv-link');
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 

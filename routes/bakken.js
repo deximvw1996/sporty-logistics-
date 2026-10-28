@@ -2,6 +2,8 @@
 // Kopjes: THEMA BAKKEN, STOCK OVERZICHT, VASTE BAKKEN, ATTRIBUTEN, THEMABEHOEFTE POOL, BAK/ATTRIBUUT-STATUS, GEDEELD MATERIAAL, BAK FOTO'S
 'use strict';
 module.exports = function(ctx){
+  const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR); // V3c: foto's als bestand, db bewaart pad + URL
+  const fotoFout=(res,e)=>res.status(e.status||500).json({error:e.status?e.message:'Foto opslaan mislukt'});
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── THEMA BAKKEN (S2.1: uniforme bakken-tabel, deelbaar via thema_bak) ──
   function _rozenwegId(){
@@ -151,13 +153,16 @@ module.exports = function(ctx){
     const cur=get("SELECT * FROM bakken WHERE id=? AND soort='vast'",[req.params.id]);
     if(!cur)return res.status(404).json({error:'Vaste bak niet gevonden'});
     const kolom=slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
-    updateMetLog(req,`UPDATE bakken SET ${kolom}=? WHERE id=?`,[foto_data,req.params.id]);
+    let f;try{f=fotos.verwerkWaarde(foto_data,cur[kolom+'_path'],'bak');}catch(e){return fotoFout(res,e);}
+    updateMetLog(req,`UPDATE bakken SET ${kolom}=?,${kolom}_path=? WHERE id=?`,[f.url,f.pad,req.params.id]);
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id/foto-slot/:slot',(req,res)=>{
     if(!['opgeplooid','opgezet'].includes(req.params.slot))return res.status(400).json({error:"ongeldig slot"});
     const kolom=req.params.slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
-    updateMetLog(req,`UPDATE bakken SET ${kolom}='' WHERE id=?`,[req.params.id]);
+    const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
+    if(cur&&cur[kolom+'_path'])fotos.verwijderFoto(cur[kolom+'_path']);
+    updateMetLog(req,`UPDATE bakken SET ${kolom}='',${kolom}_path='' WHERE id=?`,[req.params.id]);
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.post('/api/vaste-bakken',(req,res)=>{
@@ -234,8 +239,10 @@ module.exports = function(ctx){
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
     const dubbeleCode=code&&get('SELECT id FROM bakken WHERE code=? AND code!=\'\' UNION SELECT id FROM attributen WHERE code=? AND code!=\'\'',[code,code]);
     const thuis=thuislocatie_id||_rozenwegId();
-    const id=ins('INSERT INTO attributen (naam,code,thuislocatie_id,huidige_locatie_id,status,foto_data,notitie) VALUES (?,?,?,?,?,?,?)',
-      [naam.trim(),code||'',thuis,thuis,'thuis',foto_data||'',notitie||'']);
+    let f={pad:'',url:''};
+    if(foto_data){try{f=fotos.verwerkWaarde(foto_data,'','attribuut');}catch(e){return fotoFout(res,e);}}
+    const id=ins('INSERT INTO attributen (naam,code,thuislocatie_id,huidige_locatie_id,status,foto_data,foto_path,notitie) VALUES (?,?,?,?,?,?,?,?)',
+      [naam.trim(),code||'',thuis,thuis,'thuis',f.url,f.pad,notitie||'']);
     if(dubbeleCode) console.warn(`  Waarschuwing: code "${code}" bestaat al op een andere bak/attribuut (niet-blokkerend)`);
     res.json(get('SELECT * FROM attributen WHERE id=?',[id]));
   });
@@ -243,11 +250,14 @@ module.exports = function(ctx){
     const{naam,code,thuislocatie_id,status,notitie,foto_data}=req.body;
     const cur=get('SELECT * FROM attributen WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Niet gevonden'});
-    run('UPDATE attributen SET naam=?,code=?,thuislocatie_id=?,status=?,notitie=?,foto_data=? WHERE id=?',
-      [naam??cur.naam,code??cur.code,thuislocatie_id??cur.thuislocatie_id,status??cur.status,notitie??cur.notitie,foto_data??cur.foto_data,req.params.id]);
+    let f;try{f=fotos.verwerkWaarde(foto_data,cur.foto_path,'attribuut');}catch(e){return fotoFout(res,e);}
+    run('UPDATE attributen SET naam=?,code=?,thuislocatie_id=?,status=?,notitie=?,foto_data=?,foto_path=? WHERE id=?',
+      [naam??cur.naam,code??cur.code,thuislocatie_id??cur.thuislocatie_id,status??cur.status,notitie??cur.notitie,foto_data===undefined||foto_data===null?cur.foto_data:f.url,f.pad,req.params.id]);
     res.json(get('SELECT * FROM attributen WHERE id=?',[req.params.id]));
   });
   app.delete('/api/attributen/:id',(req,res)=>{
+    const cur=get('SELECT foto_path FROM attributen WHERE id=?',[req.params.id]);
+    if(cur&&cur.foto_path)fotos.verwijderFoto(cur.foto_path);
     run('DELETE FROM thema_attribuut WHERE attribuut_id=?',[req.params.id]);
     run('DELETE FROM attributen WHERE id=?',[req.params.id]);
     res.json({ok:true});
@@ -402,8 +412,9 @@ module.exports = function(ctx){
   app.post('/api/bakken/:id/foto',(req,res)=>{
     const{wie,beschrijving,foto_data}=req.body;
     if(!foto_data)return res.status(400).json({error:'Geen foto data'});
-    const id=ins('INSERT INTO bak_fotos (bak_id,tijdstip,wie,beschrijving,foto_data) VALUES (?,?,?,?,?)',
-      [req.params.id,now(),wie||'',beschrijving||'',foto_data]);
+    let f;try{f=fotos.verwerkWaarde(foto_data,'','bakfoto');}catch(e){return fotoFout(res,e);}
+    const id=ins('INSERT INTO bak_fotos (bak_id,tijdstip,wie,beschrijving,foto_data,foto_path) VALUES (?,?,?,?,?,?)',
+      [req.params.id,now(),wie||'',beschrijving||'',f.url,f.pad]);
     res.json({ok:true,id});
   });
   app.get('/api/bak-fotos/:id',(req,res)=>{
@@ -412,6 +423,8 @@ module.exports = function(ctx){
     res.json(f);
   });
   app.delete('/api/bak-fotos/:id',(req,res)=>{
+    const cur=get('SELECT foto_path FROM bak_fotos WHERE id=?',[req.params.id]);
+    if(cur&&cur.foto_path)fotos.verwijderFoto(cur.foto_path);
     run('DELETE FROM bak_fotos WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
