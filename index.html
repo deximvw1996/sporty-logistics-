@@ -1886,7 +1886,7 @@ async function checkConflicten(){
       const wk=(String(c.bericht).match(/[Ww]eek\s*(\d+)/)||[])[1];
       const loc=locs.find(l=>String(c.bericht).includes(l.name));
       html+='<div style="display:flex;gap:10px;align-items:center;padding:8px;background:'+bg+';border-radius:var(--r);margin-bottom:4px;border:.5px solid '+bd+'">'
-        +'<span style="font-size:12px;flex:1">'+(wk?'<b>Week '+wk+'</b> · ':'')+_escH(c.bericht)+'</span>'
+        +'<span style="font-size:12px;flex:1">'+(wk?'<b>Week '+wk+'</b> · ':'')+_escH(wk?String(c.bericht).replace(/^Week\s*\d+\s*[—:-]\s*/,''):c.bericht)+'</span>'
         +'<button class="btn-o btn-xs" style="min-height:32px" onclick="springNaarConflict('+(wk||'null')+','+(loc?loc.id:'null')+')">Naar kampmoment →</button></div>';
     });
     html+='</div>';
