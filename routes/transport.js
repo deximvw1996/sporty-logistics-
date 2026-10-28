@@ -3,6 +3,7 @@
 'use strict';
 module.exports = function(ctx){
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
+  const bulk=require('../lib/bulk')(ctx); // V3a punt 1
   // ── TRANSPORT ──
   app.get('/api/transport-taken',(req,res)=>{const taken=all('SELECT * FROM transport_taken ORDER BY datum,tijd');const regels=all('SELECT * FROM transport_regels');res.json(taken.map(t=>({...t,regels:regels.filter(r=>r.taak_id===t.id)})));});
   app.post('/api/transport-genereer',(req,res)=>{
@@ -546,62 +547,82 @@ module.exports = function(ctx){
   app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');updateMetLog(req,'UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);delMetLog(req,'DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)delMetLog(req,'DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
-  app.put('/api/transport-taken/:id/status',(req,res)=>{
-    const oudStatus=get('SELECT status FROM transport_taken WHERE id=?',[req.params.id])?.status;
-    updateMetLog(req,'UPDATE transport_taken SET status=? WHERE id=?',[req.body.status,req.params.id]);
-    // Als status → "gedaan": spoed-voorraadeffect toepassen als dat nog niet gebeurd is
-    if(req.body.status==='gedaan'){
-      const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
-      if(taak)_pasSpoedEffectToe(taak);
-      // Stock-deplétie: trek verbruiksartikelen af bij levering
-      if(taak&&taak.type==='levering'&&taak.kampmoment_id&&oudStatus!=='gedaan'){
-        const kts=all('SELECT thema_id FROM kampmoment_themas WHERE kampmoment_id=?',[taak.kampmoment_id]);
-        kts.forEach(kt=>{
-          const bakken=all('SELECT id FROM thema_bakken WHERE thema_id=?',[kt.thema_id]);
-          bakken.forEach(b=>{
-            const items=all('SELECT * FROM bak_items WHERE bak_id=? AND verbruik=1',[b.id]);
-            items.forEach(item=>{
-              const nieuw=Math.max(0,(item.qty_stock||0)-(item.qty_per_gebruik||1));
-              run('UPDATE bak_items SET qty_stock=? WHERE id=?',[nieuw,item.id]);
-            });
+  // ── V3a: ÉÉN afrond-functie voor een taak (knop "gedaan" in kantoor én laatste "gelost" via rit-token) ──
+  // Controleert eerst alle bulk-regels (te weinig op de bronlocatie → fout, niets gewijzigd), dan:
+  // status gedaan, spoed-effect, verbruik-deplétie (één keer), en per regel de verplaatsing
+  // — elke regel max. één keer (transport_regels.verplaatsing_uitgevoerd = idempotent).
+  function _controleerTaakAf(taak){
+    if(!taak||!taak.naar_locatie_id)return null;
+    const regels=all('SELECT * FROM transport_regels WHERE taak_id=? AND bak_id IS NOT NULL AND COALESCE(verplaatsing_uitgevoerd,0)=0',[taak.id]);
+    for(const r of regels){
+      const b=get('SELECT * FROM bakken WHERE id=?',[r.bak_id]);
+      if(b&&b.is_bulk){const f=bulk.controleerBulk(b.id,taak.van_locatie_id||b.thuislocatie_id,r.qty||1);if(f)return f;}
+    }
+    return null;
+  }
+  function _rondTaakAf(req,taakId,context){
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[taakId]);
+    if(!taak)return {fout:'Transport niet gevonden',status:404};
+    const fout=_controleerTaakAf(taak);
+    if(fout)return {fout,status:409};
+    const oudStatus=taak.status;
+    if(oudStatus!=='gedaan')updateMetLog(req,"UPDATE transport_taken SET status='gedaan' WHERE id=?",[taak.id],context);
+    _pasSpoedEffectToe(taak,req);
+    // Stock-deplétie: trek verbruiksartikelen af bij levering
+    if(taak.type==='levering'&&taak.kampmoment_id&&oudStatus!=='gedaan'){
+      const kts=all('SELECT thema_id FROM kampmoment_themas WHERE kampmoment_id=?',[taak.kampmoment_id]);
+      kts.forEach(kt=>{
+        all('SELECT id FROM thema_bakken WHERE thema_id=?',[kt.thema_id]).forEach(b=>{
+          all('SELECT * FROM bak_items WHERE bak_id=? AND verbruik=1',[b.id]).forEach(item=>{
+            run('UPDATE bak_items SET qty_stock=? WHERE id=?',[Math.max(0,(item.qty_stock||0)-(item.qty_per_gebruik||1)),item.id]);
           });
         });
-      }
-      // S2.4: bakken/attributen in deze taak (via transport_regels.bak_id/attribuut_id) volgen
-      // automatisch mee naar naar_locatie_id; status 'thuis' als dat hun thuislocatie is.
-      if(taak&&taak.naar_locatie_id&&oudStatus!=='gedaan'){
-        const regels=all('SELECT bak_id,attribuut_id,qty FROM transport_regels WHERE taak_id=?',[req.params.id]);
-        const ritRow=taak.rit_id?get('SELECT * FROM transport_ritten WHERE id=?',[taak.rit_id]):null;
-        const chauffeurNaam=(ritRow&&ritRow.chauffeur)||taak.wie||'onbekende chauffeur';
-        const loc=get('SELECT name FROM locaties WHERE id=?',[taak.naar_locatie_id]);
-        regels.forEach(r=>{
-          if(r.bak_id){
-            const b=get('SELECT * FROM bakken WHERE id=?',[r.bak_id]);
-            if(b&&b.is_bulk){
-              // S4.5g: bulk-materiaal — verplaats r.qty eenheden in bulk_spreiding i.p.v. de
-              // hele rij (die het hele bezit vertegenwoordigt) naar 1 plek te verzetten.
-              const vanId=taak.van_locatie_id||b.thuislocatie_id;
-              const n=r.qty||1;
-              const bron=get('SELECT aantal FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[b.id,vanId]);
-              const afTeTrekken=Math.min(n,bron?bron.aantal:0);
-              if(afTeTrekken>0)run('UPDATE bulk_spreiding SET aantal=aantal-? WHERE bak_id=? AND locatie_id=?',[afTeTrekken,b.id,vanId]);
-              const doel=get('SELECT id FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[b.id,taak.naar_locatie_id]);
-              if(doel)run('UPDATE bulk_spreiding SET aantal=aantal+? WHERE bak_id=? AND locatie_id=?',[n,b.id,taak.naar_locatie_id]);
-              else ins('INSERT INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[b.id,taak.naar_locatie_id,n]);
-              logAct('bak','gelost',`Bulk "${b.naam}" ×${n} gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);
-            } else if(b){const st=taak.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
-              updateMetLog(req,'UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id]);
-              logAct('bak','gelost',`Bak "${b.naam}" (${b.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
-          }
-          if(r.attribuut_id){
-            const a=get('SELECT * FROM attributen WHERE id=?',[r.attribuut_id]);
-            if(a){const st=taak.naar_locatie_id==a.thuislocatie_id?'thuis':'op_locatie';
-              run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.attribuut_id]);
-              logAct('attribuut','gelost',`Attribuut "${a.naam}" (${a.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
-          }
-        });
-      }
+      });
     }
+    // S2.4: bakken/attributen volgen mee naar naar_locatie_id; bulk via verplaatsBulk.
+    if(taak.naar_locatie_id){
+      const regels=all('SELECT * FROM transport_regels WHERE taak_id=? AND COALESCE(verplaatsing_uitgevoerd,0)=0',[taak.id]);
+      const ritRow=taak.rit_id?get('SELECT * FROM transport_ritten WHERE id=?',[taak.rit_id]):null;
+      const chauffeurNaam=(ritRow&&ritRow.chauffeur)||taak.wie||'onbekende chauffeur';
+      const loc=get('SELECT name FROM locaties WHERE id=?',[taak.naar_locatie_id]);
+      regels.forEach(r=>{
+        if(r.bak_id){
+          const b=get('SELECT * FROM bakken WHERE id=?',[r.bak_id]);
+          if(b&&b.is_bulk){
+            const n=r.qty||1;
+            bulk.verplaatsBulk(req,b.id,taak.van_locatie_id||b.thuislocatie_id,taak.naar_locatie_id,n,context||('taak #'+taak.id));
+            logAct('bak','gelost',`Bulk "${b.naam}" ×${n} gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);
+          } else if(b){const st=taak.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
+            updateMetLog(req,'UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id],context);
+            logAct('bak','gelost',`Bak "${b.naam}" (${b.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
+        }
+        if(r.attribuut_id){
+          const a=get('SELECT * FROM attributen WHERE id=?',[r.attribuut_id]);
+          if(a){const st=taak.naar_locatie_id==a.thuislocatie_id?'thuis':'op_locatie';
+            run('UPDATE attributen SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.attribuut_id]);
+            logAct('attribuut','gelost',`Attribuut "${a.naam}" (${a.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
+        }
+        if(r.bak_id||r.attribuut_id)run('UPDATE transport_regels SET verplaatsing_uitgevoerd=1 WHERE id=?',[r.id]);
+      });
+    }
+    _sluitRitAlsKlaar(req,taak.rit_id,context);
+    return {taak:get('SELECT * FROM transport_taken WHERE id=?',[taak.id])};
+  }
+  // V3a punt 2: alle taken van de rit gedaan → rit gedaan.
+  function _sluitRitAlsKlaar(req,ritId,context){
+    if(!ritId)return;
+    const taken=all('SELECT status FROM transport_taken WHERE rit_id=?',[ritId]);
+    const rit=get('SELECT status FROM transport_ritten WHERE id=?',[ritId]);
+    if(rit&&taken.length&&taken.every(t=>t.status==='gedaan')&&rit.status!=='gedaan')
+      updateMetLog(req,"UPDATE transport_ritten SET status='gedaan' WHERE id=?",[ritId],context);
+  }
+  app.put('/api/transport-taken/:id/status',(req,res)=>{
+    if(req.body.status==='gedaan'){
+      const r=_rondTaakAf(req,req.params.id);
+      if(r.fout)return res.status(r.status).json({error:r.fout});
+      return res.json(r.taak);
+    }
+    updateMetLog(req,'UPDATE transport_taken SET status=? WHERE id=?',[req.body.status,req.params.id]);
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));
   });
   app.put('/api/transport-taken/:id/move',(req,res)=>{const{datum,tijd}=req.body;const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!t)return res.status(404).json({error:'Transport niet gevonden'});
@@ -782,7 +803,9 @@ module.exports = function(ctx){
     const chauffeur=(rit&&rit.chauffeur)||'onbekende chauffeur';
     const ritNr=rit?rit.id:'?';
     regels.forEach(c=>{
-      if(c.bak_id){
+      // V3a: bulk-rijen nooit rechtstreeks op 'onderweg' — hun status wordt afgeleid uit bulk_spreiding.
+      const _bk=c.bak_id?get('SELECT is_bulk FROM bakken WHERE id=?',[c.bak_id]):null;
+      if(c.bak_id&&!(_bk&&_bk.is_bulk)){
         if(veld==='onderweg'){
           updateMetLog(req,"UPDATE bakken SET status='onderweg' WHERE id=?",[c.bak_id],'rit-link');
           const b=get('SELECT * FROM bakken WHERE id=?',[c.bak_id]);
@@ -810,14 +833,17 @@ module.exports = function(ctx){
       }
     });
   }
+  function _ritVanToken(token){ return get('SELECT * FROM transport_ritten WHERE rit_token=?',[token]); }
   app.post('/api/rit-token/:token/checks/:checkId/laden',(req,res)=>{
-    const rit=get('SELECT * FROM transport_ritten WHERE rit_token=?',[req.params.token]);
+    const rit=_ritVanToken(req.params.token);
     if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
     const check=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
     if(!check||check.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
     const nieuw=check.geladen?0:1;
     run('UPDATE verhuis_checks SET geladen=?,geladen_door=?,geladen_op=? WHERE id=?',
       [nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id]);
+    // V3a punt 2: eerste stuk geladen → rit 'onderweg'
+    if(nieuw&&(!rit.status||rit.status==='gepland'))updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[rit.id],'rit-link');
     if(check.taak_id){
       const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
       const alleGeladen=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.geladen);
@@ -826,20 +852,39 @@ module.exports = function(ctx){
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
   });
   app.post('/api/rit-token/:token/checks/:checkId/lossen',(req,res)=>{
-    const rit=get('SELECT * FROM transport_ritten WHERE rit_token=?',[req.params.token]);
+    const rit=_ritVanToken(req.params.token);
     if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
     const check=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
     if(!check||check.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
     const nieuw=check.gelost?0:1;
+    // V3a: is dit het laatste stuk van de stop, dan eerst controleren of de taak af kan (bulk-voorraad
+    // op de bron) — anders 409 en blijft het vinkje uit.
+    let groep=[],taak=null,wordtVolledig=false;
+    if(check.taak_id){
+      taak=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
+      groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
+      wordtVolledig=nieuw&&groep.length>0&&groep.every(c=>c.id===check.id?nieuw:c.gelost);
+      if(wordtVolledig&&taak&&taak.status!=='gedaan'){const f=_controleerTaakAf(taak);if(f)return res.status(409).json({error:f});}
+    }
     run('UPDATE verhuis_checks SET gelost=?,gelost_door=?,gelost_op=? WHERE id=?',
       [nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id]);
-    if(check.taak_id){
-      const taak=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
-      const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
-      const alleGelost=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.gelost);
-      if(alleGelost && taak && taak.naar_locatie_id)_pasBakAttribuutStatusToe(groep,{naar_locatie_id:taak.naar_locatie_id},rit,req);
+    // Alle regels van de stop gelost → taak 'gedaan' met exact dezelfde boekhouding als de kantoorknop.
+    // (Een vinkje terug uitzetten draait een afgeronde taak NIET terug — dat doet kantoor.)
+    if(wordtVolledig&&taak&&taak.status!=='gedaan'){
+      const r=_rondTaakAf(req,taak.id,'rit-link');
+      if(r.fout){run('UPDATE verhuis_checks SET gelost=0,gelost_door=?,gelost_op=? WHERE id=?',['','',check.id]);return res.status(r.status).json({error:r.fout});}
     }
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
+  });
+  // V3a punt 2: chauffeur meldt "aangekomen" per stop.
+  app.post('/api/rit-token/:token/taken/:taakId/aangekomen',(req,res)=>{
+    const rit=_ritVanToken(req.params.token);
+    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.taakId]);
+    if(!taak||taak.rit_id!==rit.id)return res.status(403).json({error:'Deze stop hoort niet bij deze rit'});
+    if(taak.status!=='gedaan')updateMetLog(req,"UPDATE transport_taken SET status='aangekomen' WHERE id=?",[taak.id],'rit-link');
+    if(!rit.status||rit.status==='gepland')updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[rit.id],'rit-link');
+    res.json(get('SELECT * FROM transport_taken WHERE id=?',[taak.id]));
   });
 
   // ── TERUGKOMST ──
@@ -894,7 +939,7 @@ module.exports = function(ctx){
   });
 
   // Helper: pas spoed-voorraadeffect toe voor één transport
-  function _pasSpoedEffectToe(taak) {
+  function _pasSpoedEffectToe(taak,req) {
     if(!taak||taak.spoed_effect_toegepast||!taak.spoed_kind)return;
     const kind=taak.spoed_kind;
     const ref_id=taak.spoed_ref_id;
@@ -930,9 +975,43 @@ module.exports = function(ctx){
     if(!tok){tok=_genToken(10);updateMetLog(req,'UPDATE transport_ritten SET rit_token=? WHERE id=?',[tok,req.params.id]); }
     res.json({token:tok,url:'/rit/'+tok});
   });
+  // V3a punt 4: elke stop krijgt zijn bakkenlijst op de rit-pagina zonder "Klaarzetten".
+  // Taken zonder checks krijgen ze hier uit hun regels; een (oude) ophaling zonder regels krijgt
+  // eerst regels afgeleid uit wat volgens de db op die locatie staat voor dat kampmoment.
+  function _leidOphaalRegelsAf(taak){
+    const locId=taak.van_locatie_id;
+    const km=taak.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[taak.kampmoment_id]):null;
+    if(!locId||!km)return 0;
+    const {bakken,attributen}=_kvVerwacht(km);
+    let n=0;
+    bakken.forEach(b=>{
+      if(b.is_bulk){
+        const sp=get('SELECT aantal FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[b.id,locId]);
+        if(sp&&sp.aantal>0){ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id) VALUES (?,?,?,?,?,?)',[taak.id,`${sp.aantal} × ${b.naam}`,sp.aantal,'vast',null,b.id]);n++;}
+      } else if(b.huidige_locatie_id===locId){
+        ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id) VALUES (?,?,?,?,?,?)',[taak.id,`Bak ${b.naam}${b.code?' ('+b.code+')':''}`,1,b.soort==='thema'?'thema':'vast',null,b.id]);n++;
+      }
+    });
+    attributen.filter(a=>a.huidige_locatie_id===locId).forEach(a=>{
+      ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,attribuut_id) VALUES (?,?,?,?,?,?)',[taak.id,`${a.naam}${a.code?' ('+a.code+')':''}`,1,'attribuut',null,a.id]);n++;
+    });
+    return n;
+  }
+  function _zorgVoorChecks(rit){
+    const taken=all('SELECT * FROM transport_taken WHERE rit_id=?',[rit.id]);
+    let volg=(get('SELECT MAX(sort_order) AS m FROM verhuis_checks WHERE rit_id=?',[rit.id])||{}).m;volg=volg==null?0:volg+1;
+    taken.forEach(t=>{
+      if(get('SELECT id FROM verhuis_checks WHERE taak_id=? LIMIT 1',[t.id]))return;
+      let regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]);
+      if(!regels.length&&t.type==='ophaling'&&_leidOphaalRegelsAf(t))regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]);
+      regels.forEach(r=>ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id,bak_id,attribuut_id,taak_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [rit.id,r.naam,r.soort||'andere',r.qty||1,'wacht',volg++,r.item_type_id||resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null,t.id]));
+    });
+  }
   app.get('/rit/:token',(req,res)=>{
     const rit=get('SELECT * FROM transport_ritten WHERE rit_token=?',[req.params.token]);
     if(!rit)return res.status(404).send('<h2 style="font-family:system-ui;padding:2rem">Rit niet gevonden of link verlopen.</h2>');
+    _zorgVoorChecks(rit);
     const taken=all(`SELECT tt.*,fl.name AS van_naam,tl.name AS naar_naam,km.week AS km_week
       FROM transport_taken tt
       LEFT JOIN locaties fl ON tt.van_locatie_id=fl.id
@@ -945,7 +1024,8 @@ module.exports = function(ctx){
       <div class="type">${typeIcon[t.type]||'🚚'} ${t.type==='levering'?'Levering':t.type==='ophaling'?'Ophaling':'Transfer'}${t.km_week?' (week '+t.km_week+')':''}</div>
       <div class="nm">${t.opmerking||'(zonder naam)'}</div>
       <div class="rt">${t.van_naam||'Stockage'} → ${t.naar_naam||'Stockage'}</div>
-      ${t.tijd?'<div class="ti">⏰ '+t.tijd+'</div>':''}</div>`).join('');
+      ${t.tijd?'<div class="ti">⏰ '+t.tijd+'</div>':''}
+      <div class="fasebtns"><button type="button" class="fbtn ${t.status==='aangekomen'||t.status==='gedaan'?'done':''}" id="stop-${t.id}" onclick="aangekomen(${t.id})">${t.status==='gedaan'?'✅ Stop afgerond':t.status==='aangekomen'?'📍 Aangekomen':'📍 Ik ben aangekomen'}</button></div></div>`).join('');
     // Chauffeur ziet bakken, geen inhoud: groepeer per rek (eerste letter van de code in de naam)
     // zodat rek per rek gelopen kan worden.
     function _rekVan(c){const m=(c.item_naam||'').match(/\(([A-Za-z])[0-9]*\)/);return m?m[1].toUpperCase():null;}
@@ -1000,6 +1080,13 @@ ${checks.length?'<div class="sec">Materiaallijst ('+checks.length+' items)</div>
 <div class="footer">Sporty Logistics</div>
 <script>
 const TOKEN=${JSON.stringify(req.params.token)};
+async function aangekomen(id){
+  const b=document.getElementById('stop-'+id);b.disabled=true;
+  try{const r=await fetch('/api/rit-token/'+TOKEN+'/taken/'+id+'/aangekomen',{method:'POST'});const t=await r.json();
+    if(!r.ok){alert(t.error||'Fout bij opslaan');return;}
+    b.textContent=t.status==='gedaan'?'✅ Stop afgerond':'📍 Aangekomen';b.classList.add('done');}
+  catch(e){alert('Netwerkfout — probeer opnieuw.');}finally{b.disabled=false;}
+}
 async function tog(id,kind){
   const row=document.getElementById('chk-'+id);
   const btns=row.querySelectorAll('.fbtn');
