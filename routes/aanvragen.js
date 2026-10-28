@@ -28,6 +28,42 @@ module.exports = function(ctx){
     logAct('aanvraag','aangemaakt',`📨 Nieuwe aanvraag (${soort||'materiaal'}): ${tekst.trim()}`,null,null);
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
+  // ── V3a punt 3 (werklijst 11; B-F8): spoedtaak uit een aanvraag krijgt van/naar/datum/aantal ──
+  function _rozenwegId(){
+    const r=get("SELECT id FROM locaties WHERE type='stockage' AND name LIKE '%Rozenweg%' ORDER BY (parent_id IS NULL) DESC,id LIMIT 1");
+    return r?r.id:null;
+  }
+  function _spoedVan(st,naam){
+    if(st.van_locatie_id)return st.van_locatie_id;
+    // Thuis-stockage van het gevraagde item: een bak/attribuut met die naam of code (code tussen haakjes of los).
+    const code=(naam.match(/\b([A-Z]{1,2}\d{1,3})\b/)||[])[1];
+    const b=(code&&get('SELECT thuislocatie_id FROM bakken WHERE UPPER(code)=? AND thuislocatie_id IS NOT NULL',[code]))
+      ||get('SELECT thuislocatie_id FROM bakken WHERE LOWER(naam)=LOWER(?) AND thuislocatie_id IS NOT NULL',[naam])
+      ||(code&&get('SELECT thuislocatie_id FROM attributen WHERE UPPER(code)=? AND thuislocatie_id IS NOT NULL',[code]));
+    return (b&&b.thuislocatie_id)||_rozenwegId();
+  }
+  function _spoedAantal(st,tekst){
+    if(parseInt(st.qty)>0)return parseInt(st.qty);
+    const m=(tekst||'').match(/\b(\d{1,4})\b/);
+    return m&&parseInt(m[1])>0?parseInt(m[1]):1;
+  }
+  // Eerstvolgende werkdag (ma-vr) binnen de kampweek, vanaf vandaag; geen zaterdag/zondag.
+  // Ligt de kampweek al helemaal achter ons: de eerstvolgende werkdag vanaf vandaag.
+  function _spoedDatum(km,vandaag){
+    const isWerkdag=d=>d.getDay()!==0&&d.getDay()!==6;
+    const p=km?get('SELECT * FROM vakantieperiodes WHERE id=?',[km.periode_id||1]):null;
+    const kandidaten=[];
+    if(p&&p.start_datum&&km.week){
+      const ws=new Date(p.start_datum+'T12:00:00');ws.setDate(ws.getDate()+(km.week-1)*7);
+      const eind=p.eind_datum?new Date(p.eind_datum+'T23:59:59'):null;
+      for(let i=0;i<7;i++){const d=new Date(ws);d.setDate(ws.getDate()+i);if(eind&&d>eind)continue;if(isWerkdag(d))kandidaten.push(isoDate(d));}
+    }
+    const vandaagIso=isoDate(vandaag);
+    const inWeek=kandidaten.find(d=>d>=vandaagIso);
+    if(inWeek)return inWeek;
+    const d=new Date(vandaag);d.setHours(12);while(!isWerkdag(d))d.setDate(d.getDate()+1);
+    return isoDate(d);
+  }
   app.put('/api/aanvragen/:id/status',(req,res)=>{
     const{status,reden,maak_spoedtransport,spoedtransport}=req.body;
     const a=get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]);
@@ -38,15 +74,32 @@ module.exports = function(ctx){
     if(status==='goedgekeurd'&&maak_spoedtransport&&!spoed_taak_id){
       const st=spoedtransport||{};
       const naam=(st.item||a.tekst||'').trim();
-      const aantal=Math.max(1,parseInt(st.qty)||1);
+      const aantal=_spoedAantal(st,naam);
+      const km=a.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[a.kampmoment_id]):null;
+      const van=_spoedVan(st,naam);
+      const naar=st.naar_locatie_id||(km&&km.locatie_id)||null;
       const ts=now();
-      const spoedDatum=st.datum||isoDate(new Date());
+      // Een expliciete datum in de body (ook een weekenddag) wordt gerespecteerd; anders werkdag in de kampweek.
+      const spoedDatum=st.datum||_spoedDatum(km,new Date());
       const ritId=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
         [spoedDatum,'','Spoedtransport (aanvraag #'+a.id+')','gepland',ts]);
-      const taakId=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        ['extra',spoedDatum,st.tijd||'09:00',st.van_locatie_id||null,st.naar_locatie_id||null,'🚨 Spoed (aanvraag #'+a.id+'): '+naam,'','gepland',ts,st.kind||'',st.ref_id||0,0,ritId]);
+      const taakId=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id,kampmoment_id,aanvraag_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        ['extra',spoedDatum,st.tijd||'09:00',van,naar,'🚨 Spoed (aanvraag #'+a.id+'): '+naam,'','gepland',ts,st.kind||'',st.ref_id||0,0,ritId,a.kampmoment_id||null,a.id]);
       ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam)]);
       spoed_taak_id=taakId;
+    }
+    // Afwijzen annuleert de gekoppelde spoedtaak (status 'geannuleerd', spoor blijft bewaard) — tenzij
+    // er al iets geladen is of de taak onderweg/afgerond is: dan 409.
+    if(status==='afgewezen'&&spoed_taak_id){
+      const t=get('SELECT * FROM transport_taken WHERE id=?',[spoed_taak_id]);
+      if(t&&t.status!=='geannuleerd'){
+        const geladen=get('SELECT COUNT(*) AS n FROM verhuis_checks WHERE taak_id=? AND (geladen=1 OR gelost=1)',[t.id]).n;
+        if(geladen||['aangekomen','gedaan'].includes(t.status))
+          return res.status(409).json({error:'De spoedlevering voor deze aanvraag is al geladen of onderweg — afwijzen kan niet meer. Bel de chauffeur of zet de taak eerst zelf terug.'});
+        updateMetLog(req,"UPDATE transport_taken SET status='geannuleerd' WHERE id=?",[t.id],'aanvraag afgewezen');
+        if(t.rit_id){const rest=get("SELECT COUNT(*) AS n FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd'",[t.rit_id]).n;
+          if(!rest)updateMetLog(req,"UPDATE transport_ritten SET status='geannuleerd' WHERE id=?",[t.rit_id],'aanvraag afgewezen');}
+      }
     }
     updateMetLog(req,'UPDATE aanvragen SET status=?,reden=?,spoed_taak_id=?,behandeld_door=?,behandeld_op=? WHERE id=?',
       [status,reden||'',spoed_taak_id||null,behandeld_door,now(),req.params.id]);
