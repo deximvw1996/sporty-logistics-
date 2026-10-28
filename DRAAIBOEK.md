@@ -68,16 +68,17 @@ Eigenaar: kantoor (magazijnwerk Rozenweg). Geen vaste persoon: coördinatoren é
 → Ontwerpgevolg: de laadlijst van de chauffeur komt **uit de planning** (locatie heeft oven → oven staat op de lijst), niet uit het hoofd van de hoofdlogistiek; afvinken per stuk bij in- én uitladen (fase 4).
 
 ---
-### FASE 3 — Transport plannen (week vóór + tijdens de vakantie)
-Eigenaar: kantoor; uitvoering chauffeur.
+### FASE 3 — Transport plannen (week vóór + tijdens de vakantie) — ✔ besproken met Maxim 28/10 (3.4 nog open)
+Eigenaar: hoofdlogistiek (bepaalt wie rijdt, met welk voertuig, wanneer); uitvoering chauffeur, vrijdag vaak samen met coördinatoren.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 3.1 | Voorstellen genereren uit de planning (leveringen vrijdag/weekend vóór de week ❓, ophalingen na afloop, wissels, rustweek-regels, sluitregels) | 🟠 kern werkt (S5-bewijzen); pool bij thema-wissel vergeten (B-F1), herlevering in gap (B-F12), periode-lek (B-F2) | |
-| 3.2 | Voorstellen → taken; taken bundelen tot ritten; datum/tijd/voertuig/chauffeur toewijzen; taak splitsen over dagen | 🟠 werkt; splitsen breekt checks (B-F6) | |
-| 3.3 | Chauffeur krijgt rit-link met stops + bakkenlijst per stop (codes, geen inhoud) | ✅ | |
-| 3.4 | Spoedtransport (vanuit aanvraag of los) met bron+bestemming+datum | 🟠 kapot: geen bestemming vanuit aanvraag (B-F8) | |
-| 3.5 | "Waar is bak X" — actuele plaats + historiek | 🟠 werkt voor unieke bakken; bulk lekt (B-F4), log op tekstmatch (A) | |
-| 3.6 | ❓ Voertuigen/capaciteit: speelt dat echt (camion vol)? | 🟠 voertuigtypes bestaan; capaciteitscheck ❓ | |
+| 3.1 | Leveringen: normaal uiterlijk de vrijdag vóór de kampweek; **nalevering** maandag of later in de week mag (oven pas donderdag nodig, pas woensdag een vrij). Ophaling: als de locatie doorgaat → thema op vrijdag; **sluit de locatie → al tijdens de week deelophalingen** (tent, deel thema, sportpakket, springkasteel). Een thema reist dus niet altijd in één stuk: 2+ ritten | 🟠 generator kent alleen "levering vóór / ophaling na"; deelophaling en "vanaf dag X nodig" ontbreken | kernpunt: per onderdeel een "nodig van–tot" |
+| 3.2 | Voorstellen → taken → ritten; **chauffeurs- én voertuigplanning** (wie werkt wanneer, wie rijdt met wat; 1 of 2 chauffeurs; coördinator kan rijden) | 🟠 ritten hebben chauffeur+voertuig, maar geen beschikbaarheidsrooster | rooster = nieuw |
+| 3.3 | **Bundelen** van locaties in één voertuig (geen lege terugritten) en **splitsen** over 2 voertuigen (chauffeur + coördinator). Capaciteit = inschatting van de planner (geen afmetingen beschikbaar; gokken blijft); chauffeur meldt bij het laden "alles mee" of "niet gelukt: rest → nieuwe taak" | 🟠 bundelen bestaat; split breekt (B-F6); "rest blijft open" ontbreekt | |
+| 3.4 | Week-overgang bij meerweekse vakanties ❓ (zie fase 7, vraag herformuleerd) | 🟠 | open |
+| 3.5 | Chauffeur onderweg: stops + bakkenlijst, **plus wie de KV's zijn en de contactpersoon van de locatie (sleuteloverdracht als de school dicht is)** | 🟠 rit-link bestaat zonder contacten | |
+| 3.6 | **Opvolging voor KV én coördinator**: wat is onderweg, wanneer verwacht, wat ontbreekt nog, waar staat het nu | ❌ (alleen beheer-kant) | nieuw: volgscherm |
+| 3.7 | **Locatiedossier**: foto's + uitleg waar wat moet staan, welke ruimtes gebruikt mogen worden, wifi, poortcodes, contactpersonen; **overdrachtsfoto's** bij ontvangst en afgifte (van voorganger/eigenaar → naar opvolger/eigenaar), door KV of coördinator | ❌ | nieuw; codes = gevoelig → alleen ingelogd, niet in export |
 
 ---
 ### FASE 4 — Leverdag / opbouw (vr–ma rond de kampstart)
@@ -138,6 +139,7 @@ Eigenaar: kantoor + chauffeur.
 
 ---
 ## Dwarsthema's (gelden overal)
+- **Professioneel, met alles erop en eraan (Maxim 28/10):** één echte database (geen sql.js-bestand dat in het geheugen leeft en in één keer wordt weggeschreven): atomaire schrijfacties, migraties, back-ups, foto's buiten de db. Heel de app moet die lat halen: geen prompt()-vensters, geen halve schermen.
 - **Veiligheid**: rollen gescheiden, alles achter de muren, geen lekken (DOORLICHTING-c → V0-noodronde).
 - **Robuust**: geen stille fouten; foute invoer → 400 met uitleg; database-schrijving atomair (A).
 - **Dynamisch**: periode-gestuurd, geen hardcodes; 1/2/9 weken even goed (V2, verdiept met B-F2/F3).
