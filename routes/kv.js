@@ -9,7 +9,8 @@ module.exports = function(ctx){
     if(!km)return res.status(403).json({error:'Ongeldige of verlopen link'});
     const loc=get('SELECT * FROM locaties WHERE id=?',[km.locatie_id]);
     const {bakken,attributen}=_kvVerwacht(km);
-    const sessies=all("SELECT * FROM nakijk_sessies WHERE locatie_id=? AND week=? AND kv_status IN ('bezig','ingediend')",[km.locatie_id,km.week]);
+    // V2b: sessies horen bij DIT kampmoment (niet meer locatie+week: dat ving de zomer-sessie van dezelfde week mee).
+    const sessies=all("SELECT * FROM nakijk_sessies WHERE kampmoment_id=? AND kv_status IN ('bezig','ingediend')",[km.id]);
     const regelsAll=all('SELECT * FROM nakijk_regels');
     const bakkenOut=bakken.map(b=>{
       const items=_bakItems(b);
@@ -65,13 +66,13 @@ module.exports = function(ctx){
     if(ongeldig)return res.status(400).json({error:'Elke regel heeft een geldig item_id en aangetroffen (≥0) nodig'});
     const kvNaam=_kvNaam(km);
     const veldNaam=bak.soort==='thema'?'thema_bak_id':'vaste_bak_id';
-    let sessie=get(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veldNaam}=? AND locatie_id=? AND week=? AND kv_status IN ('bezig','ingediend')`,
-      [bak.soort,bak.id,km.locatie_id,km.week]);
+    let sessie=get(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veldNaam}=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend')`,
+      [bak.soort,bak.id,km.id]);
     let sessieId;
     if(sessie){ sessieId=sessie.id; run('UPDATE nakijk_sessies SET kv_wie=?,kv_tijdstip=? WHERE id=?',[kvNaam,now(),sessieId]); }
     else {
-      sessieId=ins(`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,locatie_id,week,datum,kv_wie,kv_status,kantoor_status) VALUES (?,?,?,?,?,?,?,?,?)`,
-        [bak.soort, bak.soort==='thema'?bak.id:null, bak.soort==='vast'?bak.id:null, km.locatie_id, km.week, now(), kvNaam, 'bezig', 'open']);
+      sessieId=ins(`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        [bak.soort, bak.soort==='thema'?bak.id:null, bak.soort==='vast'?bak.id:null, km.locatie_id, km.week, km.id, now(), kvNaam, 'bezig', 'open']);
     }
     const items=_bakItems(bak);
     regelsIn.forEach(rin=>{
@@ -97,11 +98,11 @@ module.exports = function(ctx){
       return res.status(400).json({error:"status moet 'aanwezig' of 'beschadigd' zijn"});
     const status=req.body.status;
     const kvNaam=_kvNaam(km);
-    let sessie=get("SELECT * FROM nakijk_sessies WHERE bak_type='attribuut' AND attribuut_id=? AND locatie_id=? AND week=? AND kv_status IN ('bezig','ingediend')",
-      [attr.id,km.locatie_id,km.week]);
+    let sessie=get("SELECT * FROM nakijk_sessies WHERE bak_type='attribuut' AND attribuut_id=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend')",
+      [attr.id,km.id]);
     if(sessie) run('UPDATE nakijk_sessies SET notities=?,kv_wie=?,kv_tijdstip=? WHERE id=?',[status,kvNaam,now(),sessie.id]);
-    else ins("INSERT INTO nakijk_sessies (bak_type,attribuut_id,locatie_id,week,datum,kv_wie,kv_status,kantoor_status,notities) VALUES ('attribuut',?,?,?,?,?,?,?,?)",
-      [attr.id,km.locatie_id,km.week,now(),kvNaam,'bezig','open',status]);
+    else ins("INSERT INTO nakijk_sessies (bak_type,attribuut_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status,notities) VALUES ('attribuut',?,?,?,?,?,?,?,?,?)",
+      [attr.id,km.locatie_id,km.week,km.id,now(),kvNaam,'bezig','open',status]);
     res.json({ok:true,status});
   });
 
@@ -109,8 +110,8 @@ module.exports = function(ctx){
     const km=_kvKampmoment(req.params.token);
     if(!km)return res.status(403).json({error:'Ongeldige of verlopen link'});
     const kvNaam=_kvNaam(km);
-    run("UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE locatie_id=? AND week=? AND kv_status='bezig'",
-      [kvNaam,now(),km.locatie_id,km.week]);
+    run("UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE kampmoment_id=? AND kv_status='bezig'",
+      [kvNaam,now(),km.id]);
     res.json({ok:true});
   });
 

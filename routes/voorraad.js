@@ -112,8 +112,10 @@ module.exports = function(ctx){
   // Start een nieuwe nakijksessie voor een thema-bak
   app.post('/api/nakijk/start',(req,res)=>{
     const{bak_type,thema_bak_id,vaste_bak_id,sport_item_id,locatie_id,week,kv_wie}=req.body;
-    const sessieId=ins(`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,sport_item_id,locatie_id,week,datum,kv_wie,kv_status,kantoor_status)
-      VALUES (?,?,?,?,?,?,?,?,'open','open')`,[bak_type||'thema',thema_bak_id||null,vaste_bak_id||null,sport_item_id||null,locatie_id||null,week||null,now(),kv_wie||'']);
+    // V2b: kampmoment_id uit de body, anders het kampmoment op deze locatie+week in de actieve periode.
+    const kmId=parseInt(req.body.kampmoment_id)||((locatie_id&&week)?(get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=? AND periode_id=?',[locatie_id,week,_sessiePeriode()])||{}).id:null)||null;
+    const sessieId=ins(`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,sport_item_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status)
+      VALUES (?,?,?,?,?,?,?,?,?,'open','open')`,[bak_type||'thema',thema_bak_id||null,vaste_bak_id||null,sport_item_id||null,locatie_id||null,week||null,kmId,now(),kv_wie||'']);
     // Auto-vul regels vanuit bak_items of vaste_bak_items
     if(thema_bak_id){
       const items=all('SELECT * FROM bak_items WHERE bak_id=? ORDER BY verbruik,id',[thema_bak_id]);
@@ -156,14 +158,21 @@ module.exports = function(ctx){
   // ── S3.7: KANTOOR — TEKORTEN PER BAK ──
   // Werkscherm op ingediende KV-controles (kv_status='ingediend'): per bak de tekorten
   // (aangetroffen < verwacht) en kapot-markeringen, gegroepeerd zoals in het magazijn.
-  // nakijk_sessies heeft geen kampmoment_id (ouder ontwerp, denormaliseert locatie_id+week
-  // rechtstreeks) — kampmoment wordt hier afgeleid via de UNIQUE(locatie_id,week)-combinatie.
+  // V2b (migratie 72): een sessie hangt aan zijn kampmoment (nakijk_sessies.kampmoment_id). De lijsten
+  // tonen standaard de sessies van kampmomenten in de actieve periode (?periode_id= voor een andere),
+  // plus de oude sessies zonder kampmoment (zonder_kampmoment:true) zodat er niets stil verdwijnt.
+  const _sessiePeriode=(q)=>parseInt(q)||(get('SELECT id FROM vakantieperiodes WHERE actief=1')||{}).id||null;
+  const _sessiesIngediend=(periodeId,extra='')=>all(`SELECT ns.*, (ns.kampmoment_id IS NULL) AS zonder_kampmoment FROM nakijk_sessies ns
+      LEFT JOIN kampmomenten km ON km.id=ns.kampmoment_id
+      WHERE ns.kv_status='ingediend' ${extra} AND (ns.kampmoment_id IS NULL OR km.periode_id=?)
+      ORDER BY (ns.kampmoment_id IS NULL), ns.kv_tijdstip DESC`,[periodeId]);
   app.get('/api/nakijk-tekorten',(req,res)=>{
-    const sessies=all("SELECT * FROM nakijk_sessies WHERE kv_status='ingediend' ORDER BY kv_tijdstip DESC");
+    const periodeId=_sessiePeriode(req.query.periode_id);
+    const sessies=_sessiesIngediend(periodeId);
     const regels=all('SELECT * FROM nakijk_regels');
     const out=sessies.map(s=>{
       const bak=s.thema_bak_id?get('SELECT * FROM bakken WHERE id=?',[s.thema_bak_id]):null;
-      const km=(s.locatie_id&&s.week)?get('SELECT * FROM kampmomenten WHERE locatie_id=? AND week=?',[s.locatie_id,s.week]):null;
+      const km=s.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[s.kampmoment_id]):null;
       const loc=s.locatie_id?get('SELECT name FROM locaties WHERE id=?',[s.locatie_id]):null;
       const sRegels=regels.filter(r=>r.sessie_id===s.id).map(r=>{
         const bakItem=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
@@ -181,6 +190,8 @@ module.exports = function(ctx){
         bak_thuislocatie_id:bak?bak.thuislocatie_id:null,
         kampmoment_id:km?km.id:null,
         kampmoment_week:km?km.week:s.week,
+        periode_id:km?km.periode_id:null,
+        zonder_kampmoment:!km,
         locatie_naam:loc?loc.name:'',
         regels:sRegels,
         tekorten,
@@ -191,7 +202,7 @@ module.exports = function(ctx){
   });
   // Aantal open controles voor de Materiaal-navbadge (ingediend, nog niet kantoor_status='verwerkt')
   app.get('/api/nakijk-tekorten/aantal-open',(req,res)=>{
-    const n=get("SELECT COUNT(*) as n FROM nakijk_sessies WHERE kv_status='ingediend' AND kantoor_status!='verwerkt'").n;
+    const n=_sessiesIngediend(_sessiePeriode(req.query.periode_id),"AND ns.kantoor_status!='verwerkt'").length;
     res.json({aantal:n});
   });
   // "✔ Aangevuld": vinkt de regel af EN boekt de aangevulde hoeveelheid af van item_type_stock
@@ -264,7 +275,7 @@ module.exports = function(ctx){
   // per-bak/locatie-herkomst uitklapbaar. "Thema al gebruikt" = er bestaat al een nakijk_sessie
   // voor een thema_bak van dat thema (los van de huidige sessie) → KV-data is startpunt.
   app.get('/api/tekorten-dashboard',(req,res)=>{
-    const sessies=all("SELECT * FROM nakijk_sessies WHERE kv_status='ingediend'");
+    const sessies=_sessiesIngediend(_sessiePeriode(req.query.periode_id));
     const regels=all('SELECT * FROM nakijk_regels');
     const perType={};
     sessies.forEach(s=>{
