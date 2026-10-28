@@ -120,3 +120,50 @@ Gerebased op origin/main 3e3e701. Geraakt: `lib/migraties.js` (migratie 71 onder
 
 ### GEVONDEN
 Geen nieuwe fouten buiten de punten hierboven.
+
+## 2026-10-29 00:07–00:25 — PROMPT V2b KV-SESSIES PER KAMPMOMENT, KALENDER, PLANNER-KIEZER (tijdslimiet 2 u, ruim binnen)
+
+Gerebased op origin/main f7a7a92. Geraakt: `lib/migraties.js` (migratie 72 onderaan), `routes/kv.js`, `routes/voorraad.js`, `routes/planning.js` (enkel `/api/kalender`), `index.html` (enkel `setPlannerPeriode`, `_activePeriode` en de kalender-navigatiedatum in `loadAll`), `scripts/test-keten-kv-periode.mjs` (nieuw), ijk-db opnieuw gegenereerd (zelfde ids), dit verslag.
+
+### Af
+- **Punt 1 — sessies aan het kampmoment (werklijst 64, B-R11).** Migratie 72: `nakijk_sessies.kampmoment_id` + index `idx_nakijk_sessies_km`; backfill per geval met telling in de log (actieve periode / enige kampmoment in alle periodes / NULL). `routes/kv.js`: data, tellen, attribuutstatus en versturen zoeken en schrijven op `kampmoment_id` van het kv-token (nooit meer locatie+week); nieuwe sessies krijgen het kampmoment_id mee. `routes/voorraad.js`: tekortenlijst, `aantal-open` en tekorten-dashboard tonen standaard de sessies van kampmomenten in de actieve periode (`?periode_id=` voor een andere), kampmoment via `kampmoment_id`; sessies zonder kampmoment blijven erbij met `zonder_kampmoment:true` en staan achteraan als aparte groep; ook `POST /api/nakijk/start` (kantoor) vult `kampmoment_id` in (body of locatie+week in de actieve periode).
+- **Punt 2 — kalender en planner-kiezer (werklijst 65).** `GET /api/kalender` rekent de werkdagen uit de actieve periode (of `?periode_id=`) en geeft `periode` + `max_weken` mee; de oude lus (vast juli–aug 2026) verschoof bovendien door de tijdzone een dag (begon op dinsdag 30/6 en telde zondagen mee) — datums staan nu op 12:00. `setPlannerPeriode` roept `POST /api/periodes/:id/activeer` aan, herlaadt periodes en kalender, zet de topbalk; bij een fout een melding en de kiezer springt terug. `_activePeriode()` heeft geen "Zomer 2026"-terugval meer: zonder periode een lege staat (0 weken) + één melding "Maak eerst een vakantieperiode aan (Overzicht › Periodes)". Ook de laatste vaste datum (`ovDate=new Date(2026,6,1)` in `loadAll`, kalender-navigatie) valt terug op vandaag. index.html bevat geen "Zomer 2026"/`2026-06-29` meer.
+
+### Bewijs
+- `scripts/test-keten-kv-periode.mjs` 2× **19 ok / 0 fout, ALLES GROEN**. Opzet: ijk-db + 3 "oude" sessies zonder kampmoment (Betekom w1 → herfst-km 167 via de actieve periode; Abdijschool w3 → het enige kampmoment in een niet-actieve archiefperiode; Betekom w7 → NULL), migratievlag 72 gewist. Daarna zomer- én herfst-kampmoment op Betekom week 1, elk met eigen KV: zomer-KV telt 0 + verstuurt → herfst-KV ziet die telling niet (`ingediend false, aangetroffen null`), telt 5 + verstuurt → zomer-sessie byte-voor-byte gelijk (`{"id":27,"kv_wie":"Test KV Zomer","kv_tijdstip":"29/10/2026, 00:09","kv_status":"ingediend","aangetroffen":0}` vóór en na), herfst-sessie apart (`aangetroffen 5`, `kv_wie` "Test KV Betekom"); tekortenlijst standaard km `[167,168,null]` zonder zomer, `?periode_id=3` → `[169,null]`; zonder-kampmoment-groep achteraan; kalender actief = `2026-11-02..06` (5 dagen), `?periode_id=zomer` = 40 dagen `2027-07-05..2027-08-27`.
+- Migratielog op de ijk-db: `Migratie 72: nakijk_sessies.kampmoment_id — 1 via de actieve periode, 1 via het enige kampmoment, 6 zonder kampmoment (NULL)` (de 5 extra NULL's zijn échte oude sessies uit Maxims data zonder passend kampmoment — die zie je nu onder "zonder kampmoment").
+- UI op 3302: topbalk "Herfst TEST" → Transport › Plannen → kiezer op "Zomer TEST" → topbalk "Zomer TEST", `kalData.werkdagen[0]` = 2027-07-05 → **F5** → topbalk én kiezer nog "Zomer TEST" → terug naar Herfst TEST → kalender `2026-11-02..06`. Console: enkel de bekende 2× service-worker-melding van het browserpaneel.
+- `maak-testdb.mjs` opnieuw → ids identiek aan V1/V2.
+- `volle-run.mjs` 2× identiek:
+
+| test | uitslag | ok | fout | tijd |
+|---|---|---|---|---|
+| f1-modules | GROEN | 83 | 0 | 1.5 s |
+| f1-schrijven | GROEN | 22 | 0 | 12.4 s |
+| f1-wijzigingen | GROEN | 46 | 0 | 3.3 s |
+| keten-aanvraag | GROEN | 12 | 0 | 0.6 s |
+| keten-kv-periode | GROEN | 19 | 0 | 2.2 s |
+| keten-levering | GROEN | 44 | 0 | 1.1 s |
+| keten-ophaling | GROEN | 7 | 0 | 0.8 s |
+| keten-periode | GROEN | 14 | 0 | 1.1 s |
+| keten-splits | GROEN | 9 | 0 | 0.7 s |
+| v3a-keten | GROEN | 52 | 0 | 1.4 s |
+| v3b-ui | GROEN | 15 | 0 | 0.8 s |
+| v3c-catalogus | GROEN | 33 | 0 | 8.9 s |
+| v3c-fotos | GROEN | 47 | 0 | 10.8 s |
+| v3d-bulk | GROEN | 27 | 0 | 1.2 s |
+| veiligheid | GROEN | 58 | 0 | 1.2 s |
+
+**15/15 groen.**
+
+### Afwijkingen
+- `POST /api/nakijk/start` (voorraad.js, kantoor-nakijken) vult nu ook `kampmoment_id` in — anders zou een nieuwe kantoorsessie meteen in de groep "zonder kampmoment" vallen.
+- `/api/kalender` geeft extra velden `periode` en `max_weken` (bestaande velden ongewijzigd).
+
+### Buiten mijn gebied
+1. De tekortenlijst-UI in index.html kent het veld `zonder_kampmoment` nog niet: de backend levert die sessies achteraan, maar een zichtbare kop "zonder kampmoment" moet in de tekorten-weergave (niet mijn scherm).
+2. `setActivePeriode` (Periodes-lijst, V2) herlaadt `kalData` niet; pas na F5 rekent de kalender met de nieuwe periode. In `setPlannerPeriode` gebeurt dat nu wel.
+3. Andere `isoDate(new Date(...))`-plekken met middernacht-datums lopen hetzelfde tijdzonerisico als de oude kalender (gezien in de kalenderroute; niet verder gezocht).
+
+### GEVONDEN
+Geen.

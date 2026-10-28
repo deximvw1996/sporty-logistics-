@@ -135,10 +135,19 @@ module.exports = function(ctx){
 
   // ── KALENDER ──
   app.get('/api/kalender',(req,res)=>{
-    const jaar=2026; const werkdagen=[];
+    // V2b (werklijst 65): de dagen komen uit de gevraagde periode (?periode_id=) of de actieve,
+    // niet meer uit een vast juli–augustus 2026. Datums op 12:00 zodat toISOString niet naar
+    // de vorige dag verschuift (de oude lus begon daardoor op dinsdag en telde zondagen mee).
+    const p=(parseInt(req.query.periode_id)&&get('SELECT * FROM vakantieperiodes WHERE id=?',[parseInt(req.query.periode_id)]))||actievePeriode();
+    const werkdagen=[];
     const gesloten=all('SELECT datum FROM gesloten_dagen').map(r=>r.datum);
-    for(let m=7;m<=8;m++){for(let d=1;d<=31;d++){const date=new Date(jaar,m-1,d);if(date.getMonth()!==m-1)break;const dow=date.getDay();if(dow===0||dow===6)continue;const iso=isoDate(date);if(gesloten.includes(iso))continue;werkdagen.push(iso);}}
-    res.json({werkdagen,locaties:all('SELECT * FROM locaties WHERE type=?',['kamp']),dagen:all('SELECT * FROM kalender_dagen'),gesloten_dagen:all('SELECT * FROM gesloten_dagen')});
+    if(p){
+      const eind=new Date(p.eind_datum+'T12:00:00');
+      for(const d=new Date(p.start_datum+'T12:00:00');d<=eind;d.setDate(d.getDate()+1)){
+        const dow=d.getDay();if(dow===0||dow===6)continue;const iso=isoDate(d);if(gesloten.includes(iso))continue;werkdagen.push(iso);
+      }
+    }
+    res.json({periode:p||null,max_weken:p?p.max_weken:0,werkdagen,locaties:all('SELECT * FROM locaties WHERE type=?',['kamp']),dagen:all('SELECT * FROM kalender_dagen'),gesloten_dagen:all('SELECT * FROM gesloten_dagen')});
   });
   app.post('/api/kalender/toggle',(req,res)=>{const{locatie_id,datum}=req.body;const b=get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[locatie_id,datum]);if(b){run('UPDATE kalender_dagen SET open=? WHERE id=?',[b.open?0:1,b.id]);}else{ins('INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)',[locatie_id,datum,0]);}res.json(get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[locatie_id,datum]));});
   app.post('/api/kalender/bulk',(req,res)=>{const{locatie_id,datums,open}=req.body;datums.forEach(datum=>{const b=get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[locatie_id,datum]);if(b){run('UPDATE kalender_dagen SET open=? WHERE id=?',[open?1:0,b.id]);}else if(!open){ins('INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)',[locatie_id,datum,0]);}});res.json({ok:true});});

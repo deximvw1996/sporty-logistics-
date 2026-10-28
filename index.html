@@ -3897,7 +3897,7 @@ if(S.periodes.length){S.activePeriode=S.periodes.find(p=>p.actief)||S.periodes[0
 const tbl=document.getElementById('topbar-periode');if(tbl&&S.activePeriode)tbl.textContent=S.activePeriode.naam;
 // Initialiseer kalender navigatiedatum op start actieve periode
 if(S.activePeriode&&!ovDate)ovDate=new Date(S.activePeriode.start_datum+'T12:00:00');
-else if(!ovDate)ovDate=new Date(2026,6,1);
+else if(!ovDate)ovDate=new Date(); // V2b: geen vaste juli 2026 meer — zonder periode: vandaag
 const _nAanv=await api('GET','/aanvragen?status=nieuw');
 updateAanvragenBadge(Array.isArray(_nAanv)?_nAanv.length:0);}
 
@@ -4224,7 +4224,11 @@ function fillChaufDatalist(){
 // ── Periode-helpers (Blok B) ──
 function _activePeriode(periodeArg){
   if(periodeArg&&periodeArg.start_datum)return periodeArg;
-  return S.activePeriode||{start_datum:'2026-06-29',eind_datum:'2026-09-06',max_weken:9,naam:'Zomer 2026'};
+  if(S.activePeriode)return S.activePeriode;
+  // V2b: geen hardgecodeerde zomer meer. Zonder periode: lege staat (0 weken) + één keer de melding.
+  if(!_activePeriode._gemeld){_activePeriode._gemeld=true;setTimeout(()=>showToast('Maak eerst een vakantieperiode aan (Overzicht › Periodes).','warn'),0);}
+  const vandaag=new Date().toISOString().slice(0,10);
+  return {id:null,start_datum:vandaag,eind_datum:vandaag,max_weken:0,naam:'Geen periode',leeg:true};
 }
 function getWeekMaandag(w,periode){
   const p=_activePeriode(periode);
@@ -7171,10 +7175,15 @@ function _fillPlannerPeriodeSel(){
   sel.innerHTML=(S.periodes||[]).map(p=>`<option value="${p.id}">${p.naam}</option>`).join('');
   if(S.activePeriode)sel.value=String(S.activePeriode.id);
 }
-function setPlannerPeriode(idStr){
+async function setPlannerPeriode(idStr){
   const id=parseInt(idStr);
-  const p=(S.periodes||[]).find(x=>x.id===id);
-  if(p){S.activePeriode=p;const tbl=document.getElementById('topbar-periode');if(tbl)tbl.textContent=p.naam;}
+  // V2b: de planner-kiezer zet de actieve periode in de SERVER (anders sprong de topbalk na F5 terug).
+  const r=await api('POST','/periodes/'+id+'/activeer');
+  if(!r||r.error){showToast((r&&r.error)||'Periode activeren mislukt','error');_fillPlannerPeriodeSel();return;}
+  S.periodes=await api('GET','/periodes');
+  S.activePeriode=(S.periodes||[]).find(x=>x.actief)||r;
+  const tbl=document.getElementById('topbar-periode');if(tbl)tbl.textContent=S.activePeriode.naam;
+  kalData=await api('GET','/kalender'); // de kalender rekent met de actieve periode
   plannerWk=1;
   // Zet op eerste week met kampmoment in deze periode
   const kmsInPeriode=S.kampmomenten.filter(k=>k.periode_id===id);
