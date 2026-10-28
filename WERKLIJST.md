@@ -12,13 +12,13 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 6 | V1 testharnas: _testhulp, volle-run, regressietests | Testen | Bouwchat | open | 1 | |
 | 7 | Periodes: beheer-UI, actieve periode bewaren, 'Zomer 2026'-terugval weg (T-1.4/G7) | Periodes en planning | Bouwchat | open | 1 | V2 deel 1 |
 | 8 | Periode-bewust: generator, conflicten, sport, kleurenborden, kv-sessies (B-F2/F3/R11) | Periodes en planning | Bouwchat | open | 1 | V2 deel 2 |
-| 9 | Conflicten-tab op server-bron + waarschuwing bij themakeuze (T-G5) | Schermen en navigatie | Bouwchat | open | 1 | |
+| 9 | Conflicten-tab op server-bron + waarschuwing bij themakeuze (T-G5) | Schermen en navigatie | Bouwchat | gekeurd | 1 | V3b chat D; live 29/10 |
 | 10 | pool_tekort ziet kastelen/blazers; ontbrekend_transport bij pool-only (B-F10/F11) | Transport en generator | Bouwchat | open | 2 | |
-| 11 | Spoedtaak uit aanvraag: locatie, datum in kampweek, aantal; afwijzen annuleert (B-F8) | Transport en generator | Bouwchat | open | 1 | bevestigd op kloon |
-| 12 | Annuleer-bug behandelAanvraag + modal (D-#1, T-G1) | Schermen en navigatie | Bouwchat | open | 1 | |
-| 13 | Bulk-boekhouding: één verplaatsfunctie; opnieuw-gedaan niet dubbel (B-F4/F5) | Pool en bulk | Bouwchat | open | 1 | 34 van 17 bevestigd |
-| 14 | Rit/taak op gedaan na lossen; onderweg/aangekomen chauffeur (T-G3/2.5) | Chauffeur | Bouwchat | open | 1 | |
-| 15 | Ophaalrit toont bakkenlijst zonder Klaarzetten (T-G6) | Chauffeur | Bouwchat | open | 1 | |
+| 11 | Spoedtaak uit aanvraag: locatie, datum in kampweek, aantal; afwijzen annuleert (B-F8) | Transport en generator | Bouwchat | gekeurd | 1 | V3a chat C; live 29/10 |
+| 12 | Annuleer-bug behandelAanvraag + modal (D-#1, T-G1) | Schermen en navigatie | Bouwchat | gekeurd | 1 | V3b chat D; live 29/10 |
+| 13 | Bulk-boekhouding: één verplaatsfunctie; opnieuw-gedaan niet dubbel (B-F4/F5) | Pool en bulk | Bouwchat | gekeurd | 1 | V3a lib/bulk.js; handmatige verplaatsing in bakken.js nog kaal (→ 58) |
+| 14 | Rit/taak op gedaan na lossen; onderweg/aangekomen chauffeur (T-G3/2.5) | Chauffeur | Bouwchat | gekeurd | 1 | V3a chat C; live 29/10 |
+| 15 | Ophaalrit toont bakkenlijst zonder Klaarzetten (T-G6) | Chauffeur | Bouwchat | gekeurd | 1 | V3a chat C; live 29/10 |
 | 16 | Sportpakket door de hele keten (T-2.3/3.1/4.13/1.14) | Transport en generator | Bouwchat | open | 2 | |
 | 17 | Thema-wissel + rustweek: pool correct (B-F1/F12) | Transport en generator | Bouwchat | open | 3 | kerst |
 | 18 | Taak splitsen/verwijderen na laden (B-F6/F7) | Transport en generator | Bouwchat | open | 2 | |
@@ -30,7 +30,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 24 | Mig 47 gaten; KV:/INFO:- en transportregel-rijen uit catalogus (A-5, B-F9) | Data en opschoning | Bouwchat | open | 2 | |
 | 25 | Prod-opschoning: 99-EHBO, 'undefined'-wees, regels-wezen (B-F13, A) | Data en opschoning | Fable | open | 1 | |
 | 26 | Voorraad + bakcodes vullen voor herfstthema's (E) | Data en opschoning | Maxim | open | 1 | |
-| 27 | Prompts/confirms → modal; KV-alerts → toasts; stille catches (D-#7/#19) | Schermen en navigatie | Bouwchat | open | 2 | |
+| 27 | Prompts/confirms → modal; KV-alerts → toasts; stille catches (D-#7/#19) | Schermen en navigatie | Bouwchat | gekeurd | 2 | V3b: index.html 0 prompt/confirm; rit-/kv-pagina alert() nog open (→ 59) |
 | 28 | Navigatie herontwerpen (D-#4) | Schermen en navigatie | Fable | open | 2 | designsessie |
 | 29 | Paginering/zoek Locaties, Vaste bakken, Sport (D-#5/#10) | Schermen en navigatie | Bouwchat | open | 3 | |
 | 30 | Mobiel: 44px-knoppen, weekgrid onder 600px (D-#6/#9) | Schermen en navigatie | Bouwchat | open | 2 | |
@@ -61,6 +61,9 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 55 | KV-budget per kookkamp | KV-scherm | Bouwchat | later | 4 | wens Maxim |
 | 56 | Backup-knop UI: downloadBackup() zonder token → 401 | Schermen en navigatie | Bouwchat | open | 2 | GEVONDEN A |
 | 57 | POST kampmomenten slikt fouten in; klaarzet_door uit body i.p.v. sessie | Periodes en planning | Bouwchat | open | 2 | GEVONDEN A, mee in V2 |
+| 58 | Handmatige verplaatsing + vaste-bak-aantal in bakken.js via verplaatsBulk | Pool en bulk | Bouwchat | open | 1 | GEVONDEN C |
+| 59 | alert() op rit- en kv-pagina → toasts | Chauffeur | Bouwchat | open | 2 | GEVONDEN C/D |
+| 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | open | 1 | GEVONDEN D, mee in V2 |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
 | plaats | chat | prompt | onderwerp | taken | toestand |
@@ -69,6 +72,6 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | ✓ | A | F1 | Fundament: modules, atomaire schrijving, wijzigingslog | 22, 41 | klaar (28/10, 54d4ee6) |
 | 1 | B | V1 | Testharnas | 6 | gepland |
 | 2 | B | V2 | Dynamische periodes (na V1; Fable-chat A rust na F1) | 7, 8 | gepland |
-| 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | gepland |
-| 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | gepland |
+| 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | klaar (29/10, 7febb80) |
+| 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | klaar (29/10, f389c61) |
 | 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | gepland |

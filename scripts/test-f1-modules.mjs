@@ -1,6 +1,6 @@
 // Testscript F1 deel 1 — server.js opgedeeld in lib/ en routes/ (chat A).
 // 1) Route-inventaris: alle app.get/post/put/delete in server.js + lib/ + routes/ moet exact de set
-//    van `git show origin/main:server.js` zijn (220 routes).
+//    van scripts/testdata/route-inventaris-f1.json bevatten (220 routes van het oude server.js, 28/10).
 // 2) Eigen server op poort 3311 met een wegwerp-db-kopie BUITEN de worktree (D:\Sporty\sporty-a-f1test),
 //    login als "Claude (API)" (id 10, pincode 1111), en ELKE GET-route aanroepen: status < 500 verwacht.
 // Gebruik: node scripts/test-f1-modules.mjs   (vanuit D:\Sporty\sporty-a)
@@ -40,15 +40,17 @@ for (const f of bronBestanden) for (const r of inventaris(fs.readFileSync(path.j
   if (nieuw.has(r)) fout(`route dubbel geregistreerd: ${r} (in ${f})`);
   nieuw.add(r);
 }
-const origTekst = execSync('git show origin/main:server.js', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-const oud = inventaris(origTekst);
+// Ijkpunt: de route-inventaris van de F1-merge (28/10, 220 routes van het oude server.js), vastgelegd in
+// scripts/testdata/route-inventaris-f1.json. Vóór die merge stond de baseline in origin/main:server.js; na de
+// merge heeft main zelf nog maar 3 routes, dus de baseline is een bestand. Routes mogen erbij komen (latere
+// prompts); ze mogen NIET verdwijnen zonder dat de baseline bewust wordt bijgewerkt.
+const BASELINE = path.join(ROOT, 'scripts', 'testdata', 'route-inventaris-f1.json');
+const oud = new Set(JSON.parse(fs.readFileSync(BASELINE, 'utf8')));
 const ontbreekt = [...oud].filter((r) => !nieuw.has(r));
-// Routes die F1 deel 2/3 bewust toevoegen (testhaak enkel met SPORTY_TESTHOOK=1; wijzigingslog) mogen extra zijn.
-const TOEGESTAAN_EXTRA = /^(POST|GET) \/api\/_test\/|^GET \/api\/wijzigingen$/;
-const extra = [...nieuw].filter((r) => !oud.has(r) && !TOEGESTAAN_EXTRA.test(r));
-check(oud.size >= 220, `inventaris origin/main: ${oud.size} routes (verwacht >= 220)`);
-check(!ontbreekt.length && !extra.length,
-  `inventaris nieuw: ${nieuw.size} routes, alle ${oud.size} routes van origin/main aanwezig, geen onverwachte extra's` + (ontbreekt.length ? ` — ONTBREEKT: ${ontbreekt.join(', ')}` : '') + (extra.length ? ` — EXTRA: ${extra.join(', ')}` : ''));
+const extra = [...nieuw].filter((r) => !oud.has(r));
+check(oud.size >= 220, `inventaris ijkpunt: ${oud.size} routes (verwacht >= 220)`);
+check(!ontbreekt.length,
+  `inventaris nieuw: ${nieuw.size} routes, alle ${oud.size} routes van het ijkpunt aanwezig` + (ontbreekt.length ? ` — ONTBREEKT: ${ontbreekt.join(', ')}` : '') + (extra.length ? ` (nieuw sinds F1: ${extra.length}: ${extra.join(', ')})` : ''));
 const wcServer = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8').split('\n').length;
 check(wcServer < 300, `server.js is ${wcServer} regels (richtcijfer < 300)`);
 
