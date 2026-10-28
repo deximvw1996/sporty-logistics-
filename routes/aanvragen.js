@@ -88,7 +88,7 @@ module.exports = function(ctx){
         [spoedDatum,'','Spoedtransport (aanvraag #'+a.id+')','gepland',ts]);
       const taakId=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id,kampmoment_id,aanvraag_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         ['extra',spoedDatum,st.tijd||'09:00',van,naar,'🚨 Spoed (aanvraag #'+a.id+'): '+naam,'','gepland',ts,st.kind||'',st.ref_id||0,0,ritId,a.kampmoment_id||null,a.id]);
-      ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam)]);
+      ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam,undefined,false)]);
       spoed_taak_id=taakId;
     }
     // Afwijzen annuleert de gekoppelde spoedtaak (status 'geannuleerd', spoor blijft bewaard) — tenzij

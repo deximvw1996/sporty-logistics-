@@ -616,7 +616,7 @@ module.exports = function(ctx){
     logAct('transport','gesplitst',`Taak #${taak.id}: ${teVerhuizen.length} regel(s) afgesplitst naar taak #${nieuwId}${datum?' ('+datum+')':''}`,taak.naar_locatie_id||taak.van_locatie_id,null);
     res.json({ok:true,nieuwe_taak_id:nieuwId,verplaatst:teVerhuizen.length});
   });
-  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
+  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam,undefined,false),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');updateMetLog(req,'UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{const r=_verwijderTaak(req,req.params.id);if(r.fout)return res.status(r.status).json({error:r.fout});res.json({ok:true});});
   // ── V3a: ÉÉN afrond-functie voor een taak (knop "gedaan" in kantoor én laatste "gelost" via rit-token) ──
@@ -714,7 +714,7 @@ module.exports = function(ctx){
       else updateMetLog(req,'UPDATE transport_taken SET tijd=? WHERE id=?',[tijd||t.tijd,req.params.id]);
     }
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
-  app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const item_type_id=resolveItemTypeId(naam);const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taak_id,naam,qty||1,soort||'andere',item_type_id]);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
+  app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const item_type_id=resolveItemTypeId(naam,undefined,false);const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taak_id,naam,qty||1,soort||'andere',item_type_id]);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
   app.delete('/api/transport-regels/:id',(req,res)=>{run('DELETE FROM transport_regels WHERE id=?',[req.params.id]);res.json({ok:true});});
 
   // ── TRANSPORT RITTEN ──
@@ -828,7 +828,7 @@ module.exports = function(ctx){
     run('DELETE FROM verhuis_checks WHERE rit_id=?',[rit_id]);
     alle_regels.forEach((r,i)=>{
       ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id,bak_id,attribuut_id,taak_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i,r.item_type_id||resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null,r._taak_id||null]);
+        [rit_id,r.naam,r.soort||'andere',r.qty||1,'wacht',i,r.item_type_id||resolveItemTypeId(r.naam,undefined,false),r.bak_id||null,r.attribuut_id||null,r._taak_id||null]);
     });
     const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY item_soort,sort_order',[rit_id]);
     res.json({ok:true,aangemaakt:checks.length,checks});
@@ -1013,7 +1013,7 @@ module.exports = function(ctx){
     // spoed_effect_toegepast=0: wordt pas verwerkt wanneer status → "gedaan"
     const taakId=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
       ['extra',spoedDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts,kind||'',ref_id||0,0,ritId]);
-    ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam)]);
+    ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam,undefined,false)]);
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[taakId]));
   });
 
@@ -1085,7 +1085,7 @@ module.exports = function(ctx){
       let regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]);
       if(!regels.length&&t.type==='ophaling'&&_leidOphaalRegelsAf(t))regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]);
       regels.forEach(r=>ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id,bak_id,attribuut_id,taak_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
-        [rit.id,r.naam,r.soort||'andere',r.qty||1,'wacht',volg++,r.item_type_id||resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null,t.id]));
+        [rit.id,r.naam,r.soort||'andere',r.qty||1,'wacht',volg++,r.item_type_id||resolveItemTypeId(r.naam,undefined,false),r.bak_id||null,r.attribuut_id||null,t.id]));
     });
   }
   app.get('/rit/:token',(req,res)=>{
