@@ -4,11 +4,12 @@
 module.exports = function(ctx){
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── KAMPMOMENTEN ──
+  // V2: de actieve periode komt uit de server (vakantieperiodes.actief, Migratie 71).
+  const actievePeriode=()=>get('SELECT * FROM vakantieperiodes WHERE actief=1')||get('SELECT * FROM vakantieperiodes ORDER BY id DESC LIMIT 1');
   // Hulpfunctie: geef de maandagdatum van week w in een periode
   function periodeWeekMaandag(week, periode_id) {
-    const p = get('SELECT * FROM vakantieperiodes WHERE id=?', [periode_id||1]) ||
-              get('SELECT * FROM vakantieperiodes ORDER BY id LIMIT 1') ||
-              {start_datum:'2026-06-29', eind_datum:'2026-09-06'};
+    const p = (periode_id&&get('SELECT * FROM vakantieperiodes WHERE id=?', [periode_id])) || actievePeriode();
+    if(!p) throw new Error('Er bestaat nog geen vakantieperiode — maak er eerst een aan.');
     const start = new Date(p.start_datum+'T12:00:00');
     const r = new Date(start); r.setDate(start.getDate()+(week-1)*7);
     return {maandag:r, periode:p};
@@ -41,8 +42,8 @@ module.exports = function(ctx){
       FROM sport_planning sp
       JOIN sport_sets ss ON ss.id=sp.set_id
       JOIN sport_items si ON si.id=ss.item_id
-      WHERE sp.locatie_id=? AND sp.week=?
-      ORDER BY si.name, ss.label`,[km.locatie_id, km.week]);
+      WHERE sp.locatie_id=? AND sp.week=? AND sp.periode_id=?
+      ORDER BY si.name, ss.label`,[km.locatie_id, km.week, km.periode_id]);
     const kvPersoon = km.kv_persoon_id ? get('SELECT id,naam FROM personeel WHERE id=?',[km.kv_persoon_id]) : null;
     return {...km, locatie:loc, themas, sport_sets:sportSets, open_dagen:openDagen, locatie_materiaal:locMat, periode, kv_persoon:kvPersoon};
   }
@@ -54,7 +55,8 @@ module.exports = function(ctx){
 
   app.post('/api/kampmomenten',(req,res)=>{
     const{locatie_id,week,periode_id,type,kv_persoon_id}=req.body;
-    const periodeIdToUse=periode_id||1;
+    const periodeIdToUse=parseInt(periode_id)||actievePeriode()?.id;
+    if(!periodeIdToUse||!get('SELECT id FROM vakantieperiodes WHERE id=?',[periodeIdToUse]))return res.status(400).json({error:'Kies een geldige vakantieperiode voor dit kampmoment.'});
     const typeVal=(type==='themadag'?'themadag':'kamp');
     try {
       const id=insMetLog(req,'INSERT INTO kampmomenten (locatie_id,week,periode_id,type,kv_persoon_id) VALUES (?,?,?,?,?)',[locatie_id,week,periodeIdToUse,typeVal,kv_persoon_id||null]);
@@ -73,7 +75,15 @@ module.exports = function(ctx){
         if(!ex)ins('INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)',[locatie_id,iso,1]);
       }
       res.json(getKampmoment(id));
-    } catch(e){res.status(400).json({error:'Dit kampmoment bestaat al voor deze locatie en week.'});}
+    } catch(e){
+      // Werklijst 57: geen blinde "bestaat al" meer — echte oorzaak in de serverlog, duidelijke melding naar de gebruiker.
+      console.error('POST /api/kampmomenten mislukt:',e.message);
+      if(/UNIQUE/i.test(e.message)){
+        const p=get('SELECT naam FROM vakantieperiodes WHERE id=?',[periodeIdToUse]);
+        return res.status(409).json({error:`Deze locatie heeft in week ${week} van "${p?.naam||'deze periode'}" al een kampmoment.`});
+      }
+      res.status(400).json({error:'Kampmoment aanmaken mislukt: '+e.message});
+    }
   });
 
   app.put('/api/kampmomenten/:id',(req,res)=>{
@@ -138,6 +148,16 @@ module.exports = function(ctx){
 
   // ── VAKANTIEPERIODES ──
   app.get('/api/periodes', (req,res) => res.json(all('SELECT * FROM vakantieperiodes ORDER BY start_datum')));
+  app.get('/api/periodes/actief', (req,res) => { const p=actievePeriode(); if(!p)return res.status(404).json({error:'Er is nog geen vakantieperiode.'}); res.json(p); });
+  // V2: precies één actieve periode; een nieuwe periode wordt nooit vanzelf actief.
+  app.post('/api/periodes/:id/activeer', alleenKantoor, (req,res) => {
+    const p=get('SELECT * FROM vakantieperiodes WHERE id=?',[req.params.id]);
+    if(!p)return res.status(404).json({error:'Periode niet gevonden'});
+    for(const o of all('SELECT id FROM vakantieperiodes WHERE actief=1 AND id<>?',[p.id])) updateMetLog(req,'UPDATE vakantieperiodes SET actief=0 WHERE id=?',[o.id]);
+    if(!p.actief) updateMetLog(req,'UPDATE vakantieperiodes SET actief=1 WHERE id=?',[p.id]);
+    logAct('periode','actief',`Actieve periode: ${p.naam}`,null,null);
+    res.json(get('SELECT * FROM vakantieperiodes WHERE id=?',[p.id]));
+  });
   app.post('/api/periodes', (req,res) => {
     const {naam, start_datum, eind_datum} = req.body;
     if(!naam||!start_datum||!eind_datum) return res.status(400).json({error:'Naam, startdatum en einddatum zijn verplicht'});
@@ -156,6 +176,8 @@ module.exports = function(ctx){
     res.json(get('SELECT * FROM vakantieperiodes WHERE id=?',[req.params.id]));
   });
   app.delete('/api/periodes/:id', (req,res) => {
+    const doel=get('SELECT * FROM vakantieperiodes WHERE id=?',[req.params.id]);
+    if(doel&&doel.actief) return res.status(409).json({error:'Dit is de actieve periode. Maak eerst een andere periode actief.'});
     const kms=all('SELECT COUNT(*) as n FROM kampmomenten WHERE periode_id=?',[req.params.id]);
     if(kms[0]?.n>0) return res.status(400).json({error:'Periode heeft nog kampmomenten. Verplaats of verwijder ze eerst.'});
     run('DELETE FROM vakantieperiodes WHERE id=?',[req.params.id]);
@@ -164,7 +186,8 @@ module.exports = function(ctx){
 
   // ── SEIZOENSOVERZICHT ──
   app.get('/api/seizoensoverzicht',(req,res)=>{
-    const kampen=all(`SELECT km.*,l.name AS loc_nm FROM kampmomenten km JOIN locaties l ON km.locatie_id=l.id ORDER BY km.week,l.name`);
+    const pid=parseInt(req.query.periode_id)||actievePeriode()?.id||null;
+    const kampen=all(`SELECT km.*,l.name AS loc_nm FROM kampmomenten km JOIN locaties l ON km.locatie_id=l.id WHERE km.periode_id=? ORDER BY km.week,l.name`,[pid]);
     const themaLinks=all(`SELECT kt.kampmoment_id,t.name AS thema_nm,t.color FROM kampmoment_themas kt JOIN themas t ON kt.thema_id=t.id`);
     const themaByKm={};
     themaLinks.forEach(r=>(themaByKm[r.kampmoment_id]=themaByKm[r.kampmoment_id]||[]).push(r));
