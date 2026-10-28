@@ -12,25 +12,25 @@
 | **Kantoor/coördinator** | Maxim + kernteam (manager + 3 coördinatoren) | volledige admin-app |
 | **Chauffeur** | chauffeurs/klusjesmensen | mobiele rit-pagina via rit-link |
 | **Kampverantwoordelijke (KV)** | 1 per kampmoment | mobiele kv-pagina via kv-link |
-| Monitor | begeleiders per groep | ❓ geen app-rol (loopt via de KV) — klopt dat? |
+| Monitor | begeleiders per groep | ✔ geen app-rol (Maxim 28/10: monitoren komen niet in de app) |
 | Beheerder | Maxim | Railway, deploys, data-herstel |
 
 ## De cyclus in 9 fasen
 
 ---
-### FASE 0 — Stamdata (doorlopend, buiten de vakanties)
-Eigenaar: kantoor.
+### FASE 0 — Stamdata (doorlopend, buiten de vakanties) — ✔ besproken met Maxim 28/10
+Eigenaar: kantoor. **Rollen-besluit: monitoren komen NIET in de app.**
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 0.1 | Locaties beheren (adres, contact, type kamp/stockage, eigenschappen: eigen oven, eigen sportmateriaal, zelf kuisen) | ✅ | |
-| 0.2 | Locatieconfig per locatie: welke standaarduitrusting met welke voorwaarde (altijd / leeftijdsgroep / kookthema / zelf kuisen) | 🟠 bestaat; Maxim moest dit nog invullen; testrest "99 EHBO Abdijschool" checken (B-F13) | |
-| 0.3 | Personeel beheren (rollen, pincodes) | 🟠 bestaat; geen rolrechten in de app (C-#2) | |
-| 0.4 | Themacatalogus onderhouden: thema's → bakken → items; attributen; bundel-PDF bij thema | 🟠 volledig gevuld (184); onderhoud-UI bestaat; catalogusvervuiling door KV:/INFO: en transportregels (A-2.3, B-F9) | |
-| 0.5 | Pool beheren: unieke exemplaren (springkastelen+foto's, koffers) en bulk (fietsen, blazers… met totaal + spreiding) | 🟠 bestaat; totalen grotendeels nog niet ingevuld; bulk-boekhouding lek (B-F4/F5) | |
-| 0.6 | Voorraad verbruiksmateriaal per stockagelocatie (aantal + minimum) → bestellijst | 🟠 structuur ok, 867/868 rijen leeg (E) — betekenisloos tot gevuld | |
-| 0.7 | Vakantieperiodes beheren (herfst/kerst/krokus/pasen/zomer, start+einde) | 🟠 CRUD bestaat; app is niet periode-bewust (B-F2/F3) — kernpunt V2 | |
-| 0.8 | Sportpakketten-catalogus + planning | 🟠 bestaat; planning niet periode-bewust (B-F2) | |
-| 0.9 | ❓ Verhuur aan derden (paintball e.d.) — S9-backlog, niet voor nu | ❌ | |
+| 0.1 | Locaties beheren (adres, contact, type kamp/stockage, eigenschappen) — eigenschappen: **"heeft vuur en/of oven"** (vervangt "eigen oven"/"keuken"), eigen sportmateriaal, zelf kuisen | ✅ bevestigd; label "Heeft eigen oven" → "Heeft vuur en/of oven" | |
+| 0.2 | Locatieconfig per locatie: welke standaarduitrusting met welke voorwaarde (altijd / leeftijdsgroep / kookthema / zelf kuisen) | 🟠 bestaat; invulling + extra voorwaarden nog te bespreken (zie vraag) | |
+| 0.3 | Personeel: kantoor/chauffeur mét login; **KV krijgt ook een account** zodat hij/zij nakijk-resultaten en "iets is op"-meldingen kan doorgeven (Maxim) → KV logt in en ziet zijn eigen kampmoment(en); kv-link blijft als snelle weg | 🟠 besluit genomen; KV-login + KV-overzicht te bouwen (V0 blokkeert kv-rol nu op de admin-API — terecht, de KV krijgt zijn eigen scherm) | |
+| 0.4 | Themacatalogus onderhouden: thema's → bakken → items; attributen; bundel-PDF bij thema | 🟠 gevuld (184); onderhoud-UI bestaat; wie het na Maxim onderhoudt: nog te bespreken | |
+| 0.5 | Pool beheren: unieke exemplaren (springkastelen+foto's, koffers) en bulk (totaal + spreiding) | 🟠 bestaat; **juiste getallen zijn nu niet belangrijk — werkende app eerst, cijfers later (Maxim)** | |
+| 0.6 | Voorraad verbruiksmateriaal (aantal + minimum) → bestellijst | 🟠 structuur ok, rijen leeg; **werkelijke werkwijze van kantoor nog te bespreken** (zie vraag) | |
+| 0.7 | Periodes beheren — **ruimer dan schoolvakanties**: Sporty doet ook sportdagen, workshops, opvangdagen tijdens het schooljaar én evenementen (Leuven Night Run, Genk Marathon…) | 🟠 CRUD bestaat; app niet periode-bewust (V2) — **én het begrip "kampmoment" moet elke activiteitssoort aankunnen** (kamp, themadag, sportdag, workshop, opvangdag, evenement) | |
+| 0.8 | Sportpakketten: **vast per locatie én roterend moet allebei kunnen** (Maxim) | 🟠 bestaat; planning niet periode-bewust | |
+| 0.9 | Verhuur aan derden: **nu al relevant voor beschikbaarheid** (een verhuurd springkasteel is die dag niet inzetbaar) **+ klaarzet-agenda** (verhuurde spullen worden klaargezet voor afhaling) | ❌ → verhuur = blokkering in de pool-beschikbaarheid + agenda-item; volledige verhuurmodule (S9) later | |
 
 ---
 ### FASE 1 — Vakantie plannen (weken vóór de vakantie)
