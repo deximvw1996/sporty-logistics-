@@ -418,7 +418,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
     <div class="logo">&#9978;</div>
     <div>
       <div class="topbar-title" style="font-size:15px;font-weight:600;">Sporty vzw &mdash; Logistiek</div>
-      <div style="font-size:11px;color:var(--text2)" id="topbar-periode">Zomer 2026</div>
+      <div style="font-size:11px;color:var(--text2)" id="topbar-periode"></div>
     </div>
     <div id="global-search-wrap" style="flex:1;max-width:300px;position:relative;margin:0 8px">
       <input type="text" id="global-search" class="inp" placeholder="🔍 Zoeken..." style="width:100%;padding-left:8px" oninput="globalSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';globalSearch('')}" autocomplete="off">
@@ -1699,9 +1699,9 @@ function renderPeriodesList(){
         <div class="rs">${p.start_datum} – ${p.eind_datum} · ${p.max_weken} weken · ${nKm} kampmoment${nKm!==1?'en':''}</div>
       </div>
       <div class="ra">
-        ${!isActief?`<button class="btn-o" style="font-size:11px" onclick="setActivePeriode(${p.id})">Activeren</button>`:''}
+        ${!isActief?`<button class="btn-o" style="font-size:11px" onclick="setActivePeriode(${p.id})">Maak actief</button>`:''}
         <button class="bi" onclick="editPeriode(${p.id})">✏️</button>
-        ${nKm===0?`<button class="bi del" onclick="deletePeriode(${p.id})">🗑️</button>`:''}
+        ${nKm===0&&!isActief?`<button class="bi del" onclick="deletePeriode(${p.id})">🗑️</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1735,7 +1735,8 @@ async function savePeriode(){
   else r=await api('POST','/periodes',{naam,start_datum:start,eind_datum:eind});
   if(r&&r.error){showToast(r.error,'error');return;}
   S.periodes=await api('GET','/periodes');
-  if(!_editPeriodeId)S.activePeriode=r; // nieuwe periode meteen actief
+  // V2: een nieuwe periode wordt NIET vanzelf actief — daarvoor is er de knop "Maak actief".
+  S.activePeriode=(S.periodes||[]).find(p=>p.actief)||S.activePeriode;
   closeModal('modal-periode');
   renderPeriodesList();
   showToast(_editPeriodeId?'Periode bijgewerkt':'Periode aangemaakt','success');
@@ -1749,11 +1750,14 @@ async function deletePeriode(id){
   renderPeriodesList();
   showToast('Periode verwijderd','info');
 }
-function setActivePeriode(id){
-  const p=(S.periodes||[]).find(x=>x.id===id);if(!p)return;
-  S.activePeriode=p;
-  const tbl=document.getElementById('topbar-periode');if(tbl)tbl.textContent=p.naam;
-  showToast('Actieve periode: '+p.naam,'success');
+async function setActivePeriode(id){
+  // V2: de server bewaart welke periode actief is (blijft zo na herladen, voor iedereen).
+  const r=await api('POST','/periodes/'+id+'/activeer');
+  if(!r||r.error){showToast((r&&r.error)||'Periode activeren mislukt','error');return;}
+  S.periodes=await api('GET','/periodes');
+  S.activePeriode=(S.periodes||[]).find(p=>p.actief)||r;
+  const tbl=document.getElementById('topbar-periode');if(tbl)tbl.textContent=S.activePeriode.naam;
+  showToast('Actieve periode: '+S.activePeriode.naam,'success');
   renderPeriodesList();
 }
 
@@ -3888,7 +3892,8 @@ async function doLogout(){
 async function loadAll(){const[a,b,c,d,f,g,h,periodes]=await Promise.all([api('GET','/locaties'),api('GET','/themas'),api('GET','/standaard'),api('GET','/kampmomenten'),api('GET','/materiaal'),api('GET','/overzicht'),api('GET','/kalender'),api('GET','/periodes')]);S={locaties:a,themas:b.map(t=>({...t,materiaal:t.materiaal||t.mat||[]})),standaard:c,kampmomenten:d,materiaal:f,overzicht:g,locMat:{},periodes:Array.isArray(periodes)?periodes:[]};kalData=h&&h.werkdagen?h:{werkdagen:[],locaties:[],dagen:[],gesloten_dagen:[]};await Promise.all(a.filter(l=>l.type==='kamp').map(async l=>{S.locMat[l.id]=await api('GET','/locaties/'+l.id+'/materiaal');}));
 S_thema_cats=await api('GET','/thema-categorieen');
 // Stel de actieve periode in: eerste periode of de eerste met kampmomenten
-if(S.periodes.length){const metKamp=S.periodes.find(p=>S.kampmomenten.some(k=>k.periode_id===p.id));S.activePeriode=metKamp||S.periodes[0];}
+// V2: de actieve periode komt van de server (vakantieperiodes.actief), niet meer uit "de eerste met kampmomenten".
+if(S.periodes.length){S.activePeriode=S.periodes.find(p=>p.actief)||S.periodes[0];}
 const tbl=document.getElementById('topbar-periode');if(tbl&&S.activePeriode)tbl.textContent=S.activePeriode.naam;
 // Initialiseer kalender navigatiedatum op start actieve periode
 if(S.activePeriode&&!ovDate)ovDate=new Date(S.activePeriode.start_datum+'T12:00:00');

@@ -4,10 +4,13 @@
 module.exports = function(ctx){
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── SPORT MATERIAAL ──
+  const _periodeId=(v)=>parseInt(v)||(get('SELECT id FROM vakantieperiodes WHERE actief=1')||{}).id||null;
   app.get('/api/sport', (req,res) => {
     const items = all('SELECT si.*, l.name as locatie_name FROM sport_items si LEFT JOIN locaties l ON l.id=si.locatie_id ORDER BY si.cat, si.name');
     const sets = all('SELECT ss.*, l.name as locatie_name FROM sport_sets ss LEFT JOIN locaties l ON l.id=ss.locatie_id ORDER BY ss.item_id, ss.label');
-    const planning = all('SELECT sp.*, l.name as locatie_name FROM sport_planning sp LEFT JOIN locaties l ON l.id=sp.locatie_id');
+    // V2: enkel de planning van de gevraagde periode (?periode_id=, standaard de actieve).
+    const pid=_periodeId(req.query.periode_id);
+    const planning = all('SELECT sp.*, l.name as locatie_name FROM sport_planning sp LEFT JOIN locaties l ON l.id=sp.locatie_id WHERE sp.periode_id=?',[pid]);
     res.json(items.map(item => ({
       ...item,
       sets: sets.filter(s => s.item_id === item.id).map(s => ({
@@ -60,12 +63,13 @@ module.exports = function(ctx){
   // Sport planning (which set is where which week)
   app.post('/api/sport/sets/:id/plan', (req,res) => {
     const {week, locatie_id} = req.body;
+    const pid=_periodeId(req.body.periode_id);
     const setInfo=get('SELECT ss.*,si.name as item_naam FROM sport_sets ss LEFT JOIN sport_items si ON si.id=ss.item_id WHERE ss.id=?',[req.params.id]);
     if (locatie_id === null || locatie_id === undefined || locatie_id === '') {
-      run('DELETE FROM sport_planning WHERE set_id=? AND week=?', [req.params.id, week]);
+      run('DELETE FROM sport_planning WHERE set_id=? AND week=? AND periode_id=?', [req.params.id, week, pid]);
       if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" — week ${week}: locatie vrijgemaakt`,null,null);
     } else {
-      run('INSERT OR REPLACE INTO sport_planning (set_id,locatie_id,week) VALUES (?,?,?)', [req.params.id, locatie_id, week]);
+      run('INSERT OR REPLACE INTO sport_planning (set_id,locatie_id,week,periode_id) VALUES (?,?,?,?)', [req.params.id, locatie_id, week, pid]);
       const loc=get('SELECT name FROM locaties WHERE id=?',[locatie_id]);
       if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" → ${loc?.name||'?'} (week ${week})`,locatie_id,loc?.name);
     }
