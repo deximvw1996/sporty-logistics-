@@ -68,28 +68,29 @@ Eigenaar: kantoor (magazijnwerk Rozenweg). Geen vaste persoon: coördinatoren é
 → Ontwerpgevolg: de laadlijst van de chauffeur komt **uit de planning** (locatie heeft oven → oven staat op de lijst), niet uit het hoofd van de hoofdlogistiek; afvinken per stuk bij in- én uitladen (fase 4).
 
 ---
-### FASE 3 — Transport plannen (week vóór + tijdens de vakantie) — ✔ besproken met Maxim 28/10 (3.4 nog open)
+### FASE 3 — Transport plannen (week vóór + tijdens de vakantie) — ✔ besproken met Maxim 28/10
 Eigenaar: hoofdlogistiek (bepaalt wie rijdt, met welk voertuig, wanneer); uitvoering chauffeur, vrijdag vaak samen met coördinatoren.
 | # | actie | moet kunnen | status |
 |---|---|---|---|
 | 3.1 | Leveringen: normaal uiterlijk de vrijdag vóór de kampweek; **nalevering** maandag of later in de week mag (oven pas donderdag nodig, pas woensdag een vrij). Ophaling: als de locatie doorgaat → thema op vrijdag; **sluit de locatie → al tijdens de week deelophalingen** (tent, deel thema, sportpakket, springkasteel). Een thema reist dus niet altijd in één stuk: 2+ ritten | 🟠 generator kent alleen "levering vóór / ophaling na"; deelophaling en "vanaf dag X nodig" ontbreken | kernpunt: per onderdeel een "nodig van–tot" |
 | 3.2 | Voorstellen → taken → ritten; **chauffeurs- én voertuigplanning** (wie werkt wanneer, wie rijdt met wat; 1 of 2 chauffeurs; coördinator kan rijden) | 🟠 ritten hebben chauffeur+voertuig, maar geen beschikbaarheidsrooster | rooster = nieuw |
 | 3.3 | **Bundelen** van locaties in één voertuig (geen lege terugritten) en **splitsen** over 2 voertuigen (chauffeur + coördinator). Capaciteit = inschatting van de planner (geen afmetingen beschikbaar; gokken blijft); chauffeur meldt bij het laden "alles mee" of "niet gelukt: rest → nieuwe taak" | 🟠 bundelen bestaat; split breekt (B-F6); "rest blijft open" ontbreekt | |
-| 3.4 | Week-overgang bij meerweekse vakanties ❓ (zie fase 7, vraag herformuleerd) | 🟠 | open |
-| 3.5 | Chauffeur onderweg: stops + bakkenlijst, **plus wie de KV's zijn en de contactpersoon van de locatie (sleuteloverdracht als de school dicht is)** | 🟠 rit-link bestaat zonder contacten | |
+| 3.4 | Week-overgang: standaardmateriaal blijft staan; het oude thema gaat **deels** mee terug afhankelijk van wat al weg mag en hoe laat de chauffeur komt (vrijdag 10u = thema nog in gebruik → rest in een latere rit). Dus: ophaling per onderdeel, met "mag weg vanaf" | 🟠 generator kent alleen thema-in-één-keer | zelfde kern als 3.1 |
+| 3.5 | Chauffeur onderweg: stops + bakkenlijst, **plus wie de KV's zijn en de contactpersoon van de locatie (sleuteloverdracht als de school dicht is)**; **"Probleem melden"** op het rit-scherm (poort dicht, past niet, met foto) → melding naar kantoor en/of KV i.p.v. bellen | 🟠 rit-link bestaat zonder contacten en zonder melden | |
 | 3.6 | **Opvolging voor KV én coördinator**: wat is onderweg, wanneer verwacht, wat ontbreekt nog, waar staat het nu | ❌ (alleen beheer-kant) | nieuw: volgscherm |
 | 3.7 | **Locatiedossier**: foto's + uitleg waar wat moet staan, welke ruimtes gebruikt mogen worden, wifi, poortcodes, contactpersonen; **overdrachtsfoto's** bij ontvangst en afgifte (van voorganger/eigenaar → naar opvolger/eigenaar), door KV of coördinator | ❌ | nieuw; codes = gevoelig → alleen ingelogd, niet in export |
 
 ---
-### FASE 4 — Leverdag / opbouw (vr–ma rond de kampstart)
-Eigenaar: chauffeur (+ kantoor volgt).
+### FASE 4 — Leverdag / opbouw (vr–ma rond de kampstart) — ✔ besproken met Maxim 28/10
+Eigenaar: chauffeur (+ kantoor volgt). KV helpt bij de levering als die tijd heeft; anders levert de chauffeur met een meegekregen sleutel of via afspraak met de locatie-eigenaar (→ contactpersoon uit het locatiedossier, 3.7).
 | # | actie | moet kunnen | status |
 |---|---|---|---|
-| 4.1 | Chauffeur opent rit-link op GSM: stops in volgorde, per stop bakken afvinken bij LADEN in de Rozenweg | ✅ (statusketen) | |
-| 4.2 | Per stop LOSSEN afvinken → bak staat "op locatie" | 🟠 uniek ✅; bulk fout (B-F4) | |
-| 4.3 | Kantoor ziet live wat geladen/gelost/onderweg is | 🟠 | |
-| 4.4 | ❓ Opbouw springkastelen: wie, en moet de app iets tonen (blazers, zekeringen, foto opgezet)? | 🟠 foto's bestaan | |
-| 4.5 | ❓ Wat als er iets niet mee kan / vergeten is op leverdag — naar spoedflow? | 🟠 | |
+| 4.1 | Chauffeur opent rit op GSM: stops in volgorde, **elk stuk apart afvinken bij LADEN** in de Rozenweg | ✅ (statusketen) | |
+| 4.2 | **Elk stuk apart afvinken bij LOSSEN** → "op locatie". Vervangt de geprinte lijst + fluostift die nu weggegooid wordt. **Alles gelogd, alles traceerbaar, niets gaat verloren: volledige historiek per stuk** (wie, wanneer, waar) | 🟠 uniek ✅; bulk fout (B-F4); historiek op tekstmatch (A) | kernpunt, bindend |
+| 4.3 | Kantoor ziet live wat geladen/gelost/onderweg is; **KV ziet hetzelfde voor zijn locatie** (3.6 volgscherm) | 🟠 | |
+| 4.4 | KV + monitoren kijken **in de loop van maandag** alles na (ochtend is te druk) en melden tekorten → nu via sms/WhatsApp, straks in de app: **ontvangstcontrole** per bak, "alles aanwezig" of "dit ontbreekt" | 🟠 nakijk-flow bestaat, niet als ontvangstcontrole | |
+| 4.5 | Tekort op maandag → aanvraag → kantoor keurt → taak op de volgende rit. **Meldingen bij elke stap, liefst pushmeldingen op de GSM** (KV: "goedgekeurd, komt woensdag"; chauffeur: "nieuwe taak op je rit"; kantoor: "nieuwe aanvraag") | 🟠 keten bestaat (werklijst 11); ❌ meldingen | push = web-push, haalbaar zonder app-store |
+| 4.6 | ❓ Opbouw springkastelen: wie, en moet de app iets tonen (blazers, zekeringen, foto opgezet)? | 🟠 foto's bestaan | open (klein) |
 
 ---
 ### FASE 5 — Kampweek (ma–vr)
