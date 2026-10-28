@@ -42,7 +42,8 @@ module.exports = function(ctx){
       fs.writeFileSync(path.join(backupDir, 'voor-herstel-' + ts + '.db'), Buffer.from(db.export()));
       fs.writeFileSync(DB_PATH, buf);
       res.json({ ok: true, bytes: buf.length, melding: 'Database vervangen — server herstart nu' });
-      setTimeout(() => process.exit(0), 500);
+      // Hoofdchat 29/10: exit 0 wordt door Railway (restart policy on-failure) NIET herstart → prod lag 10 min plat. Exit 1 wél.
+      setTimeout(() => process.exit(1), 500);
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
   app.get('/api/backup-db', alleenKantoor, (req, res) => {

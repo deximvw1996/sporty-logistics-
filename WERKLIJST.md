@@ -21,14 +21,14 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 15 | Ophaalrit toont bakkenlijst zonder Klaarzetten (T-G6) | Chauffeur | Bouwchat | gekeurd | 1 | V3a chat C; live 29/10 |
 | 16 | Sportpakket door de hele keten (T-2.3/3.1/4.13/1.14) | Transport en generator | Bouwchat | open | 2 | |
 | 17 | Thema-wissel + rustweek: pool correct (B-F1/F12) | Transport en generator | Bouwchat | open | 3 | kerst |
-| 18 | Taak splitsen/verwijderen na laden (B-F6/F7) | Transport en generator | Bouwchat | open | 2 | |
+| 18 | Taak splitsen/verwijderen na laden (B-F6/F7) | Transport en generator | Bouwchat | gekeurd | 2 | V3d chat C: checks mee, 409 bij geladen, terug-op-gepland; live 29/10 |
 | 19 | KV-telscherm: intypen, alles-aanwezig, bevestigingen, tabs, 44px (T-3.2, D) | KV-scherm | Bouwchat | open | 3 | LOGISTIEK EERST; designsessie eerst |
 | 20 | Vrijdagcontrole: lege controle, hertellen, aanvullen-validatie (D-#2, B-R5-R7) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | |
 | 21 | KV ziet vaste bakken met 0 items (A-GEVONDEN-4) | KV-scherm | Bouwchat | open | 2 | |
 | 22 | Atomaire database-schrijving + SIGTERM-save (A-1) | Architectuur en robuustheid | Bouwchat | gekeurd | 1 | F1 chat A; live 28/10 |
 | 23 | Foto's uit de database naar uploads-map (A-2) | Architectuur en robuustheid | Bouwchat | gekeurd | 2 | V3c chat E; migratie 70; backup dekt uploads/ niet (→ 61) |
-| 24 | Mig 47 gaten; KV:/INFO:- en transportregel-rijen uit catalogus (A-5, B-F9) | Data en opschoning | Bouwchat | gebouwd | 2 | V3c: maakAan-vlag + opschoning-catalogus; transport.js-aanroepen → V3d |
-| 25 | Prod-opschoning: 99-EHBO, 'undefined'-wees, regels-wezen (B-F13, A) | Data en opschoning | Fable | bezig | 1 | script klaar (E); droogloop op prod-kopie, dan --doe na OK Maxim |
+| 24 | Mig 47 gaten; KV:/INFO:- en transportregel-rijen uit catalogus (A-5, B-F9) | Data en opschoning | Bouwchat | gekeurd | 2 | V3c+V3d: geen aanmaak meer vanuit transport; 10 types weg op prod; KV:/INFO: wacht op S4.8-vervanger |
+| 25 | Prod-opschoning: 99-EHBO, 'undefined'-wees, regels-wezen (B-F13, A) | Data en opschoning | Fable | gekeurd | 1 | uitgevoerd op prod 29/10 00:50 na OK Maxim: 99-EHBO weg, 96 wezen weg, 10 types weg; backup voor-herstel op volume |
 | 26 | Voorraad + bakcodes vullen voor herfstthema's (E) | Data en opschoning | Maxim | open | 1 | |
 | 27 | Prompts/confirms → modal; KV-alerts → toasts; stille catches (D-#7/#19) | Schermen en navigatie | Bouwchat | gekeurd | 2 | V3b: index.html 0 prompt/confirm; rit-/kv-pagina alert() nog open (→ 59) |
 | 28 | Navigatie herontwerpen (D-#4) | Schermen en navigatie | Fable | open | 2 | designsessie |
@@ -61,9 +61,11 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 55 | KV-budget per kookkamp | KV-scherm | Bouwchat | later | 4 | wens Maxim |
 | 56 | Backup-knop UI: downloadBackup() zonder token → 401 | Schermen en navigatie | Bouwchat | open | 2 | GEVONDEN A |
 | 57 | POST kampmomenten slikt fouten in; klaarzet_door uit body i.p.v. sessie | Periodes en planning | Bouwchat | open | 2 | GEVONDEN A, mee in V2 |
-| 58 | Handmatige verplaatsing + vaste-bak-aantal in bakken.js via verplaatsBulk | Pool en bulk | Bouwchat | open | 1 | GEVONDEN C |
-| 59 | alert() op rit- en kv-pagina → toasts | Chauffeur | Bouwchat | open | 2 | GEVONDEN C/D |
+| 58 | Handmatige verplaatsing + vaste-bak-aantal in bakken.js via verplaatsBulk | Pool en bulk | Bouwchat | gekeurd | 1 | V3d: zetBezit/controleerSom; live 29/10 |
+| 59 | alert() op rit- en kv-pagina → toasts | Chauffeur | Bouwchat | gebouwd | 2 | V3d: rit-pagina klaar; kv-pagina nog open |
 | 61 | Backup dekt uploads/ (foto's) niet: volume-backup of foto-export | Architectuur en robuustheid | Bouwchat | open | 2 | GEVONDEN E |
+| 62 | herstel-db: proces stopte met exit 0 en Railway herstartte niet (prod 10 min plat); hotfix exit 1 door Fable; nette oplossing = herladen zonder exit | Architectuur en robuustheid | Bouwchat | gebouwd | 1 | hotfix live 29/10 |
+| 63 | test-v3c-fotos leest de lokale sporty.db i.p.v. herfst-test.db (resultaat hangt van de map af) | Testen | Bouwchat | open | 3 | GEVONDEN C |
 | 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | open | 1 | GEVONDEN D, mee in V2 |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
@@ -76,4 +78,4 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 3 | C | V3a | Ketenfixes transport | 11, 13, 14, 15 | klaar (29/10, 7febb80) |
 | 4 | D | V3b | Annuleer-bug + modals + conflicten-tab | 12, 27, 9 | klaar (29/10, f389c61) |
 | 5 | E | V3c | Foto's uit db + prod-opschoning + catalogus | 23, 24, 25 | klaar (29/10, 9e04932) |
-| 6 | C | V3d | Splits/verwijderen na laden, bulk overal via één functie, catalogus, rit-toasts | 18, 58, 24, 59 | gepland (prompt klaar) |
+| 6 | C | V3d | Splits/verwijderen na laden, bulk overal via één functie, catalogus, rit-toasts | 18, 58, 24, 59 | klaar (29/10, 27d4cfd) |
