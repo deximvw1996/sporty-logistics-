@@ -83,7 +83,6 @@ module.exports = function(ctx){
       if(bestaand) run('UPDATE nakijk_regels SET aangetroffen=?,ontbreekt=?,verwacht=? WHERE id=?',[aangetroffen,ontbreekt,item.qty,bestaand.id]);
       else ins('INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt) VALUES (?,?,?,?,?,?)',[sessieId,item.naam,item.id,item.qty,aangetroffen,ontbreekt]);
     });
-    saveDb();
     res.json({ok:true});
   });
 
@@ -103,7 +102,6 @@ module.exports = function(ctx){
     if(sessie) run('UPDATE nakijk_sessies SET notities=?,kv_wie=?,kv_tijdstip=? WHERE id=?',[status,kvNaam,now(),sessie.id]);
     else ins("INSERT INTO nakijk_sessies (bak_type,attribuut_id,locatie_id,week,datum,kv_wie,kv_status,kantoor_status,notities) VALUES ('attribuut',?,?,?,?,?,?,?,?)",
       [attr.id,km.locatie_id,km.week,now(),kvNaam,'bezig','open',status]);
-    saveDb();
     res.json({ok:true,status});
   });
 
@@ -113,7 +111,6 @@ module.exports = function(ctx){
     const kvNaam=_kvNaam(km);
     run("UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE locatie_id=? AND week=? AND kv_status='bezig'",
       [kvNaam,now(),km.locatie_id,km.week]);
-    saveDb();
     res.json({ok:true});
   });
 
@@ -124,7 +121,6 @@ module.exports = function(ctx){
     if(!tekst)return res.status(400).json({error:'Tekst is verplicht'});
     const id=ins('INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,status,created_at) VALUES (?,?,?,?,?,?)',
       [km.id,km.kv_persoon_id||null,'materiaal',tekst,'nieuw',now()]);
-    saveDb();
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 
@@ -135,7 +131,6 @@ module.exports = function(ctx){
     if(!tekst)return res.status(400).json({error:'Omschrijving is verplicht'});
     const id=ins('INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,status,created_at) VALUES (?,?,?,?,?,?,?)',
       [km.id,km.kv_persoon_id||null,'kapot',tekst,req.body?.foto_data||'','nieuw',now()]);
-    saveDb();
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 

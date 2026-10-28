@@ -502,7 +502,7 @@ module.exports = function(ctx){
     const{ids}=req.body;
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
     ids.forEach(id=>run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=? AND COALESCE((SELECT spoed_kind FROM transport_taken WHERE id=?),'') != '1'",[id,id]));
-    saveDb();res.json({ok:true,count:ids.length});
+    res.json({ok:true,count:ids.length});
   });
   // Bulk: verplaats naar andere rit
   app.post('/api/transport-taken/bulk-move',(req,res)=>{
@@ -514,14 +514,14 @@ module.exports = function(ctx){
       run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',
         [rit_id||null,rit?rit.datum:'',rit?rit.chauffeur:'',id]);
     });
-    saveDb();res.json({ok:true,count:ids.length});
+    res.json({ok:true,count:ids.length});
   });
   // Bulk: verwijder
   app.post('/api/transport-taken/bulk-delete',(req,res)=>{
     const{ids}=req.body;
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
     ids.forEach(id=>{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);run('DELETE FROM transport_taken WHERE id=?',[id]);});
-    saveDb();res.json({ok:true});
+    res.json({ok:true});
   });
   // Splitsen (Maxim 2026-08-02): een deel van de regels (bakken/attributen) van een taak
   // verhuist naar een NIEUWE taak op een andere dag — bv. donderdag al de helft ophalen,
@@ -540,7 +540,6 @@ module.exports = function(ctx){
       [taak.type,datum||'',tijd||taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,
        (taak.opmerking||'')+' — afgesplitst deel',taak.wie||'',taak.kampmoment_id,'gepland',now(),null,taak.week]);
     teVerhuizen.forEach(r=>run('UPDATE transport_regels SET taak_id=? WHERE id=?',[nieuwId,r.id]));
-    saveDb();
     logAct('transport','gesplitst',`Taak #${taak.id}: ${teVerhuizen.length} regel(s) afgesplitst naar taak #${nieuwId}${datum?' ('+datum+')':''}`,taak.naar_locatie_id||taak.van_locatie_id,null);
     res.json({ok:true,nieuwe_taak_id:nieuwId,verplaatst:teVerhuizen.length});
   });
@@ -567,7 +566,6 @@ module.exports = function(ctx){
             });
           });
         });
-        saveDb();
       }
       // S2.4: bakken/attributen in deze taak (via transport_regels.bak_id/attribuut_id) volgen
       // automatisch mee naar naar_locatie_id; status 'thuis' als dat hun thuislocatie is.
@@ -825,7 +823,6 @@ module.exports = function(ctx){
       const alleGeladen=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.geladen);
       if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg',rit);
     }
-    saveDb();
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
   });
   app.post('/api/rit-token/:token/checks/:checkId/lossen',(req,res)=>{
@@ -842,7 +839,6 @@ module.exports = function(ctx){
       const alleGelost=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.gelost);
       if(alleGelost && taak && taak.naar_locatie_id)_pasBakAttribuutStatusToe(groep,{naar_locatie_id:taak.naar_locatie_id},rit);
     }
-    saveDb();
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
   });
 
@@ -864,7 +860,6 @@ module.exports = function(ctx){
       const homeId=(setItem&&setItem.stockage_locatie_id)||defaultSportStockage?.id;
       if(homeId) run('UPDATE sport_sets SET locatie_id=? WHERE id=?',[homeId,r.set_id]);
     });
-    saveDb();
     const km=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[kampmoment_id]);
     const schade=(regels||[]).filter(r=>r.status==='schade').length;
     const vermist=(regels||[]).filter(r=>r.status==='vermist').length;
@@ -896,7 +891,6 @@ module.exports = function(ctx){
       'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
       ['extra',spoedDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts,kind||'',ref_id||0,0,ritId]);
     ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam)]);
-    saveDb();
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[taakId]));
   });
 
@@ -934,7 +928,7 @@ module.exports = function(ctx){
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
     let tok=rit.rit_token;
-    if(!tok){tok=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[tok,req.params.id]);saveDb();}
+    if(!tok){tok=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[tok,req.params.id]); }
     res.json({token:tok,url:'/rit/'+tok});
   });
   app.get('/rit/:token',(req,res)=>{

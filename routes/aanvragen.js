@@ -51,7 +51,6 @@ module.exports = function(ctx){
     }
     run('UPDATE aanvragen SET status=?,reden=?,spoed_taak_id=?,behandeld_door=?,behandeld_op=? WHERE id=?',
       [status,reden||'',spoed_taak_id||null,behandeld_door,now(),req.params.id]);
-    saveDb();
     logAct('aanvraag',status,`Aanvraag #${a.id} → ${status}`+(reden?` (${reden})`:''),null,null);
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]));
   });

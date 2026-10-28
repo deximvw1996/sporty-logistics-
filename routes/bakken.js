@@ -109,7 +109,6 @@ module.exports = function(ctx){
           run('UPDATE bak_items SET qty_stock=? WHERE id=? AND bak_id=?',[u.qty_stock,u.item_id,req.params.id]);
       });
     }
-    saveDb();
     const themaId=get('SELECT thema_id FROM thema_bak WHERE bak_id=? LIMIT 1',[req.params.id])?.thema_id;
     res.json({ok:true,log_id:tid,bakken:themaId?_bakkenVanThema(themaId):[]});
   });
@@ -153,14 +152,12 @@ module.exports = function(ctx){
     if(!cur)return res.status(404).json({error:'Vaste bak niet gevonden'});
     const kolom=slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
     run(`UPDATE bakken SET ${kolom}=? WHERE id=?`,[foto_data,req.params.id]);
-    saveDb();
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id/foto-slot/:slot',(req,res)=>{
     if(!['opgeplooid','opgezet'].includes(req.params.slot))return res.status(400).json({error:"ongeldig slot"});
     const kolom=req.params.slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
     run(`UPDATE bakken SET ${kolom}='' WHERE id=?`,[req.params.id]);
-    saveDb();
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.post('/api/vaste-bakken',(req,res)=>{
@@ -170,7 +167,6 @@ module.exports = function(ctx){
     const id=ins('INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status,is_bulk,aantal) VALUES (?,?,?,?,?,?,?,?,?)',
       [naam.trim(),code||'','vast',vast_type||'',thuis,thuis,'thuis',is_bulk?1:0,Math.max(1,parseInt(aantal)||1)]);
     if(is_bulk&&thuis)ins('INSERT OR IGNORE INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[id,thuis,Math.max(1,parseInt(aantal)||1)]);
-    saveDb();
     res.json(get('SELECT * FROM bakken WHERE id=?',[id]));
   });
   app.put('/api/vaste-bakken/:id',(req,res)=>{
@@ -192,7 +188,6 @@ module.exports = function(ctx){
         else ins('INSERT INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[cur.id,thuis,Math.max(0,delta)]);
       }
     }
-    saveDb();
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id',(req,res)=>{
@@ -365,7 +360,6 @@ module.exports = function(ctx){
     const {locatie_id, qty} = req.body;
     if(!locatie_id) return res.status(400).json({error:'Locatie vereist'});
     run('INSERT OR REPLACE INTO gedeeld_stock(gedeeld_id,locatie_id,qty) VALUES(?,?,?)',[req.params.id,locatie_id,Math.max(0,qty||0)]);
-    saveDb();
     res.json(get('SELECT * FROM gedeeld_stock WHERE gedeeld_id=? AND locatie_id=?',[req.params.id,locatie_id]));
   });
 
@@ -381,25 +375,24 @@ module.exports = function(ctx){
     const cur=get('SELECT * FROM gedeeld_items WHERE id=?',[req.params.id]);
     const item_type_id=name&&name!==cur?.name?resolveItemTypeId(name,'gedeeld'):cur?.item_type_id;
     run('UPDATE gedeeld_items SET name=?,cat=?,totaal=?,notities=?,stockage_locatie_id=?,item_type_id=? WHERE id=?', [name,cat||'gedeeld',totaal||1,notities||'',stockage_locatie_id||null,item_type_id,req.params.id]);
-    saveDb(); res.json(get('SELECT * FROM gedeeld_items WHERE id=?', [req.params.id]));
+    res.json(get('SELECT * FROM gedeeld_items WHERE id=?', [req.params.id]));
   });
   app.delete('/api/gedeeld/:id', (req,res) => {
     run('DELETE FROM gedeeld_gebruik WHERE item_id=?', [req.params.id]);
     run('DELETE FROM gedeeld_stock WHERE gedeeld_id=?', [req.params.id]);
     run('DELETE FROM gedeeld_items WHERE id=?', [req.params.id]);
-    saveDb(); res.json({ok:true});
+    res.json({ok:true});
   });
 
   // Gedeeld gebruik per thema
   app.post('/api/gedeeld/:id/gebruik', (req,res) => {
     const {thema_id, qty} = req.body;
     run('INSERT OR REPLACE INTO gedeeld_gebruik (item_id,thema_id,qty) VALUES (?,?,?)', [req.params.id, thema_id, qty||1]);
-    saveDb();
     res.json(get('SELECT gg.*, t.name as thema_name FROM gedeeld_gebruik gg LEFT JOIN themas t ON t.id=gg.thema_id WHERE gg.item_id=? AND gg.thema_id=?', [req.params.id, thema_id]));
   });
   app.delete('/api/gedeeld/:id/gebruik/:thema_id', (req,res) => {
     run('DELETE FROM gedeeld_gebruik WHERE item_id=? AND thema_id=?', [req.params.id, req.params.thema_id]);
-    saveDb(); res.json({ok:true});
+    res.json({ok:true});
   });
 
   // ── BAK FOTO'S ──
@@ -411,7 +404,7 @@ module.exports = function(ctx){
     if(!foto_data)return res.status(400).json({error:'Geen foto data'});
     const id=ins('INSERT INTO bak_fotos (bak_id,tijdstip,wie,beschrijving,foto_data) VALUES (?,?,?,?,?)',
       [req.params.id,now(),wie||'',beschrijving||'',foto_data]);
-    saveDb();res.json({ok:true,id});
+    res.json({ok:true,id});
   });
   app.get('/api/bak-fotos/:id',(req,res)=>{
     const f=get('SELECT * FROM bak_fotos WHERE id=?',[req.params.id]);
@@ -420,7 +413,7 @@ module.exports = function(ctx){
   });
   app.delete('/api/bak-fotos/:id',(req,res)=>{
     run('DELETE FROM bak_fotos WHERE id=?',[req.params.id]);
-    saveDb();res.json({ok:true});
+    res.json({ok:true});
   });
 
 };

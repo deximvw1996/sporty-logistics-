@@ -22,7 +22,6 @@ module.exports = function(ctx){
     const{locatie_id,qty,minimum,eenheid}=req.body;
     run('INSERT OR REPLACE INTO verbruik_stock(item_id,locatie_id,qty,minimum,eenheid) VALUES(?,?,?,?,?)',
       [req.params.id,locatie_id,qty??0,minimum??0,eenheid||'stuks']);
-    saveDb();
     res.json(get('SELECT vs.*,l.name as locatie_name FROM verbruik_stock vs LEFT JOIN locaties l ON l.id=vs.locatie_id WHERE vs.item_id=? AND vs.locatie_id=?',[req.params.id,locatie_id]));
   });
 
@@ -138,7 +137,6 @@ module.exports = function(ctx){
       // Update qty_stock in bak_items voor thema-bak items
       regels.forEach(r=>{if(r.item_id&&r.aangetroffen!=null)run('UPDATE bak_items SET qty_stock=? WHERE id=?',[r.aangetroffen,r.item_id]);});
     }
-    saveDb();
     res.json({ok:true});
   });
   // Kantoor verwerkt nakijk
@@ -148,7 +146,6 @@ module.exports = function(ctx){
     if(Array.isArray(regels)){
       regels.forEach(r=>{run('UPDATE nakijk_regels SET besteld=?,opmerking=? WHERE id=? AND sessie_id=?',[r.besteld?1:0,r.opmerking||'',r.id,req.params.id]);});
     }
-    saveDb();
     res.json({ok:true});
   });
   app.delete('/api/nakijk/:id',(req,res)=>{
@@ -216,7 +213,6 @@ module.exports = function(ctx){
     const voorraad_na=Math.max(0,voorraad_voor-aangevuld);
     run('UPDATE item_type_stock SET qty=? WHERE id=?',[voorraad_na,stockRow.id]);
     run("UPDATE nakijk_regels SET besteld=1,tekort_status='aangevuld' WHERE id=?",[regel.id]);
-    saveDb();
     res.json({ok:true,voorraad_voor,voorraad_na,regel:get('SELECT * FROM nakijk_regels WHERE id=?',[regel.id])});
   });
   // S6.1(b): maak de ontbrekende voorraadrij aan (qty 0, minimum 0) zodat de UI meteen daarna
@@ -233,7 +229,6 @@ module.exports = function(ctx){
     const bestaand=get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[itemTypeId,bak.thuislocatie_id]);
     if(bestaand)return res.json(bestaand);
     const id=ins('INSERT INTO item_type_stock (item_type_id,locatie_id,qty,minimum) VALUES (?,?,0,0)',[itemTypeId,bak.thuislocatie_id]);
-    saveDb();
     res.json(get('SELECT * FROM item_type_stock WHERE id=?',[id]));
   });
   // S6.1(a): kantoor markeert een tekortregel als "besteld, wacht op levering" — nog niet
@@ -242,7 +237,6 @@ module.exports = function(ctx){
     const regel=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
     if(!regel)return res.status(404).json({error:'Regel niet gevonden'});
     run("UPDATE nakijk_regels SET tekort_status='besteld' WHERE id=?",[regel.id]);
-    saveDb();
     res.json(get('SELECT * FROM nakijk_regels WHERE id=?',[regel.id]));
   });
   // Negeren: kantoor beslist bewust dit tekort niet aan te vullen (bv. item vervalt).
@@ -250,7 +244,6 @@ module.exports = function(ctx){
     const regel=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
     if(!regel)return res.status(404).json({error:'Regel niet gevonden'});
     run("UPDATE nakijk_regels SET tekort_status='genegeerd' WHERE id=?",[regel.id]);
-    saveDb();
     res.json(get('SELECT * FROM nakijk_regels WHERE id=?',[regel.id]));
   });
   // Markeer een controle als volledig verwerkt (alle tekorten aangevuld / kapot-meldingen bekeken).
@@ -263,7 +256,6 @@ module.exports = function(ctx){
     if(openTekorten.length)return res.status(400).json({error:`Nog ${openTekorten.length} tekortregel(s) niet aangevuld, besteld of genegeerd: ${openTekorten.map(r=>r.item_naam).join(', ')}`});
     const behandelaar=(req.persoon&&req.persoon.naam)||'';
     run("UPDATE nakijk_sessies SET kantoor_status='verwerkt',kantoor_wie=?,kantoor_tijdstip=? WHERE id=?",[behandelaar,now(),req.params.id]);
-    saveDb();
     res.json(get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]));
   });
 

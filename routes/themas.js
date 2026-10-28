@@ -92,7 +92,6 @@ module.exports = function(ctx){
         bestaand.add(t.naam.toLowerCase());
         aangemaakt++;
       });
-      saveDb();
       logAct('thema','import',`Planning-import: ${aangemaakt} thema's, ${items} materiaalitems (${overgeslagen} bestonden al)`,null,'');
       res.json({ok:true, aangemaakt, overgeslagen, materiaalitems:items});
     }catch(e){ res.status(500).json({error:e.message}); }
@@ -131,7 +130,6 @@ module.exports = function(ctx){
         bestaand.add(t.naam.toLowerCase());
         aangemaakt++;
       });
-      saveDb();
       logAct('thema','import',`Bestand-import: ${aangemaakt} thema's, ${items} materiaalitems (${overgeslagen} bestonden al)`,null,'');
       res.json({ok:true, aangemaakt, overgeslagen, materiaalitems:items});
     }catch(e){ res.status(500).json({error:e.message}); }

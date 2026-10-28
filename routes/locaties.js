@@ -42,12 +42,11 @@ module.exports = function(ctx){
       ins('INSERT INTO locatie_config (kamplocatie_id,vast_type,aantal,conditie_type,conditie_waarde,pauze_gedrag) VALUES (?,?,?,?,?,?)',
         [kamplocatie_id,vast_type,aantal||1,conditie_type||'altijd',conditie_waarde||'',pg]);
     }
-    saveDb();
     res.json(all('SELECT * FROM locatie_config WHERE kamplocatie_id=? ORDER BY vast_type',[kamplocatie_id]));
   });
   app.delete('/api/locatie-config/:id',(req,res)=>{
     run('DELETE FROM locatie_config WHERE id=?',[req.params.id]);
-    saveDb();res.json({ok:true});
+    res.json({ok:true});
   });
 
   app.delete('/api/locaties/:id',(req,res)=>{
@@ -175,7 +174,6 @@ module.exports = function(ctx){
     kleuren.filter(k=>k.kleur&&k.aantal>0).forEach(k=>{
       ins('INSERT INTO kleurenborden_stock (locatie_id,kleur,aantal) VALUES (?,?,?)',[req.params.locatie_id,(k.kleur+'').toUpperCase(),k.aantal]);
     });
-    saveDb();
     res.json({ok:true});
   });
 

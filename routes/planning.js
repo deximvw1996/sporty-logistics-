@@ -90,7 +90,6 @@ module.exports = function(ctx){
     }
     if(old && week!==undefined && week!==old.week) logAct('kampmoment','verplaatst',`${old.loc_naam||'?'}: week ${old.week} → week ${week}`,old.locatie_id,old.loc_naam);
     if(old && type!==undefined && type!==(old.type||'kamp')) logAct('kampmoment','bewerkt',`${old.loc_naam||'?'} week ${old.week}: ${old.type||'kamp'} → ${type}`,old.locatie_id,old.loc_naam);
-    saveDb();
     res.json(getKampmoment(req.params.id));
   });
   // S3.4: KV-link genereren (persoonsgebonden — zonder gekoppelde KV geen link mogelijk)
@@ -99,7 +98,7 @@ module.exports = function(ctx){
     if(!km)return res.status(404).json({error:'Kampmoment niet gevonden'});
     if(!km.kv_persoon_id)return res.status(400).json({error:'Koppel eerst een kampverantwoordelijke aan dit kampmoment.'});
     let tok=km.kv_token;
-    if(!tok){tok=_genToken(12);run('UPDATE kampmomenten SET kv_token=? WHERE id=?',[tok,req.params.id]);saveDb();}
+    if(!tok){tok=_genToken(12);run('UPDATE kampmomenten SET kv_token=? WHERE id=?',[tok,req.params.id]); }
     res.json({token:tok,url:'/kv/'+tok});
   });
 

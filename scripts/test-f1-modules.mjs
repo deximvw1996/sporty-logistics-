@@ -43,10 +43,12 @@ for (const f of bronBestanden) for (const r of inventaris(fs.readFileSync(path.j
 const origTekst = execSync('git show origin/main:server.js', { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 const oud = inventaris(origTekst);
 const ontbreekt = [...oud].filter((r) => !nieuw.has(r));
-const extra = [...nieuw].filter((r) => !oud.has(r));
-check(oud.size === 220, `inventaris origin/main: ${oud.size} routes (verwacht 220)`);
-check(nieuw.size === oud.size && !ontbreekt.length && !extra.length,
-  `inventaris nieuw: ${nieuw.size} routes, identiek aan origin/main` + (ontbreekt.length ? ` — ONTBREEKT: ${ontbreekt.join(', ')}` : '') + (extra.length ? ` — EXTRA: ${extra.join(', ')}` : ''));
+// Routes die F1 deel 2/3 bewust toevoegen (testhaak enkel met SPORTY_TESTHOOK=1; wijzigingslog) mogen extra zijn.
+const TOEGESTAAN_EXTRA = /^(POST|GET) \/api\/_test\/|^GET \/api\/wijzigingen$/;
+const extra = [...nieuw].filter((r) => !oud.has(r) && !TOEGESTAAN_EXTRA.test(r));
+check(oud.size >= 220, `inventaris origin/main: ${oud.size} routes (verwacht >= 220)`);
+check(!ontbreekt.length && !extra.length,
+  `inventaris nieuw: ${nieuw.size} routes, alle ${oud.size} routes van origin/main aanwezig, geen onverwachte extra's` + (ontbreekt.length ? ` — ONTBREEKT: ${ontbreekt.join(', ')}` : '') + (extra.length ? ` — EXTRA: ${extra.join(', ')}` : ''));
 const wcServer = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8').split('\n').length;
 check(wcServer < 300, `server.js is ${wcServer} regels (richtcijfer < 300)`);
 

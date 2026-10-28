@@ -25,6 +25,7 @@ try { if (!fs.existsSync(BUNDELS_DIR)) fs.mkdirSync(BUNDELS_DIR, { recursive: tr
 // Vangt onverwachte fouten op zodat de server niet stil crasht.
 process.on('uncaughtException', (err) => {
   console.error('Onverwachte fout (uncaughtException):', err);
+  try { dbx.flush(); } catch (e) { console.error('Flush na uncaughtException mislukt:', e.message); }
 });
 process.on('unhandledRejection', (reason) => {
   console.error('Onafgehandelde promise-fout (unhandledRejection):', reason);
@@ -67,7 +68,23 @@ console.log('Frontend pad:', FRONTEND_PATH);
 app.use(express.static(FRONTEND_PATH));
 
 const dbx = require('./lib/db')(DATA_DIR, DB_PATH);
-const { saveDb, backupDb, run, get, all, ins, now, isoDate, _genToken, resolveItemTypeId, logAct } = dbx;
+const { saveDb, flush, backupDb, run, get, all, ins, now, isoDate, _genToken, resolveItemTypeId, logAct } = dbx;
+
+// ── F1 deel 2: schrijf-batching ──
+// run/ins zetten alleen een vuil-vlag; hier wordt per request (na het antwoord), elke 5 s, en bij
+// SIGTERM/SIGINT geflusht. flush() schrijft atomair (sporty.db.tmp → rename) en alleen als er iets wijzigde.
+function veiligFlush(waar) { try { flush(); } catch (e) { console.error('Flush mislukt (' + waar + '):', e.message); } }
+app.use((req, res, next) => { res.on('finish', () => veiligFlush('request ' + req.method + ' ' + req.path)); next(); });
+setInterval(() => veiligFlush('timer'), 5000).unref();
+let _afsluiten = false;
+function afsluiten(signaal) {
+  if (_afsluiten) return; _afsluiten = true;
+  console.log(signaal + ' ontvangen — database wegschrijven en stoppen');
+  veiligFlush(signaal);
+  process.exit(0);
+}
+process.on('SIGTERM', () => afsluiten('SIGTERM'));
+process.on('SIGINT', () => afsluiten('SIGINT'));
 
 async function startServer() {
   const db = await dbx.open();
@@ -87,6 +104,13 @@ async function startServer() {
   // ── Routegebieden, in de volgorde van de oorspronkelijke kopjes ──
   for (const naam of ['locaties','kv','themas','planning','aanvragen','voorraad','transport','bakken','beheer','personeel','sport','conflicten'])
     require('./routes/' + naam)(ctx);
+
+  // Testhaak (ALLEEN met env SPORTY_TESTHOOK=1, nooit in productie): laat een testscript de SIGTERM-handler
+  // uitlokken, want op Windows is child.kill('SIGTERM') een harde TerminateProcess zonder handler.
+  if (process.env.SPORTY_TESTHOOK === '1') {
+    app.post('/api/_test/sigterm', (req, res) => { res.json({ ok: true }); res.on('finish', () => setTimeout(() => process.emit('SIGTERM'), 50)); });
+    app.get('/api/_test/schrijfacties', (req, res) => res.json({ schrijfacties: dbx.aantalSchrijfacties(), vuil: dbx.isVuil() }));
+  }
 
   app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
 

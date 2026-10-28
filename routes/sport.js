@@ -36,7 +36,7 @@ module.exports = function(ctx){
     sets.forEach(s => run('DELETE FROM sport_planning WHERE set_id=?', [s.id]));
     run('DELETE FROM sport_sets WHERE item_id=?', [req.params.id]);
     run('DELETE FROM sport_items WHERE id=?', [req.params.id]);
-    saveDb(); res.json({ok:true});
+    res.json({ok:true});
   });
 
   // Sport sets
@@ -44,19 +44,17 @@ module.exports = function(ctx){
     const {label, locatie_id} = req.body;
     if (!label) return res.status(400).json({error: 'Label vereist'});
     const id = ins('INSERT INTO sport_sets (item_id,label,locatie_id) VALUES (?,?,?)', [req.params.id, label, locatie_id||null]);
-    saveDb();
     res.json({...get('SELECT ss.*, l.name as locatie_name FROM sport_sets ss LEFT JOIN locaties l ON l.id=ss.locatie_id WHERE ss.id=?', [id]), planning:[]});
   });
   app.put('/api/sport/sets/:id', (req,res) => {
     const {label, locatie_id} = req.body;
     run('UPDATE sport_sets SET label=?,locatie_id=? WHERE id=?', [label, locatie_id||null, req.params.id]);
-    saveDb();
     res.json(get('SELECT ss.*, l.name as locatie_name FROM sport_sets ss LEFT JOIN locaties l ON l.id=ss.locatie_id WHERE ss.id=?', [req.params.id]));
   });
   app.delete('/api/sport/sets/:id', (req,res) => {
     run('DELETE FROM sport_planning WHERE set_id=?', [req.params.id]);
     run('DELETE FROM sport_sets WHERE id=?', [req.params.id]);
-    saveDb(); res.json({ok:true});
+    res.json({ok:true});
   });
 
   // Sport planning (which set is where which week)
@@ -71,7 +69,7 @@ module.exports = function(ctx){
       const loc=get('SELECT name FROM locaties WHERE id=?',[locatie_id]);
       if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" → ${loc?.name||'?'} (week ${week})`,locatie_id,loc?.name);
     }
-    saveDb(); res.json({ok:true});
+    res.json({ok:true});
   });
 
   // ── FOTO PER SPORT ITEM ──
