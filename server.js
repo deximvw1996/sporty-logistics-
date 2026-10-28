@@ -13,7 +13,8 @@ const DB_PATH = path.join(DATA_DIR, 'sporty.db');
 console.log('Database pad:', DB_PATH);
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 try { if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch(e) { console.warn('Uploads map aanmaken mislukt:', e.message); }
-app.use('/uploads', express.static(UPLOADS_DIR));
+// Veiligheidsronde (DOORLICHTING-c #5): /uploads wordt pas NA de Basic-auth-muur gemount (zie verderop),
+// net als /bundels — anders staan geüploade foto's op productie zonder wachtwoord open.
 // S4.7: themabundel-PDF's staan IN de repo (__dirname, niet het DATA_DIR-volume) zodat ze
 // gewoon meegedeployed worden bij een git push — dit is geen runtime-upload-map.
 const BUNDELS_DIR = path.join(__dirname, 'bundels');
@@ -55,6 +56,9 @@ app.use((req, res, next) => {
 });
 // Reviewfix Fable (S4.7): bundel-PDF's achter de Basic-auth-buitenmuur serveren.
 app.use('/bundels', express.static(BUNDELS_DIR));
+// Veiligheidsronde (DOORLICHTING-c #5): uploads achter de muur + nosniff, zodat een bestand nooit
+// als HTML/script geïnterpreteerd wordt (de upload-route laat sowieso enkel jpg/jpeg/png/webp toe).
+app.use('/uploads', express.static(UPLOADS_DIR, { setHeaders: (res) => res.set('X-Content-Type-Options', 'nosniff') }));
 // Zoek frontend: eerst ../frontend (lokaal), dan zelfde map (Railway flat deploy)
 let FRONTEND_PATH = path.join(__dirname, '../frontend');
 if (!fs.existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
@@ -1894,10 +1898,62 @@ async function startServer() {
     }
   }
 
+  // Migratie 56 (veiligheidsronde, DOORLICHTING-c #4): pincode-opslag gaat van ongezouten SHA-256
+  // naar scrypt met een salt per persoon. Een bestaande SHA-256-hash kan niet herrekend worden
+  // zonder de pincode zelf; daarom krijgt elke kale 64-hex-hash hier enkel het expliciete label
+  // 'sha256$…' (geen dataverlies, blijft werken) en wordt hij bij de eerstvolgende GESLAAGDE login
+  // door verifieerPin/login naar 'scrypt$salt$hash' omgezet. Vlag ALLEEN bij succes (patroon 52).
+  {
+    const _vlag56=get("SELECT naam FROM app_vlaggen WHERE naam='migratie56_klaar'");
+    if(!_vlag56){
+      try{
+        const _rijen56=all("SELECT id,pincode FROM personeel WHERE pincode IS NOT NULL AND pincode<>''");
+        let _n56=0;
+        _rijen56.forEach(r=>{ if(/^[0-9a-f]{64}$/i.test(r.pincode)){ db.run('UPDATE personeel SET pincode=? WHERE id=?',['sha256$'+r.pincode.toLowerCase(),r.id]); _n56++; } });
+        console.log(`  Migratie 56: ${_n56} SHA-256-pincodes gelabeld (worden scrypt bij volgende geslaagde login)`);
+        ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('migratie56_klaar','1')");
+      }catch(e){ console.error('  Migratie 56 fout — vlag NIET gezet, probeert opnieuw bij volgende start:',e.message); }
+    }
+  }
+
   saveDb();
 
   // ── S3.2: LOGIN / SESSIES ──
-  function hashPin(pin){ return crypto.createHash('sha256').update(String(pin)).digest('hex'); }
+  // Veiligheidsronde (DOORLICHTING-c #4): scrypt + salt per persoon. Opslagformaat 'scrypt$<salt hex>$<hash hex>'.
+  // Oude opslag ('sha256$<hex>' na Migratie 56, of een kale 64-hex-hash) blijft inloggen en wordt
+  // bij een geslaagde login omgezet (zie /api/login).
+  const SCRYPT_OPTS={N:16384,r:8,p:1};
+  function hashPin(pin){
+    const salt=crypto.randomBytes(16).toString('hex');
+    const hash=crypto.scryptSync(String(pin),salt,32,SCRYPT_OPTS).toString('hex');
+    return `scrypt$${salt}$${hash}`;
+  }
+  function _sha256Pin(pin){ return crypto.createHash('sha256').update(String(pin)).digest('hex'); }
+  function _veiligGelijk(a,b){ const ba=Buffer.from(String(a)), bb=Buffer.from(String(b)); return ba.length===bb.length && crypto.timingSafeEqual(ba,bb); }
+  // Geeft {ok, legacy}: legacy=true betekent "klopt, maar nog in het oude formaat → herhashen".
+  function verifieerPin(opgeslagen,pin){
+    if(!opgeslagen) return {ok:false,legacy:false};
+    if(opgeslagen.startsWith('scrypt$')){
+      const [,salt,hash]=opgeslagen.split('$');
+      if(!salt||!hash) return {ok:false,legacy:false};
+      const kand=crypto.scryptSync(String(pin),salt,32,SCRYPT_OPTS).toString('hex');
+      return {ok:_veiligGelijk(kand,hash),legacy:false};
+    }
+    const oud=opgeslagen.startsWith('sha256$')?opgeslagen.slice(7):opgeslagen;
+    return {ok:_veiligGelijk(_sha256Pin(pin),oud.toLowerCase()),legacy:true};
+  }
+  // Veiligheidsronde (DOORLICHTING-c #4a): max 5 mislukte pogingen per persoon per 5 minuten → 429.
+  // In-memory volstaat (één proces); herstart = teller leeg.
+  const LOGIN_MAX_POGINGEN=5, LOGIN_VENSTER_MS=5*60*1000;
+  const _loginPogingen=new Map(); // persoon_id (string) -> [tijdstippen van mislukte pogingen]
+  function _loginGeblokkeerd(sleutel){
+    const nu=Date.now();
+    const lijst=(_loginPogingen.get(sleutel)||[]).filter(t=>nu-t<LOGIN_VENSTER_MS);
+    _loginPogingen.set(sleutel,lijst);
+    if(lijst.length<LOGIN_MAX_POGINGEN) return 0;
+    return Math.max(1,Math.ceil((lijst[0]+LOGIN_VENSTER_MS-nu)/1000)); // wachttijd in seconden
+  }
+  function _loginMislukt(sleutel){ const l=_loginPogingen.get(sleutel)||[]; l.push(Date.now()); _loginPogingen.set(sleutel,l); }
   function genSessieToken(){ return crypto.randomBytes(24).toString('hex'); }
   const _sessieCache = new Map(); // token -> {token,persoon_id,naam,rol}  (snelheid; bron van waarheid is de sessies-tabel)
   function checkSessie(token){
@@ -1920,9 +1976,17 @@ async function startServer() {
   app.post('/api/login',(req,res)=>{
     const {persoon_id,pincode}=req.body;
     if(!persoon_id||!pincode) return res.status(400).json({error:'persoon_id en pincode zijn vereist'});
+    const sleutel=String(persoon_id);
+    const wacht=_loginGeblokkeerd(sleutel);
+    if(wacht){ res.set('Retry-After',String(wacht)); return res.status(429).json({error:`Te veel mislukte pogingen — probeer over ${wacht} seconden opnieuw`,wacht_seconden:wacht}); }
     const p=get('SELECT * FROM personeel WHERE id=?',[persoon_id]);
-    if(!p||!p.pincode) return res.status(401).json({error:'Ongeldige login'});
-    if(p.pincode!==hashPin(pincode)) return res.status(401).json({error:'Ongeldige pincode'});
+    if(!p||!p.pincode){ _loginMislukt(sleutel); return res.status(401).json({error:'Ongeldige login'}); }
+    const check=verifieerPin(p.pincode,pincode);
+    if(!check.ok){ _loginMislukt(sleutel); return res.status(401).json({error:'Ongeldige pincode'}); }
+    _loginPogingen.delete(sleutel);
+    // Oud SHA-256-formaat → nu (pincode is bekend én klopt) omzetten naar scrypt. Geen dataverlies:
+    // alleen bij een geslaagde controle, en de nieuwe hash wordt meteen gebruikt.
+    if(check.legacy){ db.run('UPDATE personeel SET pincode=? WHERE id=?',[hashPin(pincode),p.id]); }
     const token=genSessieToken();
     ins('INSERT INTO sessies (token,persoon_id,created_at) VALUES (?,?,?)',[token,p.id,now()]);
     saveDb();
@@ -1956,7 +2020,8 @@ async function startServer() {
     res.json({ok:true,persoon_id:p.id});
   });
   app.get('/api/personeel-lijst-login',(req,res)=>{
-    res.json(all("SELECT id,naam,rol FROM personeel ORDER BY rol,naam"));
+    // Veiligheidsronde (DOORLICHTING-c #4c): KV werkt via de kv-link en hoort niet in het loginscherm.
+    res.json(all("SELECT id,naam,rol FROM personeel WHERE rol IN ('kantoor','chauffeur') ORDER BY rol,naam"));
   });
 
   // Auth-poort voor alle overige /api/*-routes. Zonder geldig token → 401. De bestaande
@@ -1969,8 +2034,21 @@ async function startServer() {
     const sessie = checkSessie(token);
     if(!sessie) return res.status(401).json({error:'Niet ingelogd'});
     req.persoon = sessie;
+    // Veiligheidsronde (DOORLICHTING-c #2): rol kv heeft niets te zoeken op de admin-API — KV werkt via
+    // de kv-link (/api/kv/:token/*, hierboven al publiek). Enkel wie-ben-ik en logout blijven open.
+    if(sessie.rol==='kv' && req.path!=='/api/wie-ben-ik' && req.path!=='/api/logout')
+      return res.status(403).json({error:'Geen toegang: deze actie is niet beschikbaar voor de rol kv'});
     next();
   });
+  // Rolcontrole (DOORLICHTING-c #2): vereisRol('kantoor') op beheerroutes. Rollen: kantoor = alles;
+  // chauffeur = lezen + eigen ritten (geen beheer); kv = niets op de admin-API (zie poort hierboven).
+  function vereisRol(...rollen){
+    return (req,res,next)=>{
+      if(req.persoon && rollen.includes(req.persoon.rol)) return next();
+      return res.status(403).json({error:`Geen toegang: hiervoor is de rol ${rollen.join(' of ')} vereist`});
+    };
+  }
+  const alleenKantoor=vereisRol('kantoor');
 
   app.get('/api/wie-ben-ik',(req,res)=>{
     res.json({id:req.persoon.persoon_id,naam:req.persoon.naam,rol:req.persoon.rol});
@@ -1978,6 +2056,9 @@ async function startServer() {
   app.post('/api/personeel/:id/pincode',(req,res)=>{
     const {pincode}=req.body;
     if(!pincode||String(pincode).length<4) return res.status(400).json({error:'Pincode van minstens 4 tekens vereist'});
+    // Alleen je eigen pincode, of rol kantoor (DOORLICHTING-c #2).
+    if(String(req.persoon.persoon_id)!==String(req.params.id) && req.persoon.rol!=='kantoor')
+      return res.status(403).json({error:'Geen toegang: je kan alleen je eigen pincode wijzigen'});
     const p=get('SELECT * FROM personeel WHERE id=?',[req.params.id]);
     if(!p) return res.status(404).json({error:'Persoon niet gevonden'});
     run('UPDATE personeel SET pincode=? WHERE id=?',[hashPin(pincode),p.id]);
@@ -2311,7 +2392,7 @@ async function startServer() {
     }
     return order.map(k=>map.get(k));
   }
-  app.get('/api/import-themas/preview',(req,res)=>{
+  app.get('/api/import-themas/preview', alleenKantoor, (req,res)=>{
     return res.status(410).json({error:'Uitgeschakeld — wordt vervangen door de nieuwe thema-invoerflow (zie MASTERPLAN S4)'});
     try{
       const lijst=_laadImportThemas();
@@ -2321,7 +2402,7 @@ async function startServer() {
       res.json({totaal:lijst.length, nieuw, bestaat, materiaalitems:items});
     }catch(e){ res.status(500).json({error:e.message}); }
   });
-  app.post('/api/import-themas',(req,res)=>{
+  app.post('/api/import-themas', alleenKantoor, (req,res)=>{
     return res.status(410).json({error:'Uitgeschakeld — wordt vervangen door de nieuwe thema-invoerflow (zie MASTERPLAN S4)'});
     try{
       const lijst=_laadImportThemas();
@@ -2357,7 +2438,7 @@ async function startServer() {
     }
     return order.map(k=>map.get(k));
   }
-  app.post('/api/import-themas/data',(req,res)=>{
+  app.post('/api/import-themas/data', alleenKantoor, (req,res)=>{
     return res.status(410).json({error:'Uitgeschakeld — wordt vervangen door de nieuwe thema-invoerflow (zie MASTERPLAN S4)'});
     try{
       const body=req.body||{};
@@ -3740,9 +3821,13 @@ async function startServer() {
     const info=db.exec(`PRAGMA table_info(${tabel})`)[0];
     return info?info.values.map(r=>r[1]):[];
   }
-  app.get('/api/export', (req, res) => {
+  // Veiligheidsronde (DOORLICHTING-c #3): tabelnaam alleen geldig als hij letterlijk in sqlite_master staat.
+  function _tabelBestaat(tabel){ return typeof tabel==='string' && _alleTabellen().includes(tabel); }
+  app.get('/api/export', alleenKantoor, (req, res) => {
     const data = { versie: 3, datum: new Date().toISOString() };
-    _alleTabellen().forEach(t=>{ try{ data[t]=all(`SELECT * FROM ${t}`); }catch(e){ data[t]=[]; } });
+    // Veiligheidsronde (DOORLICHTING-c #3): sessietokens nooit exporteren; pincode-hashes strippen.
+    _alleTabellen().filter(t=>t!=='sessies').forEach(t=>{ try{ data[t]=all(`SELECT * FROM ${t}`); }catch(e){ data[t]=[]; } });
+    if(Array.isArray(data.personeel)) data.personeel=data.personeel.map(p=>{const{pincode,...rest}=p;return rest;});
     res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
     res.setHeader('Content-Type', 'application/json');
     res.json(data);
@@ -3753,7 +3838,7 @@ async function startServer() {
   // geüpload sqlite-bestand. Achter Basic-auth ÉN sessietoken. Maakt eerst een veiligheidskopie
   // in DATA_DIR/backups, schrijft dan het nieuwe bestand en herstart het proces (Railway start
   // de service automatisch opnieuw; de nieuwe db wordt dan vers ingeladen, migraties zijn gegate).
-  app.post('/api/herstel-db', express.raw({ type: 'application/octet-stream', limit: '60mb' }), (req, res) => {
+  app.post('/api/herstel-db', alleenKantoor, express.raw({ type: 'application/octet-stream', limit: '60mb' }), (req, res) => {
     try {
       const buf = req.body;
       if (!buf || buf.length < 100 || buf.slice(0, 15).toString() !== 'SQLite format 3')
@@ -3767,7 +3852,7 @@ async function startServer() {
       setTimeout(() => process.exit(0), 500);
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
-  app.get('/api/backup-db', (req, res) => {
+  app.get('/api/backup-db', alleenKantoor, (req, res) => {
     try {
       const data = Buffer.from(db.export());
       const ts = new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,16);
@@ -3778,14 +3863,14 @@ async function startServer() {
   });
 
   // Diagnose: waar staat de database echt? (volume vs tijdelijk)
-  app.get('/api/dbinfo', (req, res) => {
+  app.get('/api/dbinfo', alleenKantoor, (req, res) => {
     let themas=0; try{ themas=get('SELECT count(*) as n FROM themas').n; }catch(e){}
     res.json({ db_path: DB_PATH, data_dir: DATA_DIR, railway_volume_env: process.env.RAILWAY_VOLUME_MOUNT_PATH || null, dirname: __dirname, themas });
   });
   // Reset: wis alle data voor import (dynamisch, alle levende tabellen behalve app_vlaggen/sessies
   // — die twee moeten een reset overleven zodat migratievlaggen en ingelogde sessies niet
   // per ongeluk verdwijnen bij een import-rondje).
-  app.post('/api/import/reset', (req, res) => {
+  app.post('/api/import/reset', alleenKantoor, (req, res) => {
     try {
       const tables = _alleTabellen().filter(t=>t!=='app_vlaggen'&&t!=='sessies');
       tables.forEach(t => { try { db.run('DELETE FROM ' + t); } catch(e) {} });
@@ -3796,9 +3881,11 @@ async function startServer() {
 
   // Importeer één tabel per keer — kolommen worden afgeleid uit de data zelf, gefilterd op
   // kolommen die écht in de tabel bestaan (dynamisch i.p.v. hardcoded, S3.8).
-  app.post('/api/import/tabel', (req, res) => {
+  app.post('/api/import/tabel', alleenKantoor, (req, res) => {
     const { table, rows } = req.body;
     if (!table || !rows) return res.status(400).json({ error: 'Tabel of rijen ontbreken' });
+    // Veiligheidsronde (DOORLICHTING-c #6): whitelist vóór PRAGMA/INSERT — de naam komt uit het request.
+    if (!_tabelBestaat(table)) return res.status(400).json({ error: 'Onbekende tabel: ' + String(table).slice(0,80) });
     const bestaandeKolommen = _kolommenVan(table);
     if (!bestaandeKolommen.length) return res.status(400).json({ error: 'Onbekende tabel: ' + table });
     if (!rows.length) return res.json({ ok: true, count: 0 });
@@ -3880,20 +3967,22 @@ async function startServer() {
     // pincode is een hash, maar wordt hier toch nooit meegestuurd — enkel of iemand er al één heeft.
     res.json(personen.map(p=>{const{pincode,...rest}=p;return{...rest,heeft_pincode:!!pincode,shifts:shifts.filter(s=>s.persoon_id===p.id)};}));
   });
-  app.post('/api/personeel',(req,res)=>{
+  // Veiligheidsronde (DOORLICHTING-c #9): pincode-hash nooit teruggeven, enkel heeft_pincode.
+  function _persoonZonderPin(p){ if(!p) return p; const{pincode,...rest}=p; return {...rest,heeft_pincode:!!pincode}; }
+  app.post('/api/personeel', alleenKantoor, (req,res)=>{
     const{naam,rol,telefoon,email,notities}=req.body;
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
     const id=ins('INSERT INTO personeel (naam,rol,telefoon,email,notities) VALUES (?,?,?,?,?)',
       [naam.trim(),rol||'kv',telefoon||'',email||'',notities||'']);
-    res.json(get('SELECT * FROM personeel WHERE id=?',[id]));
+    res.json(_persoonZonderPin(get('SELECT * FROM personeel WHERE id=?',[id])));
   });
-  app.put('/api/personeel/:id',(req,res)=>{
+  app.put('/api/personeel/:id', alleenKantoor, (req,res)=>{
     const{naam,rol,telefoon,email,notities}=req.body;
     run('UPDATE personeel SET naam=?,rol=?,telefoon=?,email=?,notities=? WHERE id=?',
       [naam,rol||'kv',telefoon||'',email||'',notities||'',req.params.id]);
-    res.json(get('SELECT * FROM personeel WHERE id=?',[req.params.id]));
+    res.json(_persoonZonderPin(get('SELECT * FROM personeel WHERE id=?',[req.params.id])));
   });
-  app.delete('/api/personeel/:id',(req,res)=>{run('DELETE FROM personeel WHERE id=?',[req.params.id]);res.json({ok:true});});
+  app.delete('/api/personeel/:id', alleenKantoor, (req,res)=>{run('DELETE FROM personeel WHERE id=?',[req.params.id]);res.json({ok:true});});
   app.post('/api/personeel/:id/shifts',(req,res)=>{
     const{kampmoment_id,locatie_id,datum,van_uur,tot_uur,rol_dag,notities}=req.body;
     const id=ins('INSERT INTO personeel_shifts (persoon_id,kampmoment_id,locatie_id,datum,van_uur,tot_uur,rol_dag,notities) VALUES (?,?,?,?,?,?,?,?)',
@@ -4473,17 +4562,34 @@ async function startServer() {
   });
 
   // ── FOTO PER SPORT ITEM ──
+  // Veiligheidsronde (DOORLICHTING-c #1): extensie uit een vaste lijst, bestaandsnaam volledig
+  // server-side, pad-check binnen UPLOADS_DIR, max 2 MB gedecodeerd.
+  const FOTO_EXTENSIES=new Set(['jpg','jpeg','png','webp']);
+  const FOTO_MAX_BYTES=2*1024*1024;
   app.post('/api/sport/:id/foto',(req,res)=>{
     const{data,ext}=req.body;
-    if(!data)return res.status(400).json({error:'Geen afbeeldingsdata'});
-    const item=get('SELECT * FROM sport_items WHERE id=?',[req.params.id]);
+    if(!data||typeof data!=='string')return res.status(400).json({error:'Geen afbeeldingsdata'});
+    const extNorm=String(ext||'jpg').trim().toLowerCase().replace(/^\./,'');
+    if(!FOTO_EXTENSIES.has(extNorm))return res.status(400).json({error:'Ongeldig bestandstype — alleen jpg, jpeg, png of webp'});
+    const itemId=parseInt(req.params.id,10);
+    if(!Number.isInteger(itemId)||itemId<=0)return res.status(400).json({error:'Ongeldig artikel-id'});
+    const item=get('SELECT * FROM sport_items WHERE id=?',[itemId]);
     if(!item)return res.status(404).json({error:'Artikel niet gevonden'});
-    // Verwijder oude foto
-    if(item.foto_path){try{fs.unlinkSync(path.join(UPLOADS_DIR,item.foto_path));}catch(e){}}
-    const filename=`sport-${req.params.id}-${Date.now()}.${ext||'jpg'}`;
-    try{fs.writeFileSync(path.join(UPLOADS_DIR,filename),Buffer.from(data,'base64'));}
+    let buf;
+    try{ buf=Buffer.from(data.replace(/^data:[^;]+;base64,/,''),'base64'); }catch(e){ buf=null; }
+    if(!buf||!buf.length)return res.status(400).json({error:'Afbeeldingsdata is geen geldige base64'});
+    if(buf.length>FOTO_MAX_BYTES)return res.status(400).json({error:`Foto te groot (max ${FOTO_MAX_BYTES/1024/1024} MB)`});
+    const filename=`sport-${itemId}-${Date.now()}.${extNorm}`;
+    const doel=path.resolve(UPLOADS_DIR,filename);
+    if(!doel.startsWith(path.resolve(UPLOADS_DIR)+path.sep))return res.status(400).json({error:'Ongeldige bestandsnaam'});
+    // Verwijder oude foto (enkel als die zelf netjes binnen de uploads-map ligt)
+    if(item.foto_path){
+      const oud=path.resolve(UPLOADS_DIR,path.basename(String(item.foto_path)));
+      if(oud.startsWith(path.resolve(UPLOADS_DIR)+path.sep)){try{fs.unlinkSync(oud);}catch(e){}}
+    }
+    try{fs.writeFileSync(doel,buf);}
     catch(e){return res.status(500).json({error:'Opslaan mislukt: '+e.message});}
-    run('UPDATE sport_items SET foto_path=? WHERE id=?',[filename,req.params.id]);
+    run('UPDATE sport_items SET foto_path=? WHERE id=?',[filename,itemId]);
     logAct('sport','foto',`Foto toegevoegd aan "${item.name}"`,null,null);
     res.json({foto_path:filename});
   });
