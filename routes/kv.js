@@ -2,7 +2,7 @@
 // Kopjes: KV-scherm API (/api/kv/:token/*), S3.5 KV-SCHERM pagina (/kv/:token)
 'use strict';
 module.exports = function(ctx){
-  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
+  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
 
   app.get('/api/kv/:token/data',(req,res)=>{
     const km=_kvKampmoment(req.params.token);
@@ -119,8 +119,8 @@ module.exports = function(ctx){
     if(!km)return res.status(403).json({error:'Ongeldige of verlopen link'});
     const tekst=(req.body?.tekst||'').trim();
     if(!tekst)return res.status(400).json({error:'Tekst is verplicht'});
-    const id=ins('INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,status,created_at) VALUES (?,?,?,?,?,?)',
-      [km.id,km.kv_persoon_id||null,'materiaal',tekst,'nieuw',now()]);
+    const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,status,created_at) VALUES (?,?,?,?,?,?)',
+      [km.id,km.kv_persoon_id||null,'materiaal',tekst,'nieuw',now()],'kv-link');
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 
@@ -129,8 +129,8 @@ module.exports = function(ctx){
     if(!km)return res.status(403).json({error:'Ongeldige of verlopen link'});
     const tekst=(req.body?.tekst||'').trim();
     if(!tekst)return res.status(400).json({error:'Omschrijving is verplicht'});
-    const id=ins('INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,status,created_at) VALUES (?,?,?,?,?,?,?)',
-      [km.id,km.kv_persoon_id||null,'kapot',tekst,req.body?.foto_data||'','nieuw',now()]);
+    const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,status,created_at) VALUES (?,?,?,?,?,?,?)',
+      [km.id,km.kv_persoon_id||null,'kapot',tekst,req.body?.foto_data||'','nieuw',now()],'kv-link');
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 

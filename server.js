@@ -90,6 +90,7 @@ async function startServer() {
   const db = await dbx.open();
 
   const ctx = { app, db, get, all, run, ins, saveDb, backupDb, now, isoDate, _genToken, resolveItemTypeId, logAct,
+    logWijziging: dbx.logWijziging, insMetLog: dbx.insMetLog, updateMetLog: dbx.updateMetLog, delMetLog: dbx.delMetLog,
     DATA_DIR, DB_PATH, UPLOADS_DIR, BUNDELS_DIR, FRONTEND_PATH, ROOT_DIR: __dirname, APP_PASSWORD, PORT, path, fs, express, crypto };
 
   // ── SCHEMA MIGRATIONS (lib/migraties.js) ──

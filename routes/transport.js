@@ -2,7 +2,7 @@
 // Kopjes: TRANSPORT, TRANSPORT RITTEN, VOERTUIGTYPES, VERHUIS CHECKS, chauffeurspagina vink-fases, TERUGKOMST, SPOEDTRANSPORT, CHAUFFEUR-VIEW, VOERTUIGBEZETTING, RETOUR STATUS
 'use strict';
 module.exports = function(ctx){
-  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
+  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── TRANSPORT ──
   app.get('/api/transport-taken',(req,res)=>{const taken=all('SELECT * FROM transport_taken ORDER BY datum,tijd');const regels=all('SELECT * FROM transport_regels');res.json(taken.map(t=>({...t,regels:regels.filter(r=>r.taak_id===t.id)})));});
   app.post('/api/transport-genereer',(req,res)=>{
@@ -501,7 +501,7 @@ module.exports = function(ctx){
   app.post('/api/transport-taken/bulk-ontkoppel',(req,res)=>{
     const{ids}=req.body;
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
-    ids.forEach(id=>run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=? AND COALESCE((SELECT spoed_kind FROM transport_taken WHERE id=?),'') != '1'",[id,id]));
+    ids.forEach(id=>updateMetLog(req,"UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=? AND COALESCE((SELECT spoed_kind FROM transport_taken WHERE id=?),'') != '1'",[id,id]));
     res.json({ok:true,count:ids.length});
   });
   // Bulk: verplaats naar andere rit
@@ -511,7 +511,7 @@ module.exports = function(ctx){
     const rit=rit_id?get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]):null;
     if(rit_id&&!rit)return res.status(404).json({error:'Rit niet gevonden'});
     ids.forEach(id=>{
-      run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',
+      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',
         [rit_id||null,rit?rit.datum:'',rit?rit.chauffeur:'',id]);
     });
     res.json({ok:true,count:ids.length});
@@ -520,7 +520,7 @@ module.exports = function(ctx){
   app.post('/api/transport-taken/bulk-delete',(req,res)=>{
     const{ids}=req.body;
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
-    ids.forEach(id=>{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);run('DELETE FROM transport_taken WHERE id=?',[id]);});
+    ids.forEach(id=>{run('DELETE FROM transport_regels WHERE taak_id=?',[id]);delMetLog(req,'DELETE FROM transport_taken WHERE id=?',[id]);});
     res.json({ok:true});
   });
   // Splitsen (Maxim 2026-08-02): een deel van de regels (bakken/attributen) van een taak
@@ -535,7 +535,7 @@ module.exports = function(ctx){
     const teVerhuizen=alleRegels.filter(r=>regel_ids.includes(r.id));
     if(!teVerhuizen.length)return res.status(400).json({error:'Geen van de gekozen regels hoort bij deze taak'});
     if(teVerhuizen.length===alleRegels.length)return res.status(400).json({error:'Je kan niet álle regels afsplitsen — dan verplaats je beter de hele taak'});
-    const nieuwId=ins(`INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week)
+    const nieuwId=insMetLog(req,`INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [taak.type,datum||'',tijd||taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,
        (taak.opmerking||'')+' — afgesplitst deel',taak.wie||'',taak.kampmoment_id,'gepland',now(),null,taak.week]);
@@ -543,12 +543,12 @@ module.exports = function(ctx){
     logAct('transport','gesplitst',`Taak #${taak.id}: ${teVerhuizen.length} regel(s) afgesplitst naar taak #${nieuwId}${datum?' ('+datum+')':''}`,taak.naar_locatie_id||taak.van_locatie_id,null);
     res.json({ok:true,nieuwe_taak_id:nieuwId,verplaatst:teVerhuizen.length});
   });
-  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=ins('INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
-  app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');run('UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
-  app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);run('DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)run('DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
+  app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
+  app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');updateMetLog(req,'UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
+  app.delete('/api/transport-taken/:id',(req,res)=>{const t=get('SELECT rit_id FROM transport_taken WHERE id=?',[req.params.id]);run('DELETE FROM transport_regels WHERE taak_id=?',[req.params.id]);delMetLog(req,'DELETE FROM transport_taken WHERE id=?',[req.params.id]);if(t&&t.rit_id){const rest=get('SELECT COUNT(*) as n FROM transport_taken WHERE rit_id=?',[t.rit_id]);if(rest&&rest.n===0)delMetLog(req,'DELETE FROM transport_ritten WHERE id=?',[t.rit_id]);}res.json({ok:true});});
   app.put('/api/transport-taken/:id/status',(req,res)=>{
     const oudStatus=get('SELECT status FROM transport_taken WHERE id=?',[req.params.id])?.status;
-    run('UPDATE transport_taken SET status=? WHERE id=?',[req.body.status,req.params.id]);
+    updateMetLog(req,'UPDATE transport_taken SET status=? WHERE id=?',[req.body.status,req.params.id]);
     // Als status → "gedaan": spoed-voorraadeffect toepassen als dat nog niet gebeurd is
     if(req.body.status==='gedaan'){
       const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
@@ -590,7 +590,7 @@ module.exports = function(ctx){
               else ins('INSERT INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[b.id,taak.naar_locatie_id,n]);
               logAct('bak','gelost',`Bulk "${b.naam}" ×${n} gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);
             } else if(b){const st=taak.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
-              run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id]);
+              updateMetLog(req,'UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[taak.naar_locatie_id,st,r.bak_id]);
               logAct('bak','gelost',`Bak "${b.naam}" (${b.code||'-'}) gelost op ${loc?.name||'?'} (taak #${taak.id}) door ${chauffeurNaam}`,taak.naar_locatie_id,loc?.name);}
           }
           if(r.attribuut_id){
@@ -607,13 +607,13 @@ module.exports = function(ctx){
   app.put('/api/transport-taken/:id/move',(req,res)=>{const{datum,tijd}=req.body;const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!t)return res.status(404).json({error:'Transport niet gevonden'});
     if(t.rit_id){
       // Verplaats de hele rit (datum + cascade naar alle leden)
-      if(datum){run('UPDATE transport_ritten SET datum=? WHERE id=?',[datum,t.rit_id]);run('UPDATE transport_taken SET datum=? WHERE rit_id=?',[datum,t.rit_id]);}
-      if(tijd)run('UPDATE transport_taken SET tijd=? WHERE id=?',[tijd,req.params.id]);
+      if(datum){updateMetLog(req,'UPDATE transport_ritten SET datum=? WHERE id=?',[datum,t.rit_id]);updateMetLog(req,'UPDATE transport_taken SET datum=? WHERE rit_id=?',[datum,t.rit_id]);}
+      if(tijd)updateMetLog(req,'UPDATE transport_taken SET tijd=? WHERE id=?',[tijd,req.params.id]);
     } else {
       // Losse taak (nood) op een dag gesleept → maak een 1-op-1 rit
       const d=datum||t.datum||'';
-      if(d){const nid=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',[d,t.wie||'','','gepland',now()]);run('UPDATE transport_taken SET rit_id=?,datum=?,tijd=? WHERE id=?',[nid,d,tijd||t.tijd,req.params.id]);}
-      else run('UPDATE transport_taken SET tijd=? WHERE id=?',[tijd||t.tijd,req.params.id]);
+      if(d){const nid=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',[d,t.wie||'','','gepland',now()]);updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,tijd=? WHERE id=?',[nid,d,tijd||t.tijd,req.params.id]);}
+      else updateMetLog(req,'UPDATE transport_taken SET tijd=? WHERE id=?',[tijd||t.tijd,req.params.id]);
     }
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.post('/api/transport-regels',(req,res)=>{const{taak_id,naam,qty,soort}=req.body;const item_type_id=resolveItemTypeId(naam);const id=ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taak_id,naam,qty||1,soort||'andere',item_type_id]);res.json(get('SELECT * FROM transport_regels WHERE id=?',[id]));});
@@ -649,10 +649,10 @@ module.exports = function(ctx){
     // op ÉN blijven de naam in het bestaande vrije-tekstveld chauffeur zetten, zodat alles wat
     // de naam toont (rit-kaartjes, /rit/:token, filters) blijft werken zonder aan te passen.
     if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
-    const id=ins('INSERT INTO transport_ritten (datum,chauffeur,personeel_id,opmerking,status,created_at) VALUES (?,?,?,?,?,?)',
+    const id=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,personeel_id,opmerking,status,created_at) VALUES (?,?,?,?,?,?)',
       [datum,chauffeur||'',personeel_id||null,opmerking||'',status||'gepland',now()]);
     if(Array.isArray(taak_ids)) taak_ids.forEach(tid=>{
-      run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[id,datum,chauffeur||'',tid]);
+      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[id,datum,chauffeur||'',tid]);
     });
     res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[id])));
   });
@@ -661,7 +661,7 @@ module.exports = function(ctx){
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
     if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
-    run('UPDATE transport_ritten SET datum=?,chauffeur=?,personeel_id=?,opmerking=?,status=?,voertuig=? WHERE id=?',
+    updateMetLog(req,'UPDATE transport_ritten SET datum=?,chauffeur=?,personeel_id=?,opmerking=?,status=?,voertuig=? WHERE id=?',
       [datum||rit.datum,
        chauffeur!==undefined?chauffeur:rit.chauffeur,
        personeel_id!==undefined?(personeel_id||null):rit.personeel_id,
@@ -669,8 +669,8 @@ module.exports = function(ctx){
        status||rit.status,
        voertuig!==undefined?voertuig:(rit.voertuig||''),
        req.params.id]);
-    if(datum&&datum!==rit.datum) run('UPDATE transport_taken SET datum=? WHERE rit_id=?',[datum,req.params.id]);
-    if(chauffeur!==undefined&&chauffeur!==rit.chauffeur) run('UPDATE transport_taken SET wie=? WHERE rit_id=?',[chauffeur,req.params.id]);
+    if(datum&&datum!==rit.datum) updateMetLog(req,'UPDATE transport_taken SET datum=? WHERE rit_id=?',[datum,req.params.id]);
+    if(chauffeur!==undefined&&chauffeur!==rit.chauffeur) updateMetLog(req,'UPDATE transport_taken SET wie=? WHERE rit_id=?',[chauffeur,req.params.id]);
     res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id])));
   });
   app.delete('/api/ritten/:id',(req,res)=>{
@@ -678,14 +678,14 @@ module.exports = function(ctx){
     leden.forEach(t=>{
       if(t.spoed_kind){
         // Spoedtransport mag geen datum verliezen → eigen verse rit
-        const nid=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
+        const nid=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
           [t.datum,t.wie||'','Spoedtransport','gepland',now()]);
-        run('UPDATE transport_taken SET rit_id=? WHERE id=?',[nid,t.id]);
+        updateMetLog(req,'UPDATE transport_taken SET rit_id=? WHERE id=?',[nid,t.id]);
       } else {
-        run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=?",[t.id]);
+        updateMetLog(req,"UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=?",[t.id]);
       }
     });
-    run('DELETE FROM transport_ritten WHERE id=?',[req.params.id]);
+    delMetLog(req,'DELETE FROM transport_ritten WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
   // ── VOERTUIGTYPES ──
@@ -768,14 +768,14 @@ module.exports = function(ctx){
     const{naam}=req.body;
     if(!naam)return res.status(400).json({error:'Naam is verplicht'});
     const tijdstip=now();
-    run('UPDATE transport_ritten SET klaarzet_status=?,klaarzet_door=?,klaarzet_op=? WHERE id=?',['klaar',naam,tijdstip,req.params.id]);
+    updateMetLog(req,'UPDATE transport_ritten SET klaarzet_status=?,klaarzet_door=?,klaarzet_op=? WHERE id=?',['klaar',naam,tijdstip,req.params.id]);
     res.json({ok:true,klaarzet_door:naam,klaarzet_op:tijdstip});
   });
 
   // ── S3.6: chauffeurspagina interactief — twee vink-fases per bak/attribuut ──
   // Werkt UITSLUITEND op het rit-token (publiek pad, geen sessietoken), en enkel op checks
   // die bij die specifieke rit horen — zie de auth-poort-uitzondering /api/rit-token/.
-  function _pasBakAttribuutStatusToe(regels, veld, rit){
+  function _pasBakAttribuutStatusToe(regels, veld, rit, req){
     // veld: 'onderweg' bij volledig geladen, of {naar_locatie_id} bij volledig gelost
     // S5.3: elke statuswijziging via transport wordt ook naar activiteiten_log geschreven,
     // zodat /api/waar-is de volledige reis toont (niet enkel handmatige verplaatsingen).
@@ -784,13 +784,13 @@ module.exports = function(ctx){
     regels.forEach(c=>{
       if(c.bak_id){
         if(veld==='onderweg'){
-          run("UPDATE bakken SET status='onderweg' WHERE id=?",[c.bak_id]);
+          updateMetLog(req,"UPDATE bakken SET status='onderweg' WHERE id=?",[c.bak_id],'rit-link');
           const b=get('SELECT * FROM bakken WHERE id=?',[c.bak_id]);
           if(b)logAct('bak','geladen',`Bak "${b.naam}" (${b.code||'-'}) geladen voor rit #${ritNr} door ${chauffeur}`,null,null);
         }else{
           const b=get('SELECT * FROM bakken WHERE id=?',[c.bak_id]);
           if(b){const st=veld.naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
-            run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.bak_id]);
+            updateMetLog(req,'UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[veld.naar_locatie_id,st,c.bak_id],'rit-link');
             const loc=get('SELECT name FROM locaties WHERE id=?',[veld.naar_locatie_id]);
             logAct('bak','gelost',`Bak "${b.naam}" (${b.code||'-'}) gelost op ${loc?.name||'?'} (rit #${ritNr}) door ${chauffeur}`,veld.naar_locatie_id,loc?.name);}
         }
@@ -821,7 +821,7 @@ module.exports = function(ctx){
     if(check.taak_id){
       const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
       const alleGeladen=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.geladen);
-      if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg',rit);
+      if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg',rit,req);
     }
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
   });
@@ -837,7 +837,7 @@ module.exports = function(ctx){
       const taak=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
       const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[check.taak_id]);
       const alleGelost=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.gelost);
-      if(alleGelost && taak && taak.naar_locatie_id)_pasBakAttribuutStatusToe(groep,{naar_locatie_id:taak.naar_locatie_id},rit);
+      if(alleGelost && taak && taak.naar_locatie_id)_pasBakAttribuutStatusToe(groep,{naar_locatie_id:taak.naar_locatie_id},rit,req);
     }
     res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
   });
@@ -884,11 +884,10 @@ module.exports = function(ctx){
     const ts=now();
     const spoedDatum=datum||isoDate(new Date());
     // Eigen 1-op-1 rit zodat spoed uniform op de weekplanner verschijnt
-    const ritId=ins('INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
+    const ritId=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,opmerking,status,created_at) VALUES (?,?,?,?,?)',
       [spoedDatum,'','Spoedtransport','gepland',ts]);
     // spoed_effect_toegepast=0: wordt pas verwerkt wanneer status → "gedaan"
-    const taakId=ins(
-      'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    const taakId=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
       ['extra',spoedDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,'🚨 Spoed: '+naam,'','gepland',ts,kind||'',ref_id||0,0,ritId]);
     ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam)]);
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[taakId]));
@@ -920,7 +919,7 @@ module.exports = function(ctx){
         run('UPDATE gedeeld_stock SET qty=qty+? WHERE gedeeld_id=? AND locatie_id=?',[aantal,ref_id,naar]);
       }
     }
-    run('UPDATE transport_taken SET spoed_effect_toegepast=1 WHERE id=?',[taak.id]);
+    updateMetLog(req,'UPDATE transport_taken SET spoed_effect_toegepast=1 WHERE id=?',[taak.id]);
   }
 
   // ── CHAUFFEUR-VIEW ──
@@ -928,7 +927,7 @@ module.exports = function(ctx){
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
     let tok=rit.rit_token;
-    if(!tok){tok=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[tok,req.params.id]); }
+    if(!tok){tok=_genToken(10);updateMetLog(req,'UPDATE transport_ritten SET rit_token=? WHERE id=?',[tok,req.params.id]); }
     res.json({token:tok,url:'/rit/'+tok});
   });
   app.get('/rit/:token',(req,res)=>{

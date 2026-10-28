@@ -2,7 +2,7 @@
 // Kopjes: DATA EXPORT/IMPORT (incl. herstel-db), ACTIVITEITENLOG, PWA
 'use strict';
 module.exports = function(ctx){
-  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
+  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   const __dirname = ROOT_DIR;
   // ── S3.8: DATA EXPORT / IMPORT — dynamisch over ALLE tabellen ──
   // Loopt over sqlite_master i.p.v. een hardcoded (en dus steeds verouderende) tabellenlijst.
@@ -111,6 +111,21 @@ module.exports = function(ctx){
     sql+=' ORDER BY id DESC LIMIT ?';
     params.push(Math.min(parseInt(limit)||200,500));
     res.json(all(sql,params));
+  });
+
+  // ── F1 deel 3: WIJZIGINGSLOG (hele oude/nieuwe rij per INSERT/UPDATE/DELETE op de logistieke kern) ──
+  // Alleen kantoor; nieuwste eerst; oud/nieuw komen als geparseerde objecten terug.
+  app.get('/api/wijzigingen', alleenKantoor, (req,res)=>{
+    const {tabel, rij_id, limit=100}=req.query;
+    const conditions=[];const params=[];
+    if(tabel){conditions.push('tabel=?');params.push(String(tabel));}
+    if(rij_id){conditions.push('rij_id=?');params.push(parseInt(rij_id));}
+    let sql='SELECT * FROM wijzigingen';
+    if(conditions.length) sql+=' WHERE '+conditions.join(' AND ');
+    sql+=' ORDER BY id DESC LIMIT ?';
+    params.push(Math.min(parseInt(limit)||100,1000));
+    const parse=(s)=>{ if(s==null) return null; try{ return JSON.parse(s); }catch(e){ return s; } };
+    res.json(all(sql,params).map(w=>({...w,oud:parse(w.oud),nieuw:parse(w.nieuw)})));
   });
 
   // ── PWA ──

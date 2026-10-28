@@ -2,7 +2,7 @@
 // Kopjes: THEMA BAKKEN, STOCK OVERZICHT, VASTE BAKKEN, ATTRIBUTEN, THEMABEHOEFTE POOL, BAK/ATTRIBUUT-STATUS, GEDEELD MATERIAAL, BAK FOTO'S
 'use strict';
 module.exports = function(ctx){
-  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
+  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── THEMA BAKKEN (S2.1: uniforme bakken-tabel, deelbaar via thema_bak) ──
   function _rozenwegId(){
     const r=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0)")
@@ -35,7 +35,7 @@ module.exports = function(ctx){
     let id=bak_id;
     if(!id){
       const dubbeleCode=code&&get('SELECT id FROM bakken WHERE code=? AND code!=\'\'',[code]);
-      id=ins('INSERT INTO bakken (naam,code,soort,thuislocatie_id,huidige_locatie_id,status,volgorde) VALUES (?,?,?,?,?,?,?)',
+      id=insMetLog(req,'INSERT INTO bakken (naam,code,soort,thuislocatie_id,huidige_locatie_id,status,volgorde) VALUES (?,?,?,?,?,?,?)',
         [label||'',code||'','thema',_rozenwegId(),_rozenwegId(),'thuis',volgorde||0]);
       if(dubbeleCode) console.warn(`  Waarschuwing: code "${code}" bestaat al op een andere bak/attribuut (niet-blokkerend)`);
     }
@@ -54,7 +54,7 @@ module.exports = function(ctx){
     const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Bak niet gevonden'});
     const nieuweNaam=(naam??label)??cur.naam;
-    run('UPDATE bakken SET naam=?,code=?,volgorde=?,vast_type=?,thuislocatie_id=?,status=? WHERE id=?',
+    updateMetLog(req,'UPDATE bakken SET naam=?,code=?,volgorde=?,vast_type=?,thuislocatie_id=?,status=? WHERE id=?',
       [nieuweNaam,code??cur.code,volgorde??cur.volgorde,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,req.params.id]);
     const b=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     res.json({...b,label:b.naam});
@@ -63,7 +63,7 @@ module.exports = function(ctx){
     run('DELETE FROM bak_items WHERE bak_id=?',[req.params.id]);
     run('DELETE FROM bak_nakijk_log WHERE bak_id=?',[req.params.id]);
     run('DELETE FROM thema_bak WHERE bak_id=?',[req.params.id]);
-    run('DELETE FROM bakken WHERE id=?',[req.params.id]);
+    delMetLog(req,'DELETE FROM bakken WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
   // Bak-items CRUD
@@ -151,20 +151,20 @@ module.exports = function(ctx){
     const cur=get("SELECT * FROM bakken WHERE id=? AND soort='vast'",[req.params.id]);
     if(!cur)return res.status(404).json({error:'Vaste bak niet gevonden'});
     const kolom=slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
-    run(`UPDATE bakken SET ${kolom}=? WHERE id=?`,[foto_data,req.params.id]);
+    updateMetLog(req,`UPDATE bakken SET ${kolom}=? WHERE id=?`,[foto_data,req.params.id]);
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id/foto-slot/:slot',(req,res)=>{
     if(!['opgeplooid','opgezet'].includes(req.params.slot))return res.status(400).json({error:"ongeldig slot"});
     const kolom=req.params.slot==='opgeplooid'?'foto_opgeplooid':'foto_opgezet';
-    run(`UPDATE bakken SET ${kolom}='' WHERE id=?`,[req.params.id]);
+    updateMetLog(req,`UPDATE bakken SET ${kolom}='' WHERE id=?`,[req.params.id]);
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.post('/api/vaste-bakken',(req,res)=>{
     const{naam,code,vast_type,thuislocatie_id,is_bulk,aantal}=req.body;
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
     const thuis=thuislocatie_id||_rozenwegId();
-    const id=ins('INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status,is_bulk,aantal) VALUES (?,?,?,?,?,?,?,?,?)',
+    const id=insMetLog(req,'INSERT INTO bakken (naam,code,soort,vast_type,thuislocatie_id,huidige_locatie_id,status,is_bulk,aantal) VALUES (?,?,?,?,?,?,?,?,?)',
       [naam.trim(),code||'','vast',vast_type||'',thuis,thuis,'thuis',is_bulk?1:0,Math.max(1,parseInt(aantal)||1)]);
     if(is_bulk&&thuis)ins('INSERT OR IGNORE INTO bulk_spreiding (bak_id,locatie_id,aantal) VALUES (?,?,?)',[id,thuis,Math.max(1,parseInt(aantal)||1)]);
     res.json(get('SELECT * FROM bakken WHERE id=?',[id]));
@@ -173,14 +173,14 @@ module.exports = function(ctx){
     const{naam,code,vast_type,thuislocatie_id,status,blazers_nodig,notitie,aantal}=req.body;
     const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Niet gevonden'});
-    run('UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=?,blazers_nodig=?,notitie=? WHERE id=?',
+    updateMetLog(req,'UPDATE bakken SET naam=?,code=?,vast_type=?,thuislocatie_id=?,status=?,blazers_nodig=?,notitie=? WHERE id=?',
       [naam??cur.naam,code??cur.code,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,blazers_nodig??cur.blazers_nodig,notitie??cur.notitie,req.params.id]);
     // Walkthrough Maxim 2026-08-04: totaal-aantal van bulk-materiaal aanpasbaar in de app.
     // Het verschil wordt op de thuislocatie bijgeboekt in bulk_spreiding (nooit onder 0).
     if(cur.is_bulk&&aantal!==undefined&&aantal!==null){
       const nieuw=Math.max(0,parseInt(aantal)||0);
       const delta=nieuw-(cur.aantal||0);
-      run('UPDATE bakken SET aantal=? WHERE id=?',[nieuw,req.params.id]);
+      updateMetLog(req,'UPDATE bakken SET aantal=? WHERE id=?',[nieuw,req.params.id]);
       const thuis=cur.thuislocatie_id;
       if(thuis&&delta!==0){
         const rij=get('SELECT * FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[cur.id,thuis]);
@@ -191,7 +191,7 @@ module.exports = function(ctx){
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));
   });
   app.delete('/api/vaste-bakken/:id',(req,res)=>{
-    run('DELETE FROM bakken WHERE id=?',[req.params.id]);
+    delMetLog(req,'DELETE FROM bakken WHERE id=?',[req.params.id]);
     res.json({ok:true});
   });
   app.post('/api/vaste-bakken/:id/items',(req,res)=>{
@@ -304,7 +304,7 @@ module.exports = function(ctx){
     const b=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!b)return res.status(404).json({error:'Bak niet gevonden'});
     const nieuweStatus=naar_locatie_id==b.thuislocatie_id?'thuis':'op_locatie';
-    run('UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[naar_locatie_id,nieuweStatus,req.params.id]);
+    updateMetLog(req,'UPDATE bakken SET huidige_locatie_id=?,status=? WHERE id=?',[naar_locatie_id,nieuweStatus,req.params.id]);
     const loc=get('SELECT name FROM locaties WHERE id=?',[naar_locatie_id]);
     logAct('bak','verplaatst',`Bak "${b.naam}" (${b.code||'-'}) handmatig verplaatst naar ${loc?.name||naar_locatie_id} — reden: ${reden.trim()}`,naar_locatie_id,loc?.name);
     res.json(get('SELECT * FROM bakken WHERE id=?',[req.params.id]));

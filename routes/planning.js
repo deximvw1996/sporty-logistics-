@@ -2,7 +2,7 @@
 // Kopjes: KAMPMOMENTEN, THEMAS AAN KAMPMOMENT, KALENDER, VAKANTIEPERIODES, SEIZOENSOVERZICHT
 'use strict';
 module.exports = function(ctx){
-  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
+  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── KAMPMOMENTEN ──
   // Hulpfunctie: geef de maandagdatum van week w in een periode
   function periodeWeekMaandag(week, periode_id) {
@@ -57,7 +57,7 @@ module.exports = function(ctx){
     const periodeIdToUse=periode_id||1;
     const typeVal=(type==='themadag'?'themadag':'kamp');
     try {
-      const id=ins('INSERT INTO kampmomenten (locatie_id,week,periode_id,type,kv_persoon_id) VALUES (?,?,?,?,?)',[locatie_id,week,periodeIdToUse,typeVal,kv_persoon_id||null]);
+      const id=insMetLog(req,'INSERT INTO kampmomenten (locatie_id,week,periode_id,type,kv_persoon_id) VALUES (?,?,?,?,?)',[locatie_id,week,periodeIdToUse,typeVal,kv_persoon_id||null]);
       const loc=get('SELECT * FROM locaties WHERE id=?',[locatie_id]);
       logAct('kampmoment','aangemaakt',`Week ${week} — ${loc?.name||'?'} (nieuw kampmoment)`,locatie_id,loc?.name);
       // Auto-open alle weekdagen voor deze locatie
@@ -79,13 +79,13 @@ module.exports = function(ctx){
   app.put('/api/kampmomenten/:id',(req,res)=>{
     const{week,type,kv_persoon_id}=req.body;
     const old=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[req.params.id]);
-    if(week!==undefined) run('UPDATE kampmomenten SET week=? WHERE id=?',[week,req.params.id]);
-    if(type!==undefined && (type==='kamp'||type==='themadag')) run('UPDATE kampmomenten SET type=? WHERE id=?',[type,req.params.id]);
+    if(week!==undefined) updateMetLog(req,'UPDATE kampmomenten SET week=? WHERE id=?',[week,req.params.id]);
+    if(type!==undefined && (type==='kamp'||type==='themadag')) updateMetLog(req,'UPDATE kampmomenten SET type=? WHERE id=?',[type,req.params.id]);
     // S3.4: KV-koppeling is persoonsgebonden (ontwerpbeslissing 1) — wijzigt de gekoppelde
     // persoon, dan is een eerder uitgegeven link niet meer geldig voor de juiste naam:
     // bestaand kv_token wissen zodat een volgende link-aanvraag een verse token genereert.
     if(kv_persoon_id!==undefined && kv_persoon_id!==old?.kv_persoon_id){
-      run('UPDATE kampmomenten SET kv_persoon_id=?,kv_token=? WHERE id=?',[kv_persoon_id||null,'',req.params.id]);
+      updateMetLog(req,'UPDATE kampmomenten SET kv_persoon_id=?,kv_token=? WHERE id=?',[kv_persoon_id||null,'',req.params.id]);
       if(old) logAct('kampmoment','kv-koppeling',`${old.loc_naam||'?'} week ${old.week}: KV-koppeling gewijzigd`,old.locatie_id,old.loc_naam);
     }
     if(old && week!==undefined && week!==old.week) logAct('kampmoment','verplaatst',`${old.loc_naam||'?'}: week ${old.week} → week ${week}`,old.locatie_id,old.loc_naam);
@@ -98,15 +98,15 @@ module.exports = function(ctx){
     if(!km)return res.status(404).json({error:'Kampmoment niet gevonden'});
     if(!km.kv_persoon_id)return res.status(400).json({error:'Koppel eerst een kampverantwoordelijke aan dit kampmoment.'});
     let tok=km.kv_token;
-    if(!tok){tok=_genToken(12);run('UPDATE kampmomenten SET kv_token=? WHERE id=?',[tok,req.params.id]); }
+    if(!tok){tok=_genToken(12);updateMetLog(req,'UPDATE kampmomenten SET kv_token=? WHERE id=?',[tok,req.params.id]); }
     res.json({token:tok,url:'/kv/'+tok});
   });
 
   app.delete('/api/kampmomenten/:id',(req,res)=>{
     const old=get('SELECT k.*,l.name as loc_naam FROM kampmomenten k LEFT JOIN locaties l ON l.id=k.locatie_id WHERE k.id=?',[req.params.id]);
     run('DELETE FROM kampmoment_themas WHERE kampmoment_id=?',[req.params.id]);
-    run('DELETE FROM transport_taken WHERE kampmoment_id=?',[req.params.id]);
-    run('DELETE FROM kampmomenten WHERE id=?',[req.params.id]);
+    delMetLog(req,'DELETE FROM transport_taken WHERE kampmoment_id=?',[req.params.id]);
+    delMetLog(req,'DELETE FROM kampmomenten WHERE id=?',[req.params.id]);
     if(old) logAct('kampmoment','verwijderd',`Week ${old.week} — ${old.loc_naam||'?'} verwijderd`,old.locatie_id,old.loc_naam);
     res.json({ok:true});
   });

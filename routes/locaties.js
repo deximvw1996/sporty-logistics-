@@ -2,7 +2,7 @@
 // Kopjes: LOCATIES, LOCATIECONFIG, locaties delete/geocode, STANDAARD MATERIAAL, LOCATIE MATERIAAL, KLEURENBORDEN
 'use strict';
 module.exports = function(ctx){
-  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
+  const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   // ── LOCATIES ──
   app.get('/api/locaties',(req,res)=>res.json(all('SELECT * FROM locaties ORDER BY type,name')));
   app.post('/api/locaties',(req,res)=>{
@@ -183,11 +183,11 @@ module.exports = function(ctx){
     const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
     if(!t) return res.status(404).json({error:'Transport niet gevonden'});
     if(rit_id===null||rit_id===undefined||rit_id===''){
-      run("UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=?",[req.params.id]);
+      updateMetLog(req,"UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=?",[req.params.id]);
     } else {
       const rit=get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]);
       if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
-      run('UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[rit_id,rit.datum,rit.chauffeur||'',req.params.id]);
+      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[rit_id,rit.datum,rit.chauffeur||'',req.params.id]);
     }
     const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
     const regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[req.params.id]);
