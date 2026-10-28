@@ -71,6 +71,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 66 | test-f1-schrijven flaky in volle run (AFGEBROKEN/1 fout, los altijd groen): poller 100 ms | Testen | Bouwchat | open | 3 | GEVONDEN B |
 | 67 | Tekortenlijst-UI: kop 'zonder kampmoment' tonen (backend levert ze al achteraan) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | GEVONDEN B (V2b) |
 | 68 | setActivePeriode (Periodes-lijst) herlaadt kalender niet; andere isoDate-middernacht-plekken (tijdzone) | Periodes en planning | Bouwchat | open | 3 | GEVONDEN B (V2b) |
+| 69 | Dagoverzicht chauffeur met tijdlijn; stops vast (kantoor) of vrij (chauffeur mag verslepen); terug naar vorige stop | Chauffeur | Bouwchat | open | 1 | Maxim 29/10; in designsessie; bouwen na mockup-akkoord |
 | 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | gekeurd | 1 | V2: ?periode_id, velden, geen_thema |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)

@@ -13,6 +13,7 @@ Dit is wat de chauffeur in de hand heeft bij laden in de Rozenweg, onderweg en b
 5. "Probleem melden" per stop: tekst + foto → kantoor en KV (DRAAIBOEK 3.5).
 6. Status van de rit zichtbaar: gepland → onderweg → aangekomen → gedaan; sluit vanzelf.
 7. Werkt met één hand, knoppen ≥ 44 px, leesbaar in de zon (hoog contrast), offline-tolerant (laatste stand blijft staan).
+8. **Dagoverzicht met tijdlijn** (Maxim 29/10): alle stops van de dag in volgorde op een tijdlijn; de chauffeur kan stops **verslepen** als kantoor dat toelaat. Kantoor zet per stop een slot: 🔒 vast (tijd/volgorde door kantoor bepaald) of ↕ vrij (chauffeur kiest). Vaste stops blijven staan, vrije stops kunnen ertussen bewegen. Vanuit het overzicht kan de chaufeur naar élke stop springen, ook terug naar een vorige.
 
 **Wat er NIET op mag:** inhoud van bakken (de chauffeur ziet codes, geen itemlijsten), beheerknoppen, kantoor-jargon.
 
@@ -21,7 +22,9 @@ Dit is wat de chauffeur in de hand heeft bij laden in de Rozenweg, onderweg en b
 - **B. Stop-kaarten** — één stop tegelijk als volledig scherm (swipe/volgende), bovenaan een voortgangsbalk met de stops als bolletjes; de stukkenlijst als kaarten met foto groot; rust door focus.
 - **C. Dashboard-tegels** — bovenaan drie tegels (geladen / onderweg / gelost) met grote cijfers, daaronder uitklapbare stops; kleurcodering per status (grijs, blauw, groen, rood voor probleem); voelt als een professionele koeriersapp.
 
-Meetlat vóór voorleggen: past op 390×844 zonder horizontaal scrollen; alle 7 inhoudspunten aanwezig; knoppen 44 px; contrast ≥ 4.5:1.
+Meetlat vóór voorleggen: past op 390×844 zonder horizontaal scrollen; alle 8 inhoudspunten aanwezig; knoppen 44 px; contrast ≥ 4.5:1.
+
+**Keuze Maxim 29/10 (na drieluik 1):** richting B (stop-kaarten) als basis, met de rek-groepering van A bij het laden en de rode 'past niet'-markering van C, plus het nieuwe dagoverzicht met tijdlijn (punt 8) als eerste scherm van de rit, van waaruit elke stop bereikbaar is.
 
 ## Scherm 2 — Kantoor: "Vandaag" + navigatie (desktop 1920×900)
 Later in deze sessie. Inhoud: wat speelt er vandaag (aanvragen te keuren, ritten onderweg, conflicten, tekorten), snelle sprong naar planning / transport / thema's / locaties / voorraad / beheer; actieve periode altijd zichtbaar; max 7 hoofdonderdelen (KERNREGEL twee niveaus).
