@@ -9,7 +9,8 @@
 ## De rollen
 | rol | wie | gebruikt |
 |---|---|---|
-| **Kantoor/coördinator** | Maxim + kernteam (manager + 3 coördinatoren) | volledige admin-app |
+| **Admin** (nieuw, Maxim 28/10) | Maxim + Claude | alles + beheer: herstel/import, rollen, instellingen |
+| **Kantoor/coördinator** | kernteam (manager + 3 coördinatoren) | de werk-app: plannen, materiaal, transport, thema's aanmaken |
 | **Chauffeur** | chauffeurs/klusjesmensen | mobiele rit-pagina via rit-link |
 | **Kampverantwoordelijke (KV)** | 1 per kampmoment | mobiele kv-pagina via kv-link |
 | Monitor | begeleiders per groep | ✔ geen app-rol (Maxim 28/10: monitoren komen niet in de app) |
@@ -23,11 +24,11 @@ Eigenaar: kantoor. **Rollen-besluit: monitoren komen NIET in de app.**
 | # | actie | moet kunnen | status |
 |---|---|---|---|
 | 0.1 | Locaties beheren (adres, contact, type kamp/stockage, eigenschappen) — eigenschappen: **"heeft vuur en/of oven"** (vervangt "eigen oven"/"keuken"), eigen sportmateriaal, zelf kuisen | ✅ bevestigd; label "Heeft eigen oven" → "Heeft vuur en/of oven" | |
-| 0.2 | Locatieconfig per locatie: welke standaarduitrusting met welke voorwaarde (altijd / leeftijdsgroep / kookthema / zelf kuisen) | 🟠 bestaat; invulling + extra voorwaarden nog te bespreken (zie vraag) | |
+| 0.2 | Locatieconfig per locatie: standaarduitrusting met voorwaarde (altijd / leeftijdsgroep / kookthema / zelf kuisen / **bij uitstap**). **Gelijktijdigheidsregel (Maxim):** op-stap-pakket = 1 per groep die op hetzélfde moment op uitstap gaat (groep A dag 1 + groep B dag 2 = 1 pakket; samen weg = 2) — zelfde piek-logica als blazers. Andere voorwaarden komen uit de praktijk | 🟠 bestaat; voorwaarde "bij uitstap" + gelijktijdigheid nog te bouwen (vereist: per kampmoment weten welke groepen wanneer op uitstap gaan) | |
 | 0.3 | Personeel: kantoor/chauffeur mét login; **KV krijgt ook een account** zodat hij/zij nakijk-resultaten en "iets is op"-meldingen kan doorgeven (Maxim) → KV logt in en ziet zijn eigen kampmoment(en); kv-link blijft als snelle weg | 🟠 besluit genomen; KV-login + KV-overzicht te bouwen (V0 blokkeert kv-rol nu op de admin-API — terecht, de KV krijgt zijn eigen scherm) | |
-| 0.4 | Themacatalogus onderhouden: thema's → bakken → items; attributen; bundel-PDF bij thema | 🟠 gevuld (184); onderhoud-UI bestaat; wie het na Maxim onderhoudt: nog te bespreken | |
+| 0.4 | Themacatalogus onderhouden: thema's → bakken → items; attributen; bundel-PDF bij thema. **Coördinatoren moeten zelf een nieuw thema kunnen aanmaken (Maxim)** → invoerscherm "nieuw thema" met bakken/items/attributen/behoefte (= oude S4.1). **Nieuwe rol "admin"** (Maxim + Claude) boven kantoor: beheer, herstel, import, rollen | 🟠 gevuld (184); onderhoud-UI bestaat; thema-invoerscherm + admin-rol te bouwen | |
 | 0.5 | Pool beheren: unieke exemplaren (springkastelen+foto's, koffers) en bulk (totaal + spreiding) | 🟠 bestaat; **juiste getallen zijn nu niet belangrijk — werkende app eerst, cijfers later (Maxim)** | |
-| 0.6 | Voorraad verbruiksmateriaal (aantal + minimum) → bestellijst | 🟠 structuur ok, rijen leeg; **werkelijke werkwijze van kantoor nog te bespreken** (zie vraag) | |
+| 0.6 | Verbruiksmateriaal: **mengeling, geen vaste regel (Maxim) — alle werkwijzen moeten kunnen**: (a) vaste voorraad met minimum die aangevuld wordt, (b) gerichte inkoop per kamp/vakantie op basis van de fiches, (c) mix. Ontwerp: één **inkoop- en voorraadscherm** met drie bronnen — voorraad onder minimum, verwachte verbruik van de geplande kampen (fiches × kampmomenten), tekorten uit KV-controles — en per item de keuze "op voorraad houden" of "per kamp kopen" | 🟠 structuur voor (a) bestaat; (b) en de gecombineerde lijst te bouwen; voorraadrijen leeg (cijfers later) | |
 | 0.7 | Periodes beheren — **ruimer dan schoolvakanties**: Sporty doet ook sportdagen, workshops, opvangdagen tijdens het schooljaar én evenementen (Leuven Night Run, Genk Marathon…) | 🟠 CRUD bestaat; app niet periode-bewust (V2) — **én het begrip "kampmoment" moet elke activiteitssoort aankunnen** (kamp, themadag, sportdag, workshop, opvangdag, evenement) | |
 | 0.8 | Sportpakketten: **vast per locatie én roterend moet allebei kunnen** (Maxim) | 🟠 bestaat; planning niet periode-bewust | |
 | 0.9 | Verhuur aan derden: **nu al relevant voor beschikbaarheid** (een verhuurd springkasteel is die dag niet inzetbaar) **+ klaarzet-agenda** (verhuurde spullen worden klaargezet voor afhaling) | ❌ → verhuur = blokkering in de pool-beschikbaarheid + agenda-item; volledige verhuurmodule (S9) later | |
