@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logboek — Sporty logistiek</title>
+<link rel="stylesheet" href="/public/patroon.css">
+<link rel="stylesheet" href="/public/personeel.css">
+</head><body>
+<div class="frame"><div class="top"><div class="logo">Sporty logistiek</div><a href="/vandaag">🏠 Vandaag <span class="b" id="b-vandaag" hidden></span></a><a href="/#kampplanner">📅 Planning</a><a href="/ritplanning">🚚 Transport</a><a href="/bakken">📦 Materiaal</a><a href="/#planning">📍 Locaties</a><a href="/nakijken">🧮 Voorraad &amp; controles</a><a class="act" href="/personeel">⚙️ Beheer</a><div class="rechts"><span class="per">Periode: <b id="per-naam">…</b> ▾<select id="per-kies" aria-label="Periode kiezen"></select></span><span id="wie"></span></div></div><div class="sub"><a href="/personeel">Personeel</a><a class="act" href="/logboek">Logboek</a><a href="/#materiaal">Export &amp; back-up</a><a id="instellingen">Instellingen</a><span class="r"><button class="knop licht klein" id="export">⬇ Export</button></span></div><div class="body"><div class="kaart lijst"><div class="filters"><input id="zoek" placeholder="🔍 Zoek in wat, wie, context…"><input type="date" id="van" aria-label="Van"><input type="date" id="tot" aria-label="Tot"><select id="f-wie" aria-label="Wie"><option value="">Iedereen</option></select><select id="f-tabel" aria-label="Wat"><option value="">Alle onderdelen</option></select></div><div class="kopr lb"><span>Datum</span><span>Wie</span><span>Wat</span><span>Onderdeel</span><span>Context</span><span></span></div><div class="scroll" id="lijst"></div><div class="voet" id="voet"><span><span id="n-regels">0 regels</span> · <span class="n">nieuwste eerst, max 500</span></span></div></div><div class="kaart"><div class="detail" id="detail"><div class="leegd">Klik een regel voor oud en nieuw.</div></div></div></div></div>
+<div id="toasts"></div>
+<script src="/public/logboek.js"></script>
+</body></html>
