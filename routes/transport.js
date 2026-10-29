@@ -1276,111 +1276,23 @@ module.exports = function(ctx){
         [rit.id,r.naam,r.soort||'andere',r.qty||1,'wacht',volg++,r.item_type_id||resolveItemTypeId(r.naam,undefined,false),r.bak_id||null,r.attribuut_id||null,t.id]));
     });
   }
+  // CH2: de rit-pagina zelf staat in public/rit.{html,css,js} (exacte kopie van design/CHAUFFEUR-DEFINITIEF.html) en
+  // tekent zichzelf uit GET /api/rit-token/:token/data. Alles wordt inline meegestuurd, zodat de pagina enkel op de token steunt.
+  const _RIT_PUB=require('path').join(__dirname,'..','public');
+  const _ritBestand=n=>require('fs').readFileSync(require('path').join(_RIT_PUB,n),'utf8');
   app.get('/rit/:token',(req,res)=>{
     const rit=get('SELECT * FROM transport_ritten WHERE rit_token=?',[req.params.token]);
-    if(!rit)return res.status(404).send('<h2 style="font-family:system-ui;padding:2rem">Rit niet gevonden of link verlopen.</h2>');
+    if(!rit)return res.status(404).send('<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rit niet gevonden</title></head><body><h2 style="font-family:system-ui;padding:2rem">Rit niet gevonden of link verlopen.</h2></body></html>');
     _zorgVoorChecks(rit);
-    const taken=all(`SELECT tt.*,fl.name AS van_naam,tl.name AS naar_naam,km.week AS km_week
-      FROM transport_taken tt
-      LEFT JOIN locaties fl ON tt.van_locatie_id=fl.id
-      LEFT JOIN locaties tl ON tt.naar_locatie_id=tl.id
-      LEFT JOIN kampmomenten km ON tt.kampmoment_id=km.id
-      WHERE tt.rit_id=? ORDER BY tt.tijd`,[rit.id]);
-    const checks=all('SELECT * FROM verhuis_checks WHERE rit_id=? ORDER BY sort_order',[rit.id]);
-    const typeIcon={levering:'📦',ophaling:'📤',transfer:'🔄'};
-    const stops=taken.map(t=>`<div class="stop">
-      <div class="type">${typeIcon[t.type]||'🚚'} ${t.type==='levering'?'Levering':t.type==='ophaling'?'Ophaling':'Transfer'}${t.km_week?' (week '+t.km_week+')':''}</div>
-      <div class="nm">${t.opmerking||'(zonder naam)'}</div>
-      <div class="rt">${t.van_naam||'Stockage'} → ${t.naar_naam||'Stockage'}</div>
-      ${t.tijd?'<div class="ti">⏰ '+t.tijd+'</div>':''}
-      <div class="fasebtns"><button type="button" class="fbtn ${t.status==='aangekomen'||t.status==='gedaan'?'done':''}" id="stop-${t.id}" onclick="aangekomen(${t.id})">${t.status==='gedaan'?'✅ Stop afgerond':t.status==='aangekomen'?'📍 Aangekomen':'📍 Ik ben aangekomen'}</button></div></div>`).join('');
-    // Chauffeur ziet bakken, geen inhoud: groepeer per rek (eerste letter van de code in de naam)
-    // zodat rek per rek gelopen kan worden.
-    function _rekVan(c){const m=(c.item_naam||'').match(/\(([A-Za-z])[0-9]*\)/);return m?m[1].toUpperCase():null;}
-    const chkByRek={};
-    checks.forEach(c=>{const r=(c.item_soort==='thema'||c.item_soort==='attribuut'||c.item_soort==='vast')?(_rekVan(c)||'Overig'):'Overig';(chkByRek[r]=chkByRek[r]||[]).push(c);});
-    const rekKeys=Object.keys(chkByRek).sort((a,b)=>a==='Overig'?1:b==='Overig'?-1:a.localeCompare(b));
-    // S3.6: twee vink-fases per bak/attribuut (laden bij vertrek, lossen bij aankomst).
-    // Alleen thema/attribuut/vast-regels (= bakken/attributen, geen basis-materiaal) krijgen
-    // de fase-knoppen — basis-materiaal blijft de oude eenvoudige status-weergave.
-    const chkRows=rekKeys.map(rek=>{
-      const rows=chkByRek[rek].map(c=>{
-        const isBak=c.item_soort==='thema'||c.item_soort==='attribuut'||c.item_soort==='vast';
-        if(!isBak){
-          return `<div class="chk ${c.status}">
-            <span class="ico">${c.status==='ok'?'✅':c.status==='ontbreekt'?'❌':c.status==='deels'?'⚠️':'⬜'}</span>
-            <span class="nm">${c.item_naam||''}</span>
-            <span class="qty">×${c.qty}</span>
-            ${c.notitie?'<div class="nt">'+c.notitie+'</div>':''}</div>`;
-        }
-        return `<div class="chk fase" id="chk-${c.id}">
-          <span class="nm">${c.item_naam||''}</span>
-          <span class="qty">×${c.qty}</span>
-          <div class="fasebtns">
-            <button type="button" class="fbtn b-laden ${c.geladen?'done':''}" onclick="tog(${c.id},'laden')">${c.geladen?'✅ Geladen':'⬆️ Laden'}</button>
-            <button type="button" class="fbtn b-lossen ${c.gelost?'done':''}" onclick="tog(${c.id},'lossen')">${c.gelost?'✅ Gelost':'⬇️ Lossen'}</button>
-          </div></div>`;
-      }).join('');
-      return (rek!=='Overig'?`<div class="rek">📍 Rek ${rek}</div>`:'')+rows;
-    }).join('');
-    res.send(`<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rit ${rit.datum}</title>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#1a1a1a}
-.hdr{background:#2563eb;color:#fff;padding:14px 16px}.hdr h1{font-size:18px;font-weight:700}.hdr .sub{font-size:13px;opacity:.8;margin-top:2px}
-.sec{padding:10px 16px 4px;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #e5e5e5;margin-top:8px}
-.stop{background:#fff;border-left:4px solid #2563eb;margin:8px 10px;border-radius:6px;padding:12px 14px}
-.stop .type{font-size:11px;color:#2563eb;font-weight:700;margin-bottom:2px}
-.stop .nm{font-size:15px;font-weight:600}.stop .rt{font-size:12px;color:#666;margin-top:2px}.stop .ti{font-size:12px;color:#2563eb;margin-top:4px}
-.chk{background:#fff;margin:6px 10px;border-radius:6px;padding:10px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.chk.ok{background:#f0fff4;border-left:3px solid #22c55e}.chk.ontbreekt{background:#fff1f1;border-left:3px solid #ef4444}.chk.deels{background:#fffbeb;border-left:3px solid #f59e0b}
-.chk .ico{font-size:18px;flex-shrink:0}.chk .nm{flex:1;font-size:14px}.chk .qty{font-size:12px;color:#888}.chk .nt{width:100%;font-size:11px;color:#888;font-style:italic}
-.chk.fase{flex-direction:column;align-items:stretch}
-.chk.fase .nm{flex:none}
-.fasebtns{display:flex;gap:8px;margin-top:6px;width:100%}
-.fbtn{flex:1;min-height:48px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#334155;font-size:14px;font-weight:600;font-family:inherit}
-.fbtn.done{background:#dcfce7;border-color:#22c55e;color:#166534}
-.rek{margin:10px 10px 2px;font-size:12px;font-weight:700;color:#2563eb}
-.footer{padding:20px 16px;text-align:center;font-size:12px;color:#aaa}
-.toast{position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);max-width:calc(100% - 32px);padding:12px 18px;border-radius:10px;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:10}
-.toast.zicht{opacity:1;transform:translate(-50%,0)}.toast.goed{background:#16a34a}.toast.fout{background:#dc2626}</style></head><body>
-<div class="hdr"><h1>🚚 Rit ${rit.datum}</h1>
-<div class="sub">${rit.chauffeur?'👤 '+rit.chauffeur:''}${rit.voertuig?' · 🚐 '+rit.voertuig:''} · ${taken.length} stop${taken.length!==1?'s':''}</div></div>
-<div class="sec">Stops</div>${stops||'<div style="padding:16px;color:#888">Geen stops gepland.</div>'}
-${checks.length?'<div class="sec">Materiaallijst ('+checks.length+' items)</div>'+chkRows:''}
-<div class="footer">Sporty Logistics</div>
-<script>
-const TOKEN=${JSON.stringify(req.params.token)};
-// V3d: kleine melding onderaan het scherm (3 s, groen/rood) i.p.v. toast().
-function toast(tekst,goed){
-  let t=document.getElementById('toast',false);
-  if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');document.body.appendChild(t);}
-  t.textContent=tekst;t.className='toast '+(goed?'goed':'fout')+' zicht';
-  clearTimeout(t._tm);t._tm=setTimeout(()=>t.classList.remove('zicht'),3000);
-}
-async function aangekomen(id){
-  const b=document.getElementById('stop-'+id);b.disabled=true;
-  try{const r=await fetch('/api/rit-token/'+TOKEN+'/taken/'+id+'/aangekomen',{method:'POST'});const t=await r.json();
-    if(!r.ok){toast(t.error||'Fout bij opslaan',false);return;}
-    b.textContent=t.status==='gedaan'?'✅ Stop afgerond':'📍 Aangekomen';b.classList.add('done');toast('Aankomst doorgegeven',true);}
-  catch(e){toast('Netwerkfout — probeer opnieuw.',false);}finally{b.disabled=false;}
-}
-async function tog(id,kind){
-  const row=document.getElementById('chk-'+id);
-  const btns=row.querySelectorAll('.fbtn');
-  btns.forEach(b=>b.disabled=true);
-  try{
-    const r=await fetch('/api/rit-token/'+TOKEN+'/checks/'+id+'/'+kind,{method:'POST'});
-    const c=await r.json();
-    if(!r.ok){toast(c.error||'Fout bij opslaan',false);return;}
-    const bl=row.querySelector('.b-laden'), bg=row.querySelector('.b-lossen');
-    bl.textContent=c.geladen?'✅ Geladen':'⬆️ Laden'; bl.classList.toggle('done',!!c.geladen);
-    bg.textContent=c.gelost?'✅ Gelost':'⬇️ Lossen'; bg.classList.toggle('done',!!c.gelost);
-    toast(kind==='laden'?(c.geladen?'Geladen':'Laden ongedaan'):(c.gelost?'Gelost':'Lossen ongedaan'),true);
-  }catch(e){toast('Netwerkfout — probeer opnieuw.',false);}
-  finally{btns.forEach(b=>b.disabled=false);}
-}
-</script>
-</body></html>`);
+    let html;
+    try{ html=_ritBestand('rit.html'); }
+    catch(e){ return res.status(500).send('<h2 style="font-family:system-ui;padding:2rem">De rit-pagina kon niet geladen worden. Probeer het zo opnieuw.</h2>'); }
+    const veilig=t=>t.replace(/<\/(script|style)/gi,'<\\/$1');
+    html=html.replace('{{TITEL}}',()=>'Rit '+String(rit.datum||'').replace(/[<>&"]/g,''))
+      .replace('{{CSS}}',()=>veilig(_ritBestand('rit.css')))
+      .replace('{{TOKEN}}',()=>JSON.stringify(req.params.token).replace(/</g,'\\u003c'))
+      .replace('{{JS}}',()=>veilig(_ritBestand('rit.js')));
+    res.set('Cache-Control','no-store').send(html);
   });
 
   // ── VOERTUIGBEZETTING ──
