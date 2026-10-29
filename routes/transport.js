@@ -651,6 +651,8 @@ module.exports = function(ctx){
     const teVerhuizen=alleRegels.filter(r=>regel_ids.includes(r.id));
     if(!teVerhuizen.length)return res.status(400).json({error:'Geen van de gekozen regels hoort bij deze taak'});
     if(teVerhuizen.length===alleRegels.length)return res.status(400).json({error:'Je kan niet álle regels afsplitsen — dan verplaats je beter de hele taak'});
+    // TB1: wat al geladen is, blijft bij zijn taak (anders staat het geladen stuk plots op een taak zonder rit).
+    for(const r of teVerhuizen){const g=_checksVanRegel(taak.id,r).filter(c=>c.geladen);if(g.length)return res.status(409).json({error:`'${r.naam}' is al geladen: een geladen regel kan niet afgesplitst worden — los het eerst of zet de taak terug op gepland`});}
     const nieuwId=insMetLog(req,`INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [taak.type,datum||'',tijd||taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,
