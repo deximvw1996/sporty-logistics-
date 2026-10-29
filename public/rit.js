@@ -92,6 +92,7 @@
     var totaal = r.qty + (gespl ? r.niet_mee.aantal : 0);
     var sub = r.is_bulk ? eenheden(r) + ' van ' + totaal + ' geladen · tik voor aantal' : (r.code ? esc(r.code) + ' · ' : '') + '×' + r.qty;
     if (r.is_bulk && r.code) sub = esc(r.code) + ' · ' + sub;
+    if (r.geleverd === false) sub += ' <span class="pil" style="background:#ffedd5;color:#c2410c">niet geleverd</span>'; // TF1 G10
     var melding = nietMee ? '<i>' + esc(REDEN_TEKST[r.niet_mee.reden] || 'niet mee') + ' → blijft open als nieuwe taak</i>'
       : gespl ? '<i>' + r.niet_mee.aantal + ' ' + esc(REDEN_TEKST[r.niet_mee.reden] || 'niet mee') + ' → blijven open als nieuwe taak</i>' : '';
     var k1 = nietMee ? '<button type="button" class="k rood" data-act="nietmee-terug" data-a="' + r.check_id + '" aria-label="Terugdraaien"><span>✕</span>' + esc(REDEN_TEKST[r.niet_mee.reden] || 'niet mee') + '</button>'

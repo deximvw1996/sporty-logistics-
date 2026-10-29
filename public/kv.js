@@ -64,6 +64,9 @@
     var tellenS = afw.concat(nog ? [nog + (nog === 1 ? ' bak' : ' bakken') + ' nog te tellen'] : []).join(' · ') || 'Alles geteld';
     var av = data.aanvragen || [], nieuw = av.filter(function (a) { return a.status === 'nieuw'; }).length;
     var avS = av.slice(0, 2).map(function (a) { return esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + (a.antwoord ? ' — ' + esc(a.antwoord) : ''); }).join(' · ') || 'Nog geen aanvragen';
+    // TF1 G9: een herinnering of notitie van kantoor staat bovenaan de kaart Aanvragen.
+    var mk = data.meldingen_kantoor || [];
+    if (mk.length) avS = '<b>Bericht van kantoor: ' + esc(mk[0].tekst) + '</b>' + (av.length ? ' · ' + avS : '');
     var mc = data.meldingen_chauffeur || [], bs = data.boodschappen || [];
     var kaarten = leveringKaart('Levering', data.levering) + leveringKaart('Ophaling', data.ophaling)
       + '<button type="button" class="kaartB blauw" data-act="tab" data-a="tellen"><div class="t">Tellen · ' + ts.klaar + '/' + ts.totaal + ' bakken</div><div class="s">' + esc(tellenS) + '</div><div class="pijl">›</div></button>'
@@ -89,13 +92,15 @@
     }).join('') || '<div class="leeg">Nog geen bakken gekoppeld aan dit kampmoment.</div>';
     var versturen = monitor ? '' : '<button type="button" class="knop breed" data-act="versturen">Telling versturen (' + ts.klaar + '/' + ts.totaal + ')</button><div class="hint" style="margin-top:8px">Versturen kan ook als nog niet alles geteld is; kantoor ziet wat ontbreekt.</div>';
     return kopOverzicht(data, 'Tellen · ' + ts.klaar + '/' + ts.totaal + ' bakken', 'maandag nakijken · tik een bak om te tellen')
-      + '<div class="body">' + lijst + versturen + '</div>' + tabsHtml(data, 'tellen', monitor);
+      + '<div class="body">' + (!data.levering || data.levering.status !== 'gedaan' ? '<div class="hint">⚠ Levering nog niet aangekomen: tel pas als alles er staat.</div>' : '') + lijst + versturen + '</div>' + tabsHtml(data, 'tellen', monitor);
   }
 
   // ── Telscherm ──
   function itemHtml(b, it, st) {
     var kl = KLEUR[it.status] || '', open = st.open === it.id, afw = it.status === 'tekort' || it.status === 'kapot' || it.status === 'te_veel';
-    var tweede = afw ? '<button type="button" class="act af" data-act="anders" data-a="' + it.id + '">' + (it.status === 'te_veel' ? 'te veel' : it.status) + '</button>'
+    // TF1 G13: toon álle afwijkingen van het stuk, met aantallen (bv. "kapot 1 · te veel 2").
+    var afwTekst = [it.aangetroffen != null && it.aangetroffen < it.gewenst ? 'tekort ' + (it.gewenst - it.aangetroffen) : '', it.kapot_aantal > 0 ? 'kapot ' + it.kapot_aantal : '', it.te_veel > 0 ? 'te veel ' + it.te_veel : ''].filter(Boolean).join(' · ');
+    var tweede = afw ? '<button type="button" class="act af" data-act="anders" data-a="' + it.id + '">' + esc(afwTekst || (it.status === 'te_veel' ? 'te veel' : it.status)) + '</button>'
       : '<button type="button" data-act="anders" data-a="' + it.id + '">anders</button>';
     var eerste = '<button type="button" class="' + (it.status === 'ok' ? 'act' : '') + '" data-act="klopt" data-a="' + b.id + '" data-b="' + it.id + '">✓ ' + it.gewenst + '</button>';
     var ex = '';

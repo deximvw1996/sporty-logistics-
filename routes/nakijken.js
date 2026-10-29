@@ -61,9 +61,10 @@ module.exports = function(ctx){
     items.forEach(it=>{
       const r=regels.find(x=>x.item_id===it.id);
       if(!r||r.aangetroffen==null)return;
-      if(r.aangetroffen<it.qty)tekort++;
-      else if(r.aangetroffen>it.qty)teVeel++;
-      if((r.kapot_aantal||0)>0)kapot++;
+      // TF1 G13: tel stuks, geen regels ("te veel 2" als er 2 te veel zijn).
+      if(r.aangetroffen<it.qty)tekort+=it.qty-r.aangetroffen;
+      else if(r.aangetroffen>it.qty)teVeel+=r.aangetroffen-it.qty;
+      kapot+=(r.kapot_aantal||0);
     });
     const niet=items.length-geteld;
     if(geteld===0)return {geteld,tekort,teVeel,kapot,tekst:'niet geteld'};
@@ -240,7 +241,11 @@ module.exports = function(ctx){
     const b=req.body||{};
     const actie=b.kantoor_actie===undefined?r.kantoor_actie:String(b.kantoor_actie||'');
     if(!ALLE_ACTIES.includes(actie))return res.status(400).json({error:'Onbekende actie: '+actie});
-    const aantal=b.kantoor_aantal===undefined?(r.kantoor_aantal||0):parseFloat(b.kantoor_aantal);
+    // TF1 G14: zonder kantoor_aantal het afwijkingsaantal van de actie (zoals _afronden), niet stil 0.
+    const AFW={bestellen:'tekort',uit_pool:'tekort',naar_pool:'te_veel',laten_staan:'te_veel',afschrijven_bestellen:'kapot',herstellen:'kapot'};
+    const afwAantal=soort=>soort==='tekort'?Math.max(0,(r.verwacht||0)-(r.aangetroffen||0)):soort==='te_veel'?Math.max(0,(r.aangetroffen||0)-(r.verwacht||0)):soort==='kapot'?(r.kapot_aantal||0):0;
+    const aantal=b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
+      :(b.kantoor_actie!==undefined&&actie?afwAantal(AFW[actie]||_afwijking(r,r.verwacht||0)):(r.kantoor_aantal||0));
     if(isNaN(aantal)||aantal<0)return res.status(400).json({error:'Het aantal moet 0 of meer zijn.'});
     const notitie=b.kantoor_notitie===undefined?(r.kantoor_notitie||''):String(b.kantoor_notitie||'').slice(0,500);
     updateMetLog(req,'nakijk_regels',r.id,{kantoor_actie:actie,kantoor_aantal:aantal,kantoor_notitie:notitie},'nakijken');
