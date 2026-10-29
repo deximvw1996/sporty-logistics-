@@ -1,0 +1,85 @@
+/* public/ritplanning.css — RP1: exacte kopie van de stijlen in design/RITPLANNING-DEFINITIEF.html (E1 + lade).
+   Weggelaten: de demo-balk (.keuze) en de stijlen van de niet-gekozen varianten E2/E3; het frame vult het venster
+   i.p.v. vast 1920×900 (op 1920×900 identiek). Onderaan: aanvullingen zonder nieuwe ontwerpelementen. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.frame{display:block;width:100%;max-width:1920px;height:100vh;margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
+button{font:inherit;cursor:pointer;border:0}button:disabled{opacity:.35;cursor:default}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.oranje{background:#ffedd5;color:#c2410c}.pil.rood{background:#fee2e2;color:#b91c1c}
+.kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 14px;display:flex;flex-direction:column;min-height:0}
+.kaart h3{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;gap:8px;align-items:center;height:36px}
+.h3r{margin-left:auto;display:flex;gap:4px}
+.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}
+.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
+.top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
+.top .logo{font-size:17px;font-weight:800;color:#1e3a8a;margin-right:22px}
+.top a{height:40px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;cursor:pointer}
+.top a.act{background:#eff6ff;color:#1d4ed8}.top a .b{background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:999px}
+.top .rechts{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#64748b}.top .rechts b{color:#1e3a8a}
+.sub{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:4px}
+.sub a{height:36px;padding:0 12px;border-radius:8px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#64748b;cursor:pointer}
+.sub a.act{color:#1d4ed8;background:#eff6ff}
+.sub .leg{margin-left:24px;display:flex;gap:14px;font-size:12px;color:#334155;align-items:center}.sub .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}.sub .leg em{font-style:normal;color:#94a3b8}
+.sub .week{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px}
+.scroll{overflow-y:auto;min-height:0;flex:1;padding-right:4px}
+.open{display:flex;align-items:center;gap:10px;padding:5px 0 5px 10px;border-top:1px solid #f1f5f9;border-left:3px solid #cbd5e1;min-height:50px}
+.open.oranje{border-left-color:#f59e0b}.open.rood{border-left-color:#dc2626}
+.open .nm{flex:1;font-size:13px;font-weight:600;line-height:1.3}.open .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
+.ritkop{display:flex;align-items:center;gap:12px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;margin-bottom:4px;flex-wrap:wrap}
+.ritkop>div:first-child b{display:block;font-size:15px;font-weight:800}.ritkop>div:first-child span{font-size:12px;color:#64748b}
+.ritkop i{font-style:normal;font-weight:700;color:#15803d}.ritkop i.over{color:#b91c1c}
+.ritkop .waarsch{background:#fee2e2;color:#b91c1c;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px}
+.ritkop .acties{margin-left:auto;display:flex;gap:6px}
+.stop{display:flex;align-items:center;gap:10px;padding:4px 0 4px 10px;border-top:1px solid #f1f5f9;border-left:3px solid #334155;min-height:48px}
+.stop.vrij{border-left-color:#f59e0b;border-left-style:dashed}
+.stop .t{width:44px;font-weight:700;font-size:13px}.stop .nm{flex:1;font-size:13px;font-weight:600;line-height:1.3}.stop .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
+.pijl{display:flex;gap:2px}.pijl button{width:36px;height:36px;border-radius:8px;background:#f1f5f9;color:#1e3a8a;font-size:12px}
+.wk{background:#f8fafc}.wk i{font-style:normal;font-size:10px;color:#c2410c;font-weight:600;display:block}
+/* agenda */
+.agenda{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:8px 12px;display:flex;flex-direction:column;min-height:0}
+.dagkop{display:flex;gap:10px;font-size:13px;font-weight:800;height:40px;align-items:center;margin-bottom:4px}
+.dagkop .tk{flex:0 0 52px}.dagkop>div{padding:0 10px;display:flex;align-items:center;gap:6px;height:40px;border-radius:8px 8px 0 0;min-width:0;overflow:hidden;white-space:nowrap;background:#e2e8f0;border:1px solid #cbd5e1;border-bottom:0;font-size:14px}
+.dagkop>div.wk{background:#f1f5f9;color:#64748b;border-style:dashed}
+.dagkop>div.act{background:#1e3a8a;color:#fff;border-color:#1e3a8a}.dagkop>div.act .pil{background:rgba(255,255,255,.2);color:#fff}
+.raster{display:flex;gap:10px;flex:1;min-height:0}
+.raster .tk{flex:0 0 52px;display:flex;flex-direction:column;font-size:11px;color:#64748b}.raster .tk span{flex:1;border-top:1px solid #e2e8f0}
+.kolom{position:relative;display:flex;flex-direction:column;border-radius:0 0 8px 8px;background:#fafafa;min-width:0;border:1px solid #cbd5e1;border-top:0}.kolom:nth-child(odd){background:#f3f4f6}.kolom i{flex:1;border-top:1px solid #e2e8f0}.kolom.wk{border-style:dashed}
+.kolom.act{background:#eef4ff;border-color:#1e3a8a;border-width:2px;border-top:0}.kolom .plus{position:absolute;left:6px;top:8px}
+.be{position:absolute;background:#fff;border:2px solid #2563eb;border-radius:8px;padding:3px 5px;font-size:11px;overflow:hidden;line-height:1.3;min-height:40px}
+.be.gedaan{background:#f0fdf4}.be.onderweg{background:#eff6ff}.be.w{background:#fff5f5}.be.sel{box-shadow:0 0 0 3px #bfdbfe}
+.be b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.be span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.be .vt{color:#64748b}.be span.vrij{color:#c2410c}
+/* inzoom (D) */
+.inzoom{display:flex;flex-direction:column;min-height:0;overflow-y:auto}
+.inzoom .uren{display:flex;font-size:11px;color:#64748b;height:18px}.inzoom .uren .wie{flex:0 0 130px;font-weight:700;color:#334155}.inzoom .uren span:not(.wie){flex:1;border-left:1px solid #e2e8f0;padding-left:3px}
+.inzoom .rij{display:flex;min-height:64px;border-top:1px solid #f1f5f9}.inzoom.compact .rij{min-height:58px}
+.inzoom .wie{flex:0 0 130px;padding:6px 6px 0 0}.inzoom .wie b{display:block;font-size:14px}.inzoom .wie span{font-size:11px;color:#64748b}
+.inzoom .spoor{flex:1;position:relative;display:flex}.inzoom .spoor i{flex:1;border-left:1px solid #f1f5f9}
+.inzoom .leeg{position:absolute;left:6px;top:10px}
+.inzoom .blok{position:absolute;top:5px;height:48px;background:#fff;border:2px solid #2563eb;border-radius:8px;padding:2px 6px;font-size:11px;white-space:nowrap;overflow:visible}
+.inzoom .blok.w{background:#fff5f5}.inzoom .blok.sel{box-shadow:0 0 0 3px #bfdbfe}.inzoom .blok b{font-size:11px}
+.inzoom .blok em{position:absolute;top:24px;transform:translateX(-50%);font-style:normal;background:#fff;border:1px solid #cbd5e1;border-radius:5px;padding:1px 4px;font-size:10px;font-weight:600}
+.inzoom .blok em.vrij{border-style:dashed;border-color:#f59e0b;color:#c2410c}
+.inzoom .rij.ander{min-height:44px}.inzoom .rij.ander .wie b{color:#2563eb;font-size:13px}.inzoom .leegspoor{align-items:center;font-size:11px;color:#64748b;padding-left:8px}
+/* E1 */
+#f1 .body1{display:flex;flex-direction:column;gap:10px;padding:10px 28px;height:calc(100vh - 104px)}
+#f1 .agenda.boven{flex:1}
+#f1 .lade{height:360px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:8px 14px;display:flex;flex-direction:column;min-height:0;border-top:4px solid #2563eb}
+#f1 .ladekop{display:flex;align-items:center;gap:12px;height:36px;font-size:14px}#f1 .ladekop span{font-size:12px;color:#64748b}#f1 .ladekop button:nth-of-type(1){margin-left:auto}
+#f1 .ladegrid{display:grid;grid-template-columns:1fr 640px;gap:14px;flex:1;min-height:0}
+#f1 .ladegrid .detail{padding:0 0 0 14px;border-left:1px solid #e2e8f0;border-radius:0;box-shadow:none}
+#f1 .detail .stop{min-height:44px;padding:2px 0 2px 10px}
+#f1 .inzoom .rij{min-height:46px}#f1 .inzoom .rij.ander{min-height:40px}#f1 .inzoom .blok{height:36px;top:4px}#f1 .inzoom .blok em{display:none}#f1 .inzoom .blok b{line-height:30px}
+/* ── aanvullingen ── */
+.top a,.sub a{text-decoration:none}.dagkop>div,.kolom,.be,.inzoom .blok{cursor:pointer}.stop .pil{cursor:pointer}
+.leegtxt{font-size:13px;color:#94a3b8;padding:10px 4px}
+.form{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px;padding:6px 0}.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:#64748b}
+.form input,.form select{height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 8px;font:inherit;font-size:13px;color:#1a1a1a;background:#fff}
+.form .knoppen{grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end}
+.per{position:relative;cursor:pointer}.per select{position:absolute;inset:0;opacity:0;cursor:pointer;font:inherit}
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2600;display:flex;align-items:center;justify-content:center;padding:12px}
+.mbox{background:#fff;border-radius:12px;padding:1.25rem;width:440px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.mbox h4{font-size:16px;font-weight:600;margin-bottom:6px}.mbox p{font-size:13px;color:#64748b;margin-bottom:12px;white-space:pre-line}.mbox .form{grid-template-columns:1fr}
+.mbox .chk{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:500;color:#1a1a1a;flex-direction:row}
+#toasts{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#toasts div{padding:10px 16px;border-radius:10px;color:#fff;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.18);max-width:320px;pointer-events:auto;cursor:pointer}

@@ -62,7 +62,7 @@
     toast(a.label+': gelukt','success');
     laad();
   });
-  $('rit-plannen').onclick=()=>{location.href='/#transport-plan';};
+  $('rit-plannen').onclick=()=>{location.href='/ritplanning';};
 
   // Groot / Compact: voorkeur per gebruiker (GET/PUT /api/mij/voorkeuren).
   for(const [id,w] of [['wgG','groot'],['wgC','compact']])

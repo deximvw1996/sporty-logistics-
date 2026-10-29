@@ -114,7 +114,7 @@ module.exports = function(ctx){
         :`${(t.opmerking||'Transfer').replace(/^🚨\s*/,'')}: ${_locNaam(t.van_locatie_id)} → ${_locNaam(t.naar_locatie_id)}`;
       inplannen.push({id:'taak-'+t.id,taak_id:t.id,ico,kleur:'oranje',titel,pil:weekend?'weekend':null,
         sub:[t.datum?datumKort(t.datum):null,stuks||null,weekend?'weekend = uitzondering':null,'nog geen rit'].filter(Boolean).join(' · '),
-        acties:[link('Op een rit zetten','transport-plan?taak='+t.id)]});
+        acties:[{label:'Op een rit zetten',primair:true,soort:'link',url:'/ritplanning?taak='+t.id}]});
     });
     all(`SELECT * FROM transport_ritten WHERE datum>=? AND datum<=? AND status NOT IN ('gedaan','geannuleerd') ORDER BY datum,id`,[weekStart,weekEind]).forEach(r=>{
       const n=get(`SELECT COUNT(*) AS n FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd'`,[r.id]).n;
@@ -124,7 +124,7 @@ module.exports = function(ctx){
       inplannen.push({id:'rit-'+r.id,rit_id:r.id,ico:'🚐',kleur:'oranje',
         titel:`Rit #${r.id} heeft nog geen ${geenCh?'chauffeur':'voertuig'}`,
         sub:[datumKort(r.datum),geenCh?null:r.chauffeur,`${n} stop${n===1?'':'s'}`].filter(Boolean).join(' · '),
-        acties:[link(geenCh?'Chauffeur kiezen':'Voertuig kiezen','transport-plan?rit='+r.id)]});
+        acties:[{label:geenCh?'Chauffeur kiezen':'Voertuig kiezen',primair:true,soort:'link',url:'/ritplanning?rit='+r.id}]});
     });
 
     // ── Conflicten (bestaande detector) → capaciteit naar Inplannen, de rest naar Nakijken ──
