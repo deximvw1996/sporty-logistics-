@@ -69,7 +69,8 @@ module.exports = function(ctx){
     if(w.actie==='insert')return `${w.tabel} #${w.rij_id} aangemaakt`;
     if(w.actie==='delete')return `${w.tabel} #${w.rij_id} verwijderd`;
     const k=Object.keys(n).filter(x=>String(o[x]??'')!==String(n[x]??'')&&x!=='pincode');
-    return `${w.tabel} #${w.rij_id}: `+(k.length?k.map(x=>`${x} ${o[x]||'—'} → ${n[x]||'—'}`).join(', '):'gewijzigd');
+    const v=x=>x===null||x===undefined||x===''?'—':x;
+    return `${w.tabel} #${w.rij_id}: `+(k.length?k.map(x=>`${x} ${v(o[x])} → ${v(n[x])}`).join(', '):'gewijzigd');
   }
   // Terugdraaien: er bestaat (nog) geen route die één wijziging terugzet (GEVONDEN TR1 #1) → overal false met reden.
   const _wRegel=w=>{const d=alsDatum(w.tijdstip);return {bron:'wijziging',id:'w'+w.id,wijziging_id:w.id,t:w.tijdstip,tijd_tekst:tijdTekst(w.tijdstip),sort:d?+d:0,
