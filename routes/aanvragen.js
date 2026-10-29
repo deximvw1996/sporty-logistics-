@@ -67,6 +67,29 @@ module.exports = function(ctx){
     const d=new Date(vandaag);d.setHours(12);while(!isWerkdag(d))d.setDate(d.getDate()+1);
     return isoDate(d);
   }
+  // CH1 punt 4: chauffeur meldt een probleem bij een stop (rit-link, geen sessie) → aanvraag voor kantoor
+  // én zichtbaar in de kv-data van dat kampmoment (meldingen_chauffeur).
+  app.post('/api/rit-token/:token/taken/:taakId/probleem',(req,res)=>{
+    const rit=get('SELECT * FROM transport_ritten WHERE rit_token=?',[req.params.token]);
+    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.taakId]);
+    if(!taak||taak.rit_id!==rit.id)return res.status(403).json({error:'Deze stop hoort niet bij deze rit'});
+    const soort=req.body?.soort;
+    const soortTekst={gesloten:'locatie gesloten',past_niet_lokaal:'past niet in het lokaal',anders:'ander probleem'}[soort];
+    if(!soortTekst)return res.status(400).json({error:"soort moet 'gesloten', 'past_niet_lokaal' of 'anders' zijn"});
+    const tekst=(req.body?.tekst||'').toString().trim().slice(0,1000);
+    if(soort==='anders'&&!tekst)return res.status(400).json({error:'Beschrijf kort wat er mis is'});
+    const locId=taak.type==='ophaling'?(taak.van_locatie_id||taak.naar_locatie_id):(taak.naar_locatie_id||taak.van_locatie_id);
+    const loc=locId?get('SELECT name FROM locaties WHERE id=?',[locId]):null;
+    let f={pad:'',url:''};
+    try{ if(req.body?.foto_data) f=fotos.verwerkWaarde(req.body.foto_data,'','aanvraag'); }
+    catch(e){ return res.status(e.status||400).json({error:e.message||'Foto kon niet bewaard worden'}); }
+    const volledig=`Chauffeur ${rit.chauffeur||'?'} bij ${loc?loc.name:'?'}: ${soortTekst}${tekst?' — '+tekst:''}`;
+    const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
+      [taak.kampmoment_id||null,rit.personeel_id||null,'probleem_chauffeur',volledig,f.url,f.pad,'nieuw',now()],'rit-link');
+    logAct('aanvraag','aangemaakt',`⚠️ ${volledig}`,locId,loc?loc.name:null);
+    res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
+  });
   app.put('/api/aanvragen/:id/status',(req,res)=>{
     const{status,reden,maak_spoedtransport,spoedtransport}=req.body;
     const a=get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]);

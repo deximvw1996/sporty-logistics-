@@ -82,3 +82,150 @@
 ### Buiten mijn gebied
 - `POST /api/vaste-bakken` (aanmaken van een bulk-rij) schrijft de eerste spreidingsrij nog met kale `ins` (niet gelogd); dat is geen verplaatsing en de som klopt (= aantal), dus ik heb het gelaten.
 - `PUT /api/transport-taken/:id/rit` (locaties.js) synchroniseert de checks niet zelf; dat gebeurt lui bij het lezen (zie punt 1).
+
+---
+## CH1 — Chauffeursscherm deel 1: data en API (chat C, Opus) — 2026-10-29
+
+**Gebied:** `lib/migraties.js` (migratie 73), `routes/transport.js` (API; de rit-pagina-HTML is NIET aangeraakt), `routes/locaties.js`, `routes/aanvragen.js`, `scripts/test-ch1-rit-api.mjs`.
+**Buiten mijn gebied (gemeld):**
+- `routes/kv.js`: één veld `meldingen_chauffeur` in de kv-data — door de prompt gevraagd.
+- `routes/beheer.js`: export, 1 regel die de contactvelden weglaat — door de prompt gevraagd.
+- `scripts/test-f1-modules.mjs`: 1 regel die `/api/rit-token/:token` invult; zonder die regel kan de route-inventaris de nieuwe GET-route niet aanroepen.
+
+**Ontwerpbestand:** `design/CHAUFFEUR-DEFINITIEF.html` staat NIET in de repo (alleen `chauffeur-drieluik-1.html`). Ik werkte op `DESIGN-BRIEF.md` scherm 1 en deze prompt.
+
+### Afwijkingen (bewust, met reden)
+- **Geen dubbele kolommen.** `locaties` heeft al `addr` en `contact_tel`, `personeel` heeft al `telefoon`. Ik voeg alleen `sleutel_info` toe. De API gebruikt wél de namen uit de prompt:
+  - `PUT /api/locaties/:id` aanvaardt `contact_telefoon` en `adres` als alias. De alias wint als hij verschilt van wat er al staat.
+  - `GET /api/locaties` geeft `contact_telefoon` en `adres` mee naast de oude namen.
+  - De rit-data gebruikt alleen de nieuwe namen.
+- **`slot` zetten.** `PUT /api/transport-taken/:id` met `slot`:
+  - alleen rol `kantoor` (anders 403);
+  - 400 bij een andere waarde dan `vast`/`vrij`;
+  - een body met enkel `slot` wijzigt enkel het slot (de bestaande route overschrijft anders alle velden).
+- **Contactvelden** (`contact_naam`, `contact_tel`/`contact_telefoon`, `sleutel_info`) wijzigt alleen kantoor. De andere locatievelden blijven open voor elke ingelogde gebruiker.
+- **Stop met enkel "niet mee"-stukken** sluit vanzelf af: de taak gaat op `gedaan` via `_rondTaakAf`, en wat niet mee ging wacht in de rest-taak.
+  - "Niet mee"-stukken tellen niet mee voor "alles geladen/gelost".
+  - Terugdraaien heropent een al afgesloten stop NIET; dat doet kantoor met "terug op gepland".
+- **Bulk "niet mee".** `aantal` = wat WEL mee gaat. De check krijgt qty = aantal en blijft laadbaar; de rest-taak krijgt een regel `(qty−aantal) × naam`.
+
+### Wat af is
+- **Punt 1 — slot, volgorde en wissel.**
+  - Migratie 73: `transport_taken.slot` (default `'vast'`), `volgorde` en `rest_van_rit_id`. Backfill per rit op tijd, dan id, gegate met `migratie73_klaar`.
+  - De volgorde wordt bij elke lezing genormaliseerd naar 1..n; nieuwe taken komen achteraan op tijd.
+  - `GET /api/ritten/:id` (nieuw) en `GET /api/ritten` geven de taken op volgorde, met `slot`/`volgorde`/`tijd`.
+  - `POST /api/rit-token/:token/taken/:taakId/wissel {richting}`:
+    - werkt alleen als beide stops `vrij` zijn, anders 409 "<locatie> staat vast door kantoor — …";
+    - volgorde én tijd van de twee taken worden omgewisseld;
+    - gelogd via `updateMetLog` met context `rit-link` + `activiteiten_log` "Chauffeur X wisselde stop A en B (rit #n)";
+    - eerste stop omhoog of laatste stop omlaag → 409; fout token → 403.
+- **Punt 2 — contacten.** Zie de afwijkingen hierboven. De export bevat `locaties` zonder `contact_tel`, `contact_telefoon` en `sleutel_info`.
+- **Punt 3 — per stuk en niet mee.**
+  - `GET /api/rit-token/:token/data` (nieuw, publiek via de rit-token-prefix) is de bron voor chat D.
+  - `POST /api/rit-token/:token/checks/:checkId/niet-mee {reden:'past_niet'|'niet_gevonden'|'kapot'|null, opmerking, aantal}`:
+    - maakt één rest-taak per rit + bestemming: gepland, `rit_id` null, `slot='vrij'`, opmerking "Rest van rit #id: past niet[, niet gevonden…]";
+    - een volgende niet-mee voor dezelfde bestemming vult die rest-taak aan;
+    - `reden:null` draait terug, en een lege rest-taak wordt verwijderd (met `delMetLog`);
+    - laden van een niet-mee-stuk → 409; een al geladen stuk op niet-mee zetten → 409.
+- **Punt 4 — probleem melden.** `POST /api/rit-token/:token/taken/:taakId/probleem {soort:'gesloten'|'past_niet_lokaal'|'anders', tekst, foto_data}`:
+  - maakt een rij in `aanvragen` met `soort='probleem_chauffeur'`, status `nieuw` en het `kampmoment_id` van de taak;
+  - tekst: "Chauffeur <naam> bij <locatie>: <soort> — <tekst>";
+  - foto via `lib/fotos.js` (`foto_path` + de URL in `foto_data`);
+  - `anders` zonder tekst → 400;
+  - zichtbaar in `GET /api/aanvragen` en in `GET /api/kv/:token/data` als `meldingen_chauffeur: [{id, tekst, status, created_at, foto_data(URL)}]`.
+
+### CONTRACT voor chat D — `GET /api/rit-token/:token/data`
+```json
+{
+  "rit": { "id": 22, "datum": "2026-11-02", "chauffeur": "Test Chauffeur", "voertuig": "", "status": "gepland|onderweg|gedaan" },
+  "voortgang": { "stops": 3, "stops_gedaan": 0, "huidige_stop": 1, "stuks": 4, "geladen": 0, "gelost": 0 },
+  "stops": [
+    {
+      "taak_id": 196, "volgorde": 1, "slot": "vast|vrij", "tijd": "09:00",
+      "type": "levering|ophaling|transfer|extra", "status": "gepland|aangekomen|gedaan|geannuleerd",
+      "opmerking": "…",
+      "van":  { "id": 7,  "naam": "Rozenweg" },
+      "naar": { "id": 29, "naam": "Abdijschool Vlierbeek" },
+      "locatie": { "id": 29, "naam": "Abdijschool Vlierbeek", "adres": "…", "contact_naam": "Conciërge Jan",
+                   "contact_telefoon": "0470 11 22 33", "sleutel_info": "Sleutel bij de buren nr. 12" },
+      "kv": { "naam": "Test KV Abdijschool", "telefoon": "0499 88 77 66" },
+      "regels": [
+        { "check_id": 83, "code": "N20", "naam": "Bak Themabak 1/4 (kleuterbak) (N20)", "qty": 1, "soort": "thema",
+          "rek": "N", "foto_url": null, "bak_id": 11854, "attribuut_id": null, "is_bulk": false,
+          "geladen": false, "gelost": false, "aantal_geladen": null,
+          "niet_mee": null }
+      ]
+    }
+  ]
+}
+```
+- `locatie` = de plek waar de chauffeur bij die stop staat: bij `ophaling` de van-locatie, anders de naar-locatie. `null` als er geen locatie is.
+- `kv` = `null` als het kampmoment geen KV heeft of de taak geen kampmoment heeft.
+- `rek` = de eerste letter van de code, anders uit "(X12)" in de naam, anders `null`.
+- `foto_url` = `/uploads/…` of `null`. Bak: `foto_opgeplooid` als dat een URL is; attribuut: `/uploads/` + `foto_path`. De data bevat geen bak-inhoud.
+- `aantal_geladen`: alleen bij bulk (qty als het stuk geladen is, anders 0); anders `null`.
+- `niet_mee`: `null` of `{ "reden": "past_niet|niet_gevonden|kapot", "opmerking": "…", "aantal": <aantal dat NIET mee gaat> }`.
+- `voortgang.stuks/geladen/gelost` tellen niet-mee-stukken niet mee. `huidige_stop` = de volgorde van de eerste stop die niet `gedaan` is.
+- **Acties** (allemaal `POST`, zonder sessie, via de rit-token):
+  - `…/checks/:checkId/laden` en `…/checks/:checkId/lossen` (bestaand, togglen);
+  - `…/checks/:checkId/niet-mee`;
+  - `…/taken/:taakId/aangekomen` (bestaand);
+  - `…/taken/:taakId/wissel {richting:"omhoog"|"omlaag"}` → `{ok, taken:[{id,volgorde,tijd,slot}]}`;
+  - `…/taken/:taakId/probleem`.
+- Fouten zijn altijd `{error:"<Nederlandse tekst>"}` met status 400, 403 of 409, zodat chat D ze rechtstreeks in een toast kan tonen.
+
+### Bewijs (`scripts/test-ch1-rit-api.mjs`, eigen server 3332, herfst-test.db): 38 ok / 0 fout
+- **Locatie en slot:**
+  - `contact_telefoon` (alias) en `sleutel_info` worden bewaard; GET geeft ze mee.
+  - Een nieuwe taak krijgt slot `vast`; kantoor zet hem op `vrij`; slot `half` → 400.
+  - `GET /api/ritten/:id` geeft de taken op volgorde, met slot/volgorde/tijd.
+- **Wissel:**
+  - Wissel omlaag op stop 2 → volgorde 1,3,2 (taken 196, 198, 197); tijden: stop 3 → 10:00, stop 2 → 11:00.
+  - 2 regels in `wijzigingen` met context `rit-link`; `activiteiten_log`: "Chauffeur Test Chauffeur wisselde stop Betekom en Abdijschool Vlierbeek (rit #22)".
+  - Wissel met een vaste stop → 409 "Abdijschool Vlierbeek staat vast door kantoor — …"; laatste stop omlaag → 409; fout token → 403.
+- **Rit-data:**
+  - 3 stops + voortgang.
+  - Stop 1 heeft locatie met contact, telefoon, sleutel-info en adres, en een kv met naam + telefoon.
+  - Regel N20 heeft `rek` N, `foto_url`, `qty`, `geladen`/`gelost`; de bulkregel heeft `aantal_geladen` 0; de attribuut-regel is aanwezig; geen bak-inhoud.
+- **Niet mee:**
+  - Past niet → rest-taak #199 "Rest van rit #22: past niet" (gepland, zonder rit, vrij, naar Abdijschool) met de H53-regel, zichtbaar in `/api/transport-taken`.
+  - De check blijft niet geladen; laden → 409; de data toont `niet_mee`.
+  - Bulk 3 van 5 mee → dezelfde rest-taak krijgt +2, de check qty 3; terugdraaien → qty weer 5.
+  - Terugdraaien H53 → rest-taak weg, regel terug bij de stop.
+  - Een stop met enkel een niet-mee-stuk sluit af.
+- **Probleem melden:**
+  - Aanvraag "Chauffeur Test Chauffeur bij Abdijschool Vlierbeek: locatie gesloten — poort op slot" met foto.
+  - Staat in `/api/aanvragen` (status nieuw) en in de kv-data onder `meldingen_chauffeur`; ongeldige soort → 400.
+- **Export:** bevat geen `contact_tel`, `contact_telefoon` of `sleutel_info`.
+
+### Volle run (2×, identiek): 14/16 groen
+| test | uitslag | ok | fout |
+|---|---|---|---|
+| ch1-rit-api | GROEN | 38 | 0 |
+| f1-modules | GROEN | 85 | 0 |
+| f1-schrijven | GROEN | 22 | 0 |
+| f1-wijzigingen | GROEN | 46 | 0 |
+| keten-aanvraag | GROEN | 12 | 0 |
+| keten-kv-periode | GROEN | 19 | 0 |
+| keten-levering | GROEN | 44 | 0 |
+| keten-ophaling | GROEN | 7 | 0 |
+| keten-periode | GROEN | 14 | 0 |
+| keten-splits | GROEN | 9 | 0 |
+| v3a-keten | GROEN | 52 | 0 |
+| v3b-ui | GROEN | 15 | 0 |
+| v3c-catalogus | GROEN | 33 | 0 |
+| v3c-fotos | ROOD | 45 | 2 |
+| v3d-bulk | GROEN | 27 | 0 |
+| veiligheid | ROOD | 55 | 3 |
+
+De twee rode tests zijn dezelfde als in V3a/V3d:
+- Beide kopiëren de **lokale `sporty.db` van de werkmap**, niet `herfst-test.db`.
+- Ze falen identiek op een schone kopie van origin/main met de db van sporty-c, dus de oorzaak ligt in die db, niet in CH1.
+- In een werkmap met een recentere `sporty.db` zijn ze mogelijk groen.
+
+`f1-modules` is weer groen na mijn ene regel; zonder die regel was hij rood omdat hij de nieuwe GET-route niet kon invullen.
+
+### GEVONDEN
+- `test-v3c-fotos` en `test-veiligheid` lezen de `sporty.db` van de werkmap, dus hun uitslag hangt af van de map. Voorstel: ze laten draaien op `herfst-test.db`.
+- `design/CHAUFFEUR-DEFINITIEF.html` ontbreekt in de repo, hoewel de prompt ernaar verwijst.
+- De 403 bij `slot` voor een niet-kantoor-gebruiker is niet getest: herfst-test.db heeft geen chauffeur met pincode. De code controleert `req.persoon.rol==='kantoor'`.

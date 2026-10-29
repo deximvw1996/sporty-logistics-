@@ -44,7 +44,9 @@ module.exports = function(ctx){
     res.json({
       kampNaam:(loc?loc.name:'?')+' — week '+km.week,
       kvNaam:_kvNaam(km),
-      bakken:bakkenOut, attributen:attributenOut, aanvragen, boodschappen
+      bakken:bakkenOut, attributen:attributenOut, aanvragen, boodschappen,
+      // CH1: problemen die de chauffeur bij deze locatie meldde (zelfde rij als in kantoor-aanvragen).
+      meldingen_chauffeur:all("SELECT id,tekst,status,created_at,foto_data FROM aanvragen WHERE kampmoment_id=? AND soort='probleem_chauffeur' ORDER BY id DESC",[km.id])
     });
   });
 
