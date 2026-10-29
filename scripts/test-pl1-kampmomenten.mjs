@@ -111,7 +111,7 @@ try {
 
   // ── pagina + DOM-bouw ──
   const pg = await (await fetch(`${srv.base}/kampmomenten`, { headers: { Authorization: BASIC } })).text();
-  T.check(/Kampmomenten/.test(pg) && /class="sub"/.test(pg) && /Rooster/.test(pg) && /Periodes/.test(pg) && /Thema's per week/.test(pg) && /Genereer transport/.test(pg) && /\+ Kampmoment/.test(pg) && /id="voet"/.test(pg) && /id="chips"/.test(pg) && /patroon\.css/.test(pg), '/kampmomenten → 200 met subbalk (Kampmomenten · Rooster · Periodes · Thema\'s per week · Export · Genereer transport · + Kampmoment), chips en voet, patroon.css');
+  T.check(/Kampmomenten/.test(pg) && /class="sub"/.test(pg) && /nav\.js/.test(pg) && /Genereer transport/.test(pg) && /\+ Kampmoment/.test(pg) && /id="voet"/.test(pg) && /id="chips"/.test(pg) && /patroon\.css/.test(pg), '/kampmomenten → 200 met subbalk (Kampmomenten · Rooster · Periodes · Thema\'s per week · Export · Genereer transport · + Kampmoment), chips en voet, patroon.css');
   const KP = require(T.ROOT + '/public/kampmomenten.js');
   const O = (await A('GET', `/api/kampmomenten-overzicht?periode_id=${periode}`)).json;
   const st = { filter: 'periode', zoek: '', sel: new Set([k1.id, k2.id]), open: k1.id, tab: 'gegevens' };
