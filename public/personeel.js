@@ -14,9 +14,7 @@
     setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';setTimeout(()=>t.remove(),300);},type==='error'?5000:3000);
   }
   async function api(methode,url,body){
-    const r=await fetch(url,{method:methode,headers:{'Content-Type':'application/json','x-auth-token':TOKEN},body:body?JSON.stringify(body):undefined});
-    const j=await r.json().catch(()=>({}));
-    return {status:r.status,ok:r.ok,json:j};
+    return window.sportyApi(methode,url,body,{toast:m=>toast(m,'info'),token:TOKEN});
   }
   function vraag({titel,tekst,html,ok='Bevestigen',annuleer='Annuleren',lees}){
     return new Promise(resolve=>{

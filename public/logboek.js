@@ -13,7 +13,7 @@
     t.textContent=msg;t.onclick=()=>t.remove();$('toasts').appendChild(t);
     setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';setTimeout(()=>t.remove(),300);},type==='error'?5000:3000);
   }
-  async function api(m,url){const r=await fetch(url,{method:m,headers:{'x-auth-token':TOKEN}});const j=await r.json().catch(()=>({}));return {status:r.status,ok:r.ok,json:j};}
+  async function api(m,url){return window.sportyApi(m,url,null,{toast:x=>toast(x,'info'),token:TOKEN});}
 
   const Q=new URLSearchParams(location.search);
   const F={van:$('f-van'),tot:$('f-tot'),wie:$('f-wie'),tabel:$('f-tabel'),zoek:$('f-zoek')};

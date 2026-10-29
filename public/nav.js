@@ -60,7 +60,39 @@
       }).catch(function () { /* geen tellers */ });
     }
   }
-  var api = { BOVEN: BOVEN, SUB: SUB, PAGINA: PAGINA, boven: boven, sub: sub, teken: teken };
+  // AF1: gedeelde aanroep voor alle kantoorpagina's, met dezelfde herpoging als haal() in rit.js/kv.js (TF2 G3).
+  // Bij 502/503/504 (de app wordt net bijgewerkt) na 2 s en 5 s opnieuw, één toast; GET ook bij een netwerkfout, POST/PUT/DELETE niet.
+  // Teruggave {status, ok, json}; na de laatste poging komt gewoon het laatste antwoord terug (of de netwerkfout wordt gegooid).
+  var herhaalMelding = false;
+  function melding(msg) {
+    if (typeof document === 'undefined') return;
+    var c = document.getElementById('toasts');
+    if (!c) { c = document.createElement('div'); c.id = 'toasts'; c.style.cssText = 'position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:100;font:14px system-ui;color:#fff'; document.body.appendChild(c); }
+    var t = document.createElement('div');
+    t.style.cssText = 'padding:12px 16px;border-radius:10px;font-weight:600;background:#378ADD;cursor:pointer'; t.textContent = msg; t.onclick = function () { t.remove(); };
+    c.appendChild(t); setTimeout(function () { t.remove(); }, 6000);
+  }
+  async function sportyApi(methode, url, body, deps) {
+    deps = deps || {};
+    var f = deps.fetch || root.fetch.bind(root);
+    var wacht = deps.wacht || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+    var tok = deps.token; if (tok === undefined) { try { tok = root.localStorage.getItem('sporty-auth-token'); } catch (e) { tok = null; } }
+    var get = !methode || methode === 'GET', pauzes = [2000, 5000], r, fout;
+    var opts = { method: methode || 'GET', headers: { 'Content-Type': 'application/json', 'x-auth-token': tok || '' }, body: body ? JSON.stringify(body) : undefined };
+    for (var i = 0; ; i++) {
+      r = null; fout = null;
+      try { r = await f(url, opts); } catch (e) { fout = e; }
+      var weg = fout ? get : (r.status === 502 || r.status === 503 || r.status === 504);
+      if (!weg || i >= pauzes.length) { if (fout) throw fout; break; }
+      if (!herhaalMelding) { (deps.toast || melding)('Even geduld, de app wordt bijgewerkt…'); herhaalMelding = true; }
+      await wacht(pauzes[i]);
+    }
+    herhaalMelding = false;
+    var j = {}; try { j = await r.json(); } catch (e) { j = {}; }
+    return { status: r.status, ok: r.ok, json: j };
+  }
+  var api = { BOVEN: BOVEN, SUB: SUB, PAGINA: PAGINA, boven: boven, sub: sub, teken: teken, sportyApi: sportyApi };
+  root.sportyApi = sportyApi;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SportyNav = api;
   teken();

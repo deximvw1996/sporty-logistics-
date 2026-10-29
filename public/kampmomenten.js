@@ -126,10 +126,8 @@
   }
   async function aanroep(methode, url, body) {
     var r, j = {};
-    try { r = await root.fetch(url, { method: methode, headers: { 'Content-Type': 'application/json', 'x-auth-token': TOKEN }, body: body ? JSON.stringify(body) : undefined }); }
+    try { return await root.sportyApi(methode, url, body, { toast: function (m) { toast(m, 'info'); }, token: TOKEN }); }
     catch (e) { toast('Geen verbinding — probeer het zo opnieuw.', 'error'); return { ok: false, status: 0, json: {} }; }
-    try { j = await r.json(); } catch (e) { /* leeg */ }
-    return { status: r.status, ok: r.ok, json: j };
   }
   // vraagModal (zelfde gedrag als index.html): null bij annuleren, anders wat lees() teruggeeft.
   function vraag(o) {
