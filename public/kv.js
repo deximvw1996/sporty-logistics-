@@ -149,9 +149,13 @@
     var mc = (data.meldingen_chauffeur || []).map(function (m) {
       return '<div class="rij"><div class="nm">' + esc(m.tekst) + '<b>' + esc(m.created_at || '') + ' · ' + (m.status === 'afgehandeld' ? 'afgehandeld door kantoor' : m.status === 'nieuw' ? 'wacht op kantoor' : esc(m.status || '')) + '</b></div></div>';
     }).join('');
+    var mk = (data.meldingen_kantoor || []).map(function (m) {
+      return '<div class="rij"><div class="nm">' + esc(m.tekst) + '<b>' + esc(m.created_at || '') + ' · ' + (m.soort === 'herinnering_kv' ? 'herinnering van kantoor' : 'notitie van kantoor') + '</b></div></div>';
+    }).join('');
     return kopOverzicht(data, 'Aanvragen', 'materiaal vragen of kapot melden · kantoor antwoordt hier')
       + '<div class="body"><div class="twee"><button type="button" class="knop" data-act="sheet-open" data-a="materiaal">📩 Materiaal vragen</button><button type="button" class="knop licht" data-act="sheet-open" data-a="kapot">💥 Kapot melden</button></div>'
       + '<div class="sec" style="margin-top:12px"><h3>Mijn aanvragen</h3>' + av + '</div>'
+      + (mk ? '<div class="sec"><h3>Berichten van kantoor</h3>' + mk + '</div>' : '')
       + (mc ? '<div class="sec"><h3>Meldingen chauffeur</h3>' + mc + '</div>' : '') + '</div>' + tabsHtml(data, 'aanvragen', false);
   }
   function sheetHtml(data, sh) {

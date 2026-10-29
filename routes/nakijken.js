@@ -129,8 +129,12 @@ module.exports = function(ctx){
     let items=[];
     if(bak.soort==='attribuut'){
       const st=sessie?sessie.notities:'';
-      items=[{regel_id:null,naam:bak.naam,verwacht:1,aangetroffen:st?1:null,te_veel:0,kapot_aantal:st==='beschadigd'?1:0,notitie:'',foto_url:null,
-        afwijking:!st?'niet_geteld':st==='beschadigd'?'kapot':'klopt',kantoor_actie:'',kantoor_aantal:0,kantoor_notitie:'',aangevuld:0,acties:[]}];
+      // TB1: een beschadigd attribuut heeft een nakijk-regel (door de KV-route aangemaakt) waaraan kantoor een actie hangt.
+      const ar=sessie&&st==='beschadigd'?get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_naam=?',[sessie.id,bak.naam]):null;
+      items=[{regel_id:ar?ar.id:null,naam:bak.naam,verwacht:1,aangetroffen:st?1:null,te_veel:0,kapot_aantal:st==='beschadigd'?1:0,notitie:'',foto_url:null,
+        afwijking:!st?'niet_geteld':st==='beschadigd'?'kapot':'klopt',kantoor_actie:ar?(ar.kantoor_actie||''):'',kantoor_aantal:ar&&ar.kantoor_aantal?ar.kantoor_aantal:(st==='beschadigd'?1:0),kantoor_notitie:ar?(ar.kantoor_notitie||''):'',
+        aangevuld:ar?(ar.aangevuld||0):0,aantal_afwijking:st==='beschadigd'?1:0,
+        acties:st==='beschadigd'?ACTIES.kapot.map(([waarde,label])=>({waarde,label})):[]}];
     }else{
       const regels=sessie?all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessie.id]):[];
       items=_bakItems(bak).map(it=>{
