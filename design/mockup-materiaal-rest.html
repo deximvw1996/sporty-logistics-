@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><title>Materiaal — Thema's, Pool, Catalogus</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze label{height:28px;line-height:28px;padding:0 12px;border-radius:6px;background:#333;color:#fff;cursor:pointer;user-select:none}.keuze span{color:#aaa;margin-left:8px}
+input[name=kz]{position:absolute;opacity:0;pointer-events:none}
+#r1:checked~.keuze label[for=r1],#r2:checked~.keuze label[for=r2],#r3:checked~.keuze label[for=r3]{background:#2563eb}
+#r1:checked~#f1,#r2:checked~#f2,#r3:checked~#f3{display:block}
+.frame{display:none;width:1920px;height:900px;margin:40px auto 0;background:#f5f5f5;overflow:hidden;position:relative}
+button{font:inherit;cursor:pointer;border:0}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.pil.groen{background:#dcfce7;color:#15803d}.pil.oranje{background:#ffedd5;color:#c2410c}.pil.rood{background:#fee2e2;color:#b91c1c}
+.kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;display:flex;flex-direction:column;min-height:0}
+.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
+.top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
+.top .logo{font-size:17px;font-weight:800;color:#1e3a8a;margin-right:22px}
+.top a{height:40px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#334155;cursor:pointer}.top a.act{background:#eff6ff;color:#1d4ed8}.top a .b{background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:999px}
+.top .rechts{margin-left:auto;display:flex;gap:12px;font-size:13px;color:#64748b}.top .rechts b{color:#1e3a8a}
+.sub{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:4px}
+.sub a{height:36px;padding:0 12px;border-radius:8px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#64748b;cursor:pointer}.sub a.act{color:#1d4ed8;background:#eff6ff}.sub .r{margin-left:auto;display:flex;gap:6px}
+.scroll{overflow-y:auto;min-height:0;flex:1}.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+.filters{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:nowrap}.filters input{height:38px;border:1px solid #e2e8f0;border-radius:8px;padding:0 12px;font:inherit;flex:1;max-width:300px;min-width:150px}
+.chip{height:36px;padding:0 12px;border-radius:999px;background:#f1f5f9;font-size:13px;font-weight:600;display:inline-flex;align-items:center;cursor:pointer;white-space:nowrap}.chip.act{background:#1e3a8a;color:#fff}
+.kopr,.r{display:grid;align-items:center;gap:8px;padding:0 10px;font-size:13px}
+.kopr{height:36px;color:#64748b;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em;border-bottom:1px solid #e2e8f0}
+.r{min-height:46px;border-bottom:1px solid #f1f5f9;cursor:pointer;border-radius:8px}.r.act{background:#eff6ff}.r:hover{background:#f8fafc}
+.r .k{color:#64748b;font-size:12px}
+.voet{height:40px;display:flex;align-items:center;gap:8px;font-size:12px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:6px}
+.detail{display:flex;flex-direction:column;min-height:0;flex:1}
+.dkop{display:flex;align-items:flex-start;gap:16px;margin-bottom:10px}.dkop h2{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}.dkop span{font-size:13px;color:#64748b}.dkop .acts{margin-left:auto;display:flex;gap:6px}
+.dtabs{display:flex;gap:4px;border-bottom:1px solid #e2e8f0;margin-bottom:12px}.dtabs a{height:40px;padding:0 14px;display:flex;align-items:center;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}.dtabs a.act{color:#1d4ed8;border-bottom-color:#1d4ed8}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;overflow-y:auto;align-content:start}
+.blok{background:#f8fafc;border-radius:10px;padding:12px}.blok h4{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center}.blok h4 a{margin-left:auto;color:#2563eb;text-transform:none;letter-spacing:0;font-size:12px}
+.kv{display:flex;gap:10px;font-size:13px;padding:5px 0}.kv span{width:110px;color:#64748b;flex:none}.kv b{font-weight:600}
+.fotos{display:flex;gap:8px}.f{width:110px;height:80px;border-radius:8px;background:#cbd5e1;display:flex;align-items:flex-end;padding:6px;font-size:11px;font-weight:700;color:#334155}.f.plus{background:#eff6ff;color:#1d4ed8;align-items:center;justify-content:center;cursor:pointer}
+.rij{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 0;border-top:1px solid #eef2f7;font-size:13px}.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
+.rij .code{font-family:ui-monospace,Consolas,monospace;font-size:12px;font-weight:700;background:#e2e8f0;border-radius:6px;padding:2px 6px}
+.rij .getal{width:70px;text-align:right;font-weight:700}
+.stap{display:inline-flex;align-items:center;gap:4px}.stap button{width:36px;height:36px;border-radius:8px;background:#f1f5f9;color:#1e3a8a;font-weight:800}
+.kleur{width:14px;height:14px;border-radius:4px;display:inline-block;flex:none}
+.balk{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden;flex:1}.balk i{display:block;height:100%;background:#2563eb}.balk.op i{background:#ea580c}
+.vol{grid-column:1/-1}
+.body{display:grid;grid-template-columns:860px 1fr;gap:16px;padding:16px 28px;height:796px}
+input[type=checkbox]{width:20px;height:20px}
+.voet .bulk{display:none;gap:6px;margin-left:8px}.voet.sel .bulk{display:flex}.voet .n{font-weight:700;color:#1e3a8a}
+#f1 .kopr,#f1 .r{grid-template-columns:36px 2fr 1.3fr 1.4fr 1.7fr 92px}
+#f2 .kopr,#f2 .r{grid-template-columns:36px 2fr 0.7fr 2.4fr 1.3fr 92px}
+#f3 .kopr,#f3 .r{grid-template-columns:36px 2fr 0.7fr 0.9fr 1.6fr 104px}
+</style></head><body>
+<input type="radio" name="kz" id="r1" checked><input type="radio" name="kz" id="r2"><input type="radio" name="kz" id="r3">
+<div class="keuze"><b>Materiaal op het standaardpatroon</b><label for="r1">Thema's</label><label for="r2">Pool</label><label for="r3">Catalogus</label><span>exacte kopie van PATROON-DEFINITIEF; alleen kolommen, chips en detailblokken verschillen · 1920×900</span></div>
+
+<!-- ═══ THEMA'S ═══ -->
+<div class="frame" id="f1"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">2</span></a><a>📅 Planning</a><a>🚚 Transport</a><a class="act">📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a><div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="sub"><a class="act">Thema's</a><a>Bakken</a><a>Pool</a><a>Catalogus</a><span class="r"><button class="knop licht klein">⬇ Export</button><button class="knop klein">+ Nieuw thema</button></span></div>
+<div class="body"><div class="kaart lijst"><div class="filters"><input placeholder="🔍 Zoek thema, bak, attribuut…"><span class="chip act">Alle 184</span><span class="chip">Kamp 79</span><span class="chip">Themadag 105</span><span class="chip">Kleuters 97</span><span class="chip">Lager 87</span><span class="chip">Deze periode 9</span><span class="chip">⚠ Leeg 31</span></div>
+<div class="kopr"><span><input type="checkbox"></span><span>Thema ▾</span><span>Soort</span><span>Inhoud</span><span>Deze periode (week · locatie)</span><span></span></div>
+<div class="scroll">
+<div class="r act"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#1D9E75"></i><b>Play a game</b></span><span>kamp · lagere school</span><span class="k">14 bakken · 12 attr.</span><span><b>wk 1 Betekom</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#378ADD"></i><b>1001 Ballen en Bellen</b></span><span>kamp · kleuters</span><span class="k">8 bakken</span><span><b>wk 1 Abdijschool Vlierbeek</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#E8A33D"></i><b>Actie &amp; Avontuur</b></span><span>kamp · lagere school</span><span class="k">10 bakken · 6 attr.</span><span><b>wk 1 De Kraal</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#8E44AD"></i><b>De Bouwfabriek</b></span><span>kamp · kleuters</span><span class="k">8 bakken</span><span><b>wk 1 Boutersem</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#D85A30"></i><b>De Speelfabriek</b></span><span>kamp · kleuters</span><span class="k">5 bakken · 4 attr.</span><span><b>wk 1 Rotselaar</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#2E86AB"></i><b>Sportymadness</b></span><span>kamp · lagere school</span><span class="k">8 bakken · 1 attr.</span><span><b>wk 1 De Waaier</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#5B8C2A"></i><b>Welkom op de boerderij</b></span><span>kamp · kleuters</span><span class="k">5 bakken · 2 attr.</span><span><b>wk 1 De Kraal</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#1D9E75"></i><b>Alles op wieltjes</b></span><span>kamp · kleuters</span><span class="k">1 bak</span><span>—</span><span><span class="pil oranje">⚠ 1 bak</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#C0392B"></i><b>Holderdebolder</b></span><span>kamp · kleuters</span><span class="k">geen bakken</span><span>—</span><span><span class="pil rood">⚠ leeg</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#2563EB"></i><b>Play Factory</b></span><span>kamp · lagere school</span><span class="k">19 bakken · 31 attr.</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#7C5C3B"></i><b>Buitengewoon bouwen</b></span><span>kamp · lagere school</span><span class="k">13 bakken</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#0F766E"></i><b>Expeditie Survival</b></span><span>kamp · lagere school</span><span class="k">7 bakken · 6 attr.</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#2563EB"></i><b>Play Factory (themadag)</b></span><span>themadag · lagere school</span><span class="k">7 bakken · 1 attr.</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span style="display:flex;gap:8px;align-items:center"><i class="kleur" style="background:#DB2777"></i><b>Zoete toetjes</b></span><span>kamp · lagere school · 🍳</span><span class="k">5 bakken · 11 los</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+</div><div class="voet"><span>184 thema's · <span class="n">0 geselecteerd</span></span><span class="bulk"><button class="knop licht klein">Export selectie</button><button class="knop licht klein">Soort wijzigen</button><button class="knop licht klein">Verwijderen</button></span></div></div>
+<div class="kaart"><div class="detail">
+ <div class="dkop"><div><h2><i class="kleur" style="background:#1D9E75;width:18px;height:18px"></i>Play a game</h2><span>Kampthema · lagere school · eigen materiaal · geen kookactiviteit</span></div><div class="acts"><button class="knop licht">Bewerken</button><button class="knop licht">Dupliceren</button><button class="knop">+ Bak koppelen</button></div></div>
+ <div class="dtabs"><a class="act">Inhoud</a><a>Kampmomenten 1</a><a>Historiek 4</a></div>
+ <div class="dgrid">
+  <div class="blok"><h4>Bakken 14 <a>alles in Bakken ›</a></h4>
+   <div class="rij"><span class="code">F40</span><div class="nm">Themabak zwarte curver<b>23 stuks · Rozenweg · rek F</b></div><button class="knop licht klein">Open</button><button class="knop licht klein">✕</button></div>
+   <div class="rij"><span class="code">F41</span><div class="nm">Spelbak bordspellen<b>9 stuks · Rozenweg · rek F</b></div><button class="knop licht klein">Open</button><button class="knop licht klein">✕</button></div>
+   <div class="rij"><span class="code">F42</span><div class="nm">Spelbak buitenspel<b>14 stuks · Rozenweg · rek F</b></div><button class="knop licht klein">Open</button><button class="knop licht klein">✕</button></div>
+   <div class="rij"><span class="code">F43</span><div class="nm">Spelbak kaartspellen<b>11 stuks · Rozenweg · rek F</b></div><button class="knop licht klein">Open</button><button class="knop licht klein">✕</button></div>
+   <div class="rij"><div class="nm" style="color:#64748b;font-weight:500">+ 10 andere bakken</div></div>
+  </div>
+  <div class="blok"><h4>Attributen 12 <a>+ attribuut</a></h4>
+   <div class="rij"><span class="code">A07</span><div class="nm">Reuzen vier-op-een-rij<b>thuis · Rozenweg</b></div><button class="knop licht klein">✕</button></div>
+   <div class="rij"><span class="code">A11</span><div class="nm">Twister-mat groot<b>thuis · Rozenweg</b></div><button class="knop licht klein">✕</button></div>
+   <div class="rij"><span class="code">A12</span><div class="nm">Reuzenjenga<b>op locatie · Betekom</b></div><button class="knop licht klein">✕</button></div>
+   <div class="rij"><div class="nm" style="color:#64748b;font-weight:500">+ 9 andere attributen</div></div>
+  </div>
+  <div class="blok"><h4>Los materiaal en verbruik 1 <a>+ regel</a></h4>
+   <div class="rij"><div class="nm">Batterijen AA<b>verbruik · aanvullen uit Rozenweg</b></div><span class="getal">12</span><button class="knop licht klein">✕</button></div>
+  </div>
+  <div class="blok"><h4>Instellingen</h4><div class="kv"><span>Soort</span><b>kamp · lagere school</b></div><div class="kv"><span>Materiaal</span><b>eigen materiaal (bakken van dit thema)</b></div><div class="kv"><span>Kookactiviteit</span><b>nee</b></div><div class="kv"><span>Kleur</span><b><i class="kleur" style="background:#1D9E75;vertical-align:-2px"></i> groen (planner en etiketten)</b></div></div>
+ </div></div></div></div></div>
+
+<!-- ═══ POOL ═══ -->
+<div class="frame" id="f2"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">2</span></a><a>📅 Planning</a><a>🚚 Transport</a><a class="act">📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a><div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="sub"><a>Thema's</a><a>Bakken</a><a class="act">Pool</a><a>Catalogus</a><span class="r"><button class="knop licht klein">⬇ Export</button><button class="knop licht klein">🖨 Etiketten</button><button class="knop klein">+ Nieuw poolstuk</button></span></div>
+<div class="body"><div class="kaart lijst"><div class="filters"><input placeholder="🔍 Zoek poolstuk, type, locatie…"><span class="chip act">Alle 67</span><span class="chip">Per aantal 49</span><span class="chip">Per stuk 18</span><span class="chip">Nu op locatie 6</span><span class="chip">⚠ Te weinig deze periode 2</span></div>
+<div class="kopr"><span><input type="checkbox"></span><span>Poolstuk ▾</span><span>Totaal</span><span>Waar nu</span><span>Nodig deze periode</span><span></span></div>
+<div class="scroll">
+<div class="r act"><span><input type="checkbox"></span><span><b>Kleuterfiets rood (Winther)</b></span><span><b>17</b></span><span class="k">Rozenweg 7 · Abdijschool 5 · De Kraal 5</span><span><b>15</b> (3 locaties)</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Springkasteel</b></span><span><b>8</b></span><span class="k">Rozenweg 8</span><span><b>9</b> (9 locaties)</span><span><span class="pil rood">⚠ 1 te weinig</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Kookvuur</b></span><span><b>8</b></span><span class="k">Rozenweg 8</span><span><b>3</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Oven</b></span><span><b>5</b></span><span class="k">Rozenweg 5</span><span><b>6</b> (kookdagen)</span><span><span class="pil rood">⚠ 1 te weinig</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Blazer 1000W</b></span><span><b>10</b></span><span class="k">Rozenweg 10</span><span><b>8</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Blazer 1500W</b></span><span><b>5</b></span><span class="k">Rozenweg 5</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Bouwhelm</b></span><span><b>20</b></span><span class="k">Rozenweg 20</span><span><b>16</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Duplo-bak</b></span><span><b>7</b></span><span class="k">Rozenweg 7</span><span><b>4</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Waterstructuur</b></span><span><b>10</b></span><span class="k">Rozenweg 10</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Kookbak</b></span><span><b>6</b></span><span class="k">Rozenweg 6</span><span><b>3</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Zeepkist</b></span><span><b>4</b></span><span class="k">Rozenweg 4</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Verkeerskoffer</b></span><span><b>3</b></span><span class="k">Rozenweg 3</span><span><b>1</b></span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Easy roller</b></span><span><b>3</b></span><span class="k">Rozenweg 3</span><span>—</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>EHBO-koffer</b></span><span><b>2</b></span><span class="k">Kantoor 2</span><span><b>8</b> (elke locatie)</span><span><span class="pil rood">⚠ 6 te weinig</span></span></div>
+</div><div class="voet"><span>67 poolstukken · <span class="n">0 geselecteerd</span></span><span class="bulk"><button class="knop licht klein">Export selectie</button><button class="knop licht klein">Etiketten</button><button class="knop licht klein">Verwijderen</button></span></div></div>
+<div class="kaart"><div class="detail">
+ <div class="dkop"><div><h2>Kleuterfiets rood (Winther)</h2><span>Pool · per aantal · thuis Rozenweg · 17 stuks</span></div><div class="acts"><button class="knop licht">Bewerken</button><button class="knop licht">🖨 Etiket</button><button class="knop">Verplaatsen</button></div></div>
+ <div class="dtabs"><a class="act">Spreiding</a><a>Foto's 2</a><a>Historiek 6</a></div>
+ <div class="dgrid">
+  <div class="blok"><h4>Waar staan ze nu (17)</h4>
+   <div class="rij"><div class="nm">Rozenweg<b>thuis · rek K</b></div><span class="getal">7</span></div>
+   <div class="rij"><div class="nm">Abdijschool Vlierbeek<b>geleverd vr 30 okt · ophaling vr 6 nov</b></div><span class="getal">5</span></div>
+   <div class="rij"><div class="nm">De Kraal<b>geleverd vr 30 okt · ophaling vr 6 nov</b></div><span class="getal">5</span></div>
+  </div>
+  <div class="blok"><h4>Nodig deze periode (15 van 17)</h4>
+   <div class="rij"><div class="nm">wk 1 · Abdijschool Vlierbeek<b>1001 Ballen en Bellen · KV Evy</b></div><span class="getal">5</span></div>
+   <div class="rij"><div class="nm">wk 1 · De Kraal<b>Welkom op de boerderij · KV Seppe</b></div><span class="getal">5</span></div>
+   <div class="rij"><div class="nm">wk 1 · Rotselaar<b>De Speelfabriek · KV SIM KV Bram</b></div><span class="getal">5</span></div>
+   <div class="rij" style="gap:8px"><span style="font-size:12px;color:#64748b;width:110px">bezetting</span><div class="balk"><i style="width:88%"></i></div><b style="font-size:12px">15/17</b></div>
+  </div>
+  <div class="blok"><h4>Gegevens</h4><div class="kv"><span>Type</span><b>kleuterfiets · per aantal (bulk)</b></div><div class="kv"><span>Thuis</span><b>Rozenweg · rek K</b></div><div class="kv"><span>Telt in rit</span><b>1 plaats per stuk</b></div><div class="kv"><span>Notitie</span><b>3 fietsen met losse trapper</b></div></div>
+  <div class="blok"><h4>Foto's</h4><div class="fotos"><div class="f">opgeplooid</div><div class="f">opgezet</div><div class="f plus">+ foto</div></div></div>
+ </div></div></div></div></div>
+
+<!-- ═══ CATALOGUS ═══ -->
+<div class="frame" id="f3"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">2</span></a><a>📅 Planning</a><a>🚚 Transport</a><a class="act">📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a><div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="sub"><a>Thema's</a><a>Bakken</a><a>Pool</a><a class="act">Catalogus</a><span class="r"><button class="knop licht klein">⬇ Export</button><button class="knop klein">+ Nieuw artikel</button></span></div>
+<div class="body"><div class="kaart lijst"><div class="filters"><input placeholder="🔍 Zoek artikel…"><span class="chip act">Alle 3338</span><span class="chip">Materiaal 3221</span><span class="chip">Sport 115</span><span class="chip">⚠ Onder minimum 14</span><span class="chip">Dubbel? 22</span><span class="chip">Niet gebruikt 401</span></div>
+<div class="kopr"><span><input type="checkbox"></span><span>Artikel ▾</span><span>Eenheid</span><span>In bakken</span><span>Voorraad (Rozenweg · Kantoor)</span><span></span></div>
+<div class="scroll">
+<div class="r act"><span><input type="checkbox" checked></span><span><b>Pijpenragers</b></span><span>stuk</span><span>18 bakken</span><span>1.200 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox" checked></span><span><b>Pijpenrager</b></span><span>stuk</span><span>2 bakken</span><span>— · 40</span><span><span class="pil oranje">mogelijk dubbel</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Krijt</b></span><span>stuk</span><span>17 bakken</span><span>85 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Ballonnen</b></span><span>stuk</span><span>16 bakken</span><span>40 · 10</span><span><span class="pil rood">⚠ onder min. 100</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Bakpapier</b></span><span>rol</span><span>15 bakken</span><span>12 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Rietjes</b></span><span>stuk</span><span>14 bakken</span><span>600 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Zout</b></span><span>pak</span><span>13 bakken</span><span>3 · —</span><span><span class="pil rood">⚠ onder min. 5</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Touw</b></span><span>rol</span><span>13 bakken</span><span>20 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Kartonnen bordjes</b></span><span>stuk</span><span>13 bakken</span><span>300 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Kralen</b></span><span>zak</span><span>12 bakken</span><span>9 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Whiteboardstiften</b></span><span>stuk</span><span>12 bakken</span><span>48 · 12</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Wiebeloogjes</b></span><span>zak</span><span>12 bakken</span><span>6 · —</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Potloden</b></span><span>stuk</span><span>12 bakken</span><span>240 · 24</span><span><span class="pil groen">ok</span></span></div>
+<div class="r"><span><input type="checkbox"></span><span><b>Afwasmiddel</b></span><span>fles</span><span>11 bakken</span><span>4 · 1</span><span><span class="pil groen">ok</span></span></div>
+</div><div class="voet sel"><span>3338 artikelen · <span class="n">2 geselecteerd</span></span><span class="bulk"><button class="knop licht klein">Samenvoegen</button><button class="knop licht klein">Categorie wijzigen</button><button class="knop licht klein">Verwijderen</button></span></div></div>
+<div class="kaart"><div class="detail">
+ <div class="dkop"><div><h2>Pijpenragers</h2><span>Artikel · materiaal · eenheid stuk · in 18 bakken</span></div><div class="acts"><button class="knop licht">Bewerken</button><button class="knop licht">Samenvoegen met…</button><button class="knop">Bestellen</button></div></div>
+ <div class="dtabs"><a class="act">Gebruik</a><a>Voorraad</a><a>Historiek 3</a></div>
+ <div class="dgrid">
+  <div class="blok"><h4>In bakken 18 <a>alles in Bakken ›</a></h4>
+   <div class="rij"><span class="code">C12</span><div class="nm">Knutselbak kleuters<b>Alice in Wonderland · per bak 50</b></div><button class="knop licht klein">Open</button></div>
+   <div class="rij"><span class="code">C18</span><div class="nm">Knutselbak dieren<b>Welkom op de boerderij · per bak 40</b></div><button class="knop licht klein">Open</button></div>
+   <div class="rij"><span class="code">D03</span><div class="nm">Creabak bouwen<b>De Bouwfabriek · per bak 30</b></div><button class="knop licht klein">Open</button></div>
+   <div class="rij"><div class="nm" style="color:#64748b;font-weight:500">+ 15 andere bakken</div></div>
+  </div>
+  <div class="blok"><h4>Voorraad per stockage</h4>
+   <div class="rij"><div class="nm">Rozenweg<b>minimum 300</b></div><span class="stap"><button>−</button><span class="getal">1.200</span><button>+</button></span></div>
+   <div class="rij"><div class="nm">Kantoor<b>geen minimum</b></div><span class="stap"><button>−</button><span class="getal">—</span><button>+</button></span></div>
+   <div class="rij"><div class="nm">Marko<b>geen minimum</b></div><span class="stap"><button>−</button><span class="getal">—</span><button>+</button></span></div>
+  </div>
+  <div class="blok"><h4>Deze periode</h4><div class="kv"><span>Nodig</span><b>8 bakken op 6 locaties · ±340 stuks</b></div><div class="kv"><span>Tekorten</span><b>geen open tekort</b></div><div class="kv"><span>Laatst besteld</span><b>—</b></div></div>
+  <div class="blok"><h4>Mogelijk dubbel</h4>
+   <div class="rij"><div class="nm">Pijpenrager<b>2 bakken · Kantoor 40</b></div><button class="knop licht klein">Samenvoegen hierin</button></div>
+  </div>
+ </div></div></div></div></div>
+</body></html>
