@@ -55,3 +55,6 @@ Elke chat heeft een EIGEN map (git worktree), EIGEN branch, EIGEN poort, EIGEN d
 
 ## Testchats (T)
 Een testchat bouwt niets en wijzigt geen code. Hij draait een TESTPLAN van de hoofdchat tegen zijn eigen kopie (map sporty-t, poort 3306, verse db-kopie): rollenspel kantoor → transport → chauffeur → KV → aanvulling, met echte clicks en echte API-checks. Verslag in OVERLEG-t.md: per stap OK/FOUT + schermafdruk of API-bewijs, afgesloten met dezelfde klaar-zin. Vindt hij een fout: noteren onder GEVONDEN met reproductiestappen, niet fixen.
+
+## MOBIEL-REGEL (Maxim 29/10)
+Personeel (chauffeur, coördinator, kantoor onderweg) werkt op de gsm in de volwaardige app (inloggen met pincode), nooit via losse token-links. Token-links bestaan alleen voor KV's en monitoren. Elke functie die fysiek buiten het bureau gebeurt (rijden, laden, aanvullen, klaarzetten, tellen, melden, opzoeken) moet in de mobiele app zitten; zie design/DESIGN-BRIEF.md scherm 6.

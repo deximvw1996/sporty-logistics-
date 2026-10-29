@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><title>Mobiele app personeel — drieluik 1</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze label{height:28px;line-height:28px;padding:0 12px;border-radius:6px;background:#333;color:#fff;cursor:pointer;user-select:none}
+.keuze span{color:#aaa;margin-left:8px}
+input[name=kz]{position:absolute;opacity:0;pointer-events:none}
+#rA:checked~.keuze label[for=rA],#rB:checked~.keuze label[for=rB],#rC:checked~.keuze label[for=rC]{background:#2563eb}
+#rA:checked~#fA,#rB:checked~#fB,#rC:checked~#fC{display:block}
+.frame{display:none;width:1920px;height:860px;margin:40px auto 0;overflow:hidden;position:relative;padding:4px 0 0}
+.uitleg{position:absolute;left:50%;top:300px;width:300px;margin-left:-690px;font-size:13px;color:#334155;line-height:1.5}.uitleg b{display:block;font-size:16px;margin-bottom:6px}
+.telefoons{display:flex;justify-content:center;gap:60px;margin-top:0}
+.phone{width:390px;height:844px;background:#fff;border-radius:28px;box-shadow:0 10px 40px rgba(0,0,0,.25);overflow:hidden;position:relative;border:3px solid #111;box-sizing:content-box}
+.phone .lbl{position:absolute;top:8px;right:-230px;width:220px;font-size:12px;color:#64748b;font-weight:700}
+.tel{height:100%;display:flex;flex-direction:column;background:#f5f5f5;font-size:15px}
+button{font:inherit;cursor:pointer;border:0}
+.knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.knop.licht{background:#e8eefc;color:#1e3a8a}.knop.klein{height:44px;padding:0 14px;font-size:14px}.knop.breed{width:100%;margin-top:8px}
+.pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.groen{background:#dcfce7;color:#15803d}.pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
+.body{flex:1;overflow-y:auto;min-height:0;padding:12px 14px 20px}
+.body::-webkit-scrollbar{width:0}
+.rij{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 0;border-top:1px solid #eef2f7}
+.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.bak{display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.bak.groen{border-left-color:#16a34a}.bak.rood{border-left-color:#dc2626}
+.bak .code{font-weight:800;width:44px}.bak .nm{flex:1;font-weight:600;font-size:14px;line-height:1.3}.bak .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.twee{display:flex;gap:8px;margin-top:8px}.twee .knop{flex:1}
+.hint{font-size:13px;color:#64748b;margin-bottom:8px}
+.it{display:flex;align-items:center;gap:10px;min-height:60px;padding:6px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.it.groen{border-left-color:#16a34a}.it.rood{border-left-color:#dc2626;background:#fff5f5}
+.it .nm{flex:1;font-weight:600;line-height:1.3}.it .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stp{display:flex;align-items:center;gap:4px}.stp button{width:44px;height:44px;border-radius:10px;background:#e8eefc;color:#1e3a8a;font-size:20px;font-weight:800}.stp span{width:36px;text-align:center;font-weight:800;font-size:18px}
+.ja{display:flex;gap:4px}.ja button{height:44px;padding:0 12px;border-radius:10px;background:#f1f5f9;color:#334155;font-weight:700;min-width:60px}.ja button.act{background:#2563eb;color:#fff}.it.rood .ja button.act{background:#dc2626}
+.it input{width:64px;height:44px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;font-weight:800;text-align:center;font-size:18px}
+.it .kapot{width:44px;height:44px;border-radius:10px;background:#fee2e2}
+.kop2{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-bottom:1px solid #e2e8f0;min-height:64px}
+.kop2 a{color:#2563eb;font-weight:700;font-size:15px;height:44px;display:flex;align-items:center}.kop2 b{display:block;font-size:16px}.kop2 span{font-size:12px;color:#64748b}
+.voet{display:flex;gap:8px;padding:10px 14px 16px;background:#fff;border-top:1px solid #e2e8f0}.voet .knop{flex:1}
+/* A */
+.kopA{background:#1e3a8a;color:#fff;padding:14px 14px 12px}.kopA .l{font-size:12px;opacity:.8}.kopA b{display:block;font-size:18px;margin-top:2px}.kopA span{font-size:13px;opacity:.9}
+.sec{background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.sec h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;justify-content:space-between}
+.sec .bak{margin:4px 0;padding:6px 8px;background:#f8fafc}
+/* B */
+.kopB{background:#fff;padding:14px 14px 10px;border-bottom:1px solid #e2e8f0}.kopB b{display:block;font-size:18px}.kopB span{font-size:13px;color:#64748b}
+.kaartB{background:#fff;border-radius:14px;padding:14px 44px 14px 14px;margin-bottom:10px;border-left:5px solid #cbd5e1;position:relative;min-height:64px}
+.kaartB.groen{border-left-color:#16a34a}.kaartB.blauw{border-left-color:#2563eb}.kaartB.oranje{border-left-color:#f59e0b}
+.kaartB .t{font-weight:800;font-size:16px}.kaartB .s{font-size:13px;color:#64748b;margin-top:3px;line-height:1.35}
+.kaartB .pijl{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:24px;color:#94a3b8}
+.tabs{display:flex;background:#fff;border-top:1px solid #e2e8f0;padding:6px 4px 14px}
+.tabs a{flex:1;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:700;color:#64748b;border-radius:10px}
+.tabs a.act{color:#1d4ed8;background:#eff6ff}
+/* C */
+.kopC{background:#fff;padding:14px;border-bottom:1px solid #e2e8f0}.kopC .l{font-size:12px;color:#64748b}.kopC b{display:block;font-size:18px}.kopC span{font-size:13px;color:#64748b}
+.stap{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;min-height:72px;border:2px solid transparent}
+.stap.nu{border-color:#2563eb;background:#f5f9ff}.stap.klaar{opacity:.75}
+.stap .n{width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.stap.nu .n{background:#2563eb;color:#fff}.stap.klaar .n{background:#16a34a;color:#fff}
+.stap .nm{flex:1;font-weight:700;line-height:1.3;font-size:15px}.stap .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stap .sub{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}.stap .sub span{font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px;background:#e2e8f0}.stap .sub span.groen{background:#dcfce7;color:#15803d}.stap .sub span.rood{background:#fee2e2;color:#b91c1c}
+.stap .knop{height:44px}
+.info{font-size:12px;color:#64748b;text-align:center;padding:6px;display:flex;flex-direction:column;gap:8px;align-items:center}
+
+#r1:checked~.keuze label[for=r1],#r2:checked~.keuze label[for=r2],#r3:checked~.keuze label[for=r3]{background:#2563eb}
+#r1:checked~#f1,#r2:checked~#f2,#r3:checked~#f3{display:block}
+.zoek{width:100%;height:48px;border:1px solid #cbd5e1;border-radius:12px;padding:0 14px;font:inherit;font-size:15px;margin-bottom:10px;background:#fff}
+.kaartB .t .pil{margin-left:6px;vertical-align:middle}
+.plaats{background:#fff;border-radius:14px;padding:14px;margin-bottom:10px;border:2px solid transparent}.plaats.act{border-color:#2563eb;background:#f5f9ff}
+.plaats .t{font-weight:800;font-size:16px}.plaats .s{font-size:13px;color:#64748b;margin:4px 0 10px;line-height:1.35}.plaats .knop{width:100%}
+</style></head><body>
+<input type="radio" name="kz" id="r1" checked><input type="radio" name="kz" id="r2"><input type="radio" name="kz" id="r3">
+<div class="keuze"><b>Mobiele app voor personeel (chauffeur / coördinator) — drieluik 1 (390×844)</b>
+ <label for="r1">M1. Tabbalk per rol</label><label for="r2">M2. Eén takenstroom</label><label for="r3">M3. Per plaats</label>
+ <span>zelfde inhoud: Lotte (coördinator), zomervrijdag: aanvullen Rozenweg · rit #49 eigen wagen · tellen bij ophaling Haasrode · rit #52 · 2 meldingen · stockage-scherm met zoeken "waar staat…"</span></div>
+<div class="frame" id="f1"><div class="uitleg"><b>M1. Tabbalk per rol</b><span>vaste tabbalk Vandaag · Ritten · Stockage · Meldingen · Meer; de tabs hangen af van de rol (chauffeur ziet geen Nakijken-beslissingen)</span></div><div class="telefoons"><div class="phone"><div class="lbl">Vandaag</div><div class="tel"><div class="kopB"><b>Hallo Lotte</b><span>coördinator · vrijdag 24 juli · 4 dingen vandaag</span></div>
+<div class="body"><div class="kaartB blauw klik"><div class="t">🧮 07:30 · Aanvullen in de Rozenweg <span class="pil blauw">nu</span></div><div class="s">4 bakken · 8 handelingen · uit Nakijken do</div><div class="pijl">›</div></div><div class="kaartB  klik"><div class="t">🚚 08:30 · Rit #49 · eigen wagen <span class="pil">later</span></div><div class="s">Kantoor → Herent (levering 5) → Kantoor · 2 stops</div><div class="pijl">›</div></div><div class="kaartB  klik"><div class="t">📋 11:00 · Tellen bij ophaling · Haasrode <span class="pil">later</span></div><div class="s">7 bakken · samen met Sam (rit #48)</div><div class="pijl">›</div></div><div class="kaartB  klik"><div class="t">🚚 13:30 · Rit #52 · Bestelwagen 1 <span class="pil">later</span></div><div class="s">Rozenweg → Bierbeek (levering 10) → Rozenweg</div><div class="pijl">›</div></div>
+ <div class="sec"><h3>Meldingen</h3><div class="rij"><div class="nm">Jan: Abdijschool gesloten, geen sleutel<b>08:31 · kantoor belt conciërge</b></div></div><div class="rij"><div class="nm">KV Zoë (Herent): 2 rollen tape<b>goedgekeurd · komt mee op rit #49</b></div></div></div>
+</div><div class="tabs"><a class="act">🏠<span>Vandaag</span></a><a class="">🚚<span>Ritten 2</span></a><a class="">📦<span>Stockage</span></a><a class="">🔔<span>Meldingen 2</span></a><a class="">☰<span>Meer</span></a></div></div></div><div class="phone"><div class="lbl">Stockage</div><div class="tel"><div class="kopB"><b>Rozenweg</b><span>stockage · aanvullen, tellen, zoeken</span></div>
+<div class="body">
+ <input class="zoek" placeholder="🔍 Waar staat… (bak, stuk, locatie)">
+ <div class="kaartB blauw klik"><div class="t">Aanvullen · 8 handelingen</div><div class="s">N09 (3) · V03 (2) · N20 (2) · V17 (1) · 1/8 afgevinkt</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Klaarzetten voor ritten</div><div class="s">Rit #52 om 13:30 · 10 bakken · rek N plank 2–4</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Terug uit ophaling</div><div class="s">Rit #48 Haasrode · 7 bakken nakijken en terug in het rek</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Pool</div><div class="s">ballen 41 · pionnen 120 · hoepels 38 · springtouwen 12</div><div class="pijl">›</div></div>
+ <div class="hint">Alles wat je hier doet wordt gelogd op jouw naam; kantoor ziet het meteen in Vandaag.</div>
+</div><div class="tabs"><a class="">🏠<span>Vandaag</span></a><a class="">🚚<span>Ritten 2</span></a><a class="act">📦<span>Stockage</span></a><a class="">🔔<span>Meldingen 2</span></a><a class="">☰<span>Meer</span></a></div></div></div></div></div>
+<div class="frame" id="f2"><div class="uitleg"><b>M2. Eén takenstroom</b><span>alles van de dag op volgorde als stappen, de bovenste is "nu"; geen tabs, alleen Stockage en Zoeken onderaan en een menu</span></div><div class="telefoons"><div class="phone"><div class="lbl">Mijn dag</div><div class="tel"><div class="kopB"><b>☰ &nbsp;Sporty · Lotte</b><span>coördinator · vrijdag 24 juli</span></div><div class="body">
+ <div class="hint">Jouw dag, op volgorde. Tik op de bovenste om te beginnen; de volgende schuift vanzelf omhoog.</div>
+ <div class="stap nu"><div class="n">1</div><div class="nm">07:30 · Aanvullen in de Rozenweg<b>4 bakken · 8 handelingen · uit Nakijken do</b></div><button class="knop">Start ›</button></div><div class="stap "><div class="n">2</div><div class="nm">08:30 · Rit #49 · eigen wagen<b>Kantoor → Herent (levering 5) → Kantoor · 2 stops</b></div><span class="pil">later</span></div><div class="stap "><div class="n">3</div><div class="nm">11:00 · Tellen bij ophaling · Haasrode<b>7 bakken · samen met Sam (rit #48)</b></div><span class="pil">later</span></div><div class="stap "><div class="n">4</div><div class="nm">13:30 · Rit #52 · Bestelwagen 1<b>Rozenweg → Bierbeek (levering 10) → Rozenweg</b></div><span class="pil">later</span></div>
+ <div class="stap"><div class="n">🔔</div><div class="nm">2 meldingen<b>Jan: Abdijschool gesloten, geen sleutel</b></div><span class="pil">lees</span></div>
+</div><div class="voet"><button class="knop licht">📦 Stockage</button><button class="knop licht">🔍 Waar staat…</button></div></div></div><div class="phone"><div class="lbl">Stockage</div><div class="tel"><div class="kopB"><b>Rozenweg</b><span>stockage · aanvullen, tellen, zoeken</span></div>
+<div class="body">
+ <input class="zoek" placeholder="🔍 Waar staat… (bak, stuk, locatie)">
+ <div class="kaartB blauw klik"><div class="t">Aanvullen · 8 handelingen</div><div class="s">N09 (3) · V03 (2) · N20 (2) · V17 (1) · 1/8 afgevinkt</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Klaarzetten voor ritten</div><div class="s">Rit #52 om 13:30 · 10 bakken · rek N plank 2–4</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Terug uit ophaling</div><div class="s">Rit #48 Haasrode · 7 bakken nakijken en terug in het rek</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Pool</div><div class="s">ballen 41 · pionnen 120 · hoepels 38 · springtouwen 12</div><div class="pijl">›</div></div>
+ <div class="hint">Alles wat je hier doet wordt gelogd op jouw naam; kantoor ziet het meteen in Vandaag.</div>
+</div><div class="voet"><button class="knop licht">‹ Mijn dag</button><button class="knop licht">🔍 Waar staat…</button></div></div></div></div></div>
+<div class="frame" id="f3"><div class="uitleg"><b>M3. Per plaats</b><span>eerst kiezen waar je bent (Rozenweg / onderweg / locatie / kantoor), dan alleen wat je dáár kunt doen</span></div><div class="telefoons"><div class="phone"><div class="lbl">Hier (waar ben je?)</div><div class="tel"><div class="kopB"><b>Waar ben je?</b><span>Lotte · coördinator · vrijdag 24 juli</span></div>
+<div class="body">
+ <div class="plaats act"><div class="t">📦 Rozenweg (stockage)</div><div class="s">aanvullen 8 · klaarzetten rit #52 · terug uit ophaling 7</div><button class="knop">Hier ben ik ›</button></div>
+ <div class="plaats"><div class="t">🚚 Onderweg</div><div class="s">rit #49 om 08:30 (eigen wagen) · rit #52 om 13:30</div><button class="knop licht">Open ›</button></div>
+ <div class="plaats"><div class="t">🏫 Op een locatie</div><div class="s">Haasrode 11:00 tellen bij ophaling · Herent 09:15 levering</div><button class="knop licht">Open ›</button></div>
+ <div class="plaats"><div class="t">🏢 Kantoor</div><div class="s">2 meldingen · 1 aanvraag te keuren</div><button class="knop licht">Open ›</button></div>
+</div><div class="tabs"><a class="act">📍<span>Hier</span></a><a class="">🗓<span>Mijn dag</span></a><a class="">🔔<span>Meldingen 2</span></a><a class="">☰<span>Meer</span></a></div></div></div><div class="phone"><div class="lbl">Hier: Rozenweg</div><div class="tel"><div class="kopB"><b>Rozenweg</b><span>stockage · aanvullen, tellen, zoeken</span></div>
+<div class="body">
+ <input class="zoek" placeholder="🔍 Waar staat… (bak, stuk, locatie)">
+ <div class="kaartB blauw klik"><div class="t">Aanvullen · 8 handelingen</div><div class="s">N09 (3) · V03 (2) · N20 (2) · V17 (1) · 1/8 afgevinkt</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Klaarzetten voor ritten</div><div class="s">Rit #52 om 13:30 · 10 bakken · rek N plank 2–4</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Terug uit ophaling</div><div class="s">Rit #48 Haasrode · 7 bakken nakijken en terug in het rek</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Pool</div><div class="s">ballen 41 · pionnen 120 · hoepels 38 · springtouwen 12</div><div class="pijl">›</div></div>
+ <div class="hint">Alles wat je hier doet wordt gelogd op jouw naam; kantoor ziet het meteen in Vandaag.</div>
+</div><div class="tabs"><a class="act">📍<span>Hier</span></a><a class="">🗓<span>Mijn dag</span></a><a class="">🔔<span>Meldingen 2</span></a><a class="">☰<span>Meer</span></a></div></div></div></div></div>
+</body></html>
