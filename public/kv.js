@@ -3,6 +3,7 @@
 // Pure HTML-bouwers + createApp(deps) zijn exporteerbaar (module.exports) zodat ze zonder browser te testen zijn.
 (function (root) {
   'use strict';
+  function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   var DAGEN = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MAANDEN = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
@@ -70,7 +71,7 @@
       + '<button type="button" class="kaartB' + (nieuw ? ' oranje' : '') + '" data-act="tab" data-a="aanvragen"><div class="t">Aanvragen' + (nieuw ? ' · ' + nieuw + ' wacht op kantoor' : '') + '</div><div class="s">' + avS + '</div><div class="pijl">›</div></button>'
       + (mc.length ? '<button type="button" class="kaartB" data-act="tab" data-a="aanvragen"><div class="t">Melding chauffeur</div><div class="s">' + esc(mc[0].tekst) + (mc[0].status === 'afgehandeld' ? ' · afgehandeld' : '') + '</div><div class="pijl">›</div></button>' : '')
       + (bs.length ? '<button type="button" class="kaartB" data-act="tab" data-a="info"><div class="t">Boodschappen · ' + bs.length + '</div><div class="s">' + bs.slice(0, 3).map(function (b) { return esc(b.naam) + (b.qty > 1 ? ' ' + b.qty : ''); }).join(' · ') + '</div><div class="pijl">›</div></button>' : '');
-    var sub = [bereik(data.dagen), data.kvNaam ? 'KV ' + data.kvNaam : ''].filter(Boolean).join(' · ');
+    var sub = [bereik(data.dagen), data.kvNaam ? kvL(data.kvNaam) : ''].filter(Boolean).join(' · ');
     return kopOverzicht(data, (data.kampLocatie || data.kampNaam) + ' · week ' + data.week, sub) + '<div class="body">' + kaarten + '</div>' + tabsHtml(data, 'overzicht', false);
   }
 

@@ -3,6 +3,7 @@
 // logboek over wijzigingen + activiteiten_log. Alles alleen voor kantoor en gelogd. Data en weergave gescheiden (MOBIEL-REGEL).
 'use strict';
 module.exports = function(ctx){
+  const {kvL}=require('../lib/tijd');
   const {app,get,all,run,logWijziging,logAct,alleenKantoor,vergeetSessiesVan,path,ROOT_DIR} = ctx;
   // Wijziging op personeel: zelf loggen zonder de pincode-hash (updateMetLog zou de volledige rij met hash in wijzigingen zetten).
   const zonderPin=r=>{if(!r)return r;const{pincode,...rest}=r;return {...rest,pincode_gezet:!!pincode};};
@@ -87,7 +88,7 @@ module.exports = function(ctx){
       all('SELECT km.id,km.week,l.name FROM kampmomenten km JOIN locaties l ON l.id=km.locatie_id WHERE km.kv_persoon_id=? AND km.periode_id=? ORDER BY km.week',[p.id,per.id]).forEach(k=>{
         const th=all('SELECT DISTINCT t.name FROM kampmoment_themas kt JOIN themas t ON t.id=kt.thema_id WHERE kt.kampmoment_id=?',[k.id]).map(x=>x.name).join(', ');
         const s=get("SELECT kv_status FROM nakijk_sessies WHERE kampmoment_id=? ORDER BY id DESC",[k.id]);
-        inzet.push({soort:'kv',titel:`KV ${k.name} · wk ${k.week}`,sub:[th,s?`telling ${s.kv_status}`:'nog niet geteld'].filter(Boolean).join(' · '),link:'/nakijken',kampmoment_id:k.id});
+        inzet.push({soort:'kv',titel:`${kvL(k.name)} · wk ${k.week}`,sub:[th,s?`telling ${s.kv_status}`:'nog niet geteld'].filter(Boolean).join(' · '),link:'/nakijken',kampmoment_id:k.id});
       });
       all(`SELECT * FROM transport_ritten WHERE (personeel_id=? OR (personeel_id IS NULL AND chauffeur<>'' AND chauffeur=?)) AND datum>=? AND datum<=? AND status<>'geannuleerd' ORDER BY datum,id`,
         [p.id,p.naam,iso(new Date(new Date(per.start_datum+'T12:00:00').getTime()-14*864e5)),per.eind_datum]).forEach(r=>{

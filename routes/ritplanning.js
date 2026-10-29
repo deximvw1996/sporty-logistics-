@@ -3,6 +3,7 @@
 // slot-eis), een stop van de rit halen met 409 als er al geladen is, en de pagina /ritplanning.
 'use strict';
 module.exports = function(ctx){
+  const {kvL}=require('../lib/tijd');
   const {app,get,all,run,updateMetLog,logAct,alleenKantoor,path,ROOT_DIR,_ritPlanInfo} = ctx;
 
   const PALET=['#2563eb','#0891b2','#7c3aed','#db2777','#ea580c']; // kleuren uit het ontwerp
@@ -51,7 +52,7 @@ module.exports = function(ctx){
         const stops=takenVanRit(r.id).map(t=>{
           const q=regelsQ(t.id),kv=kvVan(t);
           return {taak_id:t.id,volgorde:t.volgorde,tijd:t.tijd||'',slot:t.slot==='vrij'?'vrij':'vast',locatie:locNaam(stopLoc(t)),
-            wat:[t.type+(q.n?' '+q.q:''),kv?'KV '+kv:null].filter(Boolean).join(' · '),bakken:q.q,status:t.status};
+            wat:[t.type+(q.n?' '+q.q:''),kv?kvL(kv):null].filter(Boolean).join(' · '),bakken:q.q,status:t.status};
         });
         return {id:r.id,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
           voertuig:{naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},

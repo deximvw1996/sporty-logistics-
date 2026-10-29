@@ -3,6 +3,7 @@
 // (_kvVerwacht). Pagina's: /nakijken (alleen kantoor) en /aanvullijst-print (ingelogd). De gsm-versie van de aanvullijst gebruikt dezelfde API.
 'use strict';
 module.exports = function(ctx){
+  const {kvL}=require('../lib/tijd');
   const {app,get,all,run,ins,now,logAct,updateMetLog,insMetLog,alleenKantoor,_kvVerwacht,_kvNaam,_bakItems,path,ROOT_DIR} = ctx;
   const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR);
   const {fmtDatumTijd}=require('../lib/tijd');
@@ -167,9 +168,9 @@ module.exports = function(ctx){
     const hist=[];
     if(sessie){
       const totaal=rij.totaal;
-      if(sessie.kv_status==='ingediend')hist.push({tekst:`telling ingediend (${rij.geteld}/${totaal})`,wie:sessie.kv_wie?'KV '+sessie.kv_wie:'KV',sorteer:_ts(sessie.kv_tijdstip),tijd:sessie.kv_tijdstip||''});
+      if(sessie.kv_status==='ingediend')hist.push({tekst:`telling ingediend (${rij.geteld}/${totaal})`,wie:sessie.kv_wie?kvL(sessie.kv_wie):'KV',sorteer:_ts(sessie.kv_tijdstip),tijd:sessie.kv_tijdstip||''});
       items.forEach(it=>{
-        if(it.kapot_aantal>0)hist.push({tekst:`${it.naam.toLowerCase()}: ${it.kapot_aantal} kapot${it.foto_url?' + foto':''}`,wie:sessie.kv_wie?'KV '+sessie.kv_wie:'KV',sorteer:_ts(sessie.kv_tijdstip),tijd:sessie.kv_tijdstip||''});
+        if(it.kapot_aantal>0)hist.push({tekst:`${it.naam.toLowerCase()}: ${it.kapot_aantal} kapot${it.foto_url?' + foto':''}`,wie:sessie.kv_wie?kvL(sessie.kv_wie):'KV',sorteer:_ts(sessie.kv_tijdstip),tijd:sessie.kv_tijdstip||''});
       });
       const regelIds=items.map(i=>i.regel_id).filter(Boolean);
       const wz=all(`SELECT * FROM wijzigingen WHERE (tabel='nakijk_sessies' AND rij_id=?) ${regelIds.length?`OR (tabel='nakijk_regels' AND rij_id IN (${regelIds.map(()=>'?').join(',')}))`:''} ORDER BY id DESC LIMIT 80`,[sessie.id,...regelIds]);
@@ -302,7 +303,7 @@ module.exports = function(ctx){
     const tekst=tekstFn(km);
     if(!tekst)return res.status(400).json({error:'Schrijf eerst een notitie.'});
     const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,status,created_at) VALUES (?,?,?,?,?,?)',[km.id,(req.persoon&&req.persoon.persoon_id)||null,soort,tekst,'nieuw',now()],'nakijken');
-    logAct('nakijken',soort,`${soort==='herinnering_kv'?'Herinnering':'Notitie'} naar KV ${_kvNaam(km)||''} (${_locNaam(km.locatie_id)}): ${tekst}`,km.locatie_id,_locNaam(km.locatie_id));
+    logAct('nakijken',soort,`${soort==='herinnering_kv'?'Herinnering':'Notitie'} naar ${_kvNaam(km)?kvL(_kvNaam(km)):'KV'} (${_locNaam(km.locatie_id)}): ${tekst}`,km.locatie_id,_locNaam(km.locatie_id));
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   }
   app.post('/api/nakijken/herinnering',alleenKantoor,(req,res)=>_naarKv(req,res,'herinnering_kv',km=>`Kantoor vraagt je de bakken van ${_locNaam(km.locatie_id)} (week ${km.week}) te tellen en te versturen.`));

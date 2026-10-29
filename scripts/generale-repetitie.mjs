@@ -81,7 +81,7 @@ export async function opbouw(c, log = console.log) {
   const kvs = pers.filter((p) => p.rol === 'kv' && !/FICTIEF/.test(p.naam)).slice(0, 8);
   for (const n of KV_NAMEN) {
     if (kvs.length >= 8) break;
-    const naam = `KV ${n} ${F}`;
+    const naam = `${n} (${F})`;
     let p = pers.find((x) => x.naam === naam);
     if (!p) { p = await moet('POST', '/api/personeel', { naam, rol: 'kv', telefoon: '0470 00 00 ' + String(kvs.length).padStart(2, '0'), notities: F }); await moet('POST', `/api/personeel/${p.id}/pincode`, { pincode: '1111' }); }
     kvs.push(p);

@@ -2,6 +2,7 @@
 // Pure HTML-bouwers (lijstHtml, detailHtml, printRijenHtml, …) zijn exporteerbaar; de browser-opstart staat onderaan.
 (function (root) {
   'use strict';
+  function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var DAGEN = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
   var MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
@@ -90,7 +91,7 @@
     if (!det) return '<div class="leeg">Kies links een bak om na te kijken.</div>';
     var a = det.afwijkingen || {};
     var pils = [a.tekort ? '<span class="pil rood">tekort ' + a.tekort + '</span>' : '', a.te_veel ? '<span class="pil blauw">te veel ' + a.te_veel + '</span>' : '', a.kapot ? '<span class="pil oranje">kapot ' + a.kapot + '</span>' : ''].filter(Boolean).join(' ');
-    var wie = det.kv_naam ? (det.ingediend_op ? 'geteld door KV ' + esc(det.kv_naam) + ', ingediend ' + esc(det.ingediend_op) : 'KV ' + esc(det.kv_naam) + ' heeft nog niet verstuurd') : 'nog geen KV gekoppeld';
+    var wie = det.kv_naam ? (det.ingediend_op ? 'geteld door ' + esc(kvL(det.kv_naam)) + ', ingediend ' + esc(det.ingediend_op) : esc(kvL(det.kv_naam)) + ' heeft nog niet verstuurd') : 'nog geen KV gekoppeld';
     var fotos = det.foto_s || [];
     var tel = det.contact && det.contact.kv_telefoon ? 'tel:' + esc(String(det.contact.kv_telefoon).replace(/[^\d+]/g, '')) : '';
     var kanAfronden = det.sessie_id && det.status === 'te_keuren';

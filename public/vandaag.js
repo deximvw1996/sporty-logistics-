@@ -2,6 +2,7 @@
 // Vult de pagina uit GET /api/vandaag; na elke actie opnieuw laden. Groot/Compact per gebruiker onthouden.
 'use strict';
 (function(){
+  function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   const TOKEN=localStorage.getItem('sporty-auth-token');
   const $=id=>document.getElementById(id);
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -47,7 +48,7 @@
       +(morgen.length?'<div class="morgen-kop" style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 2px">Morgen · '+morgen.length+'</div>'+morgen.map(ritRij).join(''):'');
     $('n-week').textContent=v.deze_week.length+' locatie'+(v.deze_week.length===1?'':'s');
     $('l-week').innerHTML=v.deze_week.length?v.deze_week.map(k=>`<div class="rit" data-km="${k.kampmoment_id}" style="cursor:pointer"><div class="u">${esc(k.dagen)}</div><div class="nm"><b>${esc(k.locatie)}</b>${
-      esc([k.thema||'geen thema',k.kv_naam?'KV '+k.kv_naam:null,...k.markeringen].filter(Boolean).join(' · '))}</div></div>`).join(''):'<div class="leeg">Geen open locaties deze week</div>';
+      esc([k.thema||'geen thema',k.kv_naam?kvL(k.kv_naam):null,...k.markeringen].filter(Boolean).join(' · '))}</div></div>`).join(''):'<div class="leeg">Geen open locaties deze week</div>';
   }
   async function laad(){
     const r=await api('GET','/api/vandaag'+location.search);
