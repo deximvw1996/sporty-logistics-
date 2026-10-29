@@ -399,3 +399,138 @@ De links en knoppen binnen de pagina:
 ### Open
 - **Selectie in Transport:** `?taak=ID` en `?rit=ID` openen alleen het tabblad. index.html kan nog geen taak of rit selecteren; dat hoort bij de Ritplanning-bouw.
 - **Periode-kiezer:** die gebruikt de bestaande `POST /api/periodes/:id/activeer`. Wisselen verandert de actieve periode dus voor iedereen, net zoals bij de bestaande kiezer.
+
+---
+
+## RP1 — Ritplanning (weekagenda + dag-inzoom + ritdetail) (chat C, Opus) · 2026-10-29
+
+**Commits op `bouw-c`:**
+- c71a53c (punt 1: datamodel en ritten-API, migratie 75)
+- e6698a1 (punt 2: `GET /api/ritplanning`, kantoor-wissel, ontkoppel)
+- 2b6734e (punt 3: pagina `/ritplanning`, Vandaag-links, test)
+- dit verslag
+
+Gewerkt van 16:47 tot ±17:15.
+
+### Wat er gebouwd is
+
+**Punt 1 — Migratie 75 en de ritten-API**
+- **Nieuwe kolommen** op `transport_ritten`:
+  - `bestuurder_rol` (chauffeur, coordinator, kantoor of anders);
+  - `voertuig_soort` (pool, eigen of huur);
+  - `voertuig_capaciteit`;
+  - `vertrek`.
+- **Eenmalige backfill** (gepoort op `migratie75_klaar`): `vertrek` wordt de vroegste taaktijd en de pool-capaciteit komt uit `voertuig_types`.
+- **`POST /api/ritten` en `PUT /api/ritten/:id`** nemen de nieuwe velden aan en geven 400 bij een ongeldige waarde.
+  - Zonder `bestuurder_rol` wordt de rol afgeleid van `personeel.rol`: chauffeur blijft chauffeur, kantoor blijft kantoor, de rest wordt coordinator.
+  - Een poolwagen zonder opgegeven capaciteit krijgt die van zijn voertuigtype.
+  - `chauffeur` (naam) en `personeel_id` werken zoals vroeger.
+- **`GET /api/ritten`** (en `?week=YYYY-MM-DD` voor één kalenderweek) geeft per rit ook `vertrek`, `einde`, `bezetting` en `waarschuwingen[]`. Mogelijke waarschuwingen:
+  - "N bakken op M plaatsen"
+  - "<naam> staat ook op rit #k om HH:MM"
+  - "<naam> is die dag KV op <locatie>"
+  - "weekend"
+
+  Het zijn uitleg, nooit een verbod.
+
+**Punt 2 — `routes/ritplanning.js`**
+- `GET /api/ritplanning?week=` (alleen kantoor).
+- `POST /api/ritten/:id/taken/:taakId/wissel` (▲▼, alleen kantoor). Er geldt geen slot-eis. Volgorde en tijd wisselen samen en de wissel wordt gelogd in `wijzigingen` (context `ritplanning`) en in het activiteitenlog.
+- `POST /api/ritten/:id/taken/:taakId/ontkoppel` (✕, alleen kantoor). Als er al iets geladen is, geeft die 409. Anders verdwijnt de taak van de rit maar blijft ze op dezelfde dag staan, zodat ze terug bij "open" komt.
+- `GET /ritplanning` geeft de pagina.
+
+**Punt 3 — De pagina**
+- `public/ritplanning.html`, `.css` en `.js`. De stijlen zijn 1-op-1 overgenomen uit `RITPLANNING-DEFINITIEF.html` (E1 + de lade).
+- **Banen:** de pagina berekent ze zelf. Een rit komt in de eerste baan waar de vorige rit al gedaan is. De dagkolom krijgt als breedte-factor het aantal banen; een weekenddag zonder ritten krijgt 0,55.
+- **Lade:**
+  - links de dag-inzoom per bestuurder, met lege rijen "+ rit" voor de vaste chauffeurs en de rij "+ iemand anders";
+  - rechts het ritdetail, de lijst "nog te plannen" of het formulier "+ rit".
+- **Vandaag:** "Rit plannen", "Op een rit zetten" en "Chauffeur/Voertuig kiezen" gaan nu naar `/ritplanning`, `/ritplanning?taak=ID` en `/ritplanning?rit=ID`.
+
+### JSON-vorm van `GET /api/ritplanning?week=YYYY-MM-DD`
+```json
+{
+  "week": {"start": "2026-11-02", "eind": "2026-11-08", "nummer": 1, "kampweek": true},
+  "dagen": [
+    {"datum": "2026-11-06", "dag": "vr 6", "weekend": false,
+     "ritten": [
+       {"id": 27, "vertrek": "07:30", "einde": "09:30",
+        "bestuurder": {"personeel_id": 1, "naam": "Maxim", "rol": "chauffeur", "kleur": "#0891b2"},
+        "voertuig": {"naam": "Camionette", "soort": "pool", "capaciteit": 20},
+        "bezetting": 23, "status": "gepland", "klaarzet_status": "",
+        "waarschuwingen": ["23 bakken op 20 plaatsen", "Maxim staat ook op rit #32 om 13:30"],
+        "stops": [{"taak_id": 210, "volgorde": 1, "tijd": "08:15", "slot": "vast", "locatie": "Abdijschool Vlierbeek",
+                   "wat": "levering 14 · KV Test KV Abdijschool", "bakken": 14, "status": "gepland"}]}
+     ],
+     "open": [{"taak_id": 225, "type": "levering", "naam": "Levering Abdijschool Vlierbeek", "route": "Rozenweg → Abdijschool Vlierbeek",
+               "stuks": 3, "tijd": "11:00", "soort": "rest|aanvraag|levering|ophaling|terugrit|weekend"}]}
+  ],
+  "personen": [{"personeel_id": 14, "naam": "Test KV Abdijschool", "rol": "kv", "bestuurder_rol": "coordinator", "kleur": "#ea580c", "vast": false}],
+  "voertuigen": [{"naam": "Camionette", "soort": "pool", "capaciteit": 20}, {"naam": "Eigen wagen", "soort": "eigen", "capaciteit": null}, {"naam": "Huurwagen", "soort": "huur", "capaciteit": null}],
+  "alle_personeel": [{"personeel_id": 10, "naam": "Claude (API)", "rol": "kantoor", "kleur": "#2563eb"}]
+}
+```
+Regels:
+- **`week`**:
+  - `week.start` is de maandag van de gevraagde datum.
+  - `nummer` is de kampweek van de actieve periode als de week daarin valt (dan `kampweek:true`), anders de ISO-week.
+- **`personen`**: alle vaste chauffeurs (`vast:true`), ook zonder rit, plus iedereen die die week rijdt.
+- **Kleuren**: `kleur` = `personeel_id` modulo het palet van 5 kleuren uit het ontwerp.
+- **`bezetting`**: het maximum dat tegelijk aan boord is. De rit vertrekt met alle regels behalve die van ophalingen, lost bij een levering en laadt bij een ophaling (som van `qty`).
+- **`einde`**: de laatste taaktijd.
+
+### Bewijs
+- **`node scripts/test-rp1-ritplanning.mjs` (poort 3335): 28 ok, 0 fout, ALLES GROEN**, gedraaid in de losse controle en in beide volle runs. Gecontroleerd:
+  - 6 ritten in kampweek 1:
+    - donderdag 2× Jesse tegelijk → "Jesse staat ook op rit #24 om 09:30";
+    - woensdag 25 op 20 → "25 bakken op 20 plaatsen";
+    - vrijdag een coördinator (KV) met huurwagen 15 → `coordinator`/`huur`/15, plus "… is die dag KV op Abdijschool Vlierbeek";
+    - zaterdag → "weekend".
+  - 4 open taken staan op de juiste dag, met soort rest, weekend of levering.
+  - `personen` bevat de coördinator met een kleur en alle vaste chauffeurs.
+  - Een kantoor-wissel op twee vaste stops → 200, tijden omgewisseld.
+  - De chauffeur via de rit-link op een vaste stop krijgt nog steeds 409.
+  - ✕ op een geladen taak → 409. ✕ op een niet-geladen taak → terug in "open" van die dag.
+  - Een chauffeur krijgt 403 op `/api/ritplanning` en op de kantoor-wissel.
+  - `/ritplanning` → 200 met legenda, dagkop en lade (inzoom + detail).
+- **`test-ko1-vandaag`**: nog steeds 34 ok. Eén verwachting is aangepast naar de nieuwe link `/ritplanning?taak=`.
+- **Live in de browser op 1920×900**, op een kopie van herfst-test.db met een zomervrijdag van 6 ritten, waarvan 5 tegelijk, met 2 coördinatoren:
+  - De dagkop-flex is `1 / 1 / 1 / 2 / 5 / 0.55 / 0.55`, precies zoals in het ontwerp: vrijdag 5 banen, donderdag 2, lege weekenddagen gekrompen.
+  - De dag-inzoom toont Maxim, Jeroen en Jesse (chauffeur), Test KV Abdijschool en Test KV Betekom (coördinator), de lege rij "+ rit" voor Test Chauffeur harnas, en "+ iemand anders".
+  - **Ritdetail #27**, via `?rit=27`: vrijdag geselecteerd, waarschuwing "⚠ 23 bakken op 20 plaatsen …". Acties:
+    - ▼ → "08:15 Betekom vrij | 09:30 Abdijschool 🔒 vast";
+    - tik op het slot → beide vast;
+    - Klaarzetten → "Klaargezet ✓";
+    - Rit-link → toast met de link (het klembord is in de testbrowser niet beschikbaar, de toast toont dan de link);
+    - ✕ → "Taak van de rit gehaald", en de teller "open" ging van 2 naar 3;
+    - "→ aan rit" met keuze uit de 7 ritten van die dag + "nieuwe rit" → "Taak op rit #27 gezet".
+  - Een weekendtaak vraagt bevestiging: "Dit is een weekendtaak: een uitzondering, geen verbod."
+  - "+ iemand anders" met huurwagen 15 en vertrek 11:00 → rit #33, "coördinator rijdt mee · Huurwagen · 0/15 bakken".
+- **`node scripts/volle-run.mjs`:**
+
+| run | groen | rood |
+|---|---|---|
+| 1 | 15/19 | f1-schrijven (1), v3c-catalogus (8), v3c-fotos (3), veiligheid (3) |
+| 2 | 17/19 | v3c-fotos (2), veiligheid (3) |
+
+`rp1-ritplanning`, `ko1-vandaag` en `ch1-rit-api` zijn in beide runs groen.
+
+### Afwijkingen van het ontwerp
+- **Weggelaten demo-elementen:** de demo-balk (`.keuze`) en de CSS van de niet-gekozen varianten E2/E3. Het frame vult het venster; op 1920×900 is het beeld identiek.
+- **Stops zonder depot:** de stops zijn alleen de echte taken. Het ontwerp toont ook "Rozenweg laden" aan het begin en "Rozenweg terug" aan het einde, maar een rit heeft geen depotveld en ik verzin er geen.
+- **Standaarddag:** bij het openen is de eerste dag met ritten geselecteerd (in het ontwerp toevallig vrijdag). Met `?rit=`/`?taak=` is het de dag van die rit of taak.
+- **"Dag openen":** het ontwerp zegt niet wat die knop doet. Hij toont nu de lijst "nog te plannen" van de gekozen dag. "Sluiten ✕" verbergt de lade.
+
+### GEVONDEN
+- **`v3c-catalogus` en `f1-schrijven` zijn rood in de eerste volle run en groen in de tweede.** Bij KO1 gebeurde precies hetzelfde.
+  - `v3c-catalogus` werkt in de vaste map `D:\Sporty\sporty-e-v3c-catalogustest`, die alle chats delen. Los gedraaid zag ik "item_types 3345 → 3329": de database werd tussendoor door iets anders veranderd.
+  - Waarschijnlijk lopen andere chats tegelijk volle runs. Dit raakt geen RP1-code.
+- **`v3c-fotos` en `veiligheid`:** dezelfde omgevingsafhankelijke rode tests als bij V3a, V3d, CH1 en KO1. Ze lezen de lokale `sporty.db`.
+- **Bezetting telt de som van `qty` van de regels.** Een bulkregel "5 × kleuterfiets" telt dus als 5 "bakken". Er bestaat geen bakken-equivalent per stuk. Als kantoor bakken anders wil tellen, is dat een aparte beslissing.
+- **De bestaande ontkoppel-routes** (`PUT /api/transport-taken/:id/rit` met null en `bulk-ontkoppel`) controleren niet op geladen stukken en wissen de datum, waardoor de taak uit de week verdwijnt. Daarom heeft ✕ een eigen route. Mogelijk zijn die oude routes zelf een bug.
+- **Splitsen is niet live getest:** in de demodata had geen stop meer dan één regel. De knop roept de bestaande splits-route aan, met een keuzevenster voor de stop, de regels en een datum.
+- **Klembord:** de rit-link wordt naar het klembord gekopieerd. In de testbrowser lukte dat niet en toonde de toast de link (fallback).
+
+### Buiten mijn gebied
+- **`scripts/test-ko1-vandaag.mjs`:** één verwachting aangepast, de link van "Op een rit zetten" is nu `/ritplanning?taak=…`. Het is mijn eigen test van KO1, maar die stond niet in de lijst van deze prompt.
+- **`server.js`:** zoals toegestaan één regel (`'ritplanning'` in de routelijst).
