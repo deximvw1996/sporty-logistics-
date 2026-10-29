@@ -159,7 +159,7 @@ try {
   const nk = (await A('GET', '/api/nakijken?week=2026-11-02')).json;
   const kmIds = new Set(kms.map((k) => k.id));
   const onze = nk.bakken.filter((b) => kmIds.has(b.kampmoment_id));
-  const teKeuren = onze.filter((b) => b.status === 'te_keuren'), nietGeteld = onze.filter((b) => b.status === 'niet_geteld');
+  const teKeuren = onze.filter((b) => b.status === 'te_keuren'), nietGeteld = onze.filter((b) => b.status === 'nog_niet');
   check(teKeuren.length > 0 && nietGeteld.length > 0, `/nakijken: ${teKeuren.length} bakken te keuren, ${nietGeteld.length} niet geteld (${onze.length} in totaal)`);
   check(v.nakijken.some((n) => /telling(en)? te keuren/i.test(n.titel) && n.acties.some((a) => a.url === '/nakijken')), `Vandaag › Nakijken: "${v.nakijken.find((n) => /te keuren/i.test(n.titel))?.titel}" met Open → /nakijken`);
   const met = onze.filter((b) => b.met_tekort || b.met_kapot);

@@ -98,7 +98,9 @@ module.exports = function(ctx){
       if(sessie&&sessie.kv_status==='bezig'&&geteld>0)tekst='KV is bezig · '+geteld+'/'+totaal+' geteld';
     }
     let status='niet_geteld';
-    if(sessie&&_nagekeken(sessie))status='nagekeken';
+    // KD1: de KV is nog niet aan deze bak begonnen (geen sessie) → eigen status, zodat kantoor het verschil ziet met "sessie zonder tellingen".
+    if(!sessie){status='nog_niet';tekst='nog niet geteld';}
+    else if(_nagekeken(sessie))status='nagekeken';
     else if(sessie&&sessie.kv_status==='ingediend'&&geteld>0)status='te_keuren';
     return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id,locatie:loc,week:km.week,kv_naam:kvNaam,
       bak:{id:bak.id,code:bak.code||'',naam:bak.naam||bak.label||'',soort:bak.soort},geteld,totaal,uitslag_tekst:tekst,
@@ -115,10 +117,11 @@ module.exports = function(ctx){
       v.bakken.forEach(b=>bakken.push(_rij(km,b)));
       v.attributen.forEach(a=>bakken.push(_rij(km,{...a,soort:'attribuut'})));
     });
-    const tellers={te_keuren:0,niet_geteld:0,met_tekort:0,met_kapot:0,nagekeken:0};
+    const tellers={te_keuren:0,niet_geteld:0,nog_niet:0,met_tekort:0,met_kapot:0,nagekeken:0};
     bakken.forEach(b=>{
       if(b.status==='te_keuren')tellers.te_keuren++;
       if(b.status==='niet_geteld')tellers.niet_geteld++;
+      if(b.status==='nog_niet')tellers.nog_niet++;
       if(b.status==='nagekeken')tellers.nagekeken++;
       if(b.met_tekort)tellers.met_tekort++;
       if(b.met_kapot)tellers.met_kapot++;
