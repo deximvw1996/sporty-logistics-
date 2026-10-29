@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { ritTekst } from './_rit-render.mjs';
 
 const require = createRequire(import.meta.url);
 const initSqlJs = require('sql.js');
@@ -95,6 +96,10 @@ try {
   const rit1 = r.json.id;
   const tok1 = (await call('POST', `/api/ritten/${rit1}/token`)).json.token;
   r = await call('GET', '/rit/' + tok1, { sessie: false });
+  // CH2: de pagina tekent zich uit de rit-data; zoek in de HTML die rit.js daaruit bouwt.
+  const pgStatus = r.status;
+  r.text = ritTekst((await call('GET', `/api/rit-token/${tok1}/data`, { sessie: false })).json);
+  r.status = pgStatus;
   check(r.status === 200 && r.text.includes(themaBak.naam) && r.text.includes(bulk.naam), 'rit-pagina toont de bakkenlijst zonder Klaarzetten (checks automatisch aangemaakt)');
   check(r.text.includes('Ik ben aangekomen'), 'rit-pagina heeft per stop een knop "aangekomen"');
   const checks1 = (await call('GET', `/api/ritten/${rit1}/checks`)).json.checks;
@@ -165,6 +170,7 @@ try {
   const ritO = r.json.id;
   const tokO = (await call('POST', `/api/ritten/${ritO}/token`)).json.token;
   r = await call('GET', '/rit/' + tokO, { sessie: false });
+  r.text = ritTekst((await call('GET', `/api/rit-token/${tokO}/data`, { sessie: false })).json);
   check(r.text.includes(`3 × ${bulk.naam}`), 'ophaalrit-pagina toont de bulkregel van het voorstel (zonder Klaarzetten)');
   check(r.text.includes(themaBak.naam), 'oude ophaling zonder regels: bak afgeleid uit wat op de locatie staat voor dat kampmoment');
   const chO = (await call('GET', `/api/ritten/${ritO}/checks`)).json.checks;

@@ -23,3 +23,39 @@ Start 23:21, klaar ruim binnen 2 uur. Alleen `index.html`, `scripts/test-v3b-ui.
 
 ## Buiten mijn gebied
 Niets nodig in `routes/*` voor deze opdracht.
+
+# CH2 — Chauffeursscherm deel 2: de rit-pagina (chat D, 2026-10-30)
+Start 16:20, klaar binnen de 2,5 uur. Commits op bouw-d (niet main, geen deploy.bat).
+
+## Wat af is
+- `GET /rit/:token` (routes/transport.js, alleen die route) serveert nu `public/rit.html` met `public/rit.css` + `public/rit.js` **inline** (geen losse statics → geen Basic-auth-gat; foute token → nette 404-pagina, geen stacktrace; `_zorgVoorChecks(rit)` blijft aangeroepen zodat de regels bestaan).
+- **Dag-scherm**: kop (datum "ma 2 nov", chauffeur · voertuig · stops · "x van y stuks geladen", statuspil), legenda, tijdlijn met tijd/dot/naam/soort·stuks·KV/chip (klaar/bezig/volgende/gepland), 🔒 bij vaste stops, ▲▼ (44 px, oranje) enkel bij vrije stops en alleen actief naast een andere vrije stop, uitgelichte huidige stop, oranje uitlegvak, balk met ⚠ en "Open stop N: …".
+- **Stop-scherm**: kop "← Dag" + "STOP n VAN m"; kaart met soort · tijd · 🔒 vast/↕ vrij, locatie, "van/naar … · adres", 🔑 sleutel_info, belbare `tel:`-blokken (KV en sleutelcontact); "📍 Ik ben aangekomen" → "✓ Aangekomen"; rek-groepen (REK N / POOL / OVERIG) met "x van y geladen"; per stuk foto of placeholder, code · ×aantal, laden- en lossen-vak (toggle via de bestaande routes), bulk "x van y geladen · tik voor aantal", rode 'past niet'-markering + "blijft open als nieuwe taak" en terugdraaien via het rode vak (`{reden:null}`); onderbalk ⚠ / "Past niet / niet gevonden" (toont hint) / "Stop n+1 →" of "Terug naar dag". Elke stop (ook een vorige) is bereikbaar; `#stop-<id>` in de URL herstelt het scherm na verversen.
+- **Overlay "past niet"** (3 redenen, opmerking, "Markeer: blijft open"); voor bulk een extra veld "Hoeveel gaan NIET mee?" → de pagina stuurt `aantal` = totaal − niet-mee (de server wil "wat WEL mee gaat"). **Overlay "probleem melden"** (3 soorten, tekst, foto via camera/galerij → verkleind tot 1280 px jpeg, "Versturen") → toast "✓ Gemeld aan kantoor en <KV>".
+- **Toast** voor elke bevestiging en elke `{error}` van de server (rood bij fout, 3 s). Na elke actie een verse `GET …/data` en hertekenen; bij geen verbinding blijft de laatste stand staan (localStorage) met een toast. Geen prompt()/confirm()/alert().
+
+## Bewijs
+- `node scripts/test-ch2-rit-pagina.mjs` 2× → **38 ok, 0 fout, ALLES GROEN**. (Geen headless browser in de map → HTML-bouwers + actielogica van `public/rit.js` als module met de échte data-JSON en de echte API van een eigen server op 3342.) Gedekt: 200/404-pagina; Dag met 3 stops, 🔒 ×1, ▲▼ ×4 (eerste ▲ en laatste ▼ disabled); Stop met tel:-links, REK N, POOL, bulk; wissel → tijdlijn 1,3,2 + tijden mee; wissel met vaste stop → 409-tekst als toast; aangekomen; laden aan/uit; niet-mee → rode markering + rest-taak #199; terugdraaien → rest-taak weg; bulk 2 van 5 niet mee → qty 3, "2 past niet → blijven open"; probleem "anders" zonder tekst → toast, overlay blijft; probleem met foto → aanvraag "Chauffeur Test Chauffeur bij Abdijschool Vlierbeek: past niet in het lokaal — trap te smal"; fout-id → servertekst als toast.
+- **DOM-dump Dag** (uit de test): `Rit ma 2 nov | GEPLAND | Test Chauffeur · 3 stops · 0 van 4 stuks geladen | 🔒 vast door kantoor | ▲▼ vrij: wissel van plaats | 09:00 Abdijschool Vlierbeek levering · 6 stuks · KV Test KV Abdijschool [volgende] 🔒 | 10:00 Betekom … [gepland] ▲ ▼ | 11:00 Abdijschool Vlierbeek … [gepland] ▲ ▼ | ▲▼ wisselt alleen met een andere vrije stop · Abdijschool Vlierbeek staat vast door kantoor | ⚠ | Open stop 1: Abdijschool Vlierbeek →`
+- **DOM-dump Stop 1**: `← Dag | STOP 1 VAN 3 | Rit ma 2 nov · Test Chauffeur | Levering · 09:00 · 🔒 vast | Abdijschool Vlierbeek | van Rozenweg · Molenstraat 90, 3010 Kessel-Lo | 🔑 Sleutel bij de buren nr. 12 | Test KV Abdijschool (KV) 📞 0499 88 77 66 | Sleutel · Conciërge Jan 📞 0470 11 22 33 | 📍 Ik ben aangekomen | REK N 0 van 1 geladen … laden/lossen | POOL 0 van 5 geladen … tik voor aantal | ⚠ | Past niet / niet gevonden | Stop 2 →`
+- **Echte browser (in-app, 390×844, rit-link op poort 3304)**: Dag, Stop en de "past niet"-overlay bekeken en vergeleken met het ontwerp; `scrollWidth` 390 (geen horizontale scroll), geen knop < 44 px, console leeg; Stop-scherm hersteld via `#stop-197`. (Schermafdrukken enkel in de browserpane gezien, niet als bestand bewaard.)
+- `node scripts/volle-run.mjs` 2× → **17/17 groen** (16 bestaande + ch2) na een verse `sporty.db`-kopie uit sporty-railway (mijn oude werkmap-db was door eerdere sessies vervuild: v3c-catalogus/veiligheid/v3c-fotos waren daardoor rood). Eindtabel: ch1 39 · ch2 38 · f1-modules 85 · f1-schrijven 22 · f1-wijzigingen 46 · keten-aanvraag 12 · keten-kv-periode 19 · keten-levering 44 · keten-ophaling 7 · keten-periode 14 · keten-splits 9 · v3a-keten 52 · v3b-ui 15 · v3c-catalogus 33 · v3c-fotos 47 · v3d-bulk 27 · veiligheid 58, allemaal 0 fout.
+
+## Gelijk aan het ontwerp / afwijkingen
+Gelijk: opbouw, teksten, kleuren, groottes, knoppen, overlays en toast van `CHAUFFEUR-DEFINITIEF.html` (CSS 1-op-1 overgenomen). Afwijkingen, elk met reden:
+1. **Rozenweg-rijen "Laden · Rozenweg" / "Lossen · Rozenweg"** (07:30 / 15:00 in het ontwerp) ontbreken: ze bestaan niet in de data (alleen de taken zijn stops) → weggelaten, zoals de prompt voorschrijft.
+2. **Tijdkolom** 2 px smaller/verschoven (`left:-66px;width:44px`): met 390 px breed overlapte de dot de "0" van "08:30".
+3. **Onderbalk-knoppen** breken af over 2 regels i.p.v. te worden afgekapt ("Past niet / niet gevonden" paste niet op 390 px).
+4. **Bulk-overlay** heeft één extra veld ("Hoeveel gaan NIET mee?"), anders is het aantal niet te geven; "tik voor aantal" opent daarom diezelfde overlay.
+5. Het contactvak toont "geen nummer" als er wel een naam maar geen telefoon is (ontwerp kent alleen gevulde vakken).
+6. "kampweek N" in de van-regel ontbreekt (niet in de data).
+
+## Buiten mijn gebied (nodig om volle-run groen te houden)
+- `scripts/test-keten-ophaling.mjs`, `test-v3a-keten.mjs`, `test-v3d-bulk.mjs`: 6 controles zochten tekst in de oude server-gerenderde rit-HTML (bv. "rit-pagina toont bak met code F40", `function toast(`). Omdat de pagina nu client-side tekent, zoeken ze nu in de HTML die `public/rit.js` uit `GET …/data` bouwt (nieuw hulpbestand `scripts/_rit-render.mjs`); inhoud van de controles ongewijzigd, `alert()`-controle zoekt nu `id="toast"`.
+
+## GEVONDEN
+- Contract-tegenstrijdigheid: de CH2-prompt zegt `niet-mee {aantal}` = aantal dat NIET mee gaat, de server (CH1) leest `aantal` als wat WEL mee gaat; de pagina vertaalt (totaal − niet-mee). In de data is `niet_mee.aantal` wél "niet mee".
+- `design/CHAUFFEUR-DEFINITIEF.html` stond nu wel in de repo (C zag hem nog niet).
+- `/rit/:token`, `/api/rit-token/*` en `/uploads` (foto's) staan achter de Basic-auth-muur zolang `APP_PASSWORD` gezet is; foto's van bakken laden dus alleen als de chauffeur die muur ook gepasseerd is — in productie checken met een echte telefoon (de rit-token zelf is geen wachtwoord).
+- Gesplitste bulk-niet-mee heeft in de data geen eigen vlag; de pagina leidt "gesplitst" af uit `is_bulk && niet_mee.aantal > 0`.
+- Tijdlijn toont taken-stops; "laden in de Rozenweg" als aparte stop bestaat enkel in het ontwerp.
