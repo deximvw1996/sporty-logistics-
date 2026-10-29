@@ -1252,3 +1252,104 @@ Gewerkt van 20:32 tot ±21:00.
 
 ### Buiten mijn gebied
 - **`server.js`:** één regel, `'locaties-overzicht'` in de routelijst.
+
+---
+
+## TF1 — Fixes uit testverslag T1, deel keten (chat C, Opus) · 2026-10-29
+
+Gewerkt van 20:57 tot ±21:35.
+
+**Commits op `bouw-c`:**
+- f79b25e: transport + db
+- 15d4ac2: Vandaag + ritplanning
+- 16151c7: nakijken + KV + rit
+- bb0f23f: tests
+- dit verslag
+
+Per G-nummer committen ging niet: meerdere punten zitten in hetzelfde bestand. De commitberichten noemen de G-nummers.
+
+**Bewijs:** `node scripts/test-tf1-keten.mjs` (poort 3341) geeft **24 ok, 0 fout**. Elke controle hieronder was vóór de fix rood.
+
+### Per punt
+
+**G5 — Rit zonder chauffeur of voertuig.**
+- `_ritWaarschuwingen` geeft "geen chauffeur" en "geen voertuig" zolang de rit nog moet rijden. Dat werkt in `GET /api/ritten?week`, `/api/ritplanning` en dus de Ritplanning (⚠).
+- `POST /api/spoedtransport` neemt nu `personeel_id`/`chauffeur` en `voertuig` aan. Zonder chauffeur logt hij "Spoedrit #n (datum) heeft nog geen chauffeur — kies er een in de Ritplanning".
+- Bewijs: een spoedrit via "Goedkeuren + spoed" geeft `["geen chauffeur","geen voertuig"]`, en Vandaag › Inplannen toont "Rit #22 heeft nog geen chauffeur". De spoedroute zet met `personeel_id` "Jeroen" als chauffeur en zonder komt de logregel.
+- **Over Vandaag:** de code voor dat item bestond al. Hij werkte niet in de test op prod omdat de spoedrit op ma 2 nov viel, buiten de week van de opgevraagde datum. Met `?datum=` in die week komt hij er nu (test).
+- **Niet aangepast:** "Goedkeuren + spoed" zelf staat in `routes/aanvragen.js`, buiten mijn bestandenlijst. Die maakt de rit nog altijd zonder chauffeur en zonder logregel. De waarschuwingen en het Vandaag-item vangen dat wel op (zie GEVONDEN).
+
+**G6 — Stoptijden volgen het vertrek.**
+- `_stoptijdenNaarVertrek(rit)` met de constante `STOP_STAP_MIN=45`. Stops zonder tijd, of met een tijd vóór het vertrek, krijgen vertrek, vertrek + 45, … in volgorde. Een latere bestaande tijd blijft staan en de volgende stop rekent daarvan verder.
+- Wordt aangeroepen bij:
+  - `POST /api/ritten` (de `taak_ids` krijgen ook hun volgorde);
+  - `bulk-move` (Taken › Op een rit zetten);
+  - `PUT /api/transport-taken/:id/rit` (Ritplanning › "→ aan rit"; die route staat sinds TB1 in `transport.js`).
+- Vandaag toont als rituur het vertrek, net als de Ritplanning.
+- Bewijs:
+  - rit 15:00 met een rest-taak van 08:45 → stop 15:00;
+  - drie stops vanaf 13:00 → 13:00, 13:45, 17:30 (de 17:30 bleef);
+  - "→ aan rit" van een taak van 07:00 → 15:45;
+  - Vandaag en de Ritplanning tonen allebei 15:00.
+
+**G8 — Herinnering niet in Beslissen.** `/api/vandaag` laat `herinnering_kv` en `notitie_kantoor` uit Beslissen weg. Bewijs: na `POST /api/nakijken/herinnering` staat de herinnering niet in Beslissen.
+
+**G9 — KV ziet het bericht op het overzicht.** De kaart "Aanvragen" toont bovenaan, vet, "Bericht van kantoor: …", gevolgd door de aanvragen. Bewijs: `overzichtHtml` met de echte KV-data geeft "Aanvragen | Bericht van kantoor: Kantoor vraagt je de bakken van Abdijschool Vlierbeek (week 1) te tellen en te versturen."
+
+**G10 — Niet-geleverd.**
+- **KV:** `levering.status` stond al in de KV-data. Tellen toont nu "⚠ Levering nog niet aangekomen: tel pas als alles er staat." zolang de levering niet gedaan is (of niet gepland). Tellen blijft mogelijk.
+- **Rit-data:** elke regel van een ophaalstop krijgt `geleverd`. Dat is `false` als de bak of het attribuut volgens de db niet op die locatie staat. Bij bulk is de spreiding onbekend, dus niet gemarkeerd.
+- **Rit-pagina:** toont de oranje pil "niet geleverd". Laden blijft mogelijk.
+- Bewijs:
+  - KV-data `levering.status:"gepland"` geeft de waarschuwing in `tellenHtml`;
+  - de ophaalregel N20 (staat nog in de Rozenweg) heeft `geleverd:false`;
+  - `stopHtml` bevat "niet geleverd";
+  - laden geeft 200.
+
+**G12 — Capaciteit.**
+- Waarschuwingen over capaciteit (en geen chauffeur/voertuig) alleen bij een rit die nog moet rijden. Een gedane rit boven capaciteit krijgt `notitie:"reed met 25/20"`, die de Ritplanning stil naast de bezetting toont.
+- **Klaarzetten boven capaciteit:**
+  - de pagina vraagt eerst bevestiging ("Rit boven capaciteit klaarzetten? … Toch klaarzetten?");
+  - ze stuurt dan `bevestigd_over_capaciteit:true` mee;
+  - de route logt "Rit #n klaargezet met 25 bakken op 20 plaatsen — bevestigd door <naam>";
+  - het blijft geen verbod.
+- Bewijs:
+  - geplande rit: "25 bakken op 20 plaatsen";
+  - klaarzetten met bevestiging staat in het log;
+  - na laden, aankomen en lossen: status gedaan, waarschuwingen `[]`, notitie "reed met 25/20".
+
+**G13 — Stuks in plaats van regels.**
+- `_uitslag` telt nu stuks: het tekort, te veel en kapot opgeteld. De KV-knop van een stuk toont álle afwijkingen ("kapot 1 · te veel 2").
+- Bewijs: uitslag "tekort 3 · te veel 2 · kapot 1", en de KV-bak toont "kapot 1 · te veel 2" op hetzelfde stuk.
+
+**G14 — Actie zonder aantal.** Zonder `kantoor_aantal` neemt `PUT /api/nakijken/regel/:id` het afwijkingsaantal van de actie:
+- bestellen / uit pool → tekort;
+- naar pool / laten staan → te veel;
+- afschrijven / herstellen → kapot.
+
+Een meegegeven aantal blijft gelden. Bewijs: tekort → 3 en kapot → 1 (was 0); met `kantoor_aantal:2` blijft het 2.
+
+**G16 — Rit-link-acties op naam.** `lib/db.js logWijziging` vult, als er geen sessie is en de oproep via `/api/rit-token/:token/…` komt, `persoon_naam` met de chauffeur van die rit en `persoon_id` met `personeel_id` (als dat gekend is). Dat geldt voor alle rit-linkroutes, ook die buiten `transport.js` (zoals probleem melden). KV-acties blijven "<naam> (KV)". Bewijs: na laden via de rit-link staat "Jeroen", id 2; een KV-aanvraag staat als "Test KV Abdijschool (KV)".
+
+### Aangepaste bestaande tests (ze eisten het oude, foute gedrag)
+- **`test-f1-wijzigingen`:** verwachtte bij een bak-update via de rit-link `persoon_id === null && persoon_naam === null`. Nu verwacht hij dat `persoon_naam` de chauffeur van de rit is (G16).
+- **`test-vc1-nakijken`:** verwachtte de uitslag "tekort 1 · te veel 1 · kapot 1" (geteld in regels). Nu "tekort 2 · te veel 2 · kapot 2" (in stuks, G13).
+
+### Volle run
+| run | groen | rood |
+|---|---|---|
+| 1 | 27/31 | f1-wijzigingen (1) en vc1-nakijken (1): eisten het oude gedrag; aangepast, zie hierboven. v3c-fotos (2), veiligheid (3) |
+| 2 | 27/31 | idem |
+| 3 (na de aanpassing) | 29/31 | v3c-fotos (2), veiligheid (3) |
+| 4 | 29/31 | v3c-fotos (2), veiligheid (3) |
+
+`v3c-fotos` en `veiligheid` zijn de bekende omgevingsafhankelijke tests (ze lezen de lokale `sporty.db`).
+
+### GEVONDEN
+1. **"Goedkeuren + spoed" (`routes/aanvragen.js`)** maakt de spoedrit nog altijd zonder chauffeur en zonder logregel. `aanvragen.js` stond niet in de bestandenlijst. De waarschuwing en het Vandaag-item vangen het nu op. Wil kantoor bij het goedkeuren meteen een chauffeur kiezen, dan moet die route `personeel_id` doorgeven.
+2. **`geleverd` voor bulk** (fietsen, blazers…) wordt niet bepaald: de spreiding per locatie zit in `lib/bulk.js` en is per stuk niet eenduidig.
+3. **G6 bij `PUT /api/ritten/:id`:** als het vertrek van een bestaande rit verandert, schuiven de stops niet automatisch mee. De prompt vroeg alleen het aanmaken en "→ aan rit".
+
+### Buiten mijn gebied
+- **`public/ritplanning.js`:** de bevestiging bij klaarzetten en de stille notitie (G12) staan in de pagina; de prompt noemde alleen `routes/ritplanning.js`. Zonder deze aanpassing kan G12 niet.
+- **`scripts/test-f1-wijzigingen.mjs` en `scripts/test-vc1-nakijken.mjs`:** één verwachting elk (zie hierboven).
