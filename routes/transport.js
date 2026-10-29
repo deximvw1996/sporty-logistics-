@@ -897,6 +897,15 @@ module.exports = function(ctx){
     if(b.voertuig_capaciteit!==undefined){const c=b.voertuig_capaciteit===null||b.voertuig_capaciteit===''?null:parseInt(b.voertuig_capaciteit);
       if(c!==null&&!(c>0))return {fout:'voertuig_capaciteit moet een positief aantal bakken zijn'};v.voertuig_capaciteit=c;}
     if(b.vertrek!==undefined){if(b.vertrek&&!_hhmm(b.vertrek))return {fout:'vertrek moet HH:MM zijn'};v.vertrek=_hhmm(b.vertrek);}
+    // VT1: een bepaald voertuig (voertuigen-tabel) vult naam, soort en capaciteit; de oude velden blijven werken voor de oude tab en de rit-link.
+    if(b.voertuig_id!==undefined){
+      if(b.voertuig_id===null||b.voertuig_id==='')v.voertuig_id=null;
+      else{
+        const vv=get('SELECT * FROM voertuigen WHERE id=?',[b.voertuig_id]);
+        if(!vv)return {fout:'Dat voertuig bestaat niet'};
+        v.voertuig_id=vv.id;v.voertuig=vv.naam;v.voertuig_soort=vv.soort==='eigen'?'pool':vv.soort==='huur'?'huur':'eigen';v.voertuig_capaciteit=vv.plaatsen||null;
+      }
+    }else if(b.voertuig!==undefined&&rit&&rit.voertuig_id&&b.voertuig!==rit.voertuig)v.voertuig_id=null; // een andere vrije naam: niet langer dat voertuig
     // Pool-voertuig zonder opgegeven capaciteit: die van het voertuigtype.
     const soort=v.voertuig_soort||(rit&&rit.voertuig_soort)||'pool', naam=b.voertuig!==undefined?b.voertuig:(rit&&rit.voertuig);
     if(soort==='pool'&&v.voertuig_capaciteit===undefined&&(b.voertuig!==undefined||v.voertuig_soort)){
@@ -931,6 +940,19 @@ module.exports = function(ctx){
     if(nogTeRijden&&rit.vertrek){const tm=all("SELECT tijd FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[rit.id]).map(t=>_min(t.tijd)).filter(x=>x!=null);
       let best=null,a=0;for(let i=1;i<=tm.length;i++){if(i<tm.length&&tm[i]-tm[i-1]<STOP_STAP_MIN)continue;if(i-a>1&&(!best||i-a>best.n))best={n:i-a,m:tm[i-1]-tm[a]};a=i;}
       if(best)w.push(`stops samengedrukt: ${best.n} stops binnen ${best.m} min`);}
+    // VT1: één bepaald voertuig kan niet op twee ritten tegelijk (zelfde overlap-logica als bij de bestuurder), onderhoud en huurperiode.
+    if(nogTeRijden&&rit.voertuig_id&&rit.datum){
+      const vt=get('SELECT * FROM voertuigen WHERE id=?',[rit.voertuig_id]);
+      if(vt){
+        const a0=_min(x.vertrek),a1=_min(x.einde);
+        all("SELECT * FROM transport_ritten WHERE datum=? AND id<>? AND status<>'geannuleerd' AND voertuig_id=?",[rit.datum,rit.id,rit.voertuig_id]).forEach(o=>{
+          const ot=_ritTijden(o),b0=_min(ot.vertrek),b1=_min(ot.einde);
+          if(a0==null||b0==null||(a0<=b1&&b0<=a1))w.push(`voertuig dubbel: ook op rit #${o.id} (${ot.vertrek||'?'}–${ot.einde||'?'})`);
+        });
+        if(get('SELECT id FROM voertuig_onderhoud WHERE voertuig_id=? AND datum_van<=? AND datum_tot>=?',[vt.id,rit.datum,rit.datum]))w.push('voertuig in onderhoud');
+        if(vt.soort==='huur'&&((vt.huur_van&&rit.datum<vt.huur_van)||(vt.huur_tot&&rit.datum>vt.huur_tot)))w.push('huurwagen niet beschikbaar');
+      }
+    }
     const naam=rit.chauffeur||'';
     if(rit.personeel_id||naam){
       const a0=_min(x.vertrek),a1=_min(x.einde);
@@ -1127,6 +1149,7 @@ module.exports = function(ctx){
     if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
     if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
     const rv=_ritVelden(req.body||{},rit);if(rv.fout)return res.status(400).json({error:rv.fout});
+    if(rv.velden.voertuig!==undefined)voertuig=rv.velden.voertuig; // VT1: voertuig_id bepaalt de naam
     // RP2: verandert het vertrek (of de datum met een vertrek), dan schuiven de stops mee — één functie met /verplaats.
     if(rv.velden.vertrek&&rv.velden.vertrek!==_ritTijden(rit).vertrek){
       _verschuifRit(req,rit,datum||rit.datum,rv.velden.vertrek);delete rv.velden.vertrek;datum=undefined;rit.datum=get('SELECT datum FROM transport_ritten WHERE id=?',[rit.id]).datum;}
