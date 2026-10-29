@@ -57,8 +57,7 @@ module.exports = function(ctx){
   }
   function _themaTekst(km,themas){
     if(!themas.length)return '— geen thema';
-    if(km.type==='themadag'){const n=new Set(themas.map(t=>t.dag)).size;return `${n} themadag${n===1?'':'en'}`;}
-    return [...new Set(themas.map(t=>t.naam))].join(', ');
+    return require('../lib/tijd').namenKort(themas.map(t=>t.naam));
   }
   function _kv(km){
     const p=km.kv_persoon_id?get('SELECT id,naam,telefoon FROM personeel WHERE id=?',[km.kv_persoon_id]):null;

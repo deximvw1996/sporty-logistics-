@@ -3,6 +3,7 @@
 // + PUT /velden, POST /kv-links, /genereer-transport, /verwijderen. Pure HTML-bouwers zijn exporteerbaar (tests); de browser-opstart staat onderaan.
 (function (root) {
   'use strict';
+  function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var DAG7 = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'], KOOK = ['ma', 'di', 'wo', 'do', 'vr'];
   var tijdTekst = function (s) {
@@ -96,7 +97,7 @@
   function detailHtml(D, st) {
     if (!D) return '<div class="leeg">Kies links een kampmoment.</div>';
     var tab = st.tab || 'gegevens';
-    var sub = [D.dagen_tekst.replace(/^wk \d+ · /, ''), D.kv ? 'KV ' + D.kv.naam + (D.kv.telefoon ? ' (' + D.kv.telefoon + ')' : '') : 'geen KV', D.groep.kinderen != null ? D.groep.kinderen + ' kinderen' : '', D.groep.monitoren != null ? D.groep.monitoren + ' monitoren' : ''].filter(Boolean).map(esc).join(' · ');
+    var sub = [D.dagen_tekst.replace(/^wk \d+ · /, ''), D.kv ? kvL(D.kv.naam) + (D.kv.telefoon ? ' (' + D.kv.telefoon + ')' : '') : 'geen KV', D.groep.kinderen != null ? D.groep.kinderen + ' kinderen' : '', D.groep.monitoren != null ? D.groep.monitoren + ' monitoren' : ''].filter(Boolean).map(esc).join(' · ');
     var pil = D.status === 'ok' ? '<span class="pil groen">ok</span>' : '<span class="pil oranje">⚠ ' + esc(D.aandacht.length === 1 && D.aandacht[0].length <= 40 ? D.aandacht[0] : D.aandacht.length + ' aandachtspunten') + '</span>';
     var inhoud = tab === 'thema' ? themaTabHtml(D)
       : tab === 'transport' ? '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Transport voor dit kampmoment</h4>' + transportRijen(D) + '</div></div>'

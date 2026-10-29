@@ -99,6 +99,7 @@ try {
   T.check(g1.plaats.tekst === 'rek N' && g1.handelingen.every((h) => h.regel_id && h.stuk && h.aantal > 0 && h.waar_tekst && h.aangevuld === 0), 'handeling heeft regel_id, stuk, aantal, waar_tekst; plaats "rek N"');
   T.check(g2 && g2.handelingen.every((h) => h.soort === 'nakijken') && g2.handelingen.length === 3, `NK02: 3 niet-getelde stukken als "nakijken" (${g2?.handelingen.length})`);
   const hSpr = g1.handelingen.find((h) => h.stuk === 'Springtouw');
+  await A('POST', `/api/nakijken/regel/${hSpr.regel_id}/binnen`); // TF2 G15: een bestelling moet eerst binnen zijn
   r = await A('POST', `/api/aanvullijst/${hSpr.regel_id}/aangevuld`, { aangevuld: true });
   T.check(r.status === 200 && r.json.aangevuld === 1, 'aangevuld afvinken → 200');
   const lijst2 = (await A('GET', `/api/aanvullijst?datum=${iso}`)).json;

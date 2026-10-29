@@ -38,7 +38,7 @@ try {
   const w = (id) => wk.find((x) => x.id === id)?.waarschuwingen || [];
   T.check(wk.length === 6 && wk.every((x) => 'bezetting' in x && 'einde' in x), `GET /api/ritten?week: ${wk.length} ritten met bezetting/einde`);
   T.check(w(r2.id).some((s) => s === `Jesse staat ook op rit #${r3.id} om 09:30`) && w(r3.id).some((s) => /staat ook op rit #/.test(s)), `dubbel donderdag: "${w(r2.id).join(' | ')}"`);
-  T.check(w(r4.id).includes('25 bakken op 20 plaatsen'), `capaciteit: "${w(r4.id).join(' | ')}"`);
+  T.check(w(r4.id).includes('25 stuks op 20 plaatsen'), `capaciteit: "${w(r4.id).join(' | ')}"`);
   T.check(w(r5.id).some((s) => /is die dag KV op Abdijschool/.test(s)), `KV-waarschuwing coördinator: "${w(r5.id).join(' | ')}"`);
   T.check(w(r6.id).includes('weekend') && !w(r1.id).length, `weekend op zaterdag, maandag zonder waarschuwing (${w(r1.id).length})`);
 
@@ -51,7 +51,7 @@ try {
   T.check(dag('2026-11-05').ritten.length === 2 && dag('2026-11-02').ritten.length === 1 && dag('2026-11-07').weekend && !dag('2026-11-06').weekend, 'ritten op de juiste dag, weekend-vlag');
   const pr5 = dag('2026-11-06').ritten[0];
   T.check(pr5.bestuurder.rol === 'coordinator' && pr5.bestuurder.kleur && pr5.voertuig.soort === 'huur' && pr5.voertuig.capaciteit === 15 && pr5.stops[0].slot === 'vast' && pr5.stops[0].locatie === 'Abdijschool Vlierbeek', `rit coördinator: ${JSON.stringify(pr5.bestuurder)} ${JSON.stringify(pr5.voertuig)}`);
-  T.check(dag('2026-11-04').ritten[0].waarschuwingen.includes('25 bakken op 20 plaatsen') && dag('2026-11-04').ritten[0].bezetting === 25, 'ritplanning draagt bezetting + waarschuwingen');
+  T.check(dag('2026-11-04').ritten[0].waarschuwingen.includes('25 stuks op 20 plaatsen') && dag('2026-11-04').ritten[0].bezetting === 25, 'ritplanning draagt bezetting + waarschuwingen');
   const coord = p.personen.find((x) => x.personeel_id === 14);
   T.check(coord && !coord.vast && coord.bestuurder_rol === 'coordinator' && /^#[0-9a-f]{6}$/.test(coord.kleur), `personen: coördinator ${coord?.naam} kleur ${coord?.kleur}`);
   T.check(p.personen.filter((x) => x.vast).every((x) => x.rol === 'chauffeur') && p.personen.some((x) => x.vast && x.personeel_id === 13), 'personen: alle vaste chauffeurs, ook zonder rit');

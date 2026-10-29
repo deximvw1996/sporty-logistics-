@@ -3,6 +3,7 @@
 // Na elke actie opnieuw laden; fouten als toast. Alleen weergave: de gsm-laag gebruikt later dezelfde API.
 'use strict';
 (function(){
+  function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   const TOKEN=localStorage.getItem('sporty-auth-token');
   if(!TOKEN){location.href='/';return;}
   const $=id=>document.getElementById(id);
@@ -38,7 +39,7 @@
   const sleutel=b=>(b.soort==='attribuut'?'a':'b')+b.id;
   const ROZ=()=>((LOCS||[]).find(l=>l.type==='stockage'&&/rozenweg/i.test(l.name))||{}).id;
   const FILTERS={alle:()=>true,thema:b=>b.soort==='thema',vast:b=>b.soort==='vast'||b.soort==='pool',attribuut:b=>b.soort==='attribuut',
-    onderweg:b=>!!b.waar_nu.rit_id,incompleet:b=>b.incompleet,rozenweg:b=>b.waar_nu.locatie_id===ROZ()};
+    onderweg:b=>!!b.waar_nu.rit_id,incompleet:b=>b.incompleet,code_dubbel:b=>b.code_dubbel,code_leeg:b=>b.code_leeg,rozenweg:b=>b.waar_nu.locatie_id===ROZ()};
   const zichtbaar=()=>O.bakken.filter(FILTERS[FILTER]).filter(b=>!ZOEK||b.zoek.includes(ZOEK));
   const basis=s=>s==='attribuut'?'/api/attributen/':'/api/bakken/';
 
@@ -86,7 +87,7 @@
     if(TAB==='inhoud')grid=`<div class="dgrid een">${blokInhoud}<div class="blok">${blokFotos}${blokWaar}${blokHist}</div></div>`;
     else if(TAB==='fotos')grid=`<div class="dgrid een"><div class="blok">${blokFotos}</div><div></div></div>`;
     else if(TAB==='waar')grid=`<div class="dgrid een"><div class="blok"><h4>Waar geweest</h4>${wg.map(w=>`<div class="rij"><div class="nm">${esc(w.actie)} · ${esc(w.locatie)}<b>${esc([w.datum,w.chauffeur,w.rit_id?'rit #'+w.rit_id:''].filter(Boolean).join(' · '))}</b></div></div>`).join('')||'<div class="rij"><div class="nm">Nog geen ritten</div></div>'}</div><div class="blok">${blokWaar.replace(' style="margin-top:14px"','')}</div></div>`;
-    else if(TAB==='tellingen')grid=`<div class="dgrid een"><div class="blok"><h4>Tellingen</h4>${tellingen.map(t=>`<div class="rij"><div class="nm">${esc(t.uitslag)}<b>${esc([t.datum,t.kv?'KV '+t.kv:'',t.locatie+(t.week?' wk '+t.week:''),t.kantoor_status==='nagekeken'?'nagekeken':t.kv_status].filter(Boolean).join(' · '))}</b></div><a class="knop licht klein" style="display:inline-flex;align-items:center;text-decoration:none" href="/nakijken">Open</a></div>`).join('')||'<div class="rij"><div class="nm">Nog niet geteld</div></div>'}</div><div></div></div>`;
+    else if(TAB==='tellingen')grid=`<div class="dgrid een"><div class="blok"><h4>Tellingen</h4>${tellingen.map(t=>`<div class="rij"><div class="nm">${esc(t.uitslag)}<b>${esc([t.datum,t.kv?kvL(t.kv):'',t.locatie+(t.week?' wk '+t.week:''),t.kantoor_status==='nagekeken'?'nagekeken':t.kv_status].filter(Boolean).join(' · '))}</b></div><a class="knop licht klein" style="display:inline-flex;align-items:center;text-decoration:none" href="/nakijken">Open</a></div>`).join('')||'<div class="rij"><div class="nm">Nog niet geteld</div></div>'}</div><div></div></div>`;
     else grid=`<div class="dgrid een"><div class="blok"><h4>Historiek (alles gelogd, omkeerbaar)</h4>${historiek.map(histRij).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>'}</div><div></div></div>`;
     $('detail').innerHTML=`<div class="dkop"><div><h2>${esc([b.code,b.naam].filter(Boolean).join(' · '))}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-etiket">🖨 Etiket</button><button class="knop licht" id="d-verplaats">Verplaatsen</button><button class="knop" id="d-inhoud" ${b.soort==='attribuut'?'disabled':''}>Inhoud aanpassen</button></div></div>
       <div class="dtabs">${tabs.map(([k,l])=>`<a class="${TAB===k?'act':''}" data-tab="${k}">${l}</a>`).join('')}</div>${grid}`;

@@ -99,7 +99,7 @@ try {
   // ── pagina's ──
   const html = await (await fetch(srv.base + '/bakken', { headers: { authorization: BASIC } })).text();
   const chips = (html.match(/class="chip[ "]/g) || []).length;
-  T.check(html.includes('class="sub"') && html.includes('/public/nav.js') && html.includes('class="voet') && html.includes('/public/patroon.css') && chips === 7, `GET /bakken: subbalk, ${chips} chips, voet, patroon.css`);
+  T.check(html.includes('class="sub"') && html.includes('/public/nav.js') && html.includes('class="voet') && html.includes('/public/patroon.css') && chips === 9, `GET /bakken: subbalk, ${chips} chips, voet, patroon.css`);
   const et = await fetch(srv.base + '/etiketten?ids=b' + n20.id, { headers: { authorization: BASIC } });
   T.check(et.status === 200 && (await et.text()).includes('window.print'), 'GET /etiketten → 200 (printbaar)');
 } catch (e) { T.fout('onverwachte fout: ' + (e.stack || e)); }

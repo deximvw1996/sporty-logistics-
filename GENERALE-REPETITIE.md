@@ -26,17 +26,17 @@ De links staan daarna in `GENERALE-REPETITIE-links.json`. Vul ze hieronder in:
 ## 1. Donderdag 29 okt — vooruitkijken
 | Wie | Scherm | Doen | Je moet zien |
 |---|---|---|---|
-| K | **Ritplanning**, week van 30 okt | vrijdag aanklikken | 4 ritten op vrijdag. Bij één of meer ritten staat "⚠ N bakken op 20 plaatsen". |
+| K | **Ritplanning**, week van 30 okt | vrijdag aanklikken | 4 ritten op vrijdag. Bij één of meer ritten staat "⚠ N stuks op 20 plaatsen". |
 | K | **Vandaag** | — | 0 te beslissen. De ritten van morgen staan hier (nog) niet. |
 
 ## 2. Vrijdag 30 okt — leveren
 | Wie | Scherm | Doen | Je moet zien |
 |---|---|---|---|
 | C | rit-link rit 1 | Bij stop 2 één bak "past niet" melden, de rest laden | De teller springt naar alles geladen op 1 na. |
-| C | rit-link rit 1 | twee vrije stops van plaats wisselen (kantoor zet eerst stop 1 op vrij) | De volgorde draait om. |
+| C | rit-link rit 1 | twee vrije stops van plaats wisselen: kantoor zet eerst stop 1 **én** stop 2 op vrij (▲▼ wisselt alleen met een aangrenzende vrije stop; vaste stops blijven staan) | De volgorde draait om, de tijden mee. |
 | C | rit-link rit 1 | per stop: Aangekomen, dan lossen | De rit staat op "gedaan". |
 | C | rit-link coördinator | laden, aankomen, lossen | De rit staat op "gedaan". |
-| K | **Taken** / **Vandaag** | de rest-taak zoeken | ⚠ Ze staat er niet (geen datum, gat #2). Zoek ze in de Ritplanning via "open" of in het oude Transport-tabblad. |
+| K | **Taken** / **Vandaag** › Inplannen | de rest-taak zoeken | Ze staat er (oranje "rest", met datum en stuks). |
 
 ## 3. Vrijdag 30 okt, namiddag — rest wegbrengen
 | Wie | Scherm | Doen | Je moet zien |
@@ -64,6 +64,7 @@ De links staan daarna in `GENERALE-REPETITIE-links.json`. Vul ze hieronder in:
 ## 6. Dinsdag 3 nov — aanvullen in de Rozenweg
 | Wie | Scherm | Doen | Je moet zien |
 |---|---|---|---|
+| K | Nakijken | de bestelling op "Bestelling binnen" zetten (kan pas na levering) | Pas daarna is ze af te vinken. |
 | K (gsm) | Aanvullijst | elke handeling afvinken | Alles staat op "klaar". |
 
 ## 7. Vrijdag 6 nov — ophalen + weekend
@@ -75,7 +76,7 @@ De links staan daarna in `GENERALE-REPETITIE-links.json`. Vul ze hieronder in:
 ## 8. Afsluiten
 | Wie | Scherm | Doen | Je moet zien |
 |---|---|---|---|
-| K | **Overzicht › Conflicten** | — | Geen dubbel thema. Wel: "geen levering" voor de themadag, "locatieconfig onvolledig" enz. (gat #7). |
+| K | **Overzicht › Conflicten** | — | Geen dubbel thema; de lijst is normaal leeg. Capaciteit staat daar niet: die zie je in de **Ritplanning** (⚠ N stuks op M plaatsen). |
 | hoofdchat | terminal | `node scripts/generale-repetitie.mjs --doel=prod --opruimen` | De periode, kampmomenten, ritten, taken en FICTIEF-personen zijn weg, en "Zomer 2026" is weer actief. |
 
 ⚠ **Blijft staan na het opruimen** (geen verwijderroute): aanvragen, tellingen (nakijk-sessies en -regels) en kalenderdagen van de fictieve kampmomenten (gat #8). Op prod moet dat met de hand of met een opruimroute.

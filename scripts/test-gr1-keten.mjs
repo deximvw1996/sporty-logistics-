@@ -196,6 +196,7 @@ try {
   check((await CC('GET', '/api/vandaag')).status === 403 && (await CC('GET', '/api/nakijken')).status === 403 && (await CC('GET', '/api/taken-overzicht')).status === 403, 'coördinator: 403 op kantoorroutes (Vandaag zonder mijn=1, Nakijken, Taken)');
   const mijn = await CC('GET', '/api/vandaag?mijn=1');
   check(mijn.status === 200 && mijn.json.mijn === true && Array.isArray(mijn.json.ritten_vandaag) && mijn.json.aanvullen && !mijn.json.beslissen, `coördinator: /api/vandaag?mijn=1 → 200 (enkel eigen ritten en aanvullen: ${mijn.json.aanvullen?.open} open)`);
+  for (const h of handel) if (h.soort === 'bestelling') await A('POST', `/api/nakijken/regel/${h.regel_id}/binnen`); // TF2 G15: eerst 'binnen'
   for (const h of handel) { const r = await CC('POST', `/api/aanvullijst/${h.regel_id}/aangevuld`, { aangevuld: true }); if (r.status !== 200) check(false, `afvinken door de coördinator mislukte: ${r.status} ${r.json.error || ''}`); }
   const al2 = (await A('GET', `/api/aanvullijst?datum=${vandaagIso}&alles=1`)).json;
   check(al2.bakken.flatMap((g) => g.handelingen).filter((h) => handel.some((x) => x.regel_id === h.regel_id)).every((h) => h.aangevuld), `alle ${handel.length} handelingen afgevinkt`);

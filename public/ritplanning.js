@@ -111,7 +111,7 @@
     if(MODUS==='nieuw')return tekenNieuw(el);
     if(MODUS==='open'||!RIT||!ritVan(RIT)){
       el.innerHTML=`<div class="ritkop"><div><b>Nog te plannen · ${esc(d.dag)}</b><span>${d.open.length} taken zonder rit</span></div><div class="acties"><button class="knop klein" data-plus="${DAG}">+ rit</button></div></div><div class="scroll">${
-        d.open.length?d.open.map(o=>`<div class="open ${o.soort==='rest'||o.soort==='weekend'?'oranje':''}"><div class="nm">${esc(o.naam)}<b>${esc([o.route,o.stuks?o.stuks+' stuks':null,o.tijd].filter(Boolean).join(' · '))}</b></div><span class="pil ${o.soort==='weekend'||o.soort==='rest'?'oranje':''}">${esc(o.soort)}</span><button class="knop klein" data-aanrit="${o.taak_id}">→ aan rit</button></div>`).join('')
+        d.open.length?d.open.map(o=>`<div class="open ${o.soort==='rest'||o.soort==='weekend'?'oranje':''}"><div class="nm">${esc(o.naam)}<b>${esc([o.route,o.stuks?o.stuks+(o.stuks===1?' stuk':' stuks'):null,o.tijd].filter(Boolean).join(' · '))}</b></div><span class="pil ${o.soort==='weekend'||o.soort==='rest'?'oranje':''}">${esc(o.soort)}</span><button class="knop klein" data-aanrit="${o.taak_id}">→ aan rit</button></div>`).join('')
         :'<div class="leegtxt">Niets meer te plannen op deze dag</div>'}</div>`;
       return;
     }

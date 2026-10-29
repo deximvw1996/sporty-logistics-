@@ -3,6 +3,7 @@
 // De HTML-bouwers (BOUW) zijn los van de browser, zodat de test ze met echte data-JSON kan aanroepen.
 'use strict';
 (function(){
+  function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   // ── HTML-bouwers (geen DOM nodig) ──
   const BOUW={
@@ -18,7 +19,7 @@
       const jn=b=>b?'ja':'nee';
       const blokContact=`<div class="blok"><h4>Contact &amp; toegang</h4>${kv('Contact',esc([contact.naam,contact.telefoon].filter(Boolean).join(' · ')||'—'))}${kv('Sleutel',esc(sleutel_info||'—'))}${kv('Wifi',esc(wifi||'—'))}${kv('Ter plaatse',`eigen oven: ${jn(tp.eigen_oven)} · eigen sportmateriaal: ${jn(tp.eigen_sportmateriaal)} · zelf kuisen: ${jn(tp.zelf_kuisen)}`)}${l.aandacht.length?kv('Let op',`<span class="pil oranje">${esc(l.aandacht.join(' · '))}</span>`):''}</div>`;
       const blokFotos=`<div class="blok"><h4>Foto's</h4><div class="fotos">${fotos.map(f=>`<div class="f" style="${f.url?`background-image:url('${esc(f.url)}')`:''}">${esc(f.beschrijving||'foto')}<span class="x" data-fotoweg="${f.id}" title="Foto verwijderen">✕</span></div>`).join('')}<label class="f plus">+ foto<input type="file" accept="image/*" id="foto-in" hidden></label></div></div>`;
-      const blokKm=`<div class="blok"><h4>Kampmomenten</h4>${kms.map(k=>`<div class="rij"><div class="nm">${esc(k.periode)} · week ${k.week}${k.thema?' · '+esc(k.thema):''}${k.loopt_nu?' <span class="pil groen">loopt nu</span>':''}<b>${esc([k.kv_naam?'KV '+k.kv_naam:'geen KV',k.transport].join(' · '))}</b></div><a class="knop licht klein" style="display:inline-flex;align-items:center;text-decoration:none" href="/kampmomenten?id=${k.kampmoment_id}">Open</a></div>`).join('')||'<div class="rij"><div class="nm">Nog geen kampmomenten</div></div>'}</div>`;
+      const blokKm=`<div class="blok"><h4>Kampmomenten</h4>${kms.map(k=>`<div class="rij"><div class="nm">${esc(k.periode)} · week ${k.week}${k.thema?' · '+esc(k.thema):''}${k.loopt_nu?' <span class="pil groen">loopt nu</span>':''}<b>${esc([k.kv_naam?kvL(k.kv_naam):'geen KV',k.transport].join(' · '))}</b></div><a class="knop licht klein" style="display:inline-flex;align-items:center;text-decoration:none" href="/kampmomenten?id=${k.kampmoment_id}">Open</a></div>`).join('')||'<div class="rij"><div class="nm">Nog geen kampmomenten</div></div>'}</div>`;
       const blokHist=`<div class="blok"><h4>Historiek (alles gelogd, omkeerbaar)</h4>${historiek.slice(0,tab==='historiek'?100:5).map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc([h.t,h.wie].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" disabled title="Terugdraaien bestaat nog niet als route (GEVONDEN TR1)">↶ Terug</button></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>'}</div>`;
       const inhoud={gegevens:blokContact+blokFotos+blokKm+blokHist,fotos:blokFotos,kampmomenten:blokKm,historiek:blokHist}[tab]||'';
       const sub=[l.type==='kamp'?'Kamplocatie':l.type==='stockage'?'Stockage':l.type,l.adres].filter(Boolean).map(esc).join(' · ');

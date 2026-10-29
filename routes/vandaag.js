@@ -4,6 +4,7 @@
 // (geen tweede kopie van die logica).
 'use strict';
 module.exports = function(ctx){
+  const {kvL}=require('../lib/tijd');
   const {app,get,all,run,alleenKantoor,path,ROOT_DIR,_kvVerwacht,_bakItems} = ctx;
   // Lokale datum (niet UTC): kort na middernacht mag 'vandaag' niet nog gisteren zijn.
   const isoDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -83,7 +84,7 @@ module.exports = function(ctx){
         if(tel)acties.push({label:'Bel conciërge',primair:false,soort:'tel',url:'tel:'+tel.replace(/[^\d+]/g,'')});
         acties.push(status({status:'afgehandeld'},'Afgehandeld',true));
         beslissen.push({id:a.id,bron:'melding',ico,kleur:'rood',titel:t,
-          sub:['melding '+wanneer,rit?'rit '+rit.status:null,kv?`KV ${kv} ook verwittigd`:null].filter(Boolean).join(' · '),acties});
+          sub:['melding '+wanneer,rit?'rit '+rit.status:null,kv?`${kvL(kv)} ook verwittigd`:null].filter(Boolean).join(' · '),acties});
       }else{
         const kapot=a.soort==='kapot';
         const titel=(a.tekst||'')+(kapot&&(a.foto_data||a.foto_path)?' (foto)':'')+(loc?' · '+loc:'');
@@ -91,7 +92,7 @@ module.exports = function(ctx){
         const spoed=kapot||kmWeekIds.has(a.kampmoment_id);
         const kv=_persNaam(a.persoon_id)||_persNaam(a.kv_persoon_id);
         beslissen.push({id:a.id,bron:'aanvraag',ico:kapot?'💥':'📩',kleur:'rood',titel,
-          sub:`aanvraag KV ${kv||'?'} · ${wanneer}`,
+          sub:`aanvraag ${kv?kvL(kv):'KV ?'} · ${wanneer}`,
           acties:[{label:'Afwijzen',primair:false,soort:'afwijzen',methode:'PUT',url:`/api/aanvragen/${a.id}/status`,body:{status:'afgewezen'}},
             spoed?status({status:'goedgekeurd',maak_spoedtransport:true},'Goedkeuren + spoed',true):status({status:'goedgekeurd'},'Goedkeuren',true)]});
       }
@@ -103,7 +104,7 @@ module.exports = function(ctx){
     all(`SELECT * FROM transport_taken WHERE (rit_id IS NULL OR rit_id=0) AND status='gepland'
       AND ((datum>=? AND datum<=?) OR ((datum IS NULL OR datum='') AND week=?)) ORDER BY datum,tijd,id`,[weekStart,weekEind,week??-1]).forEach(t=>{
       const n=get('SELECT COALESCE(SUM(qty),0) AS q,COUNT(*) AS c FROM transport_regels WHERE taak_id=?',[t.id]);
-      const stuks=n.c?`${n.q} stuks`:'';
+      const stuks=n.c?`${n.q} ${n.q===1?'stuk':'stuks'}`:'';
       const rest=/^Rest van rit/.test(t.opmerking||'');
       const weekend=t.datum&&isWeekend(t.datum);
       let ico=t.aanvraag_id?'📩':t.type==='levering'?'📦':t.type==='ophaling'?'↩':'🔁';

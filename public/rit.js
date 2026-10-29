@@ -60,7 +60,7 @@
     }).join('');
     var vasten = stops.filter(function (s) { return s.slot !== 'vrij'; }), heeftVrij = stops.some(function (s) { return s.slot === 'vrij'; });
     var uitleg = !stops.length ? '<div class="uitleg leeg">Geen stops gepland.</div>'
-      : heeftVrij ? '<div class="uitleg">▲▼ wisselt alleen met een andere vrije stop' + (vasten.length ? ' · ' + esc(vasten.map(stopNaam).join(', ')) + (vasten.length === 1 ? ' staat' : ' staan') + ' vast door kantoor' : '') + '</div>' : '';
+      : heeftVrij ? '<div class="uitleg">▲▼ wisselt alleen met een aangrenzende vrije stop' + (vasten.length ? ' · ' + esc(vasten.map(stopNaam).join(', ')) + (vasten.length === 1 ? ' staat' : ' staan') + ' vast door kantoor' : '') + '</div>' : '';
     var h = stops.filter(function (s) { return s.volgorde === huidig && s.status !== 'gedaan'; })[0];
     var nr = h ? stops.indexOf(h) + 1 : 0;
     var prim = h ? '<button type="button" class="prim" data-act="stop" data-a="' + h.taak_id + '">Open stop ' + nr + ': ' + esc(stopNaam(h)) + ' →</button>'
@@ -122,7 +122,7 @@
     var groepen = rekGroepen(s.regels).map(function (g) {
       var mee = g.regels.filter(function (x) { return !isNietMee(x); });
       var tot = mee.reduce(function (a, x) { return a + (x.qty || 1); }, 0), gel = mee.reduce(function (a, x) { return a + eenheden(x); }, 0);
-      return '<div class="rek"><span>' + esc(g.naam) + '</span><span>' + gel + ' van ' + tot + ' geladen</span></div>' + g.regels.map(stukHtml).join('');
+      return (tot > 0 ? '<div class="rek"><span>' + esc(g.naam) + '</span><span>' + gel + ' van ' + tot + ' geladen</span></div>' : '') + g.regels.map(stukHtml).join('');
     }).join('');
     var volgende = data.stops[idx + 1];
     var prim = volgende ? '<button type="button" class="prim" data-act="stop" data-a="' + volgende.taak_id + '">Stop ' + (idx + 2) + ' →</button>'
@@ -188,9 +188,24 @@
     var st = { scherm: 'dag', taakId: null, sheet: null }, data = null, offlineGemeld = false;
     var base = '/api/rit-token/' + encodeURIComponent(deps.token);
     function teken() { if (data) deps.mount(schermHtml(data, st)); }
+    // TF2 G3: tijdens een deploy geeft de proxy 502/503/504 (of is de verbinding even weg): na 2 s en 5 s nog twee keer proberen.
+    // POST's worden alleen herhaald bij 502/503/504 (de app is dan niet bereikt) en bij een netwerkfout als de aanroep idempotent is (idem=true).
+    var herhaalMelding = false;
+    async function haal(url, opts, idem) {
+      var wacht = deps.wacht || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+      var get = !opts || !opts.method || opts.method === 'GET', pauzes = [2000, 5000], r, fout;
+      for (var i = 0; ; i++) {
+        r = null; fout = null;
+        try { r = await deps.fetch(url, opts); } catch (e) { fout = e; }
+        var weg = fout ? (get || idem) : (r.status === 502 || r.status === 503 || r.status === 504);
+        if (!weg || i >= pauzes.length) { if (fout) throw fout; return r; }
+        if (!herhaalMelding) { deps.toast('Even geduld, de app wordt bijgewerkt…', true); herhaalMelding = true; }
+        await wacht(pauzes[i]);
+      }
+    }
     async function post(pad, body) {
       var r;
-      try { r = await deps.fetch(base + pad, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }); }
+      try { r = await haal(base + pad, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }, false); }
       catch (e) { deps.toast('Geen verbinding — probeer het zo opnieuw.', false); return null; }
       var j = null; try { j = await r.json(); } catch (e) { /* leeg antwoord */ }
       if (!r.ok) { deps.toast((j && j.error) || 'Dat lukte niet (' + r.status + ').', false); return null; }
@@ -198,7 +213,7 @@
     }
     async function laad() {
       try {
-        var r = await deps.fetch(base + '/data');
+        var r = await haal(base + '/data');
         var j = await r.json();
         if (!r.ok) { deps.toast(j.error || 'Rit laden mislukt.', false); return false; }
         data = j; offlineGemeld = false;

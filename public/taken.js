@@ -3,6 +3,7 @@
 // Na elke actie opnieuw laden; fouten als toast. Alleen weergave: de gsm-laag gebruikt later dezelfde API.
 'use strict';
 (function(){
+  function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   const TOKEN=localStorage.getItem('sporty-auth-token');
   if(!TOKEN){location.href='/';return;}
   const $=id=>document.getElementById(id);
@@ -78,7 +79,7 @@
   function tekenDetail(){
     const {taak:t,regels,rit,checks,kampmoment:km,gekoppeld:g,historiek}=D;
     const loc=t.route.split(' → ')[t.type==='ophaling'?0:1];
-    const sub=[t.wanneer_tekst.replace(/ \d\d:\d\d$/,''),t.tijd&&t.rit?t.tijd:null,t.route+(km&&km.thema?` (${km.thema})`:''),km&&km.kv_naam?'KV '+km.kv_naam:null,
+    const sub=[t.wanneer_tekst.replace(/ \d\d:\d\d$/,''),t.tijd&&t.rit?t.tijd:null,t.route+(km&&km.thema?` (${km.thema})`:''),km&&km.kv_naam?kvL(km.kv_naam):null,
       rit?`rit #${rit.id} (${rit.chauffeur||'geen chauffeur'}${rit.voertuig?', '+rit.voertuig:''})`:'zonder rit',rit?`stop ${rit.stop_nr} van ${rit.stops.length}`:null].filter(Boolean).map(esc).join(' · ')
       +(t.pil?` · <span class="pil ${pilKlas[t.pil]}">${t.pil}</span>`:'');
     const blokRegels=`<div class="blok"><h4>Regels (wat mee moet)</h4>${regels.map(r=>`<div class="rij"><div class="nm"><b style="display:inline;color:#334155">${esc(r.code)}</b> ${esc(r.naam)}<b>${r.qty} ×</b></div><button class="knop licht klein" data-regelweg="${r.id}" aria-label="Regel verwijderen">✕</button></div>`).join('')||'<div class="rij"><div class="nm">Nog geen regels</div></div>'}<button class="knop licht klein" style="margin-top:6px" id="regel-plus">+ Regel</button></div>`;
@@ -88,7 +89,7 @@
         +kv('Checks',`${checks.geladen} van ${checks.totaal} geladen · ${checks.gelost} gelost · ${checks.klaargezet?'klaargezet':'nog niet klaargezet'}`)
         +kv('Stops rit',rit.stops.map(s=>(s.is_deze?`<u>${esc(s.naam)}</u>`:esc(s.naam))+(s.slot==='vast'?' 🔒':'')).join(' → '))
       :kv('Rit','— zonder rit · <button class="knop licht klein" id="op-rit">Op een rit zetten</button>'));
-    const kmDeel=`<h4 style="margin-top:14px">Kampmoment</h4>`+(km?kv('Locatie',esc([km.locatie,km.thema,'week '+km.week,km.kv_naam?'KV '+km.kv_naam:null].filter(Boolean).join(' · ')))
+    const kmDeel=`<h4 style="margin-top:14px">Kampmoment</h4>`+(km?kv('Locatie',esc([km.locatie,km.thema,'week '+km.week,km.kv_naam?kvL(km.kv_naam):null].filter(Boolean).join(' · ')))
         +kv('Contact',esc([km.contact_naam?km.contact_naam+(km.contact_telefoon?' '+km.contact_telefoon:''):null,km.kv_naam&&km.kv_telefoon?'KV '+km.kv_telefoon:null,km.sleutel_info?'sleutel: '+km.sleutel_info:null].filter(Boolean).join(' · ')||'—'))
         +(g?kv(g.ophaling_taak_id?'Ophaling':'Levering',`<a href="/taken?taak=${g.ophaling_taak_id||g.levering_taak_id}">${esc(g.tekst)}</a>`):'')
       :kv('Locatie','geen kampmoment gekoppeld'));
