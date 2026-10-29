@@ -206,9 +206,24 @@
     var data = null, offlineGemeld = false;
     var base = '/api/kv/' + encodeURIComponent(deps.token);
     function teken() { if (data) deps.mount(schermHtml(data, st, deps.host || '')); }
+    // TF2 G3: tijdens een deploy geeft de proxy 502/503/504 (of is de verbinding even weg): na 2 s en 5 s nog twee keer proberen.
+    // POST's worden alleen herhaald bij 502/503/504 (de app is dan niet bereikt) en bij een netwerkfout als de aanroep idempotent is (idem=true).
+    var herhaalMelding = false;
+    async function haal(url, opts, idem) {
+      var wacht = deps.wacht || function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+      var get = !opts || !opts.method || opts.method === 'GET', pauzes = [2000, 5000], r, fout;
+      for (var i = 0; ; i++) {
+        r = null; fout = null;
+        try { r = await deps.fetch(url, opts); } catch (e) { fout = e; }
+        var weg = fout ? (get || idem) : (r.status === 502 || r.status === 503 || r.status === 504);
+        if (!weg || i >= pauzes.length) { if (fout) throw fout; return r; }
+        if (!herhaalMelding) { deps.toast('Even geduld, de app wordt bijgewerkt…', true); herhaalMelding = true; }
+        await wacht(pauzes[i]);
+      }
+    }
     async function aanroep(methode, pad, body) {
       var r;
-      try { r = await deps.fetch(base + pad, { method: methode, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined }); }
+      try { r = await haal(base + pad, { method: methode, headers: body !== undefined ? { 'Content-Type': 'application/json' } : {}, body: body !== undefined ? JSON.stringify(body) : undefined }, pad === '/versturen'); }
       catch (e) { deps.toast('Geen verbinding — probeer het zo opnieuw.', false); return null; }
       var j = null; try { j = await r.json(); } catch (e) { /* leeg */ }
       if (!r.ok) { deps.toast((j && j.error) || 'Dat lukte niet (' + r.status + ').', false); return null; }
@@ -216,7 +231,7 @@
     }
     async function laad() {
       try {
-        var r = await deps.fetch(base + '/data'), j = await r.json();
+        var r = await haal(base + '/data'), j = await r.json();
         if (!r.ok) { deps.toast(j.error || 'Laden mislukt.', false); return false; }
         data = j; offlineGemeld = false;
         if (deps.bewaar) deps.bewaar(j);

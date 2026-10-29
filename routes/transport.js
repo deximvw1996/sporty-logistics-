@@ -1218,7 +1218,7 @@ module.exports = function(ctx){
     const klaar=[a,b].find(t=>['aangekomen','gedaan','geannuleerd'].includes(t.status));
     if(klaar)return res.status(409).json({error:`${_locNaam(_stopLocId(klaar))} is al ${klaar.status} — die stop kan niet meer van plaats wisselen`});
     const vast=[a,b].find(t=>(t.slot||'vast')!=='vrij');
-    if(vast)return res.status(409).json({error:`${_locNaam(_stopLocId(vast))} staat vast door kantoor — die stop kan niet van plaats wisselen`});
+    if(vast)return res.status(409).json({error:`${_locNaam(_stopLocId(vast))} staat vast door kantoor — ▲▼ wisselt alleen met een aangrenzende vrije stop`});
     updateMetLog(req,'UPDATE transport_taken SET volgorde=?,tijd=? WHERE id=?',[b.volgorde,b.tijd,a.id],'rit-link');
     updateMetLog(req,'UPDATE transport_taken SET volgorde=?,tijd=? WHERE id=?',[a.volgorde,a.tijd,b.id],'rit-link');
     const la=_locNaam(_stopLocId(a)),lb=_locNaam(_stopLocId(b));
