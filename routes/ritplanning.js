@@ -99,10 +99,8 @@ module.exports = function(ctx){
   app.post('/api/ritten/:id/taken/:taakId/ontkoppel',alleenKantoor,(req,res)=>{
     const t=get('SELECT * FROM transport_taken WHERE id=? AND rit_id=?',[req.params.taakId,req.params.id]);
     if(!t)return res.status(404).json({error:'Deze stop hoort niet bij deze rit'});
-    const n=get('SELECT COUNT(*) AS n FROM verhuis_checks WHERE taak_id=? AND geladen=1',[t.id]).n;
-    if(n)return res.status(409).json({error:`${locNaam(stopLoc(t))}: ${n} stuk${n===1?' is':'ken zijn'} al geladen — los ze eerst of zet de taak terug op gepland`});
-    updateMetLog(req,"UPDATE transport_taken SET rit_id=NULL,wie='',volgorde=NULL WHERE id=?",[t.id],'ritplanning');
-    run('UPDATE verhuis_checks SET rit_id=0 WHERE taak_id=?',[t.id]);
+    const o=ctx._ontkoppelTaak(req,t,'ritplanning'); // TB1: één ontkoppel-functie (transport.js)
+    if(o.fout)return res.status(o.status).json({error:o.fout});
     logAct('transport','van rit gehaald',`Taak #${t.id} (${locNaam(stopLoc(t))}) van rit #${req.params.id} gehaald`,null,null);
     res.json({ok:true});
   });

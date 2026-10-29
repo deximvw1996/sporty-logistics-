@@ -194,20 +194,5 @@ module.exports = function(ctx){
     res.json({ok:true});
   });
 
-  // Koppel een taak aan een rit (getal), of ontkoppel → nood (null)
-  app.put('/api/transport-taken/:id/rit',(req,res)=>{
-    const {rit_id}=req.body;
-    const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
-    if(!t) return res.status(404).json({error:'Transport niet gevonden'});
-    if(rit_id===null||rit_id===undefined||rit_id===''){
-      updateMetLog(req,"UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=?",[req.params.id]);
-    } else {
-      const rit=get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]);
-      if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
-      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[rit_id,rit.datum,rit.chauffeur||'',req.params.id]);
-    }
-    const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
-    const regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[req.params.id]);
-    res.json({...taak,regels});
-  });
+  // (PUT /api/transport-taken/:id/rit staat sinds TB1 in routes/transport.js — ontkoppelen wist daar geen datum meer.)
 };

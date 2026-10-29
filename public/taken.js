@@ -65,6 +65,7 @@
     $('n-taken').textContent=`${lijst.length} taken`;
     $('n-sel').textContent=`${SEL.size} geselecteerd`;
     $('voet').classList.toggle('sel',SEL.size>0);
+    $('b-bundel').disabled=SEL.size<2; // TB1
     $('alles').checked=lijst.length>0&&lijst.every(t=>SEL.has(t.id));
   }
 
@@ -169,6 +170,13 @@
       const body={...volleTaak(d.json)};if(v.datum)body.datum=v.datum;if(v.tijd)body.tijd=v.tijd;
       const r=await api('PUT',`/api/transport-taken/${id}`,body);if(r.ok)n++;else toast(`#${id}: ${r.json.error||'mislukt'}`,'error');}
     toast(`${n} taken verplaatst`,'success');SEL.clear();laad();
+  };
+  $('b-bundel').onclick=async()=>{
+    if(SEL.size<2)return;
+    if(!await vraag({titel:`${SEL.size} taken bundelen?`,tekst:'De regels komen op één taak (de oudste, of die op een rit staat); de andere taken worden geannuleerd met een verwijzing. Splitsen is de weg terug.',ok:'Bundelen'}))return;
+    const r=await api('POST','/api/transport-taken/bundel',{taak_ids:[...SEL]});
+    if(!r.ok)return toast(r.json.error||'Bundelen mislukt','error');
+    toast(`${SEL.size} taken gebundeld in #${r.json.taak.id} (${r.json.taak.regels.length} regels)`,'success');SEL.clear();await laad();laadDetail(r.json.taak.id);
   };
   $('b-weg').onclick=async()=>{
     if(!await vraag({titel:`${SEL.size} taken verwijderen?`,tekst:'Taken waarvan al iets geladen is, worden niet verwijderd (dan gebeurt er niets).',ok:'Verwijderen'}))return;
