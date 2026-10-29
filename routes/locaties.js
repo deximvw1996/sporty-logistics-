@@ -27,7 +27,9 @@ module.exports = function(ctx){
     const raaktContact=['contact_naam','contact_tel','sleutel_info'].some(k=>b[k]!==undefined&&(b[k]||'')!==(cur0[k]||''));
     if(raaktContact&&(!req.persoon||req.persoon.rol!=='kantoor'))return res.status(403).json({error:'Contactgegevens en sleutel-info van een locatie wijzigt alleen kantoor'});
     if(b.sleutel_info!==undefined)run('UPDATE locaties SET sleutel_info=? WHERE id=?',[(b.sleutel_info||'').toString(),req.params.id]);
-    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven,zelf_kuisen}=req.body;
+    // Reviewfix Fable (CH2-keuring): een gedeeltelijke PUT (bv. enkel contact) vult de rest aan uit de huidige rij,
+    // anders werd name=undefined weggeschreven (500) terwijl sleutel_info al was bijgewerkt.
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven,zelf_kuisen}={...cur0,...b};
     run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=?,heeft_eigen_sportmateriaal=?,heeft_eigen_oven=?,zelf_kuisen=? WHERE id=?',
       [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,heeft_eigen_sportmateriaal?1:0,heeft_eigen_oven?1:0,zelf_kuisen?1:0,req.params.id]);
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);

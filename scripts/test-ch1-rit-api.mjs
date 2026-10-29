@@ -28,6 +28,9 @@ try {
   T.check(r.status === 200 && r.json.contact_tel === '0470 11 22 33' && r.json.sleutel_info === 'Sleutel bij de buren nr. 12', 'PUT /api/locaties: contact_telefoon (alias van contact_tel) + sleutel_info bewaard');
   const locNa = (await A('GET', '/api/locaties')).json.find((l) => l.id === AB);
   T.check(locNa.contact_telefoon === '0470 11 22 33' && locNa.sleutel_info && locNa.adres !== undefined, 'GET /api/locaties geeft contact_naam/contact_telefoon/sleutel_info/adres mee');
+  // reviewfix Fable (CH2-keuring): gedeeltelijke PUT (enkel contact) mag de rest niet wissen en geen 500 geven
+  r = await A('PUT', `/api/locaties/${AB}`, { contact_naam: 'Conciërge Jan', contact_telefoon: '0470 11 22 33' });
+  T.check(r.status === 200 && r.json.name === locAB.name && r.json.addr === locAB.addr && r.json.contact_tel === '0470 11 22 33', `gedeeltelijke PUT /api/locaties (enkel contact) → 200, naam/adres blijven (${r.status})`);
   const kvId = (await db('SELECT kv_persoon_id FROM kampmomenten WHERE id=?', [kmAB]))[0].kv_persoon_id;
   const kvP = (await A('GET', '/api/personeel')).json.find((p) => p.id === kvId);
   await A('PUT', `/api/personeel/${kvId}`, { ...kvP, telefoon: '0499 88 77 66' });
