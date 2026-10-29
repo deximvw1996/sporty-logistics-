@@ -9,7 +9,7 @@
     { id: 'planning', ico: '📅', naam: 'Planning', href: '/kampmomenten', badge: 'b-planning' },
     { id: 'transport', ico: '🚚', naam: 'Transport', href: '/ritplanning', badge: 'b-transport' },
     { id: 'materiaal', ico: '📦', naam: 'Materiaal', href: '/bakken' },
-    { id: 'locaties', ico: '📍', naam: 'Locaties', href: '/#locaties' }, // LO1 bouwt het nieuwe scherm later: dan wordt dit '/locaties'
+    { id: 'locaties', ico: '📍', naam: 'Locaties', href: '/locaties' }, // LO1 gebouwd (30/10): nieuw scherm
     { id: 'voorraad', ico: '🧮', naam: 'Voorraad & controles', href: '/nakijken', badge: 'b-nakijken' },
     { id: 'beheer', ico: '⚙️', naam: 'Beheer', href: '/personeel' }
   ];

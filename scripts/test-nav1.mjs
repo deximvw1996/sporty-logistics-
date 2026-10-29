@@ -9,7 +9,7 @@ const BASIC = 'Basic ' + Buffer.from('sporty:' + T.APP_PASSWORD).toString('base6
 try {
   const tok = await T.login(srv.base);
   const NAV = require(T.ROOT + '/public/nav.js');
-  const HREFS = ['/vandaag', '/kampmomenten', '/ritplanning', '/bakken', '/#locaties', '/nakijken', '/personeel'];
+  const HREFS = ['/vandaag', '/kampmomenten', '/ritplanning', '/bakken', '/locaties', '/nakijken', '/personeel'];
   const NAMEN = ['Vandaag', 'Planning', 'Transport', 'Materiaal', 'Locaties', 'Voorraad & controles', 'Beheer'];
   T.check(NAV.BOVEN.map((o) => o.href).join() === HREFS.join() && NAV.BOVEN.map((o) => o.naam).join() === NAMEN.join(), 'mapping bovenbalk: Vandaag /vandaag · Planning /kampmomenten · Transport /ritplanning · Materiaal /bakken · Locaties /#locaties · Voorraad & controles /nakijken · Beheer /personeel');
   const SUBS = {
