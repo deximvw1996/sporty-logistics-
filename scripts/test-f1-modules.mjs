@@ -138,6 +138,7 @@ try {
     .replace('/api/personeel/week/:week', '/api/personeel/week/1')
     .replace('/api/kv/:token', `/api/kv/${ids.kvToken || 'geen-token'}`)
     .replace('/kv/:token', `/kv/${ids.kvToken || 'geen-token'}`)
+    .replace('/tel/:token', '/tel/geen-token') // KV1: monitor-pagina (404 bij onbekend token)
     .replace('/api/rit-token/:token', `/api/rit-token/${ids.ritToken || 'geen-token'}`) // CH1: rit-data-JSON
     .replace('/rit/:token', `/rit/${ids.ritToken || 'geen-token'}`);
 

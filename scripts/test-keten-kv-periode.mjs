@@ -70,7 +70,7 @@ try {
   const z = await tel(kvZomer, 0);
   T.check(z.status === 200, `zomer-KV telt bak ${z.bak.code || z.bak.naam} (kreeg ${z.status})`);
   await T.api(srv.base, null, 'POST', `/api/kv/${kvZomer}/versturen`);
-  const zomerVoor = await S('SELECT ns.id,ns.kv_wie,ns.kv_tijdstip,ns.kv_status,nr.aangetroffen FROM nakijk_sessies ns JOIN nakijk_regels nr ON nr.sessie_id=ns.id WHERE ns.kampmoment_id=?', [kmZomer]);
+  const zomerVoor = await S('SELECT ns.id,ns.kv_wie,ns.kv_tijdstip,ns.kv_status,nr.aangetroffen FROM nakijk_sessies ns JOIN nakijk_regels nr ON nr.sessie_id=ns.id WHERE ns.kampmoment_id=? AND nr.aangetroffen IS NOT NULL', [kmZomer]);
   T.check(zomerVoor.length === 1 && zomerVoor[0].kv_status === 'ingediend' && zomerVoor[0].aangetroffen === 0, `zomer-sessie ingediend met telling 0 (${JSON.stringify(zomerVoor)})`);
 
   // Herfst-KV ziet de zomer-telling niet en verstuurt enkel zijn eigen sessie
@@ -81,9 +81,9 @@ try {
   const h = await tel(kvHerfst, 5);
   T.check(h.status === 200, `herfst-KV telt dezelfde bak (kreeg ${h.status})`);
   await T.api(srv.base, null, 'POST', `/api/kv/${kvHerfst}/versturen`);
-  const zomerNa = await S('SELECT ns.id,ns.kv_wie,ns.kv_tijdstip,ns.kv_status,nr.aangetroffen FROM nakijk_sessies ns JOIN nakijk_regels nr ON nr.sessie_id=ns.id WHERE ns.kampmoment_id=?', [kmZomer]);
+  const zomerNa = await S('SELECT ns.id,ns.kv_wie,ns.kv_tijdstip,ns.kv_status,nr.aangetroffen FROM nakijk_sessies ns JOIN nakijk_regels nr ON nr.sessie_id=ns.id WHERE ns.kampmoment_id=? AND nr.aangetroffen IS NOT NULL', [kmZomer]);
   T.check(JSON.stringify(zomerNa) === JSON.stringify(zomerVoor), `zomer-sessie onaangeroerd na herfst tellen+versturen (voor ${JSON.stringify(zomerVoor)} / na ${JSON.stringify(zomerNa)})`);
-  const herfstS = await S('SELECT ns.id,ns.kv_status,ns.kv_wie,nr.aangetroffen FROM nakijk_sessies ns JOIN nakijk_regels nr ON nr.sessie_id=ns.id WHERE ns.kampmoment_id=?', [kmHerfst]);
+  const herfstS = await S('SELECT ns.id,ns.kv_status,ns.kv_wie,nr.aangetroffen FROM nakijk_sessies ns JOIN nakijk_regels nr ON nr.sessie_id=ns.id WHERE ns.kampmoment_id=? AND nr.aangetroffen IS NOT NULL', [kmHerfst]);
   T.check(herfstS.length === 1 && herfstS[0].kv_status === 'ingediend' && herfstS[0].aangetroffen === 5 && herfstS[0].kv_wie === 'Test KV Betekom',
     `herfst-sessie apart, ingediend met telling 5 door de herfst-KV (${JSON.stringify(herfstS)})`);
 
