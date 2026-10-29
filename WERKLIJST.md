@@ -40,7 +40,7 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 34 | Schrijven batchen per request (A-7) | Architectuur en robuustheid | Bouwchat | later | 4 | vóór zomer |
 | 35 | Catalogus: dubbels, eenheden, ongebruikte types (E) | Data en opschoning | Bouwchat | later | 4 | |
 | 36 | DRAAIBOEK valideren met Maxim | Werkwijze | Maxim | bezig | 1 | brainstorm |
-| 37 | Designsessie KV/chauffeur/navigatie/dashboard | Schermen en navigatie | Fable | bezig | 1 | chauffeursscherm GOEDGEKEURD 29/10; kantoor Vandaag DEFINITIEF 29/10 (design/KANTOOR-DEFINITIEF.html: B1+B3 met schakelaar Groot/Compact); ritplanning drieluik 1 afgewezen (lege ruimte / geen tijd / te veel rit); Maxim koos E+D (29/10) + regels bestuurder=elke medewerker en banen/meegroeiende dagkolommen; ritplanning DEFINITIEF 29/10 (design/RITPLANNING-DEFINITIEF.html: E1 + lade van E2); volgende: KV-schermen |
+| 37 | Designsessie KV/chauffeur/navigatie/dashboard | Schermen en navigatie | Fable | bezig | 1 | chauffeursscherm GOEDGEKEURD 29/10; kantoor Vandaag DEFINITIEF 29/10 (design/KANTOOR-DEFINITIEF.html: B1+B3 met schakelaar Groot/Compact); ritplanning drieluik 1 afgewezen (lege ruimte / geen tijd / te veel rit); Maxim koos E+D (29/10) + regels bestuurder=elke medewerker en banen/meegroeiende dagkolommen; ritplanning DEFINITIEF 29/10; KV drieluik 1 geleverd (A checklist / B koerier-tabs / C wat-nu-stappen); prompt KO1 (kantoor Vandaag, chat C) klaar; volgende: KV-keuze → varianten → definitief |
 | 38 | Herfstplanning 2–8 nov invoeren | Periodes en planning | Fable | open | 1 | gegevens van Maxim nodig |
 | 39 | Generale repetitie + walkthrough 3–8 | Testen | Fable | open | 1 | |
 | 40 | Sollicitatiedossier (deadline 11 nov) | Sollicitatie | Maxim | open | 1 | |
