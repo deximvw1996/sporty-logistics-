@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kantoor Vandaag — definitief (Groot / Compact)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze span{color:#aaa;margin-left:8px}
+.frame{width:1920px;height:900px;margin:40px auto 0;background:#f5f5f5;overflow:hidden;position:relative}
+button{font:inherit;cursor:pointer;border:0}
+input[name=wg]{position:absolute;opacity:0;pointer-events:none}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.groen{background:#dcfce7;color:#15803d}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
+.kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:16px}
+.kaart h3{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}
+.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
+.cijfer{background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-top:4px solid #cbd5e1}
+.cijfer.blauw{border-top-color:#2563eb}.cijfer.groen{border-top-color:#16a34a}
+.cijfer .n{font-size:26px;font-weight:800;line-height:1}.cijfer .l{font-size:12px;color:#64748b;margin-top:4px}
+.top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
+.top .logo{font-size:17px;font-weight:800;color:#1e3a8a;margin-right:22px}
+.top a{height:40px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;cursor:pointer}
+.top a.act{background:#eff6ff;color:#1d4ed8}.top a .b{background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:999px}
+.top .rechts{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#64748b}.top .rechts b{color:#1e3a8a}
+.rit{display:flex;gap:12px;padding:9px 0;border-top:1px solid #f1f5f9;align-items:flex-start}
+.rit .u{width:48px;font-weight:700;font-size:13px;color:#334155;padding-top:2px;flex:none}
+.rit .nm{flex:1;font-size:13px;line-height:1.35}.rit .nm b{display:block;font-weight:700;font-size:14px}
+.scroll{overflow-y:auto;min-height:0;flex:1;padding-right:4px}
+.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+.body{display:grid;grid-template-columns:1fr 400px;gap:20px;padding:20px 28px;height:844px}
+.werk{display:flex;flex-direction:column;min-height:0}
+.kopr{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.kopr h1{font-size:22px;font-weight:800}.kopr small{font-size:13px;color:#64748b}
+.wg{margin-left:auto;display:flex;background:#e2e8f0;border-radius:10px;padding:3px}
+.wg label{height:36px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:#334155;cursor:pointer;user-select:none}
+#wgG:checked~.frame .wg label[for=wgG],#wgC:checked~.frame .wg label[for=wgC]{background:#fff;color:#1d4ed8;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.kols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;flex:1;min-height:0}
+.kol{display:flex;flex-direction:column;min-height:0}
+.kol h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;gap:8px;align-items:center;height:36px}
+.kol h3 i{font-style:normal;text-transform:none;letter-spacing:0;font-weight:500;color:#94a3b8;font-size:12px}
+.kol h3 a{margin-left:auto;font-size:12px;color:#2563eb;text-transform:none;letter-spacing:0;cursor:pointer;height:36px;display:flex;align-items:center;padding:0 8px}
+.rechtsk{display:flex;flex-direction:column;gap:14px;min-height:0}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.it{background:#fff;border-left:4px solid #cbd5e1;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.it.rood{border-left-color:#dc2626}.it.blauw{border-left-color:#2563eb}.it.oranje{border-left-color:#f59e0b}
+.it .nm b{display:block;color:#64748b;font-weight:500}
+/* GROOT = kaartjes (B1) */
+#wgG:checked~.frame .it{border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+#wgG:checked~.frame .it .ico{font-size:18px;float:left;margin-right:8px}
+#wgG:checked~.frame .it .nm{font-size:14px;font-weight:600;line-height:1.3}#wgG:checked~.frame .it .nm b{font-size:12px;margin-top:2px}
+#wgG:checked~.frame .it .acts{display:flex;gap:6px;justify-content:flex-end}
+/* COMPACT = stroken (B3) */
+#wgC:checked~.frame .kol{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:10px 12px 6px}
+#wgC:checked~.frame .kol h3{margin-bottom:4px}
+#wgC:checked~.frame .it{box-shadow:none;border-radius:0;border-top:1px solid #f1f5f9;border-left-width:3px;display:flex;align-items:center;gap:10px;padding:6px 0 6px 8px;min-height:54px}
+#wgC:checked~.frame .it .ico{font-size:16px;width:22px;text-align:center}
+#wgC:checked~.frame .it .nm{flex:1;font-size:13px;font-weight:600;line-height:1.3}#wgC:checked~.frame .it .nm b{font-size:11px}
+#wgC:checked~.frame .it .acts{display:flex;gap:4px}
+#wgC:checked~.frame .it .acts .knop{height:36px;font-size:12px;padding:0 10px}
+#wgC:checked~.frame .it .acts .knop.licht{display:none}
+</style></head><body>
+<input type="radio" name="wg" id="wgG" checked><input type="radio" name="wg" id="wgC">
+<div class="keuze"><b>Kantoor: Vandaag — DEFINITIEF</b><span>B1 + B3 samen: schakelaar Groot / Compact rechtsboven in het werkvlak · drie apart scrollende kolommen · 1920×900</span></div>
+<div class="frame"><div class="top"><div class="logo">Sporty logistiek</div><a class="act">🏠 Vandaag <span class="b">4</span></a><a>📅 Planning</a><a>🚚 Transport <span class="b">9</span></a><a>📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a>
+<div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="body"><div class="werk">
+<div class="kopr"><h1>Nu eerst</h1><small>woensdag 4 november · kampweek 1 · alleen wat vandaag of deze week moet</small>
+ <div class="wg"><label for="wgG">▦ Groot</label><label for="wgC">☰ Compact</label></div></div>
+<div class="kols"><div class="kol"><h3>Beslissen <span class="pil rood">4</span><i>kantoor beslist ja/nee</i><a>alles ›</a></h3><div class="scroll"><div class="it rood"><span class="ico">🚪</span><span class="nm">Chauffeur Jan: Abdijschool gesloten, geen sleutel<b>melding 08:31 · rit onderweg · KV Lotte ook verwittigd</b></span><span class="acts"><button class="knop licht">Bel conciërge</button><button class="knop ">Afgehandeld</button></span></div><div class="it rood"><span class="ico">📩</span><span class="nm">3 rollen tape · Abdijschool<b>aanvraag KV Lotte · 08:12</b></span><span class="acts"><button class="knop licht">Afwijzen</button><button class="knop ">Goedkeuren + spoed</button></span></div><div class="it rood"><span class="ico">💥</span><span class="nm">Oven kapot (foto) · Betekom<b>aanvraag KV Sam · 07:55</b></span><span class="acts"><button class="knop licht">Afwijzen</button><button class="knop ">Goedkeuren + spoed</button></span></div><div class="it rood"><span class="ico">📩</span><span class="nm">Extra ballen · Kessel-Lo<b>aanvraag KV Noor · gisteren</b></span><span class="acts"><button class="knop licht">Afwijzen</button><button class="knop ">Goedkeuren</button></span></div></div></div><div class="kol"><h3>Inplannen <span class="pil oranje">9</span><i>rit, chauffeur of voertuig kiezen</i><a>alles ›</a></h3><div class="scroll"><div class="it oranje"><span class="ico">🚚</span><span class="nm">Rest van rit #22: Oven 1 → Abdijschool<b>past niet · chauffeur Jan · nog geen rit</b></span><span class="acts"><button class="knop ">Op een rit zetten</button></span></div><div class="it oranje"><span class="ico">🔥</span><span class="nm">5 ovens nodig in week 1, 4 in de pool<b>capaciteitsconflict · Betekom + Boutersem</b></span><span class="acts"><button class="knop licht">Open conflict</button></span></div><div class="it oranje"><span class="ico">📦</span><span class="nm">Levering week 2: Kessel-Lo (De bakkerij)<b>vrijdag 6 nov · 14 bakken · geen chauffeur</b></span><span class="acts"><button class="knop ">Chauffeur kiezen</button></span></div><div class="it oranje"><span class="ico">📦</span><span class="nm">Levering week 2: Boutersem (Holderdebolder)<b>vrijdag 6 nov · 9 bakken + 2 springkastelen</b></span><span class="acts"><button class="knop ">Chauffeur kiezen</button></span></div><div class="it oranje"><span class="ico">↩</span><span class="nm">Ophaalrit Abdijschool bij sluiting<b>vrijdag 6 nov · deelophaling · 11 bakken</b></span><span class="acts"><button class="knop ">Rit maken</button></span></div><div class="it oranje"><span class="ico">🏃</span><span class="nm">Sportdag Leuven: 3 springkastelen<b>zaterdag 7 nov · weekend = uitzondering · bevestigen</b></span><span class="acts"><button class="knop licht">Bevestigen</button></span></div><div class="it oranje"><span class="ico">🚐</span><span class="nm">Rit #24 heeft nog geen voertuig<b>donderdag 5 nov · Piet · 2 stops</b></span><span class="acts"><button class="knop ">Voertuig kiezen</button></span></div><div class="it oranje"><span class="ico">🔁</span><span class="nm">Terugrit Marco → Rozenweg<b>5 bakken EHBO · week 1 klaar</b></span><span class="acts"><button class="knop ">Rit maken</button></span></div><div class="it oranje"><span class="ico">📩</span><span class="nm">Nalevering ballen · Kessel-Lo<b>goedgekeurd gisteren · wacht op rit</b></span><span class="acts"><button class="knop ">Op een rit zetten</button></span></div></div></div><div class="kol"><h3>Nakijken <span class="pil ">3</span><i>controleren, geen haast</i><a>alles ›</a></h3><div class="scroll"><div class="it blauw"><span class="ico">⚠</span><span class="nm">Holderdebolder op 2 locaties in week 1 · bak N08 dubbel<b>conflict</b></span><span class="acts"><button class="knop licht">Open</button></span></div><div class="it blauw"><span class="ico">📋</span><span class="nm">Betekom: kampmoment zonder thema<b>planning</b></span><span class="acts"><button class="knop licht">Open</button></span></div><div class="it blauw"><span class="ico">🧮</span><span class="nm">12 tekorten open uit vrijdagcontroles · 4 besteld<b>voorraad</b></span><span class="acts"><button class="knop licht">Open</button></span></div></div></div></div></div>
+<div class="rechtsk"><div class="mini"><div class="cijfer blauw"><div class="n">2</div><div class="l">ritten onderweg</div></div><div class="cijfer groen"><div class="n">4</div><div class="l">locaties open</div></div></div>
+<div class="kaart"><h3>Ritten vandaag <button class="knop klein">Rit plannen</button></h3><div class="rit"><div class="u">07:30</div><div class="nm"><b>Jan · Bestelwagen 2 <span class="pil blauw">stop 1/3</span></b>Rozenweg 🔒 → Abdijschool 🔒 → Betekom <span class="pil oranje">vrij</span> → Kessel-Lo <span class="pil oranje">vrij</span> → Rozenweg</div></div>
+<div class="rit"><div class="u">08:00</div><div class="nm"><b>Piet · Camion <span class="pil groen">gedaan</span></b>Boutersem (2 springkastelen) → Rozenweg</div></div></div><div class="kaart"><h3>Deze week</h3><div class="rit"><div class="u">ma–vr</div><div class="nm"><b>Abdijschool Vlierbeek</b>Alles op wieltjes · KV Lotte · vrijdagcontrole gepland</div></div>
+<div class="rit"><div class="u">ma–vr</div><div class="nm"><b>Betekom</b>Holderdebolder · KV Sam · ⚠ oven</div></div>
+<div class="rit"><div class="u">ma–vr</div><div class="nm"><b>Kessel-Lo</b>De bakkerij · KV Noor · kookdagen wo/do</div></div>
+<div class="rit"><div class="u">ma–vr</div><div class="nm"><b>Boutersem</b>Holderdebolder · KV Eva</div></div></div></div></div></div>
+</body></html>

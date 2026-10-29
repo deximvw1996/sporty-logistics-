@@ -43,6 +43,8 @@ Meetlat: 1920×900 zonder scrollen; knoppen ≥ 36 px op desktop; één scherm, 
 
 **Varianten (`kantoor-varianten-1.html`, zelfde inhoud: 4 beslissen · 9 inplannen · 3 nakijken · 2 ritten · 4 locaties):** B1 drie stapels (kaartjes met acties rechtsonder, rechts ritten + deze week) · B2 bord (gekleurde kolomkoppen met uitleg, tegels met acties eronder, ritten + deze week als strook onderaan over de volle breedte) · B3 werkbank (vijf kerncijfers bovenaan, dichte rijen met één knop per rij en "alles ›" per kolom, rechts ritten + deze week).
 
+**DEFINITIEF (Maxim 29/10): `KANTOOR-DEFINITIEF.html` = B1 + B3 samen.** Eén scherm met schakelaar **Groot / Compact** rechtsboven in het werkvlak (voorkeur per gebruiker onthouden): Groot = kaartjes met acties rechtsonder (B1), Compact = dichte stroken met één hoofdknop per rij (B3, de lichte knop verdwijnt). Vast in beide standen: bovenbalk met 7 onderdelen + periode, drie apart scrollende kolommen Beslissen / Inplannen / Nakijken met teller, korte uitleg en "alles ›", rechts 400 px: twee kerncijfers, Ritten vandaag (🔒/vrij-stops), Deze week. Dashboardregel: alleen wat vandaag of deze week moet. Bouw = exacte kopie.
+
 ## Scherm 3 — KV: "Wat hoort er te staan" + telscherm (mobiel)
 Later; LOGISTIEK EERST. Inhoud: bakken + status, levering verwacht, eigen meldingen en hun status, tellen per bak met aantal typen / alles aanwezig / kapot melden, versturen; monitor-link met alleen het telscherm.
 
