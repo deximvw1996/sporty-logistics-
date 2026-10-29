@@ -13,7 +13,7 @@ try {
   const NAMEN = ['Vandaag', 'Planning', 'Transport', 'Materiaal', 'Locaties', 'Voorraad & controles', 'Beheer'];
   T.check(NAV.BOVEN.map((o) => o.href).join() === HREFS.join() && NAV.BOVEN.map((o) => o.naam).join() === NAMEN.join(), 'mapping bovenbalk: Vandaag /vandaag · Planning /kampmomenten · Transport /ritplanning · Materiaal /bakken · Locaties /#locaties · Voorraad & controles /nakijken · Beheer /personeel');
   const SUBS = {
-    planning: ['/kampmomenten', '/#kampplanner', '/#periodes', '/#themas'], transport: ['/#transport', '/ritplanning', '/taken', '/#voertuigen'],
+    planning: ['/kampmomenten', '/#kampplanner', '/#periodes', '/#themas'], transport: ['/ritplanning', '/taken', '/voertuigen'] /* VT1 */,
     materiaal: ['/themas', '/bakken', '/pool', '/catalogus'] /* MA2 */, voorraad: ['/nakijken', '/#tekorten', '/#tekorten', '/#voorraad'], beheer: ['/personeel', '/logboek', '/#beheer', '/#beheer']
   };
   T.check(Object.entries(SUBS).every(([k, v]) => NAV.SUB[k].map((s) => s[1]).join() === v.join()), 'mapping subbalken (planning, transport, materiaal, voorraad, beheer) exact volgens de prompt');
@@ -26,7 +26,7 @@ try {
     T.check(HREFS.every((h) => boven.includes('href="' + h + '"')) && (boven.match(/class="act"/g) || []).length === 1 && boven.includes(`class="act" href="${NAV.BOVEN.find((o) => o.id === onderdeel).href}"`), `${pad}: bovenbalk met de 7 links, enkel "${onderdeel}" actief`);
     if (SUBS[onderdeel]) {
       const sb = NAV.sub(onderdeel, pad), n = (sb.match(/<a /g) || []).length;
-      T.check(n === 4 && SUBS[onderdeel].every((h) => sb.includes('href="' + h + '"')) && sb.includes(`class="act" href="${pad}"`) && /class="sub"/.test(html), `${pad}: subbalk (4 links, "${pad}" actief)`);
+      T.check(n === SUBS[onderdeel].length && SUBS[onderdeel].every((h) => sb.includes('href="' + h + '"')) && sb.includes(`class="act" href="${pad}"`) && /class="sub"/.test(html), `${pad}: subbalk (${SUBS[onderdeel].length} links, "${pad}" actief)`);
     } else T.check(!/class="sub"/.test(html) && NAV.sub('vandaag', pad) === '', `${pad}: Vandaag heeft geen subbalk`);
   }
   // index.html: vervangstrook en bereikbaarheid van de oude tabs
