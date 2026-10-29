@@ -203,6 +203,7 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 ---
 
 ## STATUSLOG
+- **30/10 07:30** Prod opgeruimd + vers geseed (ritten #31-#36) voor Maxims run. Prompts RP2 (C, werklijst 94) en AF1 (D, werklijst 95) geschreven; C en D bouwen.
 - **30/10 07:15** TF2 (D) GEKEURD en op main: 10 testpunten dicht (TZ Europe/Brussels, lib/tijd.js, herpoging rit/kv, bakcodes, bestelling binnen, teksten); 2 merge-conflicten met TF1 opgelost (beide kanten). Volle run 31/31. Werklijst 93. Volgende: prod opruimen + herseeden, Maxims run; RP2.
 - **30/10 06:30** TF1 (C) GEKEURD en op main: 9 testpunten dicht; volle run 31/31. Rest naar RP2. D werkt aan TF2. Werklijst 92/94.
 - **30/10 05:50** T1 (chat T) klaar: generale repetitie op prod, 8 stappen (4 groen, 4 deels), 20 bevindingen; blokkerend: tijdzone UTC, 502 bij deploy, spoedrit zonder chauffeur onzichtbaar, wissel-hint. Prompts TF1 (C) en TF2 (D). Na de fixes: prod opruimen + opnieuw seeden, dan Maxims eigen run. Werklijst 91-93.
