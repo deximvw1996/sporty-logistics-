@@ -14,14 +14,14 @@ button{font:inherit;cursor:pointer;border:0;-webkit-tap-highlight-color:transpar
 .pil.groen{background:#dcfce7;color:#15803d}.pil.grijs{background:#e2e8f0;color:#334155}
 .legenda{margin:8px 12px 0;font-size:11px;color:#64748b;display:flex;gap:12px;flex-wrap:wrap}.legenda b{color:#334155}
 .nav{display:flex;gap:8px;padding:10px 12px;background:#fff;border-top:1px solid #e2e8f0;position:sticky;bottom:0;z-index:5}
-.nav button{flex:1;height:46px;min-width:0;border-radius:12px;background:#f1f5f9;font-weight:700;font-size:14px;color:#1e3a8a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+.nav button{flex:1;height:46px;min-width:0;border-radius:12px;background:#f1f5f9;font-weight:700;font-size:14px;color:#1e3a8a;white-space:normal;line-height:1.15;overflow:hidden;padding:0 8px}
 .nav button.rood{background:#fee2e2;color:#b91c1c;flex:0 0 46px;font-size:20px;padding:0}.nav button.prim{background:#2563eb;color:#fff}
 .nav button:disabled{opacity:.5}
 /* DAG */
 .tl{position:relative;margin:12px 12px 0;padding-left:64px}
 .tl:before{content:"";position:absolute;left:52px;top:6px;bottom:6px;width:3px;background:#cbd5e1;border-radius:2px}
 .ts{position:relative;margin-bottom:10px}
-.ts .tijd{position:absolute;left:-64px;top:14px;width:46px;text-align:right;font-size:13px;font-weight:700;color:#334155}
+.ts .tijd{position:absolute;left:-66px;top:14px;width:44px;text-align:right;font-size:13px;font-weight:700;color:#334155}
 .ts .dot{position:absolute;left:-19px;top:16px;width:16px;height:16px;border-radius:50%;background:#94a3b8;border:3px solid #f3f5f8}
 .ts.klaar .dot{background:#16a34a}.ts.nu .dot{background:#2563eb;box-shadow:0 0 0 3px #bfdbfe}
 .ts .box{background:#fff;border-radius:12px;padding:8px 8px 8px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:8px;min-height:64px;cursor:pointer}
