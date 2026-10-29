@@ -66,7 +66,7 @@ module.exports = function(ctx){
     // ── Beslissen: nieuwe aanvragen (materiaal/kapot) + meldingen van chauffeurs ──
     const beslissen=[];
     all(`SELECT a.*,km.locatie_id,km.kv_persoon_id,km.periode_id AS km_periode FROM aanvragen a LEFT JOIN kampmomenten km ON km.id=a.kampmoment_id
-      WHERE a.status='nieuw' ORDER BY a.created_at DESC,a.id DESC`).forEach(a=>{
+      WHERE a.status='nieuw' AND COALESCE(a.soort,'') NOT IN ('herinnering_kv','notitie_kantoor') ORDER BY a.created_at DESC,a.id DESC`).forEach(a=>{ // TF1 G8: berichten van kantoor zijn geen beslissing
       if(a.kampmoment_id&&a.km_periode!==pid)return;
       const loc=a.locatie_id?_locNaam(a.locatie_id):'';
       const wanneer=_wanneer(a.created_at,datum);
@@ -147,7 +147,7 @@ module.exports = function(ctx){
     const rittenVan=(dag,enkelPersoon)=>all(`SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id`,[dag]).filter(r=>!enkelPersoon||(r.personeel_id&&String(r.personeel_id)===String(enkelPersoon))).map(r=>{
       const taken=all(`SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id`,[r.id]);
       const gedaan=taken.filter(t=>t.status==='gedaan').length;
-      return {id:r.id,tijd:taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',chauffeur:r.chauffeur||_persNaam(r.personeel_id)||'',voertuig:r.voertuig||'',
+      return {id:r.id,tijd:r.vertrek||taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',chauffeur:r.chauffeur||_persNaam(r.personeel_id)||'',voertuig:r.voertuig||'',
         status:r.status==='onderweg'||r.status==='gedaan'?r.status:'gepland',
         stop_huidig:taken.length?Math.min(gedaan+1,taken.length):0,stops_totaal:taken.length,
         stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast'}))};
@@ -210,7 +210,7 @@ module.exports = function(ctx){
       const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoDate(new Date());
       const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' AND personeel_id=? ORDER BY id",[dag,req.persoon.persoon_id]).map(r=>{
         const taken=all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[r.id]);
-        return {id:r.id,tijd:taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',voertuig:r.voertuig||'',status:r.status,stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast'})),token:r.rit_token||''};
+        return {id:r.id,tijd:r.vertrek||taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',voertuig:r.voertuig||'',status:r.status,stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast'})),token:r.rit_token||''};
       });
       const lijst=_roep('/api/aanvullijst',{datum},req);
       return res.json({mijn:true,gebruiker:{naam:req.persoon.naam,rol:req.persoon.rol},datum,datum_tekst:datumLang(datum),

@@ -117,7 +117,7 @@
     }
     const r=ritVan(RIT),dt=d0(DAG),wv=echteW(r);
     const over=r.voertuig.capaciteit&&r.bezetting>r.voertuig.capaciteit;
-    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(r.bestuurder.naam||'geen bestuurder')}${coord(r)?' (coördinator rijdt mee)':''} · ${esc(r.voertuig.naam||'geen voertuig')} · <i class="${over?'over':''}">${bez(r)} bakken</i></span></div>${
+    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(r.bestuurder.naam||'geen bestuurder')}${coord(r)?' (coördinator rijdt mee)':''} · ${esc(r.voertuig.naam||'geen voertuig')} · <i class="${over&&r.status!=='gedaan'?'over':''}">${bez(r)} bakken</i>${r.notitie?' · '+esc(r.notitie):''}</span></div>${
       wv.length?`<div class="waarsch">⚠ ${esc(wv.join(' · '))}</div>`:r.waarschuwingen.includes('weekend')?(()=>{const b=r.waarschuwingen.find(w=>/^weekend · /.test(w));return '<div class="waarsch">'+(b&&/bevestigd door/.test(b)?'✓ '+esc(b):'⚠ '+esc(b||'weekend: uitzondering'))+'</div>';})():''}<div class="acties"><button class="knop licht klein" data-act="splits">Splitsen</button><button class="knop licht klein" data-act="link">Rit-link</button><button class="knop klein" data-act="klaar">${r.klaarzet_status==='klaar'?'Klaargezet ✓':'Klaarzetten'}</button></div></div><div class="scroll">${
       r.stops.length?r.stops.map((s,i)=>`<div class="stop ${s.slot}"><div class="t">${esc(s.tijd)}</div><div class="nm">${esc(s.locatie)}<b>${esc(s.wat)}${s.status!=='gepland'?' · '+esc(s.status):''}</b></div><span class="pil ${s.slot==='vrij'?'oranje':''}" data-slot="${s.taak_id}" title="Tik om te wisselen tussen vast en vrij">${s.slot==='vrij'?'vrij':'🔒 vast'}</span><div class="pijl"><button data-wissel="${s.taak_id}" data-r="omhoog" ${i===0?'disabled':''}>▲</button><button data-wissel="${s.taak_id}" data-r="omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><button class="knop licht klein" data-uit="${s.taak_id}">✕</button></div>`).join('')
       :'<div class="leegtxt">Nog geen stops — zet een taak op deze rit via "N open" in de dagkop</div>'}</div>`;
@@ -227,7 +227,9 @@
       if(a==='splits')return splits();
       if(a==='link'){const r=await api('POST',`/api/ritten/${RIT}/token`);if(!r.ok)return toast(r.json.error||'Rit-link maken mislukt','error');
         const url=location.origin+r.json.url;try{await navigator.clipboard.writeText(url);toast('Rit-link gekopieerd: '+url,'success');}catch(x){toast('Rit-link: '+url,'info');}return;}
-      if(a==='klaar'){const r=await api('POST',`/api/ritten/${RIT}/klaarzet`,{});if(!r.ok)return toast(r.json.error||'Klaarzetten mislukt','error');toast('Rit klaargezet door '+r.json.klaarzet_door,'success');return laad();}
+      if(a==='klaar'){const rt=ritVan(RIT),over=rt.voertuig.capaciteit&&rt.bezetting>rt.voertuig.capaciteit;
+        if(over&&!await vraag({titel:'Rit boven capaciteit klaarzetten?',tekst:`${rt.bezetting} bakken op ${rt.voertuig.capaciteit} plaatsen. Dat mag (geen verbod), maar het wordt gelogd. Toch klaarzetten?`,ok:'Ja, klaarzetten'}))return;
+        const r=await api('POST',`/api/ritten/${RIT}/klaarzet`,over?{bevestigd_over_capaciteit:true}:{});if(!r.ok)return toast(r.json.error||'Klaarzetten mislukt','error');toast('Rit klaargezet door '+r.json.klaarzet_door,'success');return laad();}
     }
   });
   $('wk-vorig').onclick=()=>{const d=d0(P.week.start);d.setDate(d.getDate()-7);WEEK=iso(d);DAG=null;RIT=null;laad();};
