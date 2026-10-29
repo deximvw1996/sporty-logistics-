@@ -135,6 +135,7 @@ try {
     .replace('/api/locaties/:id', `/api/locaties/${v(ids.locatie)}`)
     .replace('/api/themas/:id', `/api/themas/${v(ids.thema)}`)
     .replace('/api/ritten/:id', `/api/ritten/${v(ids.rit)}`)
+    .replace('/api/taken/:id', '/api/taken/999999') // TR1: taak-detail (onbekende taak → 404, geen 500)
     .replace('/api/personeel/week/:week', '/api/personeel/week/1')
     .replace('/api/kv/:token', `/api/kv/${ids.kvToken || 'geen-token'}`)
     .replace('/kv/:token', `/kv/${ids.kvToken || 'geen-token'}`)
