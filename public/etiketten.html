@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Etiketten — Sporty logistiek</title>
+<link rel="stylesheet" href="/public/patroon.css">
+<style>
+/* MA1: printbare etiketten (er bestond geen etiketroute). A4, 3 × 7 etiketten van 70 × 42 mm; op scherm met een printknop. */
+body{background:#f5f5f5}
+.balk{display:flex;align-items:center;gap:12px;padding:12px 28px;background:#fff;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b}
+.balk b{color:#1e3a8a;font-size:15px}.balk .knop{margin-left:auto}
+.vel{display:grid;grid-template-columns:repeat(3,70mm);grid-auto-rows:42mm;gap:0;width:210mm;margin:16px auto;background:#fff;padding:10mm 0}
+.et{border:1px dashed #cbd5e1;padding:3mm 4mm;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+.et .code{font-size:26px;font-weight:800;color:#1e3a8a;line-height:1}.et .naam{font-size:12px;font-weight:600;line-height:1.25;max-height:2.5em;overflow:hidden}
+.et .th{font-size:11px;color:#334155}.et .plaats{font-size:11px;font-weight:700;color:#334155;border-top:1px solid #e2e8f0;padding-top:1mm}
+@media print{.balk{display:none}body{background:#fff}.vel{margin:0;padding:10mm 0}.et{border-color:#e2e8f0}@page{size:A4;margin:0}}
+</style></head><body>
+<div class="balk"><b>Etiketten</b><span id="info">laden…</span><button class="knop klein" onclick="window.print()">🖨 Printen</button></div>
+<div class="vel" id="vel"></div>
+<script>
+(async function(){
+  const TOKEN=localStorage.getItem('sporty-auth-token');if(!TOKEN){location.href='/';return;}
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const h={headers:{'x-auth-token':TOKEN}};
+  const [o,l]=await Promise.all([fetch('/api/bakken-overzicht',h),fetch('/api/locaties',h)]);
+  if(o.status===401||o.status===403){location.href='/';return;}
+  const data=await o.json(),locs=await l.json();
+  const ids=(new URLSearchParams(location.search).get('ids')||'').split(',').filter(Boolean);
+  const lijst=ids.map(k=>data.bakken.find(b=>(b.soort==='attribuut'?'a':'b')+b.id===k)).filter(Boolean);
+  document.getElementById('info').textContent=`${lijst.length} etiket${lijst.length===1?'':'ten'} · A4, 3 × 7 per blad`;
+  const thuis=b=>{const t=locs.find(x=>x.id===b.thuis_locatie_id);return [t?t.name:'',b.rek?'rek '+b.rek:'',b.plank?'plank '+b.plank:''].filter(Boolean).join(' · ');};
+  document.getElementById('vel').innerHTML=lijst.map(b=>`<div class="et"><div class="code">${esc(b.code||'—')}</div><div class="naam">${esc(b.naam)}</div><div class="th">${esc(b.thema?b.thema.naam:b.soort)}</div><div class="plaats">thuis: ${esc(thuis(b)||'—')}</div></div>`).join('');
+})();
+</script>
+</body></html>

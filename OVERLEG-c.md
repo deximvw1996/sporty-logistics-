@@ -806,3 +806,147 @@ Uitslag: 35 ok, 0 fout, ALLES GROEN.
 
 - `gr1-keten` staat erin als "GROEN 0/0 (overgeslagen)": zonder `GR1=1` doet hij niets.
 - De twee rode tests zijn de bekende omgevingsafhankelijke tests: ze lezen de lokale `sporty.db`.
+
+---
+
+## MA1 — Materiaal › Bakken op het patroon + rek/plank per bak (chat C, Opus) · 2026-10-29
+
+Gewerkt van 19:43 tot ±20:30.
+
+**Commits op `bouw-c`:**
+- dff92c9: punt 1
+- db34105: punt 2
+- f2fb9c0: punt 3 + test
+- dit verslag
+
+### Wat er gebouwd is
+
+**Punt 1 — Rek en plank (werklijst 82)**
+- **Migratie 79** voegt `bakken.rek`, `bakken.plank` en `item_types.pool_plaats` toe.
+- **Thuisplaats:** die bestond al als `bakken.thuislocatie_id`. Er is geen tweede kolom bijgekomen; `thuis_locatie_id` werkt als alias.
+- **Eenmalige backfill** (`migratie79_klaar`):
+  - `rek` = de eerste letter van de code (A–Z): 299 bakken in herfst-test.db;
+  - bakken zonder thuis krijgen Rozenweg: 0 op herfst-test.db.
+- **`PUT /api/bakken/:id`** neemt `rek`, `plank` en `thuis_locatie_id` aan:
+  - alleen kantoor, anders 403;
+  - gelogd via `updateMetLog`;
+  - `rek` wordt in hoofdletters bewaard;
+  - een thuisplaats moet een stockage zijn (anders 400).
+- **Aanvullijst (`routes/nakijken.js`):**
+  - `plaats` komt nu uit `rek`/`plank` (`{rek, plank, tekst:"rek N · plank 3"}`). Zonder rek valt hij terug op de oude afleiding uit de code.
+  - Bij `uit_pool`/`naar_pool` komt de `pool_plaats` van het stuk in `waar_tekst` ("uit de pool (rek P · bak P-03)") als die gekend is.
+
+**Punt 2 — `routes/bakken-overzicht.js`**
+- `GET /api/bakken-overzicht` en `GET /api/bakken/:id/detail` (`?soort=attribuut` voor attributen), allebei alleen voor kantoor.
+- `DELETE /api/bakken-overzicht/:id` controleert eerst. 409 als de bak onderweg is (geladen, niet gelost) of een open telling heeft. Daarna roept hij de bestaande `DELETE /api/bakken/:id` of `/api/attributen/:id` aan, met hetzelfde opruimgedrag en dezelfde log.
+- `GET /bakken` en `GET /etiketten` geven de pagina's.
+
+**Punt 3 — De pagina's**
+- **`/bakken`** (`public/bakken.{html,css,js}`, laadt `patroon.css`) is een exacte kopie van de mockup:
+  - subbalk: Thema's · Bakken · Pool · Catalogus + Export / 🖨 Etiketten / + Nieuwe bak;
+  - 7 chips (Alle · Thema · Vast · Attribuut · Onderweg · ⚠ Incompleet · Rozenweg) en een zoekveld;
+  - de kolommen uit de mockup, selectie en de bulkvoet.
+- **Detail:** de kop met de knoppen Bewerken · 🖨 Etiket · Verplaatsen · Inhoud aanpassen, en de tabs Inhoud · Foto's · Waar geweest · Tellingen · Historiek. De tab Inhoud volgt de mockup: links de inhoud met ✕ en "+ Stuk", rechts foto's met "+ foto", "waar is de bak" (nu, terug, thuis) en de historiek.
+- **`?id=N`** opent het detail van bak N; `?id=aN` dat van attribuut N.
+- **Acties** gebruiken de bestaande routes:
+  - **Stukken:** "+ Stuk" voegt toe via `bakken/:id/items` (themabak) of `vaste-bakken/:id/items` (vaste bak), met een zoeklijst uit `/api/item-types`. ✕ verwijdert via `bak-items/:id` of `vaste-bak-items/:id`.
+  - **Foto:** `POST /api/bakken/:id/foto`, verwerkt met `lib/fotos.js`.
+  - **Verplaatsen:** `POST /api/bakken/:id/verplaats` of `/api/attributen/:id/verplaats` met een verplichte reden, plus `PUT` voor rek en plank.
+  - **Aan thema koppelen:** `POST /api/themas/:id/bakken` (`{bak_id}`) of `/attributen` (`{attribuut_id}`).
+  - **Bewerken:** `PUT /api/bakken/:id` (attributen: `/api/attributen/:id`).
+  - **+ Nieuwe bak:** naar soort `POST /api/themas/:id/bakken`, `/api/vaste-bakken` of `/api/attributen`.
+- **`/etiketten?ids=b12,a5`** (`public/etiketten.html`): printbare A4 met 3 × 7 etiketten van 70 × 42 mm, met code, naam, thema en thuis · rek · plank.
+
+### JSON-vorm
+`GET /api/bakken-overzicht`
+```json
+{"tellers": {"alle": 551, "thema": 351, "vast": 115, "attribuut": 85, "onderweg": 1, "incompleet": 5, "per_stockage": {"Rozenweg": 549}},
+ "bakken": [{"id": 11854, "soort": "thema|vast|attribuut|pool", "code": "N20", "naam": "Themabak 1/4 (kleuterbak)", "thema": {"id": 4082, "naam": "1001 Ballen en Bellen"},
+   "waar_nu_tekst": "Abdijschool Vlierbeek wk 1 | Rozenweg · rek N plank 2 | onderweg rit #22", "waar_nu": {"locatie_id": 29, "rit_id": null},
+   "inhoud_tekst": "3 soorten · 40 stuks | 1 | 12 stuks", "stand_tekst": "ok | tekort 1 | te veel 2 | kapot 1 | niet geteld | tekort 1 · besteld",
+   "status": "ok|let", "incompleet": true, "rek": "N", "plank": "3", "thuis_locatie_id": 7, "zoek": "n20 themabak … rozenweg"}]}
+```
+Regels voor de lijst:
+- **`soort`:** `pool` = vaste bak met `is_bulk`; die telt mee in `vast`.
+- **`stand`:** komt uit de laatste `nakijk_sessie` van de bak.
+- **`status`:** `let` bij tekort, te veel of kapot. `incompleet` = tekort of kapot.
+- **`waar_nu`:**
+  - "onderweg rit #n" zolang er een check geladen maar niet gelost is;
+  - op de thuisstockage: met rek en plank;
+  - op een kamplocatie: met de week van het kampmoment in de actieve periode.
+
+`GET /api/bakken/:id/detail`
+```json
+{"bak": {"…zelfde velden…": "", "thuis_tekst": "Rozenweg · rek N · plank 3", "notitie": ""},
+ "inhoud": [{"item_id": 85476, "naam": "Voetballen", "qty": 10, "item_type_id": 3216, "stand_tekst": "tekort 1 · besteld"}],
+ "fotos": [{"id": 3, "url": "/uploads/…", "beschrijving": "open", "t": "…", "wie": "…"}],
+ "waar": {"nu_tekst": "Abdijschool Vlierbeek wk 1", "nu_door": "Jeroen", "nu_op": "do 29 okt 19:55", "nu_rit_id": 22,
+          "terug_tekst": "ophaling vr 6 nov 09:00 · rit #23", "thuis_tekst": "Rozenweg · rek N · plank 3"},
+ "waar_geweest": [{"t": "…", "datum": "do 29 okt 19:55", "actie": "gelost|geladen", "locatie": "Abdijschool Vlierbeek", "rit_id": 22, "chauffeur": "Jeroen"}],
+ "tellingen": [{"sessie_id": 1, "datum": "…", "kv": "Test KV Abdijschool", "uitslag": "tekort 1 · besteld", "kv_status": "ingediend", "kantoor_status": "nagekeken", "locatie": "Abdijschool Vlierbeek", "week": 1}],
+ "historiek": [{"t": "…", "wie": "Claude (API)", "wat": "plank: — → 2 (api)", "wijziging_id": 812}]}
+```
+
+### Bewijs
+- **`node scripts/test-ma1-bakken.mjs` (poort 3337): 25 ok, 0 fout, ALLES GROEN.** Gecontroleerd:
+  - **Overzicht en migratie:**
+    - de tellers per soort (thema + vast + attribuut = alle);
+    - migratie 79: N20 heeft rek N en thuis Rozenweg;
+    - attribuut "1" en pool "N stuks".
+  - **Rek, plank en thuis:**
+    - `PUT` rek/plank, in hoofdletters bewaard;
+    - de bak thuis toont "Rozenweg · rek N plank 2";
+    - de wijziging staat in de historiek ("plank: — → 2");
+    - een thuis op een kamplocatie geeft 400.
+  - **Onderweg en gelost:**
+    - een bak op een rit (geladen) toont "onderweg rit #22", teller onderweg 1;
+    - verwijderen van een bak onderweg → 409;
+    - na het lossen: "Abdijschool Vlierbeek wk 1".
+  - **Telling:**
+    - een KV-telling met één te weinig geeft stand "tekort 1", status `let`;
+    - verwijderen met een open telling → 409.
+  - **Aanvullijst** na de keuring: plaats "rek N · plank 3".
+  - **Detail:**
+    - de inhoud per stuk met stand;
+    - waar geweest: gelost op Abdijschool en geladen in Rozenweg (rit #22);
+    - tellingen 1, historiek 5;
+    - "terug: ophaling vr 6 nov · nog geen rit";
+    - attribuutdetail 200, onbekende bak 404.
+  - **Rechten:** een chauffeur krijgt 403 op het overzicht, het detail, rek/plank en verwijderen.
+  - **Verwijderen zonder blokkade:** een losse bak zonder rit of telling wordt verwijderd.
+  - **Pagina's:** `/bakken` heeft de subbalk, 7 chips, de voet en `patroon.css`; `/etiketten` geeft 200.
+- **`test-vc1-nakijken`** (aanvullijst) blijft groen: 46 ok.
+- **Live in de browser op 1920×900** (DOM-dump; de screenshot timede uit bij de lijst van 551 rijen, zie `reference_fmdl_responsive_screenshot`):
+  - Lijst 860 px links, detail 988 px rechts. De chips "Alle 551 · Thema 351 · Vast 115 · Attribuut 85 · Onderweg 0 · ⚠ Incompleet 5 · Rozenweg", elk 36 px hoog.
+  - Na het aanvinken: "351 bakken · 2 geselecteerd" met de 4 bulkknoppen.
+  - Zoeken op "n20" geeft één rij: "N20 Themabak 1/4 (kleuterbak) · 1001 Ballen en Bellen · Abdijschool Vlierbeek wk 1 · 3 soorten · 40 stuks · tekort 1 · besteld ⚠".
+  - **Detailkop:** "N20 · Themabak 1/4 (kleuterbak) | 1001 Ballen en Bellen · nu bij Abdijschool Vlierbeek wk 1 · thuis: Rozenweg · rek N · plank 3 · tekort 1 · besteld".
+    - Knoppen: Bewerken · 🖨 Etiket · Verplaatsen · Inhoud aanpassen.
+    - Tabs: Inhoud 3 · Foto's 0 · Waar geweest 2 · Tellingen 1 · Historiek 5.
+  - **Waar is de bak:**
+    - Nu: "Abdijschool Vlierbeek wk 1 · gelost do 29 okt 19:55 door Jeroen (rit #22)";
+    - Terug: "ophaling vr 6 nov 09:00 · rit #23";
+    - Thuis: "Rozenweg · rek N · plank 3".
+  - **Verplaats-venster:** velden Naar locatie, Reden, Rek en Plank, met 42 locaties. Plank 4 gekozen → "1 verplaatst", de kop toont "plank 4".
+- **`node scripts/volle-run.mjs`, twee keer: 24/26 groen.** Alleen `v3c-fotos` (2) en `veiligheid` (3) zijn rood, dezelfde omgevingsafhankelijke tests als altijd (ze lezen de lokale `sporty.db`). `ma1-bakken` is in beide runs groen (25 ok).
+
+### Afwijkingen van de mockup
+- **Demo-balk en frame:** de demo-balk (`.keuze`) valt weg. Het frame vult het venster; op 1920×900 is het beeld identiek.
+- **Chip "Rozenweg":** zonder teller, zoals in de mockup. Hij filtert op bakken die nu in de Rozenweg staan.
+- **"↶ Terug" in de historiek:** uitgeschakeld met uitleg. Er bestaat geen terugdraai-route (GEVONDEN TR1 #1).
+- **Pilkleuren:** `.pil.rood` en `.pil.blauw`, plus `nowrap` op de chips, toegevoegd zoals bij Taken. Met 551 bakken en echte tellers liep de chiprij anders over twee regels.
+
+### GEVONDEN
+1. **Thuisplaats:** `bakken.thuislocatie_id` bestond al. Er is geen tweede kolom `thuis_locatie_id` aangemaakt; de API neemt beide namen aan.
+2. **Er is geen `GET /api/bakken`-lijstroute.** De nieuwe velden komen vanzelf mee in `GET /api/alle-bakken` en `/api/vaste-bakken` (`SELECT *`), en in `/api/bakken-overzicht`.
+3. **Etiketten:** er bestond geen etiket- of printroute. Ik koos een printbare pagina `/etiketten?ids=` (A4, 3 × 7, 70 × 42 mm) met code, naam, thema en thuis-rek. "🖨 Etiketten" in de subbalk opent de selectie, of anders de zichtbare lijst (max. 200).
+4. **Attributen hebben geen rek of plank.** Het formulier meldt dat en bewaart enkel de thuis. Wil kantoor dat ook voor attributen, dan is dat één migratie extra.
+5. **`DELETE /api/bakken/:id` en `/api/attributen/:id` controleren zelf niets** (onderweg, open telling) en hebben geen `alleenKantoor`. De controle zit nu in `DELETE /api/bakken-overzicht/:id`. De oude routes blijven ongemoeid, zoals de prompt vraagt.
+6. **Vaste bakken bewaren hun stukken in `vaste_bak_items`, thema-bakken in `bak_items`.** Overzicht en detail lezen beide. ✕ en "+ Stuk" kiezen de juiste route.
+7. **Pool per stuk:** `item_types.pool_plaats` bestaat nu, maar er is nog geen scherm om het in te vullen (Pool-subtab, niet in deze prompt). De aanvullijst toont het zodra het gevuld is.
+8. **TR1-fout, gevonden door chat D** (OVERLEG-d.md): de knop "Genereer uit planning" in `/taken` roept alleen `POST /api/transport-genereer` aan. Die geeft voorstellen terug maar maakt geen taken, terwijl de pagina "Taken gegenereerd" meldt. De voorstellen moeten nog als taken aangenomen worden, zoals `generale-repetitie.mjs` doet. Niet opgelost: `public/taken.js` valt buiten deze prompt.
+9. **De browser-screenshot timet uit bij de lijst van 551 rijen** (bekend). Het bewijs is daarom een DOM-dump met maten.
+
+### Buiten mijn gebied
+- **`server.js`:** één regel, `'bakken-overzicht'` in de routelijst.
+- **`public/etiketten.html`:** nieuw bestand; de prompt liet een eigen printpagina toe als er geen etiketroute was.
