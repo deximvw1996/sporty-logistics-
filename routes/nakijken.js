@@ -171,10 +171,18 @@ module.exports = function(ctx){
         if(it.kapot_aantal>0)hist.push({tekst:`${it.naam.toLowerCase()}: ${it.kapot_aantal} kapot${it.foto_url?' + foto':''}`,wie:sessie.kv_wie?'KV '+sessie.kv_wie:'KV',sorteer:_ts(sessie.kv_tijdstip),tijd:sessie.kv_tijdstip||''});
       });
       const regelIds=items.map(i=>i.regel_id).filter(Boolean);
-      const wz=all(`SELECT * FROM wijzigingen WHERE (tabel='nakijk_sessies' AND rij_id=?) ${regelIds.length?`OR (tabel='nakijk_regels' AND rij_id IN (${regelIds.map(()=>'?').join(',')}))`:''} ORDER BY id DESC LIMIT 40`,[sessie.id,...regelIds]);
+      const wz=all(`SELECT * FROM wijzigingen WHERE (tabel='nakijk_sessies' AND rij_id=?) ${regelIds.length?`OR (tabel='nakijk_regels' AND rij_id IN (${regelIds.map(()=>'?').join(',')}))`:''} ORDER BY id DESC LIMIT 80`,[sessie.id,...regelIds]);
       wz.forEach(w=>{
         let nieuw=null,oud=null;try{nieuw=JSON.parse(w.nieuw||'null');oud=JSON.parse(w.oud||'null');}catch(e){}
-        if(w.tabel==='nakijk_regels'&&nieuw&&oud&&nieuw.kantoor_actie!==oud.kantoor_actie)
+        if(w.context==='kv-link'&&w.tabel==='nakijk_regels'&&nieuw){
+          // GF1: de tellingen van de KV staan in de log (wie = de KV) en dus in de historiek.
+          const nm=String(nieuw.item_naam||'stuk').toLowerCase();
+          const tekst=nieuw.aangetroffen==null?`${nm}: niet geteld`:oud&&oud.aangetroffen!=null&&oud.aangetroffen!==nieuw.aangetroffen?`${nm}: geteld ${oud.aangetroffen} → ${nieuw.aangetroffen}`:`${nm}: geteld ${nieuw.aangetroffen}${nieuw.kapot_aantal>0?` (${nieuw.kapot_aantal} kapot)`:''}`;
+          hist.push({tekst,wie:w.persoon_naam||'KV',sorteer:_ts(w.tijdstip),tijd:w.tijdstip});
+        }
+        else if(w.context==='kv-link'&&w.tabel==='nakijk_sessies'&&nieuw&&nieuw.kv_status==='ingediend'&&(!oud||oud.kv_status!=='ingediend'))
+          hist.push({tekst:'telling verstuurd door de KV',wie:w.persoon_naam||'KV',sorteer:_ts(w.tijdstip),tijd:w.tijdstip});
+        else if(w.tabel==='nakijk_regels'&&nieuw&&oud&&nieuw.kantoor_actie!==oud.kantoor_actie)
           hist.push({tekst:`${(nieuw.item_naam||'stuk').toLowerCase()}: actie ${nieuw.kantoor_actie||'(leeg)'}`,wie:w.persoon_naam||'kantoor',sorteer:_ts(w.tijdstip),tijd:w.tijdstip});
         else if(w.tabel==='nakijk_sessies'&&nieuw&&nieuw.kantoor_status==='nagekeken')
           hist.push({tekst:'keuring afgerond',wie:w.persoon_naam||'kantoor',sorteer:_ts(w.tijdstip),tijd:w.tijdstip});

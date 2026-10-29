@@ -36,11 +36,15 @@
     tel('b-vandaag',v.beslissen.length);tel('b-transport',v.inplannen.length);
     $('c-onderweg').textContent=v.cijfers.ritten_onderweg;$('c-open').textContent=v.cijfers.locaties_open;
     $('n-ritten').textContent=v.ritten_vandaag.length;
-    $('l-ritten').innerHTML=v.ritten_vandaag.length?v.ritten_vandaag.map(r=>{
+    const ritRij=r=>{
       const pil=r.status==='onderweg'?`<span class="pil blauw">stop ${r.stop_huidig}/${r.stops_totaal}</span>`:r.status==='gedaan'?'<span class="pil groen">gedaan</span>':'<span class="pil">gepland</span>';
       const stops=r.stops.map(s=>esc(s.naam)+(s.slot==='vrij'?' <span class="pil oranje">vrij</span>':' 🔒')).join(' → ');
       return `<div class="rit"><div class="u">${esc(r.tijd)}</div><div class="nm"><b>${esc([r.chauffeur||'geen chauffeur',r.voertuig].filter(Boolean).join(' · '))} ${pil}</b>${stops}</div></div>`;
-    }).join(''):'<div class="leeg">Geen ritten vandaag</div>';
+    };
+    // GF1: onder de ritten van vandaag staan die van morgen (zelfde rijstijl), zodat kantoor op donderdag de leveringen van vrijdag ziet.
+    const morgen=(v.ritten_morgen||[]);
+    $('l-ritten').innerHTML=(v.ritten_vandaag.length?v.ritten_vandaag.map(ritRij).join(''):'<div class="leeg">Geen ritten vandaag</div>')
+      +(morgen.length?'<div class="morgen-kop" style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 2px">Morgen · '+morgen.length+'</div>'+morgen.map(ritRij).join(''):'');
     $('n-week').textContent=v.deze_week.length+' locatie'+(v.deze_week.length===1?'':'s');
     $('l-week').innerHTML=v.deze_week.length?v.deze_week.map(k=>`<div class="rit" data-km="${k.kampmoment_id}" style="cursor:pointer"><div class="u">${esc(k.dagen)}</div><div class="nm"><b>${esc(k.locatie)}</b>${
       esc([k.thema||'geen thema',k.kv_naam?'KV '+k.kv_naam:null,...k.markeringen].filter(Boolean).join(' · '))}</div></div>`).join(''):'<div class="leeg">Geen open locaties deze week</div>';
