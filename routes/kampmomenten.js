@@ -112,8 +112,9 @@ module.exports = function(ctx){
       themas.forEach(t=>(perThemaWeek[km.week+':'+t.id]||[]).filter(o=>o.id!==km.id).forEach(o=>dubbel.add(`${t.naam} (met ${locNaam(o.locatie_id)} wk ${o.week})`)));
       dubbel.forEach(d=>aandacht.push('thema dubbel: '+d));
       taken.filter(t=>t.type==='levering'&&!t.rit_id&&t.status==='gepland').slice(0,1).forEach(t=>aandacht.push('levering zonder rit'));
-      const conflicten=_conflictenVan(km,loc.name,conf);
-      conflicten.forEach(c=>{if(!aandacht.some(a=>a===c.bericht))aandacht.push(c.bericht);});
+      // Alleen echte conflicten (ernst 'hoog': dubbel thema/bak, tekorten) tellen als aandacht; "nog geen levering" is geen conflict maar transportstand.
+      const conflicten=_conflictenVan(km,loc.name,conf).filter(c=>c.ernst==='hoog');
+      conflicten.filter(c=>c.type!=='dubbel_thema').forEach(c=>{if(!aandacht.some(a=>a===c.bericht))aandacht.push(c.bericht);});
       const themaTekst=_themaTekst(km,themas);
       return {id:km.id,locatie:{id:loc.id,naam:loc.name},week:km.week,periode_id:km.periode_id,maandag,
         dagen_tekst:_dagenTekst(km.week,dagen,datums),dagen,type:km.type||'kamp',themas,thema_tekst:themaTekst,kv,
