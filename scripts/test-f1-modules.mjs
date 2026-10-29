@@ -137,6 +137,7 @@ try {
     .replace('/api/ritten/:id', `/api/ritten/${v(ids.rit)}`)
     .replace('/api/taken/:id', '/api/taken/999999') // TR1: taak-detail (onbekende taak → 404, geen 500)
     .replace('/api/nakijken/sessie/:id', '/api/nakijken/sessie/1') // VC1: onbekende sessie → 404 (geen 5xx)
+    .replace('/api/kampmomenten/:id/detail', '/api/kampmomenten/1/detail') // PL1: onbekend kampmoment → 404 (geen 5xx)
     .replace('/api/personeel/week/:week', '/api/personeel/week/1')
     .replace('/api/kv/:token', `/api/kv/${ids.kvToken || 'geen-token'}`)
     .replace('/kv/:token', `/kv/${ids.kvToken || 'geen-token'}`)
