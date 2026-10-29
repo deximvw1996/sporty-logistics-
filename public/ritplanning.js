@@ -299,8 +299,8 @@ if(typeof window!=='undefined')(function(){
     }
   });
   // ── RP2: pointer-gebaren (muis én touch; touch = lang drukken 250 ms, zodat scrollen blijft werken) ──
-  const gb=()=>{return GEBAREN.maak({P,api,vraag,toast,na:async(ritId,tekst)=>{if(ritId&&tekst){FLITS={rit:ritId,tekst};setTimeout(()=>{if(FLITS&&FLITS.rit===ritId){FLITS=null;teken();}},1500);}SLEEP=null;if(ritId)RIT=ritId;await laad();}});};
-  const geoNu=()=>{const k=document.querySelector('#raster .kolom');return {kolomHoogte:k?k.getBoundingClientRect().height:600,
+  const gb=()=>{return GEBAREN.maak({P,api,vraag,toast,na:async(ritId,tekst)=>{if(ritId&&tekst)FLITS={rit:ritId,tekst};SLEEP=null;if(ritId)RIT=ritId;await laad();if(FLITS&&FLITS.rit===ritId){const f=FLITS;setTimeout(()=>{if(FLITS===f){FLITS=null;teken();}},1500);}const dg=ritId&&P.dagen.find(d=>d.ritten.some(x=>x.id===ritId));if(dg&&dg.datum!==DAG){DAG=dg.datum;MODUS="rit";teken();}}});};
+  const geoNu=()=>{const k=[...document.querySelectorAll('#raster .kolom')].find(c=>c.getBoundingClientRect().height>0);return {kolomHoogte:k?k.getBoundingClientRect().height:600,
     dagOp:x=>{const kol=[...document.querySelectorAll('#raster .kolom')].find(c=>{const b=c.getBoundingClientRect();return x>=b.left&&x<=b.right;});return kol?kol.dataset.dag:null;}};};
   const uurOp=(kolom,y)=>{const b=kolom.getBoundingClientRect();return GEBAREN.hm(Math.max(0,Math.min(23*60+45,GEBAREN.snap(GEBAREN.AS0+(y-b.top)/b.height*GEBAREN.AS_MIN))));};
   const onder=(x,y)=>{const els=document.elementsFromPoint?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];return els.find(e=>e&&!e.closest('.schaduw,.sleepkaart,.bron'))||null;};

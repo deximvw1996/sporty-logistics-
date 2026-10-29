@@ -82,7 +82,7 @@ body.sleept{cursor:grabbing;user-select:none}
   .dagkop>div:not(.tk):not(.act),.raster .kolom:not(.act){display:none}
   .dagkop>div.act,.raster .kolom.act{flex:1 !important}
   .dagkop .tk{flex:0 0 96px;display:flex;gap:4px}
-  .dagnav{display:block;width:44px;height:40px;border-radius:8px;background:#e2e8f0;color:#1e3a8a;font-size:18px;font-weight:800}
+  .dagnav{display:block;flex:0 0 44px;width:44px;height:44px;border-radius:8px;background:#e2e8f0;color:#1e3a8a;font-size:18px;font-weight:800}
   .raster .tk{flex:0 0 96px}
   #f1 .lade{height:auto}
   #f1 .ladegrid{grid-template-columns:1fr}
@@ -92,4 +92,6 @@ body.sleept{cursor:grabbing;user-select:none}
   .knop,.pijl button,.be .flits button{min-height:44px;min-width:44px}
   .ritkop .acties{margin-left:0;flex-wrap:wrap}
   .stop{min-height:52px}
+  .top{max-width:100vw;overflow-x:auto} /* de bovenbalk (nav.js) is breder dan een gsm: binnen de balk scrollen i.p.v. de hele pagina */
+  .dagkop{height:48px}
 }
