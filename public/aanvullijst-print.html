@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aanvullijst Rozenweg — Sporty logistiek</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#111;padding:16px}
+.balk{max-width:794px;margin:0 auto 12px;display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13px;color:#334155}
+.balk a,.balk button{height:40px;padding:0 16px;border-radius:8px;background:#2563eb;color:#fff;font:inherit;font-weight:700;border:0;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none}
+.balk a{background:#f1f5f9;color:#1e3a8a}
+/* A4 uit design/mockup-aanvullen-gsm.html (rechts) */
+.a4{width:794px;max-width:100%;margin:0 auto;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:40px 44px;font-size:12px;color:#111;position:relative;min-height:500px}
+.a4 .pk{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}.a4 .pk b{display:block;font-size:18px}.a4 .pk span{font-size:11px;color:#444}
+.a4 table{width:100%;border-collapse:collapse}.a4 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#444;border-bottom:1px solid #999;padding:4px 6px}
+.a4 td{padding:9px 6px;border-bottom:1px solid #ddd;vertical-align:top}.a4 td.box{font-size:18px;width:28px}.a4 td.c{text-align:center;font-weight:700}.a4 td.lijn{width:90px;border-bottom:1px solid #999}.a4 small{color:#555}
+.a4 tr{break-inside:avoid}
+.a4 .pv{margin-top:18px;font-size:11px;color:#444;border-top:1px solid #999;padding-top:8px}
+@page{size:A4 portrait;margin:14mm 12mm 16mm;@bottom-right{content:"pagina " counter(page) " van " counter(pages);font-size:9pt;color:#444}}
+@media print{
+  body{background:#fff;padding:0}
+  .balk{display:none}
+  .a4{box-shadow:none;width:auto;padding:0;min-height:0;margin:0}
+  .a4 thead{display:table-header-group}
+}
+</style></head><body>
+<div class="balk"><a href="/nakijken">‹ Terug naar Nakijken</a><span id="aantal"></span><button type="button" id="print-knop">🖨 Afdrukken</button></div>
+<div class="a4" id="print-blad">
+<div class="pk"><b>Sporty logistiek · Aanvullijst Rozenweg</b><span id="pk-sub">Lijst laden…</span></div>
+<table><thead><tr><th>✓</th><th>Bak · plaats</th><th>Stuk</th><th>Aantal</th><th>Wat</th><th>Waar / opmerking</th><th>Gedaan door</th></tr></thead><tbody id="rijen"></tbody></table>
+<div class="pv">Na afloop: vink in de app af (Voorraad &amp; controles › Aanvullen) of geef dit blad aan kantoor. Afschrijvingen met foto in de app.</div>
+</div>
+<script src="/public/nakijken.js"></script>
+</body></html>

@@ -119,3 +119,75 @@ Status-voorrang (bak en item): tekort > kapot > te_veel > ok; een bak is `ok` pa
 - `design/DESIGN-BRIEF.md` in de repo bevat nog geen "Scherm 4 — KV" (de prompt verwees ernaar); ik bouwde naar het ontwerpbestand en de prompt.
 - `GET /api/kv/:token/data` maakt (lazy) een `monitor_token` aan: een GET die schrijft.
 - Eén volle-run (18/19) met een niet-geïdentificeerde rode test, daarna 3× 19/19.
+
+# VC1 — Voorraad & controles › Nakijken + aanvullijst (printlijst) (chat D, 2026-10-30)
+Start 17:56. Commits op bouw-d (niet main, geen deploy.bat). Gewijzigd: `routes/nakijken.js` (nieuw; 1 regel in `server.js`), `lib/migraties.js` (migratie 76), `public/nakijken.{html,css,js}` + `public/aanvullijst-print.html` (nieuw), `public/vandaag.js` (alleen de tekorten-link), `scripts/test-vc1-nakijken.mjs`, `OVERLEG-d.md`; daarbuiten: 1 veld in `routes/kv.js` en 1 regel in `scripts/test-f1-modules.mjs` (zie "Buiten mijn gebied").
+
+## Punt 1 — Data en API (`routes/nakijken.js`)
+- **Migratie 76** (enkel kolommen met defaults): `nakijk_regels.kantoor_actie, kantoor_aantal, kantoor_notitie, aangevuld, aangevuld_door, aangevuld_op`; `nakijk_sessies.kantoor_afgerond_op, kantoor_door`.
+- **`GET /api/nakijken?week=YYYY-MM-DD`** (alleen kantoor): alle verwachte bakken én attributen van de kampmomenten in die week (ook zonder sessie). Zonder `?week` en zonder treffer in de huidige week: de dichtstbijzijnde week met kampmomenten (`week.fallback:true`); met een expliciete week zonder kampmomenten een lege lijst.
+```
+{ week:{maandag,van,tot,weeknummer,fallback}, periode:{id,naam}|null,
+  tellers:{te_keuren,niet_geteld,met_tekort,met_kapot,nagekeken},
+  bakken:[{ sessie_id|null, kampmoment_id, locatie, week, kv_naam,
+            bak:{id,code,naam,soort:'thema'|'vast'|'attribuut'}, geteld, totaal,
+            uitslag_tekst:'✓ alles klopt'|'tekort 1 · te veel 1 · kapot 1'|'3 niet geteld'|'niet geteld'|'KV is bezig · 3/8 geteld',
+            met_tekort, met_kapot, status:'te_keuren'|'niet_geteld'|'nagekeken', ingediend_op, nagekeken_op }] }
+```
+  `te_keuren` = de KV heeft verstuurd en er is minstens één stuk geteld; een telling die nog `bezig` is staat op `niet_geteld`.
+- **`GET /api/nakijken/sessie/:id`** en **`GET /api/nakijken/bak?kampmoment_id=&bak=<soort>:<id>`** (bak zonder sessie): 
+```
+{ sessie_id|null, kampmoment_id, locatie, week, maandag, bak:{id,code,naam,soort}, geteld, totaal, uitslag_tekst, status,
+  kv_naam, ingediend_op, nagekeken_op, afwijkingen:{tekort,te_veel,kapot},
+  items:[{ regel_id|null, naam, verwacht, aangetroffen|null, te_veel, kapot_aantal, notitie, foto_url|null,
+           afwijking:'klopt'|'tekort'|'te_veel'|'kapot'|'niet_geteld', aantal_afwijking,
+           kantoor_actie, kantoor_aantal, kantoor_notitie, aangevuld,
+           acties:[{waarde,label}] }],      // tekort: bestellen|uit_pool|aanvaarden · te_veel: naar_pool|laten_staan · kapot: afschrijven_bestellen|herstellen|aanvaarden
+  foto_s:[{url,stuk}], vorige_tellingen:[{sessie_id,datum,locatie,week,uitslag,kv_naam}],
+  historiek:[{tekst,wie,tijd}], contact:{kv_naam,kv_telefoon} }
+```
+  De historiek bevat de telling (ingediend, kapot + foto), de wijzigingen van kantoor (acties, afronden, aangevuld; uit de bestaande `wijzigingen`-log) en de rit-checks laden/lossen van de bak.
+- **`PUT /api/nakijken/regel/:id`** `{kantoor_actie, kantoor_aantal, kantoor_notitie}` (gevalideerd, gelogd via `updateMetLog`).
+- **`POST /api/nakijken/sessie/:id/afronden`**: vult voor elke afwijking zonder keuze de eerste optie in, zet `kantoor_status='nagekeken'` + `kantoor_afgerond_op`/`kantoor_door`, en markeert regels met `bestellen`/`afschrijven_bestellen` met de bestaande bestel-markering van `routes/voorraad.js` (`besteld=1, tekort_status='besteld'`; er bestaat geen aparte bestelregel-tabel). 409 als de KV nog niet verstuurd heeft. **`POST /api/nakijken/afronden`** `{sessie_ids:[]}` doet dit in bulk en geeft `{afgerond[], overgeslagen[]}`.
+- **`POST /api/nakijken/herinnering`** `{kampmoment_id}` en **`POST /api/nakijken/notitie`** `{kampmoment_id, tekst}` → `activiteiten_log` + `aanvragen`-rij (soort `herinnering_kv` / `notitie_kantoor`), zichtbaar in `GET /api/kv/:token/data` als `meldingen_kantoor[]` (niet in `aanvragen[]` van de KV).
+- **`GET /api/aanvullijst?datum=YYYY-MM-DD[&alles=1]`** (elke ingelogde rol; contract voor de gsm-versie):
+```
+{ datum, afgedrukt_door, tellers:{totaal,uit_pool,bestelling,klaar,bakken},
+  bakken:[{ sessie_id, bak:{id,code,naam,soort}, locatie, week, plaats:{rek,plank,tekst:'rek N'}, afgerond_op,
+            handelingen:[{ regel_id, stuk, aantal, soort:'uit_pool'|'naar_pool'|'afschrijven'|'bestelling'|'nakijken', waar_tekst, aangevuld:0|1 }] }] }
+```
+  `uit_pool` ← uit_pool, `naar_pool` ← naar_pool, `afschrijven` ← afschrijven_bestellen, `bestelling` ← bestellen, `nakijken` ← herstellen én elk stuk dat de KV niet telde ("zelf tellen"); aanvaarden/laten_staan geven geen handeling. Afgevinkte handelingen verdwijnen (`?alles=1` houdt ze). Plaats: `bakken` heeft geen rek/plank-kolommen → rek = eerste letter van de bakcode, plank leeg.
+- **`POST /api/aanvullijst/:regelId/aangevuld`** `{aangevuld:true|false, foto_data?}`: bewaart wie/wanneer (`aangevuld_door/op`), logt op naam in `wijzigingen` én `activiteiten_log`, bewaart een meegestuurde foto (pad in het log).
+
+## Punt 2 — `/nakijken` (alleen kantoor)
+Exacte kopie van `design/mockup-voorraad-nakijken.html`: bovenbalk, subbalk (Nakijken · Tekorten n · Bestellingen n · Voorraad · ⬇ Export · 🖨 Printlijst), zoekveld + chips (Te keuren · Niet geteld · Met tekort · Met kapot · Nagekeken · Week), lijst met selectievakjes en bulk-voet (Keuring afronden · Herinnering naar KV · Printlijst), detail met kop (pils tekort/te veel/kapot), knoppen Bak openen · Foto's n (overlay) · KV bellen (`tel:`) · Keuring afronden ✓, tabbladen Telling · Vorige tellingen n · Historiek n, tabel per stuk met een select per afwijking (wijzigen = meteen `PUT`), onderregel met bestellingen/afschrijvingen en "Notitie aan KV" (overlay). `?sessie=ID` en `?kampmoment_id=&bak=thema:ID` openen het detail (en springen naar de juiste week). `{error}` als toast; geen prompt()/confirm().
+In `public/vandaag.js` verwijst alleen de link "Open" bij tekorten nu naar `/nakijken`.
+
+## Punt 3 — `/aanvullijst-print?datum=`
+Exacte kopie van de A4 uit `mockup-aanvullen-gsm.html`: kop, tabel (✓ · Bak · plaats · Stuk · Aantal · Wat · Waar / opmerking · Gedaan door) met ☐-vakjes en de bak enkel op de eerste rij, voettekst; `@media print` zonder balk, `@page` A4 staand met "pagina x van y", herhaalde tabelkop, knop 🖨 Afdrukken buiten de print.
+
+## Bewijs
+- `node scripts/test-vc1-nakijken.mjs` → **46 ok, 0 fout** (eigen server 3344, herfst-test.db): 3 bakken (8/5/1 items) → vóór het tellen 3× `niet_geteld` zonder sessie; na KV-telling NK01 `te_keuren` ("tekort 1 · te veel 1 · kapot 1", 8/8), NK02 `te_keuren` ("3 niet geteld", 2/5), NK03 `niet_geteld`; detail met afwijkingen, foto-url, notitie, acties exact als de mockup; PUT bestellen/naar_pool/afschrijven_bestellen, onbekende actie 400; afronden → `nagekeken` + 2 bestel-markeringen (bestaande logica); aanvullijst gegroepeerd per bak met 3 handelingen (+3 "nakijken" voor NK02); afvinken verwijdert uit de lijst, log op naam, terugzetten; herinnering + notitie zichtbaar in kv-data; `/nakijken` 200 met subbalk, `/aanvullijst-print` 200 met tabel en `@media print`; DOM-bouw van lijst/detail/printrijen met de echte data; chauffeur 403 op nakijken (GET en PUT), 200 op aanvullijst; zonder login geen aanvullijst.
+- **DOM-dump lijst**: `Te keuren 0 | Niet geteld 6 | Met tekort 1 | Met kapot 1 | Nagekeken 2 | ‹ | Week 1 | › | Locatie · KV | Bak | Geteld | Uitslag | Status | Betekom | wk 1 · Test KV Betekom | F40 Themabak zwarte curver | 0/23 geteld | niet geteld | niet geteld …`
+- **DOM-dump detail**: `NK01 · Nk bak een · Abdijschool Vlierbeek | week 1 · geteld door KV Test KV Abdijschool, ingediend … · 8 van 8 stuks | tekort 1 | te veel 1 | kapot 1 | Bak openen | Foto's 1 | KV bellen | Keuring afronden ✓ | Telling | Vorige tellingen 0 | Historiek 9 | Telling KV vs. verwacht · kies per afwijking wat kantoor doet | Stuk | Hoort | Geteld | Afwijking | Notitie KV | Actie kantoor …`
+- **Echte browser 1920×900** (in-app, poort 3304, met een KV-telling van N09 uit de mockup: springtouw −2, hoepel +2, pion 2 kapot): lijst met chips en rij "N09 … 5/5 geteld · tekort 1 · te veel 1 · kapot 1 · te keuren"; klik → detail zoals de mockup; select Hoepel → "Laten staan" = `PUT /api/nakijken/regel/293` + toast "✓ Opgeslagen" + historiek-regel; "Keuring afronden ✓" = `POST …/sessie/24/afronden` + toast "✓ Keuring afgerond · 2 bestelling(en)", status in de lijst op nagekeken; `/aanvullijst-print` toont de 2 handelingen (bestelling, afschrijven) met `@page`/`@media print`-regels aanwezig (print-preview zelf niet kunnen emuleren). `scrollWidth` = 1920, geen console-fouten behalve de bedoelde 404 van een test met een onbestaande `?sessie=1`. Schermafdrukken enkel in de browserpane gezien.
+- `node scripts/volle-run.mjs` 2× → **21/21 groen** (eerste run 20/21: `f1-modules` wilde de nieuwe route `/api/nakijken/sessie/:id` ingevuld zien; 1 regel toegevoegd).
+
+## Afwijkingen van het ontwerp
+1. **"Week 1"-chip**: tussen twee kleine chips ‹ › om van week te wisselen (de mockup toont enkel het label).
+2. **Historiek zonder "↶ Terug"-knoppen**: een generieke undo van alle gelogde acties is een eigen onderwerp; wel is alles gelogd (wie/wanneer) en elke kantoor-actie is gewoon opnieuw te kiezen.
+3. **Aanvaarden/laten staan** geven in de aanvullijst geen handeling (er valt niets aan te vullen); `herstellen` verschijnt als "nakijken".
+4. **Bak openen** springt naar `/#materiaal?bak=<id>` (de bestaande SPA kent die deep-link nog niet: opent Materiaal).
+5. Geen `public/patroon.css` van chat C op main → eigen `nakijken.css` met dezelfde patroonregels (zie GEVONDEN).
+
+## Buiten mijn gebied
+- `routes/kv.js`: één veld `meldingen_kantoor` in de kv-data (nodig voor "zichtbaar in de kv-data" bij herinnering/notitie); de KV-pagina toont het nog niet (staat niet in het ontwerp).
+- `scripts/test-f1-modules.mjs`: 1 regel die `/api/nakijken/sessie/:id` invult.
+
+## GEVONDEN
+- `public/patroon.css` (TR1) ontbreekt nog: `nakijken.css` bevat de patroonregels van de mockup; de hoofdchat kan die met `ritplanning.css`/`vandaag.css` samenvoegen.
+- Er is geen aparte bestelregel-tabel: "bestellen" betekent in de bestaande code enkel `nakijk_regels.tekort_status='besteld'` (+ `besteld=1`). De subtab "Bestellingen" linkt daarom naar hetzelfde tekorten-scherm van de oude SPA (`/#materiaal?tekorten`). Een echte bestellijst (leverancier, levering "komt wo") bestaat nog niet; de printlijst zegt nu "bestelling · wacht op levering".
+- `bakken` heeft geen rek/plank-velden; de aanvullijst leidt "rek N" af uit de code. Voor "pool: rek P, bak P-03" (mockup) is een pool-locatie per stuk nodig (item_type_stock per locatie bestaat wel).
+- Een attribuut dat de KV als beschadigd meldt krijgt geen `nakijk_regel` en dus geen kantoor-actie/aanvul-handeling; kantoor ziet het wel in de lijst ("kapot") maar kan er geen actie aan hangen.
+- Tellers/lijst zijn per kampmoment: een thema met bakken op meerdere kampmomenten in dezelfde week verschijnt per locatie apart (zoals de KV's het zien).
+- Een door mij gebruikte werkmap-`sporty.db` (server 3304 erop) laat `veiligheid`/`v3c-fotos` rood worden; ik kopieerde de db opnieuw uit sporty-railway vóór de volle run.
