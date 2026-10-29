@@ -191,3 +191,44 @@ Exacte kopie van de A4 uit `mockup-aanvullen-gsm.html`: kop, tabel (✓ · Bak �
 - Een attribuut dat de KV als beschadigd meldt krijgt geen `nakijk_regel` en dus geen kantoor-actie/aanvul-handeling; kantoor ziet het wel in de lijst ("kapot") maar kan er geen actie aan hangen.
 - Tellers/lijst zijn per kampmoment: een thema met bakken op meerdere kampmomenten in dezelfde week verschijnt per locatie apart (zoals de KV's het zien).
 - Een door mij gebruikte werkmap-`sporty.db` (server 3304 erop) laat `veiligheid`/`v3c-fotos` rood worden; ik kopieerde de db opnieuw uit sporty-railway vóór de volle run.
+
+# TB1 — Transport beheren compleet: bundelen, ontkoppelen, splitsen, kapotte attributen, één patroon-CSS (chat D, 2026-10-30)
+Start 18:27. Commits op bouw-d (niet main, geen deploy.bat). Gewijzigd: `routes/transport.js`, `routes/kv.js`, `routes/nakijken.js`, `public/taken.{html,js}`, `public/kv.js`, `public/nakijken.{html,css}`, `scripts/test-tb1-transport.mjs`, `OVERLEG-d.md`; daarbuiten kleine ingrepen in `routes/locaties.js` en `routes/ritplanning.js` (zie "Buiten mijn gebied").
+
+## Punt 1 — Bundelen
+- **`POST /api/transport-taken/bundel {taak_ids}`** (alleen kantoor). Voorwaarden, telkens met een Nederlandse uitleg (409): zelfde datum, zelfde soort, zelfde bestemming (bij ophaling de van-locatie), niet gedaan/geannuleerd, niet op verschillende ritten, niets geladen (de uitleg noemt welke taak). Eén taak → 400, onbekende taak → 404.
+- **Blijvende taak**: de oudste taak **die op een rit staat**, anders de oudste. (De prompt zegt "de oudste blijft" én "de rit van de blijvende taak blijft"; wanneer één van drie op een rit staat moet die blijven, anders ging de rit verloren.) De tijd wordt de vroegste tijd; de opmerking krijgt "gebundeld met #a, #b".
+- Regels (`transport_regels.taak_id`) en checks (`verhuis_checks.taak_id`, `rit_id` van de blijvende taak) verhuizen; de andere taken krijgen status `geannuleerd`, `rit_id`/`volgorde` leeg en opmerking "— gebundeld in #<id>" (niet verwijderd). Alles via `updateMetLog` (context `bundelen in #id`) en één `activiteiten_log`-regel.
+- **`/taken`**: de knop Bundelen is actief vanaf 2 geselecteerde taken, vraagt een bevestiging en toont bij een fout de servertekst als toast; na afloop opent het detail van de blijvende taak.
+
+## Punt 2 — Ontkoppelen zonder dataverlies
+- Eén functie `_ontkoppelTaak` in `routes/transport.js` (ook als `ctx._ontkoppelTaak`): rit weg, `wie` leeg, `volgorde` leeg, checks los van de rit (`rit_id=0`); **datum en tijd blijven staan**, 409 met uitleg als er al iets geladen is.
+- Gebruikt door: `PUT /api/transport-taken/:id/rit` met `rit_id:null` (route verhuisd van `routes/locaties.js` naar `routes/transport.js`; koppelen aan een rit synchroniseert nu ook de checks), `POST /api/transport-taken/bulk-ontkoppel` (eerst alles controleren: één geladen taak → 409 en niets gewijzigd) en de ritplanning-✕ (`POST /api/ritten/:id/taken/:taakId/ontkoppel`).
+
+## Punt 3 — Splitsen met echte stops
+- Bewezen met een taak van 3 regels op een rit: 1 regel afsplitsen naar een andere datum → nieuwe taak zonder rit met die regel en haar check (`rit_id 0`), oude taak houdt 2 regels, de rit-checks dalen 3→2 en de bezetting in de ritplanning 3→2.
+- **Gevonden en hersteld**: de splits-route liet het afsplitsen van een **geladen** regel toe. Nu 409 ("'<stuk>' is al geladen: een geladen regel kan niet afgesplitst worden …"). Álle regels afsplitsen blijft 400 (bestond al).
+
+## Punt 4 — Kapot attribuut + berichten van kantoor op de KV-pagina
+- `POST /api/kv/:token/attributen/:attrId/status` met `beschadigd` maakt nu ook een `nakijk_regel` in de attribuut-sessie (item_naam = attribuutnaam, verwacht 1, aangetroffen 1, kapot_aantal 1, `is_kapot` 1; geen dubbele bij herhaling). Terug op `aanwezig`: de regel verdwijnt als kantoor er nog niets mee deed, anders blijft hij staan met kapot 0.
+- `routes/nakijken.js`: het detail van een beschadigd attribuut geeft `regel_id`, `kantoor_actie` en de kapot-acties (afschrijven + bestellen · herstellen · aanvaarden); afronden en aanvullijst werken er zonder verdere wijziging op (handeling "afschrijven").
+- `public/kv.js`, tab Aanvragen: sectie **"Berichten van kantoor"** (herinnering/notitie, uit `meldingen_kantoor`) onder "Mijn aanvragen", zelfde stijl als "Meldingen chauffeur"; verdwijnt als er geen berichten zijn.
+
+## Punt 5 — Eén patroon-CSS
+- `nakijken.html` laadt `patroon.css` vóór `nakijken.css`; uit `nakijken.css` zijn reset, `.pil`-basis, `.knop`-basis (+ licht/klein), bovenbalk, subbalk-basis en toasts verdwenen (het bestand telt 42 i.p.v. 50 regels; wat overblijft zijn de afwijkingen: body-achtergrond, knop als flex-inline, `.scroll` zonder padding, de pil-kleuren en de eigen kaart/lijst/detail-regels).
+- **Bewijs beeld ongewijzigd**: computed-style-hash over alle 165 elementen van `/nakijken` met geopend detail (N09, 1920×900, demo-telling) vóór en na: **0 verschillen** (totaalhash `96f773b2` = `96f773b2`). Enige bekende verschil buiten de hash: de toasts zijn nu die van `patroon.css` (13 px, max 320 px breed) i.p.v. de eigen.
+
+## Bewijs
+- `node scripts/test-tb1-transport.mjs` → **42 ok, 0 fout** (eigen server 3345, herfst-test.db): bundelen (400/409 andere bestemming/dag/ritten/geladen/geannuleerd, geslaagd met 5 regels op de rit, 2 geannuleerd "gebundeld in", checks mee, log + wijzigingen, twee taken op dezelfde rit), ontkoppelen (PUT null, bulk, ritplanning-✕: datum blijft, geladen → 409, niets gewijzigd), splitsen (scenario + geladen → 409 + alles → 400), kapot attribuut → regel → Nakijken-select → afronden → aanvullijst → terug op aanwezig, berichten van kantoor op de KV-pagina (DOM-bouw met echte data), patroon.css-volgorde, knop Bundelen.
+- `node scripts/volle-run.mjs` 2× → **23/23 groen**.
+- Niet live geklikt: de knop Bundelen in `/taken` (bewezen via de route-test en door de code van de knop te controleren, niet in de browser) en de KV-sectie "Berichten van kantoor" (bewezen via de DOM-bouw).
+
+## Buiten mijn gebied (nodig voor Punt 2)
+- `routes/locaties.js`: de route `PUT /api/transport-taken/:id/rit` is eruit gehaald (staat nu in `transport.js`; anders won de oude versie omdat `locaties` eerst geladen wordt).
+- `routes/ritplanning.js`: de ritplanning-✕ roept `ctx._ontkoppelTaak` aan i.p.v. zijn eigen kopie van de logica (gedrag en foutteksten ongewijzigd).
+
+## GEVONDEN
+- De oude `bulk-ontkoppel` had een voorwaarde `spoed_kind != '1'` die nooit werkte (het veld bevat tekst, nooit '1'); ze is weggevallen.
+- Een geannuleerde (gebundelde) taak blijft in `GET /api/transport-taken` staan; schermen die alle taken tonen moeten op `status` filteren (de Vandaag-, Ritplanning- en Taken-schermen doen dat al of tonen hem als geannuleerd).
+- Bundelen werkt niet over ritten heen en ook niet voor taken die al aangekomen zijn; wie dat wil, moet eerst ontkoppelen. Een gebundelde taak terugzetten kan enkel via Splitsen (de regels van de geannuleerde taken zijn verhuisd).
+- Het detail-scherm van een attribuut in Nakijken toont de foto van de KV niet (attributen hebben geen foto-veld in `nakijk_regels` voor deze melding).
