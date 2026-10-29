@@ -694,3 +694,115 @@ Regels voor de lijst:
 - **`scripts/test-f1-modules.mjs`:** één regel (`.replace('/api/taken/:id', '/api/taken/999999')`). Zonder die regel kan de route-inventaris het nieuwe pad niet invullen, zoals bij CH1. Resultaat: 404, geen 500.
 - **`public/ritplanning.html`:** de subbalklink "Taken" gaat nu naar `/taken` (was `/#transport-plan`). De prompt noemde alleen `ritplanning.js`, maar de link staat in de HTML.
 - **`server.js`:** één regel, `'taken'` in de routelijst.
+
+---
+
+## GR1 — Generale repetitie: fictieve herfst uit de zomerdata (chat C, Opus) · 2026-10-29
+
+Gewerkt van 18:37 tot ±19:35.
+
+**Commits op `bouw-c`:**
+- punt 1: `scripts/generale-repetitie.mjs` + `.gitignore`
+- punt 2: `scripts/test-gr1-keten.mjs`
+- punt 3: `GENERALE-REPETITIE.md`
+- dit verslag
+
+Routes en pagina's zijn niet aangeraakt.
+
+### Wat er gebouwd is
+- **`scripts/generale-repetitie.mjs --doel=lokaal|prod [--opruimen]`**
+  - Lokaal: verse kopie van `sporty.db` uit de werkmap, eigen server op poort 3340.
+  - Prod: `SPORTY_PROD_PW` + persoon 10/1111.
+  - Alles gaat via de API. Alles wat het script maakt draagt "FICTIEF" in naam of opmerking. Het script is idempotent: bestaat er al iets met die naam, dan wordt het hergebruikt.
+  - Het exporteert `verbind`, `opbouw` en `opruimen`; de ketentest gebruikt dezelfde code.
+  - Het overzicht gaat naar `GENERALE-REPETITIE-links.json` (gitignored).
+  - **Niet op prod gedraaid**, zoals de prompt vraagt.
+- **`scripts/test-gr1-keten.mjs`**
+  - Bouwt zelf op (verse kopie), speelt de 8 stappen, ruimt op en vergelijkt de rijtellingen per tabel.
+  - Draait alleen met `GR1=1`. Zonder die variabele meldt hij "overgeslagen" + ALLES GROEN: `volle-run.mjs` pakt elk `test-*.mjs` op en de naam lag vast in de prompt.
+- **`GENERALE-REPETITIE.md`**: het draaiboek voor Maxim op prod (≤ 2 pagina's), met per stap wie, welk scherm, wat je doet en wat je moet zien, en plaatshouders voor de links.
+
+### Overzicht (lokaal, `GR1=1 node scripts/test-gr1-keten.mjs`)
+
+Periode "Herfst 2026 FICTIEF" (2–8 nov), actief; de vorige actieve periode was "Zomer 2026". Stockage: Rozenweg, Kantoor en Marko.
+
+| Locatie | Type | Thema('s) | KV |
+|---|---|---|---|
+| Abdijschool Vlierbeek | kamp | 1001 Ballen en Bellen + Slag- en balsporten | Evy |
+| Boutersem | kamp | De Bouwfabriek | Guiseppe |
+| Betekom | kamp | Play a game | KV A |
+| Rotselaar | kamp | De Speelfabriek | KV A |
+| De Kraal | kamp | Actie & Avontuur + Welkom op de boerderij | KV X |
+| De Waaier | kamp | Sportymadness | SIM KV Anna |
+| De Ark 3 | kamp | We slaan in het rond | SIM KV Bram |
+| Sportschuur | themadag | Apenstreken / 1001 ballen / Apero go / Alice in Wonderland / Art @ Sporty (dag 0–4) | Seppe |
+
+| Rit | Dag | Vertrek | Bestuurder | Voertuig | Bezetting | Waarschuwing |
+|---|---|---|---|---|---|---|
+| #28 | vr 30 okt | 07:30 | Jeroen | Camionette | 31/20 | 31 bakken op 20 plaatsen |
+| #29 | vr 30 okt | 07:30 | Jesse | Camion | 13/40 | — |
+| #30 | vr 30 okt | 08:00 | Maxim | Camionette | 40/20 | 40 bakken op 20 plaatsen |
+| #31 | vr 30 okt | 09:00 | Evy (coördinator) | Huurwagen | 8/15 | — |
+| #32 | vr 6 nov | 13:00 | Jeroen | Camion | 53/40 | 53 bakken op 40 plaatsen |
+| #33 | vr 6 nov | 13:30 | Jesse | Camion | 39/40 | — |
+| #34 (stap 3) | vr 30 okt | 15:00 | Maxim | Camionette | rest-taak | — |
+| #35 (stap 7) | za 7 nov | 08:30 | Jesse | Camion | sportdag | weekend |
+
+- **Transport:** 7 leveringen (vr 30 okt) en 7 ophalingen. De generator plande de ophalingen op ma 9 nov; de ritten zetten ze op vr 6 nov.
+- **Vandaag op 2 nov** (direct na de opbouw): beslissen 0, inplannen 7, nakijken 5, ritten_vandaag 6, deze_week 8, locaties_open 8.
+  - De 6 ritten en een deel van "inplannen" zijn oude testritten op 2 nov die al in de werkmap-`sporty.db` stonden. Prod heeft die niet.
+
+### De 8 stappen
+
+| Stap | Uitslag | Wat er gecontroleerd is |
+|---|---|---|
+| 1 do 29 okt | GROEN met OVERGESLAGEN (gat 1) | ritplanning vr: 4 FICTIEF-ritten; Vandaag: 0 beslissingen voor de fictieve locaties; /vandaag en /ritplanning → 200 |
+| 2 vr 30 okt | GROEN met OVERGESLAGEN (gaten 2, 3) | rit-link #28: past niet op stop 2 → rest-taak (rest_van_rit_id, slot vrij); 30/30 geladen; vrije stops gewisseld (200); aankomen + lossen → rit gedaan; ritplanning toont "bakken op 20 plaatsen"; coördinator-rit #31 → gedaan; /rit/:token → 200 |
+| 3 rest plannen | GROEN | rit #34 om 15:00 met de rest-taak, klaargezet; in de ritplanning niet meer open |
+| 4 ma 2 nov | GROEN | 7 KV's tellen en versturen (5 kloppen, 1 tekort + notitie, 1 kapot + foto + te veel); 1 KV telt niet; aanvraag + kapot-melding + chauffeursmelding (gesloten) → 200; /kv/:token → 200 |
+| 5 kantoor | GROEN met OVERGESLAGEN (gat 4) | Vandaag › Beslissen: 🚪 melding, 💥 oven, 📩 ballen; /nakijken: 65 bakken te keuren, 33 niet geteld; acties bestellen / naar pool / afschrijven; 65 keuringen afgerond; herinnering naar Seppe; aanvullijst met 3 handelingen (bestelling, afschrijven, naar_pool); printlijst en /nakijken → 200 |
+| 6 di 3 nov | GROEN met OVERGESLAGEN (gat 5) | alle 3 handelingen afgevinkt |
+| 7 vr 6 nov | GROEN met OVERGESLAGEN (gat 6) | ophaalritten #32 (4/4) en #33 (3/3) gedaan; /taken: 7 ophaaltaken gedaan; weekendtaak met pil weekend → rit #35 met waarschuwing "weekend" |
+| 8 einde | GROEN met OVERGESLAGEN (gaten 7, 8) | geen dubbel thema; wijzigingen per stap 0 / 73 / 4 / 3 / 71 / 3 / 155 (stap 1 is enkel kijken); opruimen: periode, kampmomenten, ritten, taken en personeel exact terug op het begin; "Zomer 2026" weer actief |
+
+Uitslag: 35 ok, 0 fout, ALLES GROEN.
+
+### GEVONDEN
+
+1. **Stap 1 — Vandaag toont geen ritten van morgen.** Kantoor ziet op donderdag de leveringen van vrijdag alleen in de Ritplanning.
+   *Voorstel:* een regel "morgen: N ritten" in het rechterblok van Vandaag.
+2. **Stap 2 — De rest-taak krijgt een lege datum.** `transport.js` maakt ze aan met `datum=''` en `week=null`. Daardoor staat ze **niet in /taken** (filtert op datum) en **niet op Vandaag › Inplannen** (zoekt op datum of kampweek). Kantoor vindt de rest-taak dus nergens in de nieuwe schermen.
+   *Voorstel:* de rest-taak erft de datum van de rit, of /taken en Vandaag tonen taken zonder datum apart.
+3. **Stap 2 — "Bewust één rit over capaciteit" lukt niet.** 3 van de 6 ritten zitten erover (31/20, 40/20, 53/40). De bezetting telt elke regel (`qty`), en één themaset is al groter dan een Camionette.
+   *Voorstel:* kantoor beslist hoe "bakken" telt: per regel, per bak, of bulkstukken apart.
+4. **Stap 5 — Vandaag › Nakijken toont de te keuren tellingen niet.** Het blok toont alleen conflicten en open tekorten.
+   *Voorstel:* een regel "N bakken te keuren · M niet geteld" met de link naar /nakijken.
+5. **Stap 6 — Geen coördinatorlogin.** Afvinken gebeurt met de kantoor-login. Er is geen rol "coördinator" en de bestaande KV-personen hebben geen pincode.
+   *Voorstel:* de rol coordinator, of KV's met een pincode op de gsm (zie MOBIEL-REGEL).
+6. **Stap 7 — De bevestiging van een weekendtaak wordt nergens bewaard.** Ze bestaat alleen als vraagModal in de pagina.
+   *Voorstel:* een veld `weekend_bevestigd` (wie en wanneer) op de taak.
+7. **Stap 8 — `/api/conflicten` is niet "leeg behalve capaciteit".** Er staan meldingen in van de soorten geen_levering, geen_ophaling, elders_nodig_vast, ontbrekend_transport en locatieconfig_onvolledig. De themadaglocatie krijgt geen levering (zie 10). Rit-capaciteit is geen conflict, enkel een waarschuwing op de rit.
+8. **Stap 8 — Opruimen laat rijen achter die geen verwijderroute hebben:**
+   - `kalender_dagen` 291→331 (blijven staan na `DELETE kampmoment`);
+   - `nakijk_sessies` 6→71 en `nakijk_regels` 129→406;
+   - `aanvragen` 1→5.
+
+   `DELETE /api/kampmomenten/:id` wist ook de transportregels en checks niet zelf: het script verwijdert de taken daarom eerst via `bulk-delete`. Op prod blijft dit restant na `--opruimen` staan.
+   *Voorstel:* een opruimroute "kampmoment volledig verwijderen" (alleen kantoor, gelogd).
+9. **Punt 1 — De stockage heet "Marko", niet "Marco".** Het script gebruikt "Marko".
+10. **Punt 1 — Ophalingen en themadag in de generator:**
+    - de generator plant ophalingen op de eerste werkdag ná het kamp (ma 9 nov), niet op vrijdag;
+    - een themadag-kampmoment krijgt geen levering of ophaling (bekend, commentaar in `transport-genereer`).
+11. **Punt 1 — Kookdagen zijn niet per kampmoment in te stellen.** `heeft_kookactiviteit` is een eigenschap van het thema en staat op 0 bij alle 184 thema's. "Kookdagen wo/do op 3 locaties" kon niet zonder echte thema's te wijzigen.
+12. **Stap 4 — KV-tellingen staan niet in `wijzigingen`.** `kv.js` schrijft `nakijk_sessies` en `nakijk_regels` met `run`/`ins` en niet met `insMetLog`, dus ze staan niet in de historiek en zijn niet omkeerbaar. Stap 4 had maar 3 wijzigingsregels: de aanvraag, de kapot-melding en de chauffeursmelding.
+13. **Thema's: 5 kleuter- in plaats van 4.** 7 kamplocaties, waarvan 2 met twee thema's, vragen 9 verschillende thema's (8 zou een dubbel thema geven). Het zijn er dus 5 kleuter- en 4 lagereschoolthema's. Het KV-plan "6 kloppen + tekort + kapot + 1 telt niet" telt 9 KV's voor 8 locaties; gespeeld is 5 + 1 + 1 + 1.
+14. **Pagina's: alleen JSON en HTTP 200 getest.** De ketentest controleert per scherm de data-JSON en of de pagina met 200 laadt, niet de DOM: er is geen headless browser. De DOM van Vandaag, Ritplanning en Taken werd in KO1, RP1 en TR1 live gecontroleerd.
+
+### Volle run
+| run | groen | rood |
+|---|---|---|
+| 1 | 21/23 | v3c-fotos (2), veiligheid (3) |
+| 2 | 21/23 | v3c-fotos (2), veiligheid (3) |
+
+- `gr1-keten` staat erin als "GROEN 0/0 (overgeslagen)": zonder `GR1=1` doet hij niets.
+- De twee rode tests zijn de bekende omgevingsafhankelijke tests: ze lezen de lokale `sporty.db`.

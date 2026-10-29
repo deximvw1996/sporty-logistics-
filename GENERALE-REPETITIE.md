@@ -47,8 +47,8 @@ De links staan daarna in `GENERALE-REPETITIE-links.json`. Vul ze hieronder in:
 | Wie | Scherm | Doen | Je moet zien |
 |---|---|---|---|
 | V ×5 | KV-link › Tellen | alles "✓ klopt", Versturen | Het overzicht toont "geteld". |
-| V | KV-link (Rotselaar) | 1 stuk "anders": één te weinig + notitie | De status is rood (tekort). |
-| V | KV-link (De Kraal) | 1 stuk kapot + foto, 1 stuk twee te veel | Oranje (kapot) en blauw (te veel). |
+| V | KV-link (De Waaier) | 1 stuk "anders": één te weinig + notitie | De status is rood (tekort). |
+| V | KV-link (De Ark 3) | 1 stuk kapot + foto, 1 stuk twee te veel | Oranje (kapot) en blauw (te veel). |
 | V | KV-link (Sportschuur) | niets | — |
 | V | KV-link › Aanvragen | Boutersem: "extra ballen ×6"; Betekom: "oven kapot" + foto | Beide aanvragen staan als "nieuw". |
 | C | rit-link ophaling 1 › stop › Probleem | "Locatie gesloten" | Kantoor krijgt een melding. |
