@@ -1118,3 +1118,14 @@ Gewerkt van 20:04 tot ±20:45.
 - **`scripts/test-f1-modules.mjs`:** 2 regels, de nieuwe padparameters in de route-inventaris.
 - **`server.js`:** één regel, `'personeel-overzicht'` in de routelijst.
 - **`public/logboek.html`:** heeft een kleine eigen `<style>` voor de kolommen. Een `logboek.css` stond niet in de bestandenlijst, dus de pagina laadt `personeel.css`.
+
+**BH1 · aanvulling na de rebase (20:55).**
+
+- **Conflict met GF1 (chat D), opgelost:**
+  - `lib/auth.js`, in `/api/personeel-lijst-login`: GF1 had `coordinator` toegevoegd. Mijn versie bevat dat al, plus `monitor`, `actief` en `heeft_pincode`.
+  - GF1 gebruikt migratienummer 80. De BH1-migratie heet daarom **Migratie 81**. Ze heeft geen vlag, alleen `addColumnIfMissing`; de nummering staat enkel in het commentaar.
+- **Na de rebase opnieuw gedraaid:**
+  - `test-bh1-personeel`: 37 ok, 0 fout.
+  - `test-f1-modules`: 113 ok.
+  - Volle run, twee keer: telkens **26/28 groen**. Alleen `v3c-fotos` (2) en `veiligheid` (3) zijn rood, de bekende omgevingsafhankelijke tests.
+- **Push tijdens het conflict:** tijdens het conflict ging een `git push origin HEAD:bouw-c` mee. Die zette `bouw-c` even gelijk aan main (63c5e26); main zelf is niet geraakt. Daarna is de juiste branch (met BH1) gepusht.
