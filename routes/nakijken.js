@@ -6,7 +6,7 @@ module.exports = function(ctx){
   const {kvL}=require('../lib/tijd');
   const {app,get,all,run,ins,now,logAct,updateMetLog,insMetLog,alleenKantoor,_kvVerwacht,_kvNaam,_bakItems,path,ROOT_DIR} = ctx;
   const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR);
-  const {fmtDatumTijd}=require('../lib/tijd');
+  const {fmtDatumTijd,zonderHaakjes}=require('../lib/tijd');
 
   const ACTIES={
     tekort:[['bestellen','Bestellen'],['uit_pool','Uit pool aanvullen'],['aanvaarden','Aanvaarden']],
@@ -342,7 +342,7 @@ module.exports = function(ctx){
         else return;
         if(r.aangevuld&&!alles)return;
         const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({regel_id:r.id,stuk:r.item_naam,aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen});
+        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
