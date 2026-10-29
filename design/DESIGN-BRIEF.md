@@ -39,6 +39,10 @@ Meetlat: 1920×900 zonder scrollen; knoppen ≥ 36 px op desktop; één scherm, 
 
 **Drie richtingen (drieluik 1, `kantoor-drieluik-1.html`):** A linkerbalk + kaartenraster (cijfers boven, drie kolommen Te keuren / Ritten / Let op) · B bovenbalk + één werklijst "Nu eerst" op urgentie (Beslissen / Inplannen / Nakijken) met rechts ritten en deze week · C commandocentrum (icoonrail, donkere strip met tellers, links de gebeurtenissenstroom nieuwste eerst, rechts ritten en locaties).
 
+**Keuze Maxim 29/10 (na drieluik 1):** richting B, maar met de drie groepen (Beslissen / Inplannen / Nakijken) als drie kolommen naast elkaar die elk apart scrollen, zodat een lange Inplannen-lijst Nakijken nooit onder de vouw duwt. Dashboardregel: Vandaag toont alleen wat vandaag of deze week moet; de volledige lijsten leven in Transport/Planning.
+
+**Varianten (`kantoor-varianten-1.html`, zelfde inhoud: 4 beslissen · 9 inplannen · 3 nakijken · 2 ritten · 4 locaties):** B1 drie stapels (kaartjes met acties rechtsonder, rechts ritten + deze week) · B2 bord (gekleurde kolomkoppen met uitleg, tegels met acties eronder, ritten + deze week als strook onderaan over de volle breedte) · B3 werkbank (vijf kerncijfers bovenaan, dichte rijen met één knop per rij en "alles ›" per kolom, rechts ritten + deze week).
+
 ## Scherm 3 — KV: "Wat hoort er te staan" + telscherm (mobiel)
 Later; LOGISTIEK EERST. Inhoud: bakken + status, levering verwacht, eigen meldingen en hun status, tellen per bak met aantal typen / alles aanwezig / kapot melden, versturen; monitor-link met alleen het telscherm.
 
