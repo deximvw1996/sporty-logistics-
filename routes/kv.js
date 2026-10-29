@@ -6,6 +6,11 @@ module.exports = function(ctx){
 
   // KV1: toegang via kv_token (volledig) of monitor_token (enkel tellen). Resultaat {km,monitor} of null.
   const fotosKv=require('../lib/fotos')(ctx.UPLOADS_DIR);
+  // GF1: elke KV-schrijfactie loopt via de log-helpers (tabel wijzigingen, context kv-link, wie = de KV) → omkeerbaar en zichtbaar in Nakijken › Historiek.
+  const _ins=(req,sql,p)=>insMetLog(req,sql,p,'kv-link');
+  const _upd=(req,sql,p)=>updateMetLog(req,sql,p,'kv-link');
+  const _del=(req,sql,p)=>ctx.delMetLog(req,sql,p,'kv-link');
+  const _wieIsKv=(req,km,monitor)=>{ req.persoon={persoon_id:null,naam:(monitor?'monitor ':'')+(_kvNaam(km)||'KV')+' (KV)',rol:'kv'}; };
   function _toegang(token){
     if(!token)return null;
     let km=_kvKampmoment(token);
@@ -17,6 +22,7 @@ module.exports = function(ctx){
   function _kmVan(req,res,alleenKv){
     const t=_toegang(req.params.token);
     if(!t){res.status(403).json({error:'Ongeldige of verlopen link'});return null;}
+    _wieIsKv(req,t.km,t.monitor);
     if(t.monitor&&alleenKv){res.status(403).json({error:'Met deze link kan je enkel tellen. Aanvragen en melden kan met de link van de kampverantwoordelijke.'});return null;}
     return t.km;
   }
@@ -148,9 +154,9 @@ module.exports = function(ctx){
       });
     }catch(e){ fotoPaden.forEach(p=>fotosKv.verwijderFoto(p)); return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'}); }
     let sessieId;
-    if(sessie){ sessieId=sessie.id; run('UPDATE nakijk_sessies SET kv_wie=?,kv_tijdstip=? WHERE id=?',[kvNaam,now(),sessieId]); }
+    if(sessie){ sessieId=sessie.id; _upd(req,'UPDATE nakijk_sessies SET kv_wie=?,kv_tijdstip=? WHERE id=?',[kvNaam,now(),sessieId]); }
     else {
-      sessieId=ins(`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      sessieId=_ins(req,`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status) VALUES (?,?,?,?,?,?,?,?,?,?)`,
         [bak.soort, bak.soort==='thema'?bak.id:null, bak.soort==='vast'?bak.id:null, km.locatie_id, km.week, km.id, now(), kvNaam, 'bezig', 'open']);
     }
     const items=_bakItems(bak);
@@ -166,9 +172,9 @@ module.exports = function(ctx){
       let fotoPad=bestaand?(bestaand.foto_path||''):'';
       if(fotoPaden.has(item.id)){ if(fotoPad)fotosKv.verwijderFoto(fotoPad); fotoPad=fotoPaden.get(item.id); }
       else if(rin.foto_data===''&&fotoPad){ fotosKv.verwijderFoto(fotoPad); fotoPad=''; }
-      if(bestaand) run('UPDATE nakijk_regels SET aangetroffen=?,ontbreekt=?,verwacht=?,te_veel=?,kapot_aantal=?,is_kapot=?,notitie=?,foto_path=? WHERE id=?',
+      if(bestaand) _upd(req,'UPDATE nakijk_regels SET aangetroffen=?,ontbreekt=?,verwacht=?,te_veel=?,kapot_aantal=?,is_kapot=?,notitie=?,foto_path=? WHERE id=?',
         [aangetroffen,ontbreekt,item.qty,teVeel,kapot,kapot>0?1:0,notitie,fotoPad,bestaand.id]);
-      else ins('INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,te_veel,kapot_aantal,is_kapot,notitie,foto_path) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      else _ins(req,'INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,te_veel,kapot_aantal,is_kapot,notitie,foto_path) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
         [sessieId,item.naam,item.id,item.qty,aangetroffen,ontbreekt,teVeel,kapot,kapot>0?1:0,notitie,fotoPad]);
     });
     res.json({ok:true});
@@ -188,18 +194,18 @@ module.exports = function(ctx){
     let sessie=get("SELECT * FROM nakijk_sessies WHERE bak_type='attribuut' AND attribuut_id=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend')",
       [attr.id,km.id]);
     let sessieId;
-    if(sessie){ run('UPDATE nakijk_sessies SET notities=?,kv_wie=?,kv_tijdstip=? WHERE id=?',[status,kvNaam,now(),sessie.id]); sessieId=sessie.id; }
-    else sessieId=ins("INSERT INTO nakijk_sessies (bak_type,attribuut_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status,notities) VALUES ('attribuut',?,?,?,?,?,?,?,?,?)",
+    if(sessie){ _upd(req,'UPDATE nakijk_sessies SET notities=?,kv_wie=?,kv_tijdstip=? WHERE id=?',[status,kvNaam,now(),sessie.id]); sessieId=sessie.id; }
+    else sessieId=_ins(req,"INSERT INTO nakijk_sessies (bak_type,attribuut_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status,notities) VALUES ('attribuut',?,?,?,?,?,?,?,?,?)",
       [attr.id,km.locatie_id,km.week,km.id,now(),kvNaam,'bezig','open',status]);
     // TB1: een beschadigd attribuut krijgt een nakijk-regel (aanwezig, 1 kapot) zodat kantoor er een actie aan kan hangen en de
     // aanvullijst het toont; terug op "aanwezig" ruimt die regel weer op (enkel als kantoor er nog niets mee deed).
     const regel=get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_naam=?',[sessieId,attr.naam]);
     if(status==='beschadigd'){
-      if(regel)run('UPDATE nakijk_regels SET aangetroffen=1,verwacht=1,kapot_aantal=1,is_kapot=1,ontbreekt=0 WHERE id=?',[regel.id]);
-      else ins('INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,is_kapot,kapot_aantal) VALUES (?,?,NULL,1,1,0,1,1)',[sessieId,attr.naam]);
+      if(regel)_upd(req,'UPDATE nakijk_regels SET aangetroffen=1,verwacht=1,kapot_aantal=1,is_kapot=1,ontbreekt=0 WHERE id=?',[regel.id]);
+      else _ins(req,'INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,is_kapot,kapot_aantal) VALUES (?,?,NULL,1,1,0,1,1)',[sessieId,attr.naam]);
     }else if(regel){
-      if(regel.kantoor_actie)run('UPDATE nakijk_regels SET kapot_aantal=0,is_kapot=0 WHERE id=?',[regel.id]);
-      else run('DELETE FROM nakijk_regels WHERE id=?',[regel.id]);
+      if(regel.kantoor_actie)_upd(req,'UPDATE nakijk_regels SET kapot_aantal=0,is_kapot=0 WHERE id=?',[regel.id]);
+      else _del(req,'DELETE FROM nakijk_regels WHERE id=?',[regel.id]);
     }
     res.json({ok:true,status});
   });
@@ -215,10 +221,10 @@ module.exports = function(ctx){
       if(!bak)return;
       _bakItems(bak).forEach(it=>{
         if(get('SELECT id FROM nakijk_regels WHERE sessie_id=? AND item_id=?',[s.id,it.id]))return;
-        ins("INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,opmerking) VALUES (?,?,?,?,NULL,0,'niet geteld')",[s.id,it.naam,it.id,it.qty]);
+        _ins(req,"INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,opmerking) VALUES (?,?,?,?,NULL,0,'niet geteld')",[s.id,it.naam,it.id,it.qty]);
       });
     });
-    run("UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE kampmoment_id=? AND kv_status='bezig'",
+    _upd(req,"UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE kampmoment_id=? AND kv_status='bezig'",
       [kvNaam,now(),km.id]);
     res.json({ok:true});
   });
@@ -249,6 +255,40 @@ module.exports = function(ctx){
     const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
       [km.id,km.kv_persoon_id||null,'kapot',volledig,f.url,f.pad,'nieuw',now()],'kv-link');
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
+  });
+
+  // GF1: kampmoment VOLLEDIG verwijderen — ook wat er aan hangt (taken + regels + checks, KV-tellingen, aanvragen en meldingen, kalenderdagen
+  // van die week). 409 als er al iets geladen is. De gewone DELETE /api/kampmomenten/:id laat dit restant staan.
+  app.post('/api/kampmomenten/:id/volledig-verwijderen',alleenKantoor,(req,res)=>{
+    const km=get('SELECT * FROM kampmomenten WHERE id=?',[req.params.id]);
+    if(!km)return res.status(404).json({error:'Dit kampmoment bestaat niet (meer).'});
+    const loc=get('SELECT name FROM locaties WHERE id=?',[km.locatie_id])||{};
+    const geladen=get('SELECT COUNT(*) AS n FROM verhuis_checks vc JOIN transport_taken t ON t.id=vc.taak_id WHERE t.kampmoment_id=? AND vc.geladen=1',[km.id]).n;
+    if(geladen)return res.status(409).json({error:`${loc.name||'Dit kampmoment'} week ${km.week}: ${geladen} stuk${geladen===1?' is':'ken zijn'} al geladen — verwijderen kan pas als dat teruggedraaid is. Er is niets verwijderd.`});
+    const telling={taken:0,sessies:0,aanvragen:0,kalenderdagen:0};
+    all('SELECT id FROM transport_taken WHERE kampmoment_id=?',[km.id]).forEach(t=>{
+      run('DELETE FROM transport_regels WHERE taak_id=?',[t.id]);
+      delMetLog(req,'DELETE FROM verhuis_checks WHERE taak_id=?',[t.id],'volledig-verwijderen');
+      delMetLog(req,'DELETE FROM transport_taken WHERE id=?',[t.id],'volledig-verwijderen');telling.taken++;
+    });
+    all('SELECT id FROM nakijk_sessies WHERE kampmoment_id=?',[km.id]).forEach(s=>{
+      all('SELECT foto_path FROM nakijk_regels WHERE sessie_id=? AND foto_path<>\'\'',[s.id]).forEach(r=>{try{fotosKv.verwijderFoto(r.foto_path);}catch(e){}});
+      delMetLog(req,'DELETE FROM nakijk_regels WHERE sessie_id=?',[s.id],'volledig-verwijderen');
+      delMetLog(req,'DELETE FROM nakijk_sessies WHERE id=?',[s.id],'volledig-verwijderen');telling.sessies++;
+    });
+    all('SELECT foto_path FROM aanvragen WHERE kampmoment_id=? AND foto_path<>\'\'',[km.id]).forEach(r=>{try{fotosKv.verwijderFoto(r.foto_path);}catch(e){}});
+    telling.aanvragen=delMetLog(req,'DELETE FROM aanvragen WHERE kampmoment_id=?',[km.id],'volledig-verwijderen');
+    const per=get('SELECT * FROM vakantieperiodes WHERE id=?',[km.periode_id]);
+    if(per&&per.start_datum&&km.week){
+      for(let i=0;i<7;i++){const d=new Date(per.start_datum+'T12:00:00');d.setDate(d.getDate()+(km.week-1)*7+i);
+        const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        const n=get('SELECT COUNT(*) AS n FROM kalender_dagen WHERE locatie_id=? AND datum=?',[km.locatie_id,iso]).n;
+        if(n){run('DELETE FROM kalender_dagen WHERE locatie_id=? AND datum=?',[km.locatie_id,iso]);telling.kalenderdagen+=n;}}
+    }
+    run('DELETE FROM kampmoment_themas WHERE kampmoment_id=?',[km.id]);
+    delMetLog(req,'DELETE FROM kampmomenten WHERE id=?',[km.id],'volledig-verwijderen');
+    logAct('kampmoment','volledig verwijderd',`Week ${km.week} — ${loc.name||'?'} volledig verwijderd (${telling.taken} taken, ${telling.sessies} tellingen, ${telling.aanvragen} aanvragen) door ${(req.persoon&&req.persoon.naam)||'kantoor'}`,km.locatie_id,loc.name||null);
+    res.json({ok:true,verwijderd:telling});
   });
 
   // KV1: de pagina's staan in public/kv.{html,css,js} (exacte kopie van design/KV-DEFINITIEF.html) en tekenen zich uit

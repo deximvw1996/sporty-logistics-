@@ -331,7 +331,7 @@ module.exports = function(ctx){
           // Laatste OPEN week van de locatie binnen de periode (definitief dicht daarna, of
           // laatste week van de vakantie): haal basis-materiaal, kleurenborden (alles wat
           // cumulatief effectief staat volgens kleurenStand) en locatieconfig-exemplaren op.
-          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          const nextD=openDagen[openDagen.length-1]; // GF1: de laatste open kampdag (vr), niet de werkdag erna
           const kleurenOphaalRegels=Object.entries(kleurenStand).filter(([,q])=>q>0)
             .map(([kleur,aantal])=>({naam:`Kleurenbord ${kleur} ×${aantal}`,qty:aantal,soort:'basis',stockage_id:sportStockageId}));
           const basisPlusKleuren=[...basisRegels,...kleurenOphaalRegels];
@@ -366,7 +366,7 @@ module.exports = function(ctx){
         // 'blijven' (default) volgt de bindende regel: laten staan tijdens tijdelijke sluiting.
         if(!heeftOpvolger && !isLaatsteVanPeriode){
           // Laatste open week vóór een pauze → ophaal van de 'ophalen'-types
-          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          const nextD=openDagen[openDagen.length-1]; // GF1: de laatste open kampdag (vr), niet de werkdag erna
           const pauzeTerug=_actieveLocatieConfig(km).filter(cfg=>cfg.pauze_gedrag==='ophalen').flatMap(cfg=>{
             let exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[cfg.vast_type,loc.id,cfg.aantal||1]);
             if(!exemplaren.length)
@@ -390,12 +390,30 @@ module.exports = function(ctx){
         if(!heeftOpvolger){
           // Laatste week van deze aaneensluitende reeks (kan een gap-week zijn): thema volgt
           // zijn eigen gap-gedrag (via stockage) — niet aanraken, blijft ongewijzigd.
-          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          const nextD=openDagen[openDagen.length-1]; // GF1: de laatste open kampdag (vr), niet de werkdag erna
           Object.entries(byStockage(themaMatRegels)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', naar '+sLoc.name:'')+')'});
           });
         }
+      });
+      // GF1: themadag-locatie (elke dag een ander thema): één levering met het materiaal van alle dagen, de werkdag vóór de eerste open dag,
+      // en één ophaling op de laatste open dag. (Voorheen kreeg een themadag-kampmoment geen transport.)
+      kmListAll.filter(k=>k.type==='themadag').forEach(km=>{
+        const openDagen=getOpenDagen(km);
+        const kmThemas=kts.filter(kt=>kt.kampmoment_id===km.id);
+        if(!openDagen.length||!kmThemas.length)return;
+        const themaIdsDag=[...new Set(kmThemas.map(kt=>kt.thema_id))];
+        const regels=themaIdsDag.flatMap(tid=>[
+          ...themaBakken.filter(b=>b.thema_id===tid).map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'thema',stockage_id:b.thuislocatie_id||themaStockageId,bak_id:b.bak_id})),
+          ...themaAttrRegels.filter(a=>a.thema_id===tid).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:a.thuislocatie_id||themaStockageId,attribuut_id:a.attr_id}))]);
+        const groepen={};regels.forEach(r=>{if(!r.stockage_id)return;(groepen[r.stockage_id]=groepen[r.stockage_id]||[]).push(r);});
+        const dagThemas=themaIdsDag.map(tid=>themas.find(t=>t.id===tid)?.name||'?').join(', ');
+        Object.entries(groepen).forEach(([sid,mat])=>{
+          const sLoc=locs.find(l=>l.id==sid);
+          voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevWorkday(openDagen[0]),tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering themadagen week '+km.week+' — '+loc.name+' ('+dagThemas+')'+(sLoc?' (van '+sLoc.name+')':'')});
+          voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:openDagen[openDagen.length-1],tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling themadagen week '+km.week+' — '+loc.name+(sLoc?' (naar '+sLoc.name+')':'')});
+        });
       });
     });
 
@@ -667,6 +685,25 @@ module.exports = function(ctx){
   // TB1: Bundelen — meerdere taken van dezelfde dag, soort en bestemming worden één taak (de weg terug is Splitsen).
   // De oudste taak blijft (bij voorkeur die op een rit staat), de regels en checks van de andere verhuizen mee,
   // de andere taken blijven bestaan als 'geannuleerd — gebundeld in #id' (niet verwijderd: omkeerbaar en nagezien).
+  // GF1: kampweek van een datum in de actieve periode (vóór de periode: week 1, want leveringen gebeuren de vrijdag vóór het kamp).
+  function _weekVanDatum(datum){
+    if(!datum)return null;
+    const p=get('SELECT * FROM vakantieperiodes WHERE actief=1')||get('SELECT * FROM vakantieperiodes ORDER BY id DESC LIMIT 1');
+    if(!p||!p.start_datum)return null;
+    const w=Math.floor((new Date(datum+'T12:00:00')-new Date(p.start_datum+'T12:00:00'))/(7*864e5))+1;
+    return Math.max(1,Math.min(w,p.max_weken||w));
+  }
+  // GF1: weekendtaak bevestigen — wie en wanneer blijven bewaard (de ritplanning vraagt eerst de vraagModal).
+  app.post('/api/transport-taken/:id/weekend-bevestig',alleenKantoor,(req,res)=>{
+    const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
+    if(!t)return res.status(404).json({error:'Transport niet gevonden'});
+    const g=t.datum?new Date(t.datum+'T12:00:00').getDay():-1;
+    if(g!==0&&g!==6)return res.status(400).json({error:'Dit is geen weekendtaak: er valt niets te bevestigen.'});
+    const d=new Date();const op=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    updateMetLog(req,'transport_taken',t.id,{weekend_bevestigd_door:(req.persoon&&req.persoon.naam)||'kantoor',weekend_bevestigd_op:op},'weekend-bevestig');
+    logAct('transport','weekend bevestigd',`Weekendtaak #${t.id} (${t.datum}) bevestigd door ${(req.persoon&&req.persoon.naam)||'kantoor'}`,t.naar_locatie_id||t.van_locatie_id||null,null);
+    res.json(get('SELECT * FROM transport_taken WHERE id=?',[t.id]));
+  });
   app.post('/api/transport-taken/bundel',alleenKantoor,(req,res)=>{
     const ids=[...new Set((Array.isArray(req.body?.taak_ids)?req.body.taak_ids:[]).map(Number).filter(Boolean))];
     if(ids.length<2)return res.status(400).json({error:'Kies minstens twee taken om te bundelen.'});
@@ -892,7 +929,16 @@ module.exports = function(ctx){
         if(d>=s&&d<=e)w.push(`${naam||'Deze bestuurder'} is die dag KV op ${k.name}`);
       });
     }
-    if(rit.datum){const g=new Date(rit.datum+'T12:00:00').getDay();if(g===0||g===6)w.push('weekend');}
+    if(rit.datum){const g=new Date(rit.datum+'T12:00:00').getDay();if(g===0||g===6){
+      w.push('weekend');
+      // GF1: de bevestiging van een weekendtaak is bewaard (wie en wanneer): "weekend · bevestigd door …" of "weekend · nog niet bevestigd".
+      const tk=all("SELECT weekend_bevestigd_door FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd'",[rit.id]);
+      if(tk.length){
+        const open=tk.filter(x=>!x.weekend_bevestigd_door);
+        if(open.length)w.push('weekend · nog niet bevestigd');
+        else w.push('weekend · bevestigd door '+[...new Set(tk.map(x=>x.weekend_bevestigd_door))].join(', '));
+      }
+    }}
     return w;
   }
   function _ritPlanInfo(rit){const t=_ritTijden(rit);const bezetting=_ritBezetting(rit.id);
@@ -1280,8 +1326,13 @@ module.exports = function(ctx){
     let rest=get("SELECT * FROM transport_taken WHERE rest_van_rit_id=? AND COALESCE(naar_locatie_id,0)=? AND COALESCE(van_locatie_id,0)=? AND rit_id IS NULL AND status='gepland' ORDER BY id LIMIT 1",
       [rit.id,taak.naar_locatie_id||0,taak.van_locatie_id||0]);
     if(!rest){
+      // GF1: de rest-taak erft de datum van de rit en krijgt een kampweek (van de taak, het kampmoment of de datum),
+      // zodat hij in /taken en op Vandaag › Inplannen staat.
+      const restDatum=rit.datum||taak.datum||'';
+      const kmRest=taak.kampmoment_id?get('SELECT week FROM kampmomenten WHERE id=?',[taak.kampmoment_id]):null;
+      const restWeek=taak.week||(kmRest&&kmRest.week)||_weekVanDatum(restDatum);
       const rid=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week,slot,rest_van_rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [taak.type,'',taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,`Rest van rit #${rit.id}: ${redenTekst}`,'',taak.kampmoment_id,'gepland',now(),null,taak.week,'vrij',rit.id],'rit-link');
+        [taak.type,restDatum,taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,`Rest van rit #${rit.id}: ${redenTekst}`,'',taak.kampmoment_id,'gepland',now(),null,restWeek,'vrij',rit.id],'rit-link');
       rest=get('SELECT * FROM transport_taken WHERE id=?',[rid]);
     } else if(!(rest.opmerking||'').includes(redenTekst)){
       updateMetLog(req,'UPDATE transport_taken SET opmerking=? WHERE id=?',[rest.opmerking+', '+redenTekst,rest.id],'rit-link');
