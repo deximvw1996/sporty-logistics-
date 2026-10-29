@@ -42,7 +42,7 @@
       return `<div class="rit"><div class="u">${esc(r.tijd)}</div><div class="nm"><b>${esc([r.chauffeur||'geen chauffeur',r.voertuig].filter(Boolean).join(' · '))} ${pil}</b>${stops}</div></div>`;
     }).join(''):'<div class="leeg">Geen ritten vandaag</div>';
     $('n-week').textContent=v.deze_week.length+' locatie'+(v.deze_week.length===1?'':'s');
-    $('l-week').innerHTML=v.deze_week.length?v.deze_week.map(k=>`<div class="rit"><div class="u">${esc(k.dagen)}</div><div class="nm"><b>${esc(k.locatie)}</b>${
+    $('l-week').innerHTML=v.deze_week.length?v.deze_week.map(k=>`<div class="rit" data-km="${k.kampmoment_id}" style="cursor:pointer"><div class="u">${esc(k.dagen)}</div><div class="nm"><b>${esc(k.locatie)}</b>${
       esc([k.thema||'geen thema',k.kv_naam?'KV '+k.kv_naam:null,...k.markeringen].filter(Boolean).join(' · '))}</div></div>`).join(''):'<div class="leeg">Geen open locaties deze week</div>';
   }
   async function laad(){
@@ -52,9 +52,11 @@
     DATA=r.json;teken();
   }
   document.addEventListener('click',async e=>{
+    const rij=e.target.closest('[data-km]');if(rij&&!e.target.closest('button')){location.href='/kampmomenten?id='+rij.dataset.km;return;} // PL1: Deze week → het kampmoment
     const b=e.target.closest('button[data-k]');if(!b)return;
-    const a=DATA[b.dataset.k][b.dataset.i].acties[b.dataset.j];
-    if(a.soort==='link'||a.soort==='tel'){location.href=a.url==='/#materiaal?tekorten'?'/nakijken':a.url;return;} // VC1: tekorten/nakijken openen op de nieuwe Nakijken-pagina
+    const it=DATA[b.dataset.k][b.dataset.i],a=it.acties[b.dataset.j];
+    // PL1: kampmoment zonder thema / planningsmelding → Kampmomenten; VC1: tekorten → Nakijken
+    if(a.soort==='link'||a.soort==='tel'){location.href=a.url==='/#materiaal?tekorten'?'/nakijken':(a.url==='/#overzicht?conflicten'&&it.sub==='planning')?'/kampmomenten':a.url;return;} // VC1: tekorten/nakijken openen op de nieuwe Nakijken-pagina
     b.disabled=true;
     const r=await api(a.methode,a.url,a.body);
     b.disabled=false;

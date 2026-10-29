@@ -232,3 +232,61 @@ Start 18:27. Commits op bouw-d (niet main, geen deploy.bat). Gewijzigd: `routes/
 - Een geannuleerde (gebundelde) taak blijft in `GET /api/transport-taken` staan; schermen die alle taken tonen moeten op `status` filteren (de Vandaag-, Ritplanning- en Taken-schermen doen dat al of tonen hem als geannuleerd).
 - Bundelen werkt niet over ritten heen en ook niet voor taken die al aangekomen zijn; wie dat wil, moet eerst ontkoppelen. Een gebundelde taak terugzetten kan enkel via Splitsen (de regels van de geannuleerde taken zijn verhuisd).
 - Het detail-scherm van een attribuut in Nakijken toont de foto van de KV niet (attributen hebben geen foto-veld in `nakijk_regels` voor deze melding).
+
+# PL1 — Planning › Kampmomenten op het standaardpagina-patroon (chat D, 2026-10-30)
+Start 18:45. Commits op bouw-d (niet main, geen deploy.bat). Gewijzigd: `routes/kampmomenten.js` (nieuw; 1 regel in `server.js`), `lib/migraties.js` (migratie 77), `public/kampmomenten.{html,css,js}` (nieuw; laadt `patroon.css`), `public/vandaag.js` (alleen de links), `scripts/test-pl1-kampmomenten.mjs`, 1 regel in `scripts/test-f1-modules.mjs`, `OVERLEG-d.md`. Bestaande API's zijn niet gewijzigd.
+
+## Punt 1 — Data en API
+- **Migratie 77** (enkel kolommen met defaults): `kampmomenten.aantal_kinderen`, `aantal_kleuters`, `aantal_monitoren` (INTEGER), `kookdagen` (TEXT, "wo,do"), `kv_link_gestuurd` (INTEGER). De **opmerking** gebruikt de bestaande kolom `kampmomenten.notities` (er is dus geen tweede kolom `opmerking`).
+- **`GET /api/kampmomenten-overzicht?periode_id=&week=`** (alleen kantoor):
+```
+{ periode:{id,naam,start_datum,eind_datum,max_weken},
+  tellers:{totaal, per_week:{"1":5}, zonder_thema, zonder_kv, conflict},
+  kampmomenten:[{ id, locatie:{id,naam}, week, periode_id, maandag, dagen_tekst:"wk 1 · ma 2 – vr 6 nov", dagen:[7×bool ma..zo],
+                  type:'kamp'|'themadag', themas:[{id,kt_id,naam,leeftijdsgroep,dag|null}], thema_tekst:"Alles op wieltjes"|"— geen thema"|"5 themadagen",
+                  kv:{id,naam,telefoon,link_gestuurd}|null, transport_tekst:"levering vr 30 okt ✓ · ophaling ma 9 nov zonder rit"|"—",
+                  status:'ok'|'let', aandacht:[tekst…], conflict:bool, zoek }] }
+```
+  Aandacht: "geen thema", "geen KV", "thema dubbel: <thema> (met <locatie> wk n)", "levering zonder rit" en de conflicten van de bestaande detector met ernst `hoog` (de detector geeft enkel tekst; ze worden aan het kampmoment gekoppeld via locatienaam + week). "Nog geen levering/ophaling" zijn geen conflicten (staan in `transport_tekst`). `dagen`: werkdagen standaard open, weekend standaard dicht, `kalender_dagen`/`gesloten_dagen` bepalen de rest; datums buiten de periode tellen niet mee.
+- **`GET /api/kampmomenten/:id/detail`**: alles van de rij plus
+```
+{ groep:{kinderen,kleuters,lager,monitoren}, kookdagen:['wo','do'], oven_mee, heeft_eigen_oven, opmerking, locatie_adres,
+  themas_beschikbaar:[{id,naam,leeftijdsgroep,gekozen}], themas_bezet:[{id,naam,bij}],      // thema's die in die week elders gepland zijn staan NIET in beschikbaar
+  materiaal:[{thema_id,thema,items:[{naam,code,soort:'bak'|'attribuut'}]}],
+  transport:[{id,type,datum,tijd,wanneer_tekst,status,rit:{id,chauffeur,status}|null,wat,regels}],
+  aanvragen_open:[{id,soort,tekst,status,created_at}], conflicten:[{type,ernst,bericht}],
+  historiek:[{tekst,wie,tijd}], dagen_datums:[7 datums] }
+```
+  Historiek = `wijzigingen` van het kampmoment (KV gekoppeld, kookdagen, groep, opmerking, KV-link, week/soort) + `activiteiten_log` van die locatie en week.
+- **`PUT /api/kampmomenten/:id/velden`** `{dagen[7], kookdagen[], aantal_kinderen, aantal_kleuters, aantal_monitoren, opmerking}` (alleen kantoor; elk veld optioneel; 400 bij ongeldige kookdag, niet-7 dagen, aantallen buiten 0–999 of meer kleuters dan kinderen; gelogd via `updateMetLog` + `activiteiten_log` voor de dagen).
+- **`POST /api/kampmomenten/kv-links`** `{ids[]}` → `{links:[{id,locatie,week,kv_naam,telefoon,url,volledig}], fouten:[{id,locatie,week,reden}]}`; maakt ontbrekende tokens en zet `link_gestuurd`. Een kampmoment zonder KV komt in `fouten`.
+- **`POST /api/kampmomenten/genereer-transport`** `{ids[]?, periode_id?}`: roept de bestaande generator (`POST /api/transport-genereer`, levert voorstellen) aan, filtert op de selectie (of de hele periode) en maakt er taken van via de bestaande `POST /api/transport-taken` (met datum, nog zonder rit); dubbels worden overgeslagen. → `{aangemaakt, gemaakt[], overgeslagen, kampmomenten}`.
+- **`POST /api/kampmomenten/verwijderen`** `{ids[]}`: 409 als er al iets geladen is (er wordt dan niets verwijderd), anders thema's, taken en kampmoment weg (gelogd). Dit is nieuw omdat `DELETE /api/kampmomenten/:id` geen bewaking heeft (zie GEVONDEN).
+
+## Punt 2 — `/kampmomenten` (alleen kantoor)
+Exacte kopie van `design/mockup-planning.html`: bovenbalk (Planning actief), subbalk Kampmomenten · Rooster · Periodes · Thema's per week + ⬇ Export · ⚙ Genereer transport · + Kampmoment; zoekveld en chips (periode · week n · ⚠ zonder thema · ⚠ zonder KV · conflict); lijst met selectievakjes en bulk-voet (Genereer transport · KV-links sturen · Thema toewijzen · Verwijderen); detail met kop (locatie, week, dagen, KV, groep, status-pil), knoppen Bewerken · 📍 Locatie · KV-link · Thema kiezen, tabs Gegevens · Thema & materiaal · Transport n · Telling · Historiek n; dagen-knoppen en kookdagen (tik = meteen `PUT velden`), groep en opmerking bewerkbaar (bewaren bij verlaten van het veld), transport voor dit kampmoment met Open → `/taken?taak=`, conflicten & aandacht met knoppen (Kies thema / KV koppelen / Open), historiek. Overlays (eigen vraagModal, geen prompt/confirm): + Kampmoment / Bewerken, Thema kiezen (per leeftijdsgroep, themadag: per dag; bulk: enkel thema's die voor alle gekozen kampmomenten vrij zijn), KV koppelen, KV-links met kopieerknoppen, Genereer transport, Verwijderen. `?id=` opent dat detail, `?week=` filtert. `{error}` als toast.
+- `public/vandaag.js`: een rij in "Deze week" opent nu `/kampmomenten?id=…` en de melding "kampmoment zonder thema" (planning-melding) opent `/kampmomenten`.
+
+## Bewijs
+- `node scripts/test-pl1-kampmomenten.mjs` → **37 ok, 0 fout** (3× herhaald; eigen server 3346, herfst-test.db): tellers (totaal, per week, zonder thema/KV, conflict), zonder thema/KV → `status let` + aandacht, `dagen[7]` en `dagen_tekst` ("wk 1 · ma 2 – vr 6 nov"), `?week=` filter, thema dubbel → aandacht op beide + `themas_beschikbaar` sluit het thema uit (en `themas_bezet`), `PUT velden` (dagen, kookdagen, groep 24/10/14/2, opmerking, gelogd; 400's; weekend aanzetten), kv-links (1 link, 1 fout "er is nog geen KV gekoppeld", link werkt, `link_gestuurd` true), genereer voor de selectie (2 taken, enkel dat kampmoment, `transport_tekst` "—" → "levering vr 30 okt zonder rit · ophaling ma 9 nov zonder rit", tweede keer niets dubbel), detail (transport, conflicten, aanvragen_open, materiaal, historiek), verwijderen met geladen stuk → 409 en niets weg, na terugdraaien wel, `/kampmomenten` 200 met subbalk/chips/voet/patroon.css, DOM-bouw van chips, lijst en detail met de echte data, chauffeur → 403 op alle nieuwe routes, zonder login geen overzicht.
+- **DOM-dump lijst**: `Abdijschool Vlierbeek | wk 1 · ma 2 – vr 6 nov | Holderdebolder | Test KV Abdijschool | levering vr 30 okt zonder rit · ophaling ma 9 nov zonder rit | ⚠ let op | Boudewijnstadion | wk 1 · ma 2 – za 7 nov | 1001 Ballen en Bellen | — geen KV | kookdag…`
+- **DOM-dump detail**: `Boudewijnstadion · week 1 | ma 2 – za 7 nov · geen KV · 24 kinderen · 2 monitoren · ⚠ geen KV | Bewerken | 📍 Locatie | KV-link | Thema kiezen | Gegevens | Thema & materiaal | Transport 0 | Telling | Historiek 7 | Kampmoment | Dagen | ma | di | w…`
+- **Echte browser 1920×900** (in-app, poort 3304, 5 demo-kampmomenten in 2 weken): lijst met chips (Zomer 2026 · 5, Week 1 · 3, Week 2 · 2, ⚠ Zonder thema, ⚠ Zonder KV, Conflict) en rijen met ⚠ let op en de dubbel-melding; detail Betekom: zaterdag-knop → `PUT /api/kampmomenten/168/velden {"dagen":[true,true,true,true,true,true,false]}` en knop wordt actief; kookdag do aan; "Thema kiezen" opent de overlay met alle vrije thema's per leeftijdsgroep (183), keuze → `POST /api/kampmomenten/168/themas {"thema_id":4160,"leeftijdsgroep":"kleuters"}` + toast "✓ Thema opgeslagen"; rij aanvinken → bulk-voet verschijnt, "KV-links sturen" toont de overlay met link en Kopieer-knop. Eerste weergave had te brede labels in de detailtabel (dagen onder elkaar); opgelost met `.kv b span{width:auto}`. Schermafdrukken enkel in de browserpane gezien.
+- `node scripts/volle-run.mjs` 2× → **24/24 groen** (eerste run 23/24: `f1-modules` wilde de nieuwe route `/api/kampmomenten/:id/detail` ingevuld zien; 1 regel toegevoegd).
+
+## Afwijkingen van het mockup
+1. **Historiek zonder "↶ Terug"-knoppen** (zoals bij Nakijken): een generieke undo is een eigen onderwerp; alles staat wel gelogd met wie en wanneer.
+2. **Groep en opmerking** zijn invoervelden (kinderen / waarvan kleuters / monitoren, opmerkingveld) i.p.v. een vaste zin, omdat de prompt "bewerkbaar" vraagt; de samenvatting "24 kinderen · 2 monitoren" staat in de kop.
+3. De pil in de detailkop toont bij meer dan één aandachtspunt "n aandachtspunten" i.p.v. de eerste tekst.
+4. Subbalk-links Rooster · Periodes · Thema's per week verwijzen naar de bestaande tabbladen van de oude SPA (`/#overzicht?rooster`, `/#overzicht?periodes`, `/#kampplanner`); die kennen de deep-link nog niet en openen gewoon de juiste hoofdpagina.
+5. "Telling" is een verwijzing naar `/nakijken?week=<maandag>` (de pagina kent `?kampmoment_id=` enkel samen met een bak).
+
+## Buiten mijn gebied
+- `scripts/test-f1-modules.mjs`: 1 regel die `/api/kampmomenten/:id/detail` invult.
+
+## GEVONDEN
+- `DELETE /api/kampmomenten/:id` (bestaand) verwijdert ook de taken van het kampmoment zonder te controleren of er al iets geladen is; de pagina gebruikt daarom de nieuwe route. De oude route zou dezelfde bewaking moeten krijgen (andere bouwchat: routes/planning.js).
+- `POST /api/transport-genereer` levert voorstellen en maakt zelf geen taken; de knop "Genereer uit planning" in `/taken` toont "Taken gegenereerd" na alleen die aanroep en maakt dus niets aan. De generator werkt voor álle kampmomenten; mijn route filtert op de selectie maar rekent dus wel alles door (traag bij veel kampmomenten).
+- De conflictdetector geeft geen kampmoment-id's; koppeling aan een kampmoment gebeurt via de tekst (locatienaam + "Week n" of "@n"). Een gestructureerd veld (`kampmoment_ids`) zou dit robuuster maken.
+- Een thema met `leeftijdsgroep` leeg verschijnt in de overlay onder "overig"; bij koppelen wordt dan een lege leeftijdsgroep opgeslagen.
+- De herfst-testperiode heeft maar één week; voor "weken" met datums buiten de periode geeft `dagen` altijd `false` (en dagen_tekst "geen open dagen").
