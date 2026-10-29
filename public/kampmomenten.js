@@ -73,8 +73,8 @@
     return '<span class="grp">' + inp('aantal_kinderen', g.kinderen, 'kinderen') + inp('aantal_kleuters', g.kleuters, 'waarvan kleuters') + (g.lager != null ? '<span>(lager ' + g.lager + ')</span>' : '') + inp('aantal_monitoren', g.monitoren, 'monitoren') + '</span>';
   }
   function gegevensHtml(D) {
-    var besch = D.themas_beschikbaar.filter(function (t) { return !t.gekozen; }).slice(0, 8).map(function (t) { return esc(t.naam); }).join(', ');
-    var bezet = D.themas_bezet.slice(0, 4).map(function (t) { return esc(t.naam) + ' zit bij ' + esc(t.bij); }).join(', ');
+    var besch = D.themas_beschikbaar.filter(function (t) { return !t.gekozen; }).slice(0, 4).map(function (t) { return esc(t.naam); }).join(', ');
+    var bezet = D.themas_bezet.slice(0, 2).map(function (t) { return esc(t.naam) + ' zit bij ' + esc(t.bij); }).join(', ');
     var themaRegel = D.themas.length ? esc(D.thema_tekst) + ' <span class="pil pillkn" data-act="thema">wijzig</span>'
       : '— nog niet gekozen <span class="pil oranje pillkn" data-act="thema">kies</span>';
     var kv = D.kv ? esc(D.kv.naam) + (D.kv.telefoon ? ' · ' + esc(D.kv.telefoon) : '') + ' · ' + (D.kv.link_gestuurd ? '<span class="pil groen">KV-link gestuurd</span>' : '<span class="pil oranje pillkn" data-act="kv-link">KV-link nog niet gestuurd</span>') : '— geen KV <span class="pil oranje pillkn" data-act="kv-kies">koppel</span>';
@@ -97,7 +97,7 @@
     if (!D) return '<div class="leeg">Kies links een kampmoment.</div>';
     var tab = st.tab || 'gegevens';
     var sub = [D.dagen_tekst.replace(/^wk \d+ · /, ''), D.kv ? 'KV ' + D.kv.naam + (D.kv.telefoon ? ' (' + D.kv.telefoon + ')' : '') : 'geen KV', D.groep.kinderen != null ? D.groep.kinderen + ' kinderen' : '', D.groep.monitoren != null ? D.groep.monitoren + ' monitoren' : ''].filter(Boolean).map(esc).join(' · ');
-    var pil = D.status === 'ok' ? '<span class="pil groen">ok</span>' : '<span class="pil oranje">⚠ ' + esc(D.aandacht[0] || 'let op') + '</span>';
+    var pil = D.status === 'ok' ? '<span class="pil groen">ok</span>' : '<span class="pil oranje">⚠ ' + esc(D.aandacht.length === 1 && D.aandacht[0].length <= 40 ? D.aandacht[0] : D.aandacht.length + ' aandachtspunten') + '</span>';
     var inhoud = tab === 'thema' ? themaTabHtml(D)
       : tab === 'transport' ? '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Transport voor dit kampmoment</h4>' + transportRijen(D) + '</div></div>'
       : tab === 'telling' ? '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Telling door de KV</h4><div class="rij"><div class="nm">Vrijdagcontrole en nakijken<b>de telling van de bakken van dit kampmoment staat in Voorraad &amp; controles › Nakijken</b></div><button type="button" class="knop" data-act="telling">Open Nakijken</button></div></div></div>'
