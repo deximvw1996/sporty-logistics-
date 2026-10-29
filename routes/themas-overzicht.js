@@ -29,7 +29,7 @@ module.exports = function(ctx){
   app.get('/api/themas-overzicht',alleenKantoor,(req,res)=>{
     const per=periodeVan(req.query.periode_id);
     const nb={},na={},nl={};
-    all('SELECT tb.thema_id AS t,COUNT(*) AS n FROM thema_bak tb JOIN bakken b ON b.id=tb.bak_id GROUP BY tb.thema_id').forEach(r=>nb[r.t]=r.n);
+    all("SELECT tb.thema_id AS t,COUNT(*) AS n FROM thema_bak tb JOIN bakken b ON b.id=tb.bak_id WHERE b.soort='thema' GROUP BY tb.thema_id").forEach(r=>nb[r.t]=r.n);
     all('SELECT ta.thema_id AS t,COUNT(*) AS n FROM thema_attribuut ta JOIN attributen a ON a.id=ta.attribuut_id GROUP BY ta.thema_id').forEach(r=>na[r.t]=r.n);
     all('SELECT thema_id AS t,COUNT(*) AS n FROM thema_materiaal GROUP BY thema_id').forEach(r=>nl[r.t]=r.n);
     const gepland={};
@@ -47,7 +47,7 @@ module.exports = function(ctx){
     });
     // Zoeken op bak of attribuut: de naam/code van een bak of attribuut van dit thema telt ook mee.
     const zoekBak={};
-    all('SELECT tb.thema_id AS t,b.naam,b.code FROM thema_bak tb JOIN bakken b ON b.id=tb.bak_id').forEach(r=>{(zoekBak[r.t]=zoekBak[r.t]||[]).push(r.naam,r.code);});
+    all("SELECT tb.thema_id AS t,b.naam,b.code FROM thema_bak tb JOIN bakken b ON b.id=tb.bak_id WHERE b.soort='thema'").forEach(r=>{(zoekBak[r.t]=zoekBak[r.t]||[]).push(r.naam,r.code);});
     all('SELECT ta.thema_id AS t,a.naam,a.code FROM thema_attribuut ta JOIN attributen a ON a.id=ta.attribuut_id').forEach(r=>{(zoekBak[r.t]=zoekBak[r.t]||[]).push(r.naam,r.code);});
     themas.forEach(t=>{t.zoek+=' '+(zoekBak[t.id]||[]).join(' ').toLowerCase();});
     const n=f=>themas.filter(f).length;
@@ -68,7 +68,7 @@ module.exports = function(ctx){
     const t=get('SELECT * FROM themas WHERE id=?',[req.params.id]);
     if(!t)return res.status(404).json({error:'Thema niet gevonden'});
     const locNaam=id=>id?((get('SELECT name FROM locaties WHERE id=?',[id])||{}).name||''):'';
-    const bakken=all(`SELECT b.* FROM bakken b JOIN thema_bak tb ON tb.bak_id=b.id WHERE tb.thema_id=? ORDER BY b.volgorde,b.code,b.id`,[t.id]).map(b=>{
+    const bakken=all(`SELECT b.* FROM bakken b JOIN thema_bak tb ON tb.bak_id=b.id WHERE tb.thema_id=? AND b.soort='thema' ORDER BY b.volgorde,b.code,b.id`,[t.id]).map(b=>{
       const n=(get('SELECT COALESCE(SUM(qty),0) AS n FROM bak_items WHERE bak_id=?',[b.id])||{}).n||0;
       return {id:b.id,code:b.code||'',naam:b.naam||'',n_stuks:Math.round(n),waar:[locNaam(b.huidige_locatie_id||b.thuislocatie_id),b.status==='op_locatie'?'op locatie':''].filter(Boolean).join(' · ')};
     });
