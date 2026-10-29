@@ -1018,6 +1018,8 @@ module.exports = function(ctx){
     const j=richting==='omhoog'?i-1:i+1;
     if(j<0||j>=taken.length)return res.status(409).json({error:richting==='omhoog'?'Dit is al de eerste stop':'Dit is al de laatste stop'});
     const a=taken[i],b=taken[j];
+    const klaar=[a,b].find(t=>['aangekomen','gedaan','geannuleerd'].includes(t.status));
+    if(klaar)return res.status(409).json({error:`${_locNaam(_stopLocId(klaar))} is al ${klaar.status} — die stop kan niet meer van plaats wisselen`});
     const vast=[a,b].find(t=>(t.slot||'vast')!=='vrij');
     if(vast)return res.status(409).json({error:`${_locNaam(_stopLocId(vast))} staat vast door kantoor — die stop kan niet van plaats wisselen`});
     updateMetLog(req,'UPDATE transport_taken SET volgorde=?,tijd=? WHERE id=?',[b.volgorde,b.tijd,a.id],'rit-link');

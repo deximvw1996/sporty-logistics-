@@ -70,6 +70,11 @@ try {
   T.check(r.status === 409, 'laatste stop omlaag → 409');
   r = await P('POST', `/api/rit-token/zzzzzzzzzz/taken/${t2}/wissel`, { richting: 'omlaag' });
   T.check(r.status === 403, 'fout rit-token → 403');
+  // reviewfix Fable: een stop die al aangekomen/gedaan is wisselt niet meer van plaats
+  await A('PUT', `/api/transport-taken/${t3}/status`, { status: 'aangekomen' });
+  r = await P('POST', `/api/rit-token/${rtok}/taken/${t3}/wissel`, { richting: 'omlaag' });
+  T.check(r.status === 409 && /al aangekomen/.test(r.json?.error || ''), `wissel met een aangekomen stop → 409 "${r.json?.error}"`);
+  await A('PUT', `/api/transport-taken/${t3}/status`, { status: 'gepland' });
 
   // ── rit-data ──
   let d = (await P('GET', `/api/rit-token/${rtok}/data`)).json;
