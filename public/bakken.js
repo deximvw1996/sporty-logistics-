@@ -39,7 +39,7 @@
   const sleutel=b=>(b.soort==='attribuut'?'a':'b')+b.id;
   const ROZ=()=>((LOCS||[]).find(l=>l.type==='stockage'&&/rozenweg/i.test(l.name))||{}).id;
   const FILTERS={alle:()=>true,thema:b=>b.soort==='thema',vast:b=>b.soort==='vast'||b.soort==='pool',attribuut:b=>b.soort==='attribuut',
-    onderweg:b=>!!b.waar_nu.rit_id,incompleet:b=>b.incompleet,rozenweg:b=>b.waar_nu.locatie_id===ROZ()};
+    onderweg:b=>!!b.waar_nu.rit_id,incompleet:b=>b.incompleet,code_dubbel:b=>b.code_dubbel,code_leeg:b=>b.code_leeg,rozenweg:b=>b.waar_nu.locatie_id===ROZ()};
   const zichtbaar=()=>O.bakken.filter(FILTERS[FILTER]).filter(b=>!ZOEK||b.zoek.includes(ZOEK));
   const basis=s=>s==='attribuut'?'/api/attributen/':'/api/bakken/';
 

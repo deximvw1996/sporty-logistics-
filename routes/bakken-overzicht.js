@@ -74,10 +74,19 @@ module.exports = function(ctx){
     const bakken=[
       ...all('SELECT * FROM bakken ORDER BY soort,(COALESCE(LENGTH(code),0)=0),code,naam').map(b=>rij(b,b.soort==='thema'?'thema':b.is_bulk?'pool':'vast',L,tb)),
       ...all('SELECT * FROM attributen ORDER BY (COALESCE(LENGTH(code),0)=0),code,naam').map(a=>rij(a,'attribuut',L,ta))];
+    // TF2 G7: dubbele en lege codes (nooit automatisch hernummeren — kantoor beslist).
+    const telCode=new Map();
+    bakken.forEach(b=>{const c=String(b.code||'').trim().toUpperCase();if(c){const k=(b.soort==='attribuut'?'a:':'b:')+c;telCode.set(k,(telCode.get(k)||0)+1);}});
+    bakken.forEach(b=>{
+      const c=String(b.code||'').trim().toUpperCase();
+      b.code_dubbel=!!c&&telCode.get((b.soort==='attribuut'?'a:':'b:')+c)>1;
+      b.code_leeg=!c;
+      b.aandacht=[b.code_dubbel?'code_dubbel':null,b.code_leeg?'code_leeg':null,b.incompleet?'incompleet':null].filter(Boolean);
+    });
     const per_stockage={};
     bakken.forEach(b=>{const l=L.get(b.waar_nu.locatie_id);if(l&&l.type==='stockage')per_stockage[l.name]=(per_stockage[l.name]||0)+1;});
     return {tellers:{alle:bakken.length,thema:bakken.filter(b=>b.soort==='thema').length,vast:bakken.filter(b=>b.soort==='vast'||b.soort==='pool').length,
-      attribuut:bakken.filter(b=>b.soort==='attribuut').length,onderweg:bakken.filter(b=>b.waar_nu.rit_id).length,incompleet:bakken.filter(b=>b.incompleet).length,per_stockage},
+      attribuut:bakken.filter(b=>b.soort==='attribuut').length,onderweg:bakken.filter(b=>b.waar_nu.rit_id).length,incompleet:bakken.filter(b=>b.incompleet).length,code_dubbel:bakken.filter(b=>b.code_dubbel).length,code_leeg:bakken.filter(b=>b.code_leeg).length,per_stockage},
       bakken:bakken.map(b=>({...b,zoek:[b.code,b.naam,b.thema?b.thema.naam:'',b.waar_nu_tekst].join(' ').toLowerCase()}))};
   }
   app.get('/api/bakken-overzicht',alleenKantoor,(req,res)=>res.json(lijst()));
