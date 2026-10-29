@@ -53,9 +53,19 @@ module.exports = function(ctx){
     res.json({ok:true});
   });
   app.put('/api/bakken/:id',(req,res)=>{
-    const{label,naam,code,volgorde,vast_type,thuislocatie_id,status}=req.body;
+    const{label,naam,code,volgorde,vast_type,status}=req.body;
     const cur=get('SELECT * FROM bakken WHERE id=?',[req.params.id]);
     if(!cur)return res.status(404).json({error:'Bak niet gevonden'});
+    // MA1 (werklijst 82): vaste plaats (rek, plank, thuis) wijzigt alleen kantoor. thuis_locatie_id = alias van thuislocatie_id.
+    const thuislocatie_id=req.body.thuis_locatie_id!==undefined?req.body.thuis_locatie_id:req.body.thuislocatie_id;
+    const plaats={};
+    if(req.body.rek!==undefined)plaats.rek=String(req.body.rek||'').trim().toUpperCase().slice(0,10);
+    if(req.body.plank!==undefined)plaats.plank=String(req.body.plank||'').trim().slice(0,10);
+    if((Object.keys(plaats).length||req.body.thuis_locatie_id!==undefined)&&(!req.persoon||req.persoon.rol!=='kantoor'))
+      return res.status(403).json({error:'Rek, plank en thuisplaats van een bak wijzigt alleen kantoor'});
+    if(thuislocatie_id&&!get("SELECT id FROM locaties WHERE id=? AND type='stockage'",[thuislocatie_id]))
+      return res.status(400).json({error:'De thuisplaats moet een stockageplaats zijn'});
+    if(Object.keys(plaats).length)updateMetLog(req,`UPDATE bakken SET ${Object.keys(plaats).map(k=>k+'=?').join(',')} WHERE id=?`,[...Object.values(plaats),req.params.id]);
     const nieuweNaam=(naam??label)??cur.naam;
     updateMetLog(req,'UPDATE bakken SET naam=?,code=?,volgorde=?,vast_type=?,thuislocatie_id=?,status=? WHERE id=?',
       [nieuweNaam,code??cur.code,volgorde??cur.volgorde,vast_type??cur.vast_type,thuislocatie_id??cur.thuislocatie_id,status??cur.status,req.params.id]);

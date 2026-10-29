@@ -25,6 +25,9 @@ module.exports = function(ctx){
     return m?`${m[1]} ${m[2]}`:'';
   }
   const _rek=code=>{const m=/^([A-Za-z])/.exec(code||'');return m?m[1].toUpperCase():'';};
+  // MA1: echte plaats uit bakken.rek/plank (werklijst 82); zonder rek de oude afleiding uit de code.
+  const _plaats=bak=>{const rek=(bak.rek||'')||_rek(bak.code),plank=bak.plank||'';
+    return {rek,plank,tekst:[rek?'rek '+rek:'',plank?'plank '+plank:''].filter(Boolean).join(' · ')};};
 
   // Maandag van een kampweek: periode.start_datum + (week-1)*7 dagen.
   function _maandag(km){
@@ -298,8 +301,10 @@ module.exports = function(ctx){
 
   // ── Aanvullijst (Rozenweg) ──
   const SOORT={uit_pool:'uit_pool',naar_pool:'naar_pool',afschrijven_bestellen:'afschrijven',bestellen:'bestelling',herstellen:'nakijken'};
+  const _poolPlaats=r=>{const it=r.item_id?get('SELECT t.pool_plaats FROM bak_items bi JOIN item_types t ON t.id=bi.item_type_id WHERE bi.id=?',[r.item_id]):null;return it&&it.pool_plaats?' ('+it.pool_plaats+')':'';};
   const WAAR={
-    uit_pool:r=>'uit de pool',naar_pool:r=>'terug naar de pool',afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
+    // MA1: pool-stukken met hun vaste plaats (item_types.pool_plaats, bv. 'rek P · bak P-03') als die gekend is.
+    uit_pool:r=>'uit de pool'+_poolPlaats(r),naar_pool:r=>'terug naar de pool'+_poolPlaats(r),afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
     bestellen:r=>'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
   };
   function _aanvullijst(datum,alles){
@@ -328,7 +333,7 @@ module.exports = function(ctx){
       }
       if(!handelingen.length)return;
       groepen.push({sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
-        plaats:{rek:_rek(bak.code),plank:'',tekst:_rek(bak.code)?'rek '+_rek(bak.code):''},afgerond_op:s.kantoor_afgerond_op||'',handelingen});
+        plaats:_plaats(bak),afgerond_op:s.kantoor_afgerond_op||'',handelingen});
     });
     const alle=groepen.flatMap(g=>g.handelingen);
     return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,bakken:groepen.length},bakken:groepen};
