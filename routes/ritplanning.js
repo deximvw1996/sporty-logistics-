@@ -56,7 +56,7 @@ module.exports = function(ctx){
             geladen:!!get('SELECT 1 AS x FROM verhuis_checks WHERE taak_id=? AND geladen=1 AND COALESCE(gelost,0)=0 LIMIT 1',[t.id])};
         });
         return {id:r.id,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
-          voertuig:{naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},
+          voertuig:{id:r.voertuig_id||null,naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},
           bezetting:info.bezetting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:info.waarschuwingen,notitie:info.notitie||'',stops,
           laatste_wijziging:ctx._laatsteRitWijziging?ctx._laatsteRitWijziging(r.id):null};
       }).sort((a,b)=>(a.vertrek||'99').localeCompare(b.vertrek||'99'));
@@ -72,8 +72,11 @@ module.exports = function(ctx){
     // Vaste chauffeurs altijd, plus iedereen die deze week rijdt.
     const personen=personeel.filter(p=>p.rol==='chauffeur').map(p=>({personeel_id:p.id,naam:p.naam,rol:p.rol,bestuurder_rol:'chauffeur',kleur:kleur(p.id,p.naam),vast:true}));
     rijders.forEach(r=>{if(!personen.some(p=>r.personeel_id?p.personeel_id===r.personeel_id:p.naam===r.naam))personen.push({...r,vast:false});});
-    const voertuigen=[...all('SELECT naam,capaciteit_bakken FROM voertuig_types ORDER BY capaciteit_bakken').map(v=>({naam:v.naam,soort:'pool',capaciteit:v.capaciteit_bakken})),
-      {naam:'Eigen wagen',soort:'eigen',capaciteit:null},{naam:'Huurwagen',soort:'huur',capaciteit:null}];
+    // VT1: echte voertuigen (eigen eerst, dan huur, dan privé) met hun ritten van de getoonde week; "ander voertuig…" blijft een vrije naam + plaatsen.
+    const bezet={};
+    dagObj.forEach(d=>d.ritten.forEach(r=>{if(r.voertuig.id)((bezet[r.voertuig.id]=bezet[r.voertuig.id]||{})[d.datum]=(bezet[r.voertuig.id][d.datum]||[])).push({rit_id:r.id,vertrek:r.vertrek,einde:r.einde});}));
+    const voertuigen=all("SELECT * FROM voertuigen WHERE actief=1 ORDER BY CASE soort WHEN 'eigen' THEN 0 WHEN 'huur' THEN 1 ELSE 2 END,naam COLLATE NOCASE")
+      .map(v=>({id:v.id,naam:v.naam,soort:v.soort,plaatsen:v.plaatsen,capaciteit:v.plaatsen,bezet_op_dag:bezet[v.id]||{}}));
     return {week:{start,eind,nummer,kampweek},dagen:dagObj,personen,voertuigen,
       alle_personeel:personeel.map(p=>({personeel_id:p.id,naam:p.naam,rol:p.rol,kleur:kleur(p.id,p.naam)}))};
   }

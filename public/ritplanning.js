@@ -200,24 +200,37 @@ if(typeof window!=='undefined')(function(){
       <label>Datum<input type="date" name="datum" value="${esc(NIEUW.datum||DAG)}"></label>
       <label>Vertrek<input type="time" name="vertrek" value="${esc(NIEUW.vertrek||'08:00')}"></label>
       <label>Bestuurder<select name="personeel_id">${opties()}</select></label>
-      <label>Voertuig<select name="voertuig">${P.voertuigen.map((v,i)=>`<option value="${i}">${esc(v.naam)}${v.capaciteit?' ('+v.capaciteit+' bakken)':''}</option>`).join('')}</select></label>
-      <label id="nf-cap" style="display:none">Capaciteit (bakken)<input type="number" min="1" name="cap" value="6"></label>
+      <label>Voertuig<select name="voertuig"></select></label>
+      <label id="nf-cap" style="display:none">Naam van het voertuig<input name="vnaam" value="Eigen wagen"></label>
+      <label id="nf-cap2" style="display:none">Capaciteit (bakken)<input type="number" min="1" name="cap" value="6"></label>
       <div class="knoppen"><button class="knop licht klein" data-act="annuleer">Annuleren</button><button class="knop klein" data-act="maak">Rit maken</button></div></form></div>`;
     const f=$('nf');
     if(NIEUW.personeel_id)f.personeel_id.value=NIEUW.personeel_id;
     else if(NIEUW.ander)f.personeel_id.value=(P.alle_personeel.find(p=>!P.personen.some(v=>v.vast&&v.personeel_id===p.personeel_id))||{}).personeel_id||'';
-    const capZicht=()=>{$('nf-cap').style.display=P.voertuigen[f.voertuig.value].soort==='pool'?'none':'';};
-    f.voertuig.onchange=capZicht;capZicht();
+    // VT1: eigen voertuigen bovenaan, dan huur, dan privé, dan "ander voertuig…"; een voertuig dat dan al op een andere rit staat toont "(ook op rit #n)" maar blijft kiesbaar.
+    const GROEP={eigen:'Eigen voertuigen',huur:'Huur',prive:'Privé'};
+    const _min=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?(+m[1])*60+(+m[2]):null;};
+    const vulVoertuigen=()=>{
+      const dag=f.datum.value,vt=_min(f.vertrek.value);
+      const ook=v=>{const l=(v.bezet_op_dag||{})[dag]||[];const o=l.find(x=>vt==null||x.vertrek===''||x.einde===''||(_min(x.vertrek)<=vt&&vt<=_min(x.einde)));return o?` (ook op rit #${o.rit_id})`:'';};
+      const keuze=f.voertuig.value;
+      f.voertuig.innerHTML=['eigen','huur','prive'].map(s=>{const l=P.voertuigen.filter(v=>v.soort===s);return l.length?`<optgroup label="${GROEP[s]}">${l.map(v=>`<option value="${v.id}">${esc(v.naam)}${v.plaatsen?' ('+v.plaatsen+' bakken)':''}${esc(ook(v))}</option>`).join('')}</optgroup>`:'';}).join('')+'<option value="">Ander voertuig…</option>';
+      if(keuze!==''&&[...f.voertuig.options].some(o=>o.value===keuze))f.voertuig.value=keuze;
+      capZicht();
+    };
+    const capZicht=()=>{const vrij=f.voertuig.value==='';$('nf-cap').style.display=vrij?'':'none';$('nf-cap2').style.display=vrij?'':'none';};
+    f.voertuig.onchange=capZicht;f.datum.onchange=vulVoertuigen;f.vertrek.onchange=vulVoertuigen;vulVoertuigen();
   }
   async function maakRit(){
-    const f=$('nf'),v=P.voertuigen[f.voertuig.value],pid=parseInt(f.personeel_id.value)||null;
+    const f=$('nf'),vid=parseInt(f.voertuig.value)||null,pid=parseInt(f.personeel_id.value)||null;
     const datum=f.datum.value;
     if(!datum)return toast('Kies een datum','warn');
     if([0,6].includes(d0(datum).getDay())){
       if(!await vraag({titel:'Rit in het weekend?',tekst:'Weekendritten zijn een uitzondering, geen verbod. Toch inplannen?',ok:'Ja, inplannen'}))return;
     }
-    const body={datum,vertrek:f.vertrek.value,personeel_id:pid,voertuig:v.naam,voertuig_soort:v.soort,taak_ids:NIEUW.taak_ids||[]};
-    if(v.soort!=='pool')body.voertuig_capaciteit=parseInt(f.cap.value)||null;
+    const body={datum,vertrek:f.vertrek.value,personeel_id:pid,taak_ids:NIEUW.taak_ids||[]};
+    if(vid)body.voertuig_id=vid;
+    else{body.voertuig=f.vnaam.value.trim()||'Eigen wagen';body.voertuig_soort='eigen';body.voertuig_capaciteit=parseInt(f.cap.value)||null;}
     const r=await api('POST','/api/ritten',body);
     if(!r.ok)return toast(r.json.error||'Rit maken mislukt','error');
     if([0,6].includes(d0(datum).getDay()))for(const tid of (NIEUW.taak_ids||[])){const wb=await api('POST',`/api/transport-taken/${tid}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}

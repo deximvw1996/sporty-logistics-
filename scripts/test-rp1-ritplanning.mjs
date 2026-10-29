@@ -59,7 +59,7 @@ try {
   T.check(o('2026-11-02').includes(o1) && o('2026-11-03').includes(o2) && o('2026-11-06').includes(o3) && o('2026-11-07').includes(o4) && !o('2026-11-02').includes(ma1), `open per dag: ma ${o('2026-11-02')}, di ${o('2026-11-03')}, vr ${o('2026-11-06')}, za ${o('2026-11-07')}`);
   const so = (d, id) => dag(d).open.find((x) => x.taak_id === id)?.soort;
   T.check(so('2026-11-06', o3) === 'rest' && so('2026-11-07', o4) === 'weekend' && so('2026-11-02', o1) === 'levering', `soort: rest/weekend/levering (${so('2026-11-06', o3)}/${so('2026-11-07', o4)}/${so('2026-11-02', o1)})`);
-  T.check(p.voertuigen.some((v) => v.soort === 'pool' && v.capaciteit === 20) && p.voertuigen.some((v) => v.soort === 'eigen') && p.voertuigen.some((v) => v.soort === 'huur'), 'voertuigen: pool + eigen + huur');
+  T.check(p.voertuigen.some((v) => v.soort === 'eigen' && v.capaciteit === 20 && /Camionette 1/.test(v.naam)) && p.voertuigen.every((v) => v.id && 'bezet_op_dag' in v), 'voertuigen: echte voertuigen uit de nieuwe tabel (VT1)');
 
   // ── kantoor-wissel op vaste stops ──
   r = await A('POST', `/api/ritten/${r1.id}/taken/${ma1}/wissel`, { richting: 'omlaag' });
