@@ -229,3 +229,173 @@ De twee rode tests zijn dezelfde als in V3a/V3d:
 - `test-v3c-fotos` en `test-veiligheid` lezen de `sporty.db` van de werkmap, dus hun uitslag hangt af van de map. Voorstel: ze laten draaien op `herfst-test.db`.
 - `design/CHAUFFEUR-DEFINITIEF.html` ontbreekt in de repo, hoewel de prompt ernaar verwijst.
 - De 403 bij `slot` voor een niet-kantoor-gebruiker is niet getest: herfst-test.db heeft geen chauffeur met pincode. De code controleert `req.persoon.rol==='kantoor'`.
+
+---
+
+## KO1 — Kantoor "Vandaag" + nieuwe hoofdnavigatie (chat C, Opus) · 2026-10-29
+
+**Commits op `bouw-c`:**
+- d2215d0: punt 1, `GET /api/vandaag` + `/api/mij/voorkeuren`
+- 5168b51: punt 2, pagina `/vandaag` + index.html
+- 24a0b10: punt 3, migratie 74 + test
+- dit verslag
+
+### Wat er gebouwd is
+- **Punt 1: `routes/vandaag.js`, `GET /api/vandaag`.**
+  - Alleen kantoor (alleenKantoor).
+  - Alles komt uit bestaande tabellen.
+  - Conflicten en tekorten komen uit de bestaande handlers van `/api/conflicten` en `/api/nakijk-tekorten`, aangeroepen in hetzelfde proces. Er is geen tweede kopie van die logica.
+  - `?datum=YYYY-MM-DD` en `?periode_id=` zijn optioneel.
+  - De kampweek telt vanaf `start_datum` van de periode. Buiten de periode is `week` null en is "deze week" de kalenderweek ma–zo.
+- **Punt 2: `public/vandaag.html`, `.css` en `.js`, met de route `GET /vandaag`.**
+  - De stijlen zijn 1-op-1 overgenomen uit `KANTOOR-DEFINITIEF.html`: Groot/Compact via dezelfde radio-`~`-selectoren, drie apart scrollende kolommen, en rechts twee apart scrollende vakken in de verhouding 4:5.
+  - Na elke actie laadt de pagina `/api/vandaag` opnieuw.
+  - Fouten verschijnen als toast in de stijl van index.html. `showToast` staat niet in een gedeeld bestand, dus de pagina heeft een kleine eigen kopie.
+  - Wie geen kantoor is of geen token heeft, gaat naar `/`.
+- **Punt 3: migratie 74, `personeel.voorkeuren TEXT DEFAULT '{}'`.**
+  - `GET` en `PUT /api/mij/voorkeuren {vandaag_weergave:'groot'|'compact'}`. Een andere waarde geeft 400.
+  - De pagina leest de voorkeur bij het laden en bewaart elke wissel.
+- **Aanpassingen in `index.html`:**
+  - (a) Een kantoorgebruiker zonder `#` in de URL gaat na het inloggen naar `/vandaag`. Dat geldt ook bij een bewaard token.
+  - (b) De knop "🏠 Vandaag" staat links in de tabbalk. Hij heeft bewust geen `.nb`-klasse, omdat `goTo()` de `.nb`-knoppen op positie telt.
+
+### Mapping 7 onderdelen → bestaande tabbladen
+| Onderdeel | Link | Tabblad |
+|---|---|---|
+| 🏠 Vandaag | `/vandaag` | deze pagina |
+| 📅 Planning | `/#kampplanner` | Kampplanner |
+| 🚚 Transport | `/#transport-plan` | Transport (ritplanning) |
+| 📦 Materiaal | `/#materiaal` | Materiaal |
+| 📍 Locaties | `/#planning` | Locaties |
+| 🧮 Voorraad & controles | `/#materiaal?tekorten` | Materiaal → subtab Nakijken (tekorten) |
+| ⚙️ Beheer | `/#personeel` | Personeel |
+
+De links en knoppen binnen de pagina:
+
+| Waar | Link | Tabblad |
+|---|---|---|
+| Beslissen "alles ›" | `/#transport-noden` | aanvragen |
+| Inplannen "alles ›" en "Rit plannen" | `/#transport-plan` | Transport (ritplanning) |
+| Nakijken "alles ›" en "Open conflict" | `/#overzicht?conflicten` | Overzicht → Conflicten |
+| Ritten vandaag "alles ›" | `/#transporten` | Transporten |
+| Deze week "alles ›" | `/#kampplanner` | Kampplanner |
+
+### Exacte JSON-vorm van `GET /api/vandaag`
+```json
+{
+  "periode": {"id": 2, "naam": "Herfst TEST"},
+  "gebruiker": {"naam": "Claude (API)"},
+  "datum": "2026-11-04", "datum_tekst": "woensdag 4 november", "week": 1,
+  "beslissen": [
+    {"id": 3, "bron": "aanvraag", "ico": "📩", "kleur": "rood", "titel": "3 rollen tape · Abdijschool Vlierbeek",
+     "sub": "aanvraag KV Test KV Abdijschool · 08:12",
+     "acties": [
+       {"label": "Afwijzen", "primair": false, "soort": "afwijzen", "methode": "PUT", "url": "/api/aanvragen/3/status", "body": {"status": "afgewezen"}},
+       {"label": "Goedkeuren + spoed", "primair": true, "soort": "api", "methode": "PUT", "url": "/api/aanvragen/3/status", "body": {"status": "goedgekeurd", "maak_spoedtransport": true}}]},
+    {"id": 4, "bron": "melding", "ico": "🚪", "kleur": "rood", "titel": "Chauffeur Jan bij Abdijschool Vlierbeek: locatie gesloten — geen sleutel",
+     "sub": "melding 08:31 · rit onderweg · KV Lotte ook verwittigd",
+     "acties": [
+       {"label": "Bel conciërge", "primair": false, "soort": "tel", "url": "tel:0470112233"},
+       {"label": "Afgehandeld", "primair": true, "soort": "api", "methode": "PUT", "url": "/api/aanvragen/4/status", "body": {"status": "afgehandeld"}}]}
+  ],
+  "inplannen": [
+    {"id": "taak-199", "taak_id": 199, "ico": "🚚", "kleur": "oranje", "titel": "Rest van rit #22: Rozenweg → Abdijschool Vlierbeek", "pil": null,
+     "sub": "donderdag 5 nov · 1 stuks · nog geen rit", "acties": [{"label": "Op een rit zetten", "primair": true, "soort": "link", "url": "/#transport-plan?taak=199"}]},
+    {"id": "rit-22", "rit_id": 22, "ico": "🚐", "kleur": "oranje", "titel": "Rit #22 heeft nog geen voertuig", "sub": "woensdag 4 nov · Jan · 3 stops",
+     "acties": [{"label": "Voertuig kiezen", "primair": true, "soort": "link", "url": "/#transport-plan?rit=22"}]},
+    {"id": "conflict-3", "ico": "🔥", "kleur": "oranje", "titel": "<bericht van pool_tekort>", "sub": "capaciteitsconflict",
+     "acties": [{"label": "Open conflict", "primair": false, "soort": "link", "url": "/#overzicht?conflicten"}]}
+  ],
+  "nakijken": [
+    {"id": "conflict-0", "ico": "⚠", "kleur": "blauw", "titel": "Thema \"…\" is in week 1 ingepland op 2 locaties: …", "sub": "conflict",
+     "acties": [{"label": "Open", "primair": false, "soort": "link", "url": "/#overzicht?conflicten"}]},
+    {"id": "tekorten", "ico": "🧮", "kleur": "blauw", "titel": "12 tekorten open uit vrijdagcontroles · 4 besteld", "sub": "voorraad",
+     "acties": [{"label": "Open", "primair": false, "soort": "link", "url": "/#materiaal?tekorten"}]}
+  ],
+  "ritten_vandaag": [
+    {"id": 22, "tijd": "07:30", "chauffeur": "Jan", "voertuig": "", "status": "gepland", "stop_huidig": 1, "stops_totaal": 3,
+     "stops": [{"naam": "Abdijschool Vlierbeek", "slot": "vast"}, {"naam": "Betekom", "slot": "vrij"}, {"naam": "Abdijschool Vlierbeek", "slot": "vrij"}]}
+  ],
+  "deze_week": [
+    {"kampmoment_id": 167, "locatie": "Betekom", "thema": "Holderdebolder", "kv_naam": "Sam", "dagen": "ma–vr",
+     "markeringen": ["vrijdagcontrole gepland", "⚠ oven", "kookdagen wo/do"]}
+  ],
+  "cijfers": {"ritten_onderweg": 0, "locaties_open": 1}
+}
+```
+
+### Regels per lijst
+
+**Beslissen**
+- Bevat aanvragen met status `nieuw`: die van de periode en die zonder kampmoment.
+- Ico van een aanvraag: kapot 💥, materiaal 📩.
+- Ico van een chauffeursmelding, naar de tekst: gesloten 🚪, past niet 📩, anders 💥.
+- "Goedkeuren + spoed" verschijnt bij kapot, of als het kamp in de huidige kampweek loopt. Anders staat er "Goedkeuren".
+- "Bel conciërge" verschijnt alleen als de locatie een `contact_tel` heeft.
+- De rit-status in de sub is die van de meest recente rit van die chauffeur, gezocht op `personeel_id` of op naam. Een melding bewaart zelf geen rit.
+
+**Inplannen**
+- Taken met status `gepland`, zonder rit en met een datum in de kampweek:
+  - ico: rest 🚚, aanvraag 📩, levering 📦, ophaling ↩, anders 🔁;
+  - een weekenddatum geeft 🏃 met `pil:"weekend"`.
+- Ritten van deze week zonder chauffeur of zonder voertuig. Ritten die gedaan of geannuleerd zijn of geen taken hebben, tellen niet mee.
+- Conflicten van het type `pool_tekort`, met 🔥.
+
+**Nakijken**
+- Alle andere conflicten van de huidige week: 📋 voor planningssoorten, ⚠ voor de rest.
+- Eén regel 🧮 als er open tekorten zijn.
+
+**`ritten_vandaag`**
+- `tijd` is de vroegste taaktijd. Ritten hebben zelf geen tijdkolom.
+- `stop_huidig` is het aantal gedane stops + 1.
+- `status` is `gepland`, `onderweg` of `gedaan`.
+
+**`deze_week.dagen`**
+- "ma–vr" bij een themakamp.
+- Bij themadagen de dagen uit `kampmoment_themas.dag`.
+
+### Bewijs
+- **`node scripts/test-ko1-vandaag.mjs` (poort 3334): 34 ok, 0 fout, ALLES GROEN, twee keer gedraaid.** De test controleert:
+  - elke kolom: het juiste ico, de sub en de acties;
+  - de slots van de rit: vast, vrij, vrij;
+  - de cijfers, ook nadat een rit op onderweg is gezet;
+  - de actie Afgehandeld: de melding verdwijnt;
+  - lege lijsten buiten de periode;
+  - een chauffeur krijgt 403;
+  - de voorkeur: bewaard, per gebruiker, 400 bij een ongeldige waarde;
+  - `/vandaag` geeft 200, met de drie kolomkoppen en de schakelaar in de HTML;
+  - index.html stuurt door en heeft de knop.
+- **Live gecontroleerd in de browser op 1920×900**, op een kopie van herfst-test.db met demodata:
+  - Groot en Compact komen overeen met het ontwerp. In Compact verdwijnen de lichte knoppen.
+  - De voorkeur `compact` werd bewaard.
+  - "Goedkeuren + spoed": de toast meldt "gelukt", Beslissen gaat van 2 naar 1 en de nieuwe spoedrit zonder chauffeur verschijnt in Inplannen.
+  - `/#transport-plan?taak=…` opent het tabblad Transport.
+  - `/` met een kantoor-token gaat naar `/vandaag`.
+- **`node scripts/volle-run.mjs`, drie keer:**
+
+| run | groen | rood |
+|---|---|---|
+| 1 | 12/17 | v3c-fotos (3), veiligheid (3), plus eenmalig f1-schrijven (1), keten-periode (afgebroken zonder fout) en v3c-catalogus (8) |
+| 2 | 15/17 | v3c-fotos (2), veiligheid (3) |
+| 3 | 15/17 | v3c-fotos (2), veiligheid (3) |
+
+**Toelichting bij de rode tests**
+- `v3c-fotos` en `veiligheid` zijn dezelfde omgevingsafhankelijke rode tests als bij V3a, V3d en CH1. Ze lezen de lokale `sporty.db` en falen ook op een schone main.
+- De drie extra rode tests in run 1 waren in run 2 en 3 groen, zonder codewijziging tussendoor. Ik houd het op flakiness: er liepen andere testservers, onder meer mijn eigen server op 3303 die net gestopt was. Ze raken geen KO1-code.
+- `ko1-vandaag` is in alle drie de runs groen.
+
+### Afwijkingen van het ontwerp
+- **Demo-balk en frame:** de demo-balk (`.keuze`) bovenaan valt weg. Het frame vult het venster in plaats van vast 1920×900 te zijn; op 1920×900 is het beeld identiek.
+- **Weekendtaak:** het ontwerp toont de knop "Bevestigen". Er bestaat geen bevestig-veld, en een veld verzinnen mag niet. De actie is daarom "Op een rit zetten".
+  - `pil:"weekend"` zit wel in de JSON, en de sub zegt "weekend = uitzondering".
+  - De pil wordt niet getekend, omdat het ontwerp er bij een item geen toont.
+- **Ritten vandaag:** alleen de echte stops (taken) worden getoond, niet het vertrek- en terugdepot dat het ontwerp als tekst toont. Een rit heeft geen depotveld.
+- **Inhoud van de kolommen:** die volgt de echte data. Zo geeft herfst-test.db veel "geen ophaling gepland"-conflicten in Nakijken.
+
+### Buiten mijn gebied
+- **`index.html`:** naast (a) en (b) staat er één regel in `bootApp()` die `#tab` (en `?conflicten` / `?tekorten`) uit de URL opent. Index.html had geen hash-navigatie, dus zonder die regel komen alle links van `/vandaag` op Overzicht uit.
+- **`server.js`:** zoals toegestaan één regel, `'vandaag'` in de routelijst.
+
+### Open
+- **Selectie in Transport:** `?taak=ID` en `?rit=ID` openen alleen het tabblad. index.html kan nog geen taak of rit selecteren; dat hoort bij de Ritplanning-bouw.
+- **Periode-kiezer:** die gebruikt de bestaande `POST /api/periodes/:id/activeer`. Wisselen verandert de actieve periode dus voor iedereen, net zoals bij de bestaande kiezer.
