@@ -41,8 +41,13 @@ const APP_PASSWORD = process.env.APP_PASSWORD || '';
 if (!APP_PASSWORD) {
   console.warn('WAARSCHUWING: APP_PASSWORD is niet ingesteld - de app is NIET beveiligd. Stel APP_PASSWORD in bij Railway > Variables.');
 }
+// Werklijst 70 (Maxim 29/10, optie b): de link-pagina's voor chauffeur en KV staan BUITEN de Basic-muur.
+// De token in de URL is daar de toegang (lange willekeurige tokens; foutieve token = 403/404, nooit data).
+// Ook hun statische bestanden en de foto's (willekeurige bestandsnamen, nosniff) zijn zonder wachtwoord bereikbaar.
+const TOKENPADEN = ['/rit/', '/kv/', '/tel/', '/api/rit-token/', '/api/kv/', '/uploads/', '/public/'];
 app.use((req, res, next) => {
   if (!APP_PASSWORD) return next();              // geen wachtwoord ingesteld = open
+  if (TOKENPADEN.some((p) => req.path.startsWith(p))) return next();
   const header = req.headers.authorization || '';
   const [scheme, encoded] = header.split(' ');
   if (scheme === 'Basic' && encoded) {

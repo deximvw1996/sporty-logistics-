@@ -87,8 +87,18 @@ try {
 
   // ── 4. /uploads achter de Basic-auth-muur + nosniff ──
   fs.writeFileSync(path.join(UPLOADS, 'test-nosniff.txt'), '<script>alert(1)</script>');
+  // Werklijst 70 (Maxim 29/10, optie b): link-pagina's + uploads staan buiten de Basic-muur (token = toegang);
+  // de rest van de app blijft erachter.
   let r = await call('GET', '/uploads/test-nosniff.txt', { basic: false });
-  check(r.status === 401, `/uploads zonder Basic auth → 401 (kreeg ${r.status})`);
+  check(r.status === 200, `/uploads zonder Basic auth → 200 (werklijst 70: foto's bij rit-/kv-link) (kreeg ${r.status})`);
+  r = await call('GET', '/rit/geen-token', { basic: false });
+  check(r.status === 404, `/rit/<fout> zonder Basic auth → 404 nette pagina, geen 401 (kreeg ${r.status})`);
+  r = await call('GET', '/api/kv/geen-token/data', { basic: false });
+  check(r.status === 403, `/api/kv/<fout>/data zonder Basic auth → 403 (kreeg ${r.status})`);
+  r = await call('GET', '/', { basic: false });
+  check(r.status === 401, `/ zonder Basic auth blijft 401 (kreeg ${r.status})`);
+  r = await call('GET', '/api/export', { basic: false });
+  check(r.status === 401, `/api/export zonder Basic auth blijft 401 (kreeg ${r.status})`);
   r = await call('GET', '/uploads/test-nosniff.txt');
   check(r.status === 200, `/uploads mét Basic auth → 200 (kreeg ${r.status})`);
   check(r.headers.get('x-content-type-options') === 'nosniff', `/uploads geeft X-Content-Type-Options: nosniff (kreeg ${r.headers.get('x-content-type-options')})`);
