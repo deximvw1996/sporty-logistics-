@@ -203,6 +203,8 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 ---
 
 ## STATUSLOG
+- **30/10 03:45** GF1 (D) GEKEURD en op main (migratie 80): alle 9 kritieke gaten uit de generale repetitie dicht; ketentest 47 ok. Volle run 27/27. Quota: Fable 88 %/week → bouw verhuist naar cloud-sessies (krediet ## STATUSLOG
+56 t/m 5 nov); Fable alleen keuren/mergen tot zondag. Volgende: seed op prod + draaiboek Maxim; BH1 (cloud).
 - **30/10 03:20** MA1 (C) GEKEURD en op main: /bakken + /etiketten, migratie 79 (rek/plank/pool_plaats), aanvullijst met echte plaatsen. Volle run 26/26. Werklijst 82/87. Prompt BH1 (Beheer, C) klaar. D werkt aan GF1.
 - **30/10 02:55** Railway 'Deployment crashed'-mails: oorzaak = npm als PID 1 kreeg SIGTERM en meldde 'command failed'; fix railway.json startCommand 'node server.js'. Werklijst 86.
 - **30/10 02:30** GR1 (C) en PL1 (D) GEKEURD en op main: generale-repetitie-script + ketentest (8 stappen groen, 14 gaten gevonden) + draaiboek; /kampmomenten (migratie 78). Volle run 25/25. Prompts GF1 (gaten, D) en MA1 (Materiaal, C) klaar. Prod-seed + draaiboek voor Maxim ná GF1. Werklijst 83-85.
