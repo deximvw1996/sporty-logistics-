@@ -187,9 +187,20 @@ module.exports = function(ctx){
     const kvNaam=_kvNaam(km);
     let sessie=get("SELECT * FROM nakijk_sessies WHERE bak_type='attribuut' AND attribuut_id=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend')",
       [attr.id,km.id]);
-    if(sessie) run('UPDATE nakijk_sessies SET notities=?,kv_wie=?,kv_tijdstip=? WHERE id=?',[status,kvNaam,now(),sessie.id]);
-    else ins("INSERT INTO nakijk_sessies (bak_type,attribuut_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status,notities) VALUES ('attribuut',?,?,?,?,?,?,?,?,?)",
+    let sessieId;
+    if(sessie){ run('UPDATE nakijk_sessies SET notities=?,kv_wie=?,kv_tijdstip=? WHERE id=?',[status,kvNaam,now(),sessie.id]); sessieId=sessie.id; }
+    else sessieId=ins("INSERT INTO nakijk_sessies (bak_type,attribuut_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status,notities) VALUES ('attribuut',?,?,?,?,?,?,?,?,?)",
       [attr.id,km.locatie_id,km.week,km.id,now(),kvNaam,'bezig','open',status]);
+    // TB1: een beschadigd attribuut krijgt een nakijk-regel (aanwezig, 1 kapot) zodat kantoor er een actie aan kan hangen en de
+    // aanvullijst het toont; terug op "aanwezig" ruimt die regel weer op (enkel als kantoor er nog niets mee deed).
+    const regel=get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_naam=?',[sessieId,attr.naam]);
+    if(status==='beschadigd'){
+      if(regel)run('UPDATE nakijk_regels SET aangetroffen=1,verwacht=1,kapot_aantal=1,is_kapot=1,ontbreekt=0 WHERE id=?',[regel.id]);
+      else ins('INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,is_kapot,kapot_aantal) VALUES (?,?,NULL,1,1,0,1,1)',[sessieId,attr.naam]);
+    }else if(regel){
+      if(regel.kantoor_actie)run('UPDATE nakijk_regels SET kapot_aantal=0,is_kapot=0 WHERE id=?',[regel.id]);
+      else run('DELETE FROM nakijk_regels WHERE id=?',[regel.id]);
+    }
     res.json({ok:true,status});
   });
 

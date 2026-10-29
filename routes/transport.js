@@ -575,12 +575,48 @@ module.exports = function(ctx){
       if(rit&&rit.status==='gedaan')updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[taak.rit_id]);}
     return {taak:get('SELECT * FROM transport_taken WHERE id=?',[taakId])};
   }
-  // Bulk: ontkoppel van rit (zet rit_id=NULL)
+  // TB1: ÉÉN ontkoppel-functie voor alle wegen (ritplanning ✕, taken bulk, PUT /rit met null): datum en tijd blijven staan
+  // (de taak komt terug in "open" op dezelfde dag) en wat al geladen is, houdt de taak op zijn rit (409). Controleert enkel; schrijft niet.
+  function _ontkoppelFout(t){
+    const naam=(get('SELECT name FROM locaties WHERE id=?',[t.type==='ophaling'?(t.van_locatie_id||t.naar_locatie_id):(t.naar_locatie_id||t.van_locatie_id)])||{}).name||('taak #'+t.id);
+    const n=get('SELECT COUNT(*) AS n FROM verhuis_checks WHERE taak_id=? AND geladen=1',[t.id]).n;
+    return n?`${naam}: ${n} stuk${n===1?' is':'ken zijn'} al geladen — los ze eerst of zet de taak terug op gepland`:null;
+  }
+  function _ontkoppelTaak(req,t,context){
+    const fout=_ontkoppelFout(t);
+    if(fout)return {fout,status:409};
+    if(!t.rit_id)return {ok:true,al_los:true};
+    updateMetLog(req,"UPDATE transport_taken SET rit_id=NULL,wie='',volgorde=NULL WHERE id=?",[t.id],context||'transport');
+    run('UPDATE verhuis_checks SET rit_id=0 WHERE taak_id=?',[t.id]);
+    return {ok:true};
+  }
+  ctx._ontkoppelTaak=_ontkoppelTaak;
+  // Bulk: ontkoppel van rit. Eerst alles controleren: één geladen taak → niets gewijzigd (409).
   app.post('/api/transport-taken/bulk-ontkoppel',(req,res)=>{
     const{ids}=req.body;
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
-    ids.forEach(id=>updateMetLog(req,"UPDATE transport_taken SET rit_id=NULL,datum='',wie='' WHERE id=? AND COALESCE((SELECT spoed_kind FROM transport_taken WHERE id=?),'') != '1'",[id,id]));
-    res.json({ok:true,count:ids.length});
+    const taken=ids.map(id=>get('SELECT * FROM transport_taken WHERE id=?',[id])).filter(Boolean);
+    for(const t of taken){const f=_ontkoppelFout(t);if(f)return res.status(409).json({error:f});}
+    taken.forEach(t=>_ontkoppelTaak(req,t,'bulk-ontkoppel'));
+    res.json({ok:true,count:taken.length});
+  });
+  // Koppel een taak aan een rit (getal), of ontkoppel (null). (Verhuisd uit locaties.js; ontkoppelen wist geen datum meer.)
+  app.put('/api/transport-taken/:id/rit',(req,res)=>{
+    const {rit_id}=req.body||{};
+    const t=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
+    if(!t) return res.status(404).json({error:'Transport niet gevonden'});
+    if(rit_id===null||rit_id===undefined||rit_id===''){
+      const r=_ontkoppelTaak(req,t,'taak-rit');
+      if(r.fout)return res.status(r.status).json({error:r.fout});
+    } else {
+      const rit=get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]);
+      if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
+      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[rit_id,rit.datum,rit.chauffeur||'',req.params.id]);
+      _syncChecksRit(parseInt(rit_id));
+    }
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
+    const regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[req.params.id]);
+    res.json({...taak,regels});
   });
   // Bulk: verplaats naar andere rit
   app.post('/api/transport-taken/bulk-move',(req,res)=>{
@@ -615,6 +651,8 @@ module.exports = function(ctx){
     const teVerhuizen=alleRegels.filter(r=>regel_ids.includes(r.id));
     if(!teVerhuizen.length)return res.status(400).json({error:'Geen van de gekozen regels hoort bij deze taak'});
     if(teVerhuizen.length===alleRegels.length)return res.status(400).json({error:'Je kan niet álle regels afsplitsen — dan verplaats je beter de hele taak'});
+    // TB1: wat al geladen is, blijft bij zijn taak (anders staat het geladen stuk plots op een taak zonder rit).
+    for(const r of teVerhuizen){const g=_checksVanRegel(taak.id,r).filter(c=>c.geladen);if(g.length)return res.status(409).json({error:`'${r.naam}' is al geladen: een geladen regel kan niet afgesplitst worden — los het eerst of zet de taak terug op gepland`});}
     const nieuwId=insMetLog(req,`INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [taak.type,datum||'',tijd||taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,
@@ -625,6 +663,46 @@ module.exports = function(ctx){
       run('UPDATE transport_regels SET taak_id=? WHERE id=?',[nieuwId,r.id]);});
     logAct('transport','gesplitst',`Taak #${taak.id}: ${teVerhuizen.length} regel(s) afgesplitst naar taak #${nieuwId}${datum?' ('+datum+')':''}`,taak.naar_locatie_id||taak.van_locatie_id,null);
     res.json({ok:true,nieuwe_taak_id:nieuwId,verplaatst:teVerhuizen.length});
+  });
+  // TB1: Bundelen — meerdere taken van dezelfde dag, soort en bestemming worden één taak (de weg terug is Splitsen).
+  // De oudste taak blijft (bij voorkeur die op een rit staat), de regels en checks van de andere verhuizen mee,
+  // de andere taken blijven bestaan als 'geannuleerd — gebundeld in #id' (niet verwijderd: omkeerbaar en nagezien).
+  app.post('/api/transport-taken/bundel',alleenKantoor,(req,res)=>{
+    const ids=[...new Set((Array.isArray(req.body?.taak_ids)?req.body.taak_ids:[]).map(Number).filter(Boolean))];
+    if(ids.length<2)return res.status(400).json({error:'Kies minstens twee taken om te bundelen.'});
+    const taken=ids.map(id=>get('SELECT * FROM transport_taken WHERE id=?',[id]));
+    const ontbreekt=ids.filter((id,i)=>!taken[i]);
+    if(ontbreekt.length)return res.status(404).json({error:'Taak #'+ontbreekt[0]+' bestaat niet (meer).'});
+    const locNm=t=>(get('SELECT name FROM locaties WHERE id=?',[t.type==='ophaling'?(t.van_locatie_id||t.naar_locatie_id):(t.naar_locatie_id||t.van_locatie_id)])||{}).name||('taak #'+t.id);
+    const bestemming=t=>t.type==='ophaling'?(t.van_locatie_id||0):(t.naar_locatie_id||0);
+    const eerste=taken[0];
+    for(const t of taken){
+      if(['gedaan','geannuleerd'].includes(t.status))return res.status(409).json({error:`Taak #${t.id} is al ${t.status} en kan niet meer gebundeld worden.`});
+      if((t.datum||'')!==(eerste.datum||''))return res.status(409).json({error:`Taak #${t.id} (${locNm(t)}) staat op een andere dag dan taak #${eerste.id}: bundelen kan enkel binnen dezelfde dag.`});
+      if((t.type||'')!==(eerste.type||''))return res.status(409).json({error:`Taak #${t.id} is een ${t.type||'andere'} en taak #${eerste.id} een ${eerste.type||'andere'}: bundel enkel taken van dezelfde soort.`});
+      if(bestemming(t)!==bestemming(eerste))return res.status(409).json({error:`Taak #${t.id} gaat naar ${locNm(t)}, taak #${eerste.id} naar ${locNm(eerste)}: bundel enkel taken met dezelfde bestemming.`});
+    }
+    const ritten=[...new Set(taken.map(t=>t.rit_id).filter(Boolean))];
+    if(ritten.length>1)return res.status(409).json({error:'De taken staan op verschillende ritten (#'+ritten.join(', #')+'): haal ze eerst van hun rit of zet ze op dezelfde rit.'});
+    for(const t of taken){
+      const n=get('SELECT COUNT(*) AS n FROM verhuis_checks WHERE taak_id=? AND geladen=1',[t.id]).n;
+      if(n)return res.status(409).json({error:`Taak #${t.id} (${locNm(t)}): ${n} stuk${n===1?' is':'ken zijn'} al geladen — bundelen kan pas als er niets geladen is.`});
+    }
+    const gesorteerd=taken.slice().sort((a,b)=>a.id-b.id);
+    const keep=gesorteerd.find(t=>t.rit_id)||gesorteerd[0];
+    const anderen=gesorteerd.filter(t=>t.id!==keep.id);
+    const tijden=taken.map(t=>t.tijd).filter(Boolean).sort();
+    let regelsVerhuisd=0;
+    anderen.forEach(t=>{
+      regelsVerhuisd+=get('SELECT COUNT(*) AS n FROM transport_regels WHERE taak_id=?',[t.id]).n;
+      run('UPDATE transport_regels SET taak_id=? WHERE taak_id=?',[keep.id,t.id]);
+      updateMetLog(req,'UPDATE verhuis_checks SET taak_id=?,rit_id=? WHERE taak_id=?',[keep.id,keep.rit_id||0,t.id],'bundelen in #'+keep.id);
+      updateMetLog(req,"UPDATE transport_taken SET status='geannuleerd',rit_id=NULL,volgorde=NULL,opmerking=? WHERE id=?",[((t.opmerking||'')+' — gebundeld in #'+keep.id).trim(),t.id],'bundelen in #'+keep.id);
+    });
+    updateMetLog(req,'UPDATE transport_taken SET tijd=?,opmerking=? WHERE id=?',[tijden[0]||keep.tijd||'',((keep.opmerking||'')+' — gebundeld met #'+anderen.map(t=>t.id).join(', #')).trim(),keep.id],'bundelen');
+    logAct('transport','gebundeld',`Taken #${anderen.map(t=>t.id).join(', #')} gebundeld in #${keep.id} (${locNm(keep)}, ${regelsVerhuisd} regel${regelsVerhuisd===1?'':'s'} verhuisd)`,bestemming(keep)||null,locNm(keep));
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[keep.id]);
+    res.json({ok:true,taak:{...taak,regels:all('SELECT * FROM transport_regels WHERE taak_id=?',[keep.id])},samengevoegd:anderen.map(t=>t.id),regels_verhuisd:regelsVerhuisd});
   });
   app.post('/api/transport-taken',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,regels,rit_id,week}=req.body;const id=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[type,datum||'',tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',wie||'',kampmoment_id||null,'gepland',now(),rit_id||null,week||null]);if(regels&&regels.length)regels.forEach(r=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id,bak_id,attribuut_id) VALUES (?,?,?,?,?,?,?)',[id,r.naam,r.qty||1,r.soort||'andere',resolveItemTypeId(r.naam,undefined,false),r.bak_id||null,r.attribuut_id||null]));const taak=get('SELECT * FROM transport_taken WHERE id=?',[id]);const tr=all('SELECT * FROM transport_regels WHERE taak_id=?',[id]);res.json({...taak,regels:tr});});
   app.put('/api/transport-taken/:id',(req,res,next)=>{
