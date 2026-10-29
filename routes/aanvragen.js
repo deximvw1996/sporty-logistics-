@@ -96,7 +96,7 @@ module.exports = function(ctx){
     if(!a)return res.status(404).json({error:'Aanvraag niet gevonden'});
     if(!['nieuw','goedgekeurd','afgewezen','afgehandeld'].includes(status))return res.status(400).json({error:'Ongeldige status'});
     const behandeld_door=(req.persoon&&req.persoon.naam)||'';
-    let spoed_taak_id=a.spoed_taak_id;
+    let spoed_taak_id=a.spoed_taak_id,rit_zonder_chauffeur=false;
     if(status==='goedgekeurd'&&maak_spoedtransport&&!spoed_taak_id){
       const st=spoedtransport||{};
       const naam=(st.item||a.tekst||'').trim();
@@ -113,6 +113,10 @@ module.exports = function(ctx){
         ['extra',spoedDatum,st.tijd||'09:00',van,naar,'🚨 Spoed (aanvraag #'+a.id+'): '+naam,'','gepland',ts,st.kind||'',st.ref_id||0,0,ritId,a.kampmoment_id||null,a.id]);
       ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam,undefined,false)]);
       spoed_taak_id=taakId;
+      // RP2 (rest TF1): zonder bestuurder in de body → rit zonder chauffeur; het antwoord zegt het (Vandaag/ritplanning waarschuwen).
+      const pid=st.personeel_id||null,ch=st.chauffeur||(pid?(get('SELECT naam FROM personeel WHERE id=?',[pid])||{}).naam:'')||'';
+      if(ch||pid)updateMetLog(req,'UPDATE transport_ritten SET chauffeur=?,personeel_id=?,voertuig=? WHERE id=?',[ch,pid,st.voertuig||'',ritId]);
+      else {rit_zonder_chauffeur=true;logAct('transport','spoedrit zonder chauffeur',`Spoedrit #${ritId} (${spoedDatum}) heeft nog geen chauffeur — kies er een in de Ritplanning`,null,null);}
     }
     // Afwijzen annuleert de gekoppelde spoedtaak (status 'geannuleerd', spoor blijft bewaard) — tenzij
     // er al iets geladen is of de taak onderweg/afgerond is: dan 409.
@@ -130,7 +134,7 @@ module.exports = function(ctx){
     updateMetLog(req,'UPDATE aanvragen SET status=?,reden=?,spoed_taak_id=?,behandeld_door=?,behandeld_op=? WHERE id=?',
       [status,reden||'',spoed_taak_id||null,behandeld_door,now(),req.params.id]);
     logAct('aanvraag',status,`Aanvraag #${a.id} → ${status}`+(reden?` (${reden})`:''),null,null);
-    res.json(get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]));
+    res.json({...get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]),...(rit_zonder_chauffeur?{rit_zonder_chauffeur:true}:{})});
   });
 
 };
