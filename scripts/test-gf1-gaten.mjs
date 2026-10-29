@@ -66,7 +66,7 @@ try {
   await kv('POST', '/versturen', {});
   v = (await A('GET', `/api/vandaag?datum=${DAG}`)).json;
   const tel = v.nakijken.find((n) => /te keuren/.test(n.titel));
-  T.check(tel && /^\d+ tellingen? te keuren$/.test(tel.titel) && tel.acties[0].url === '/nakijken', `Vandaag › Nakijken: "${tel?.titel}" met Open → /nakijken`);
+  T.check(tel && /^\d+ telling(en)? te keuren$/.test(tel.titel) && tel.acties[0].url === '/nakijken', `Vandaag › Nakijken: "${tel?.titel}" met Open → /nakijken`);
   const laat = (await A('GET', '/api/vandaag?datum=2026-11-10')).json;
   const nietGeteld = laat.nakijken.find((n) => /niet geteld van kampweek/.test(n.titel));
   T.check(nietGeteld && nietGeteld.acties[0].url === '/nakijken', `Vandaag › Nakijken (na de kampweek): "${nietGeteld?.titel}" met Open → /nakijken`);
@@ -117,14 +117,13 @@ try {
   T.check(/weekend-bevestig/.test(rp) && /bevestigd door/.test(rp), 'de ritplanning-pagina roept weekend-bevestig aan na de vraagModal en toont de tekst');
 
   // ── Punt 6: opruimen volledig ──
-  const voor = await tellingen();
   const lx = locs[4];
-  const kx = (await A('POST', '/api/kampmomenten', { locatie_id: lx.id, week: 1, periode_id: periode.id, type: 'kamp' })).json;
   const pers = (await A('GET', '/api/personeel')).json.find((p) => p.rol === 'kv') || (await A('POST', '/api/personeel', { naam: 'Gf1 KV', rol: 'kv' })).json;
+  const bx = await maakBak(vrij[1].id, 'Gf1 bak x', 'GF1X', [['A', 2], ['B', 3]]);
+  const voorBak = await tellingen(); // bak, items en KV bestaan al: enkel wat aan het kampmoment hangt moet verdwijnen
+  const kx = (await A('POST', '/api/kampmomenten', { locatie_id: lx.id, week: 1, periode_id: periode.id, type: 'kamp' })).json;
   await A('PUT', `/api/kampmomenten/${kx.id}`, { kv_persoon_id: pers.id });
   await A('POST', `/api/kampmomenten/${kx.id}/themas`, { thema_id: vrij[1].id });
-  const bx = await maakBak(vrij[1].id, 'Gf1 bak x', 'GF1X', [['A', 2], ['B', 3]]);
-  const voorBak = await tellingen(); // bak + items horen niet bij het kampmoment
   const ktok = await T.kvToken(srv.base, tok, kx.id);
   const kd2 = (await P('GET', `/api/kv/${ktok}/data`)).json;
   const bb = kd2.bakken.find((b) => b.code === 'GF1X');
