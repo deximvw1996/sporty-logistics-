@@ -23,7 +23,7 @@ button{font:inherit;cursor:pointer;border:0}
 .dkop{display:flex;align-items:flex-start;gap:16px;margin-bottom:10px}.dkop h2{font-size:22px;font-weight:800}.dkop span{font-size:13px;color:#64748b}.dkop .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .dtabs{display:flex;gap:4px;border-bottom:1px solid #e2e8f0;margin-bottom:12px}.dtabs a{height:40px;padding:0 14px;display:flex;align-items:center;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}.dtabs a.act{color:#1d4ed8;border-bottom-color:#1d4ed8}
 .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;overflow-y:auto;align-content:start}
-.dgrid.een{grid-template-columns:1.6fr 1fr}
+.dgrid.een{grid-template-columns:2.4fr 1fr}
 .blok{background:#f8fafc;border-radius:10px;padding:12px;min-width:0}.blok h4{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
 .rij{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 0;border-top:1px solid #eef2f7;font-size:13px}.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
 .body{display:grid;grid-template-columns:minmax(520px,860px) 1fr;gap:16px;padding:16px 28px;flex:1;min-height:0;height:calc(100vh - 104px)}
@@ -32,7 +32,7 @@ input[type=checkbox]{width:20px;height:20px}
 .voet .bulk{display:none;gap:6px;margin-left:8px}.voet.sel .bulk{display:flex}.voet .n{font-weight:700;color:#1e3a8a}
 .leeg{padding:40px;text-align:center;color:#64748b;font-size:14px}
 .r small{font-size:11px;color:#64748b}
-.kopr.tel,.r.tel{grid-template-columns:1.4fr 60px 70px 90px 1.6fr 1.5fr;padding:0 6px}
+.kopr.tel,.r.tel{grid-template-columns:minmax(80px,1.2fr) 48px 58px 80px minmax(70px,1.2fr) minmax(200px,1.7fr);padding:0 6px}
 .r.tel{cursor:default;border-left:3px solid #cbd5e1;border-radius:6px;margin:3px 0;background:#fff}
 .r.tel.rood{border-left-color:#dc2626}.r.tel.blauw{border-left-color:#2563eb}.r.tel.oranje{border-left-color:#ea580c}.r.tel.groen{border-left-color:#16a34a}
 .r.tel .not{font-size:12px;color:#475569;overflow-wrap:anywhere}
