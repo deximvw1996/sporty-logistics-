@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><title>Voorraad — Tekorten &amp; bestellingen</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze label{height:28px;line-height:28px;padding:0 12px;border-radius:6px;background:#333;color:#fff;cursor:pointer;user-select:none}.keuze span{color:#aaa;margin-left:8px}
+input[name=kz]{position:absolute;opacity:0;pointer-events:none}
+#r1:checked~.keuze label[for=r1],#r2:checked~.keuze label[for=r2],#r3:checked~.keuze label[for=r3]{background:#2563eb}
+#r1:checked~#f1,#r2:checked~#f2,#r3:checked~#f3{display:block}
+.frame{display:none;width:1920px;height:900px;margin:40px auto 0;background:#f5f5f5;overflow:hidden;position:relative}
+button{font:inherit;cursor:pointer;border:0}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.pil.groen{background:#dcfce7;color:#15803d}.pil.oranje{background:#ffedd5;color:#c2410c}.pil.rood{background:#fee2e2;color:#b91c1c}
+.kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;display:flex;flex-direction:column;min-height:0}
+.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
+.top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
+.top .logo{font-size:17px;font-weight:800;color:#1e3a8a;margin-right:22px}
+.top a{height:40px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#334155;cursor:pointer}.top a.act{background:#eff6ff;color:#1d4ed8}.top a .b{background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:999px}
+.top .rechts{margin-left:auto;display:flex;gap:12px;font-size:13px;color:#64748b}.top .rechts b{color:#1e3a8a}
+.sub{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:4px}
+.sub a{height:36px;padding:0 12px;border-radius:8px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#64748b;cursor:pointer}.sub a.act{color:#1d4ed8;background:#eff6ff}.sub .r{margin-left:auto;display:flex;gap:6px}
+.scroll{overflow-y:auto;min-height:0;flex:1}.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+.filters{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:nowrap}.filters input{height:38px;border:1px solid #e2e8f0;border-radius:8px;padding:0 12px;font:inherit;flex:1;max-width:300px;min-width:150px}
+.chip{height:36px;padding:0 12px;border-radius:999px;background:#f1f5f9;font-size:13px;font-weight:600;display:inline-flex;align-items:center;cursor:pointer;white-space:nowrap}.chip.act{background:#1e3a8a;color:#fff}
+.kopr,.r{display:grid;align-items:center;gap:8px;padding:0 10px;font-size:13px}
+.kopr{height:36px;color:#64748b;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em;border-bottom:1px solid #e2e8f0}
+.r{min-height:46px;border-bottom:1px solid #f1f5f9;cursor:pointer;border-radius:8px}.r.act{background:#eff6ff}.r:hover{background:#f8fafc}
+.r .k{color:#64748b;font-size:12px}
+.voet{height:40px;display:flex;align-items:center;gap:8px;font-size:12px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:6px}
+.detail{display:flex;flex-direction:column;min-height:0;flex:1}
+.dkop{display:flex;align-items:flex-start;gap:16px;margin-bottom:10px}.dkop h2{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}.dkop span{font-size:13px;color:#64748b}.dkop .acts{margin-left:auto;display:flex;gap:6px}
+.dtabs{display:flex;gap:4px;border-bottom:1px solid #e2e8f0;margin-bottom:12px}.dtabs a{height:40px;padding:0 14px;display:flex;align-items:center;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}.dtabs a.act{color:#1d4ed8;border-bottom-color:#1d4ed8}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;overflow-y:auto;align-content:start}
+.blok{background:#f8fafc;border-radius:10px;padding:12px}.blok h4{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center}.blok h4 a{margin-left:auto;color:#2563eb;text-transform:none;letter-spacing:0;font-size:12px}
+.kv{display:flex;gap:10px;font-size:13px;padding:5px 0}.kv span{width:110px;color:#64748b;flex:none}.kv b{font-weight:600}
+.fotos{display:flex;gap:8px}.f{width:110px;height:80px;border-radius:8px;background:#cbd5e1;display:flex;align-items:flex-end;padding:6px;font-size:11px;font-weight:700;color:#334155}.f.plus{background:#eff6ff;color:#1d4ed8;align-items:center;justify-content:center;cursor:pointer}
+.rij{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 0;border-top:1px solid #eef2f7;font-size:13px}.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
+.rij .code{font-family:ui-monospace,Consolas,monospace;font-size:12px;font-weight:700;background:#e2e8f0;border-radius:6px;padding:2px 6px}
+.rij .getal{width:70px;text-align:right;font-weight:700}
+.stap{display:inline-flex;align-items:center;gap:4px}.stap button{width:36px;height:36px;border-radius:8px;background:#f1f5f9;color:#1e3a8a;font-weight:800}
+.kleur{width:14px;height:14px;border-radius:4px;display:inline-block;flex:none}
+.balk{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden;flex:1}.balk i{display:block;height:100%;background:#2563eb}.balk.op i{background:#ea580c}
+.vol{grid-column:1/-1}
+.body{display:grid;grid-template-columns:860px 1fr;gap:16px;padding:16px 28px;height:796px}
+input[type=checkbox]{width:20px;height:20px}
+.voet .bulk{display:none;gap:6px;margin-left:8px}.voet.sel .bulk{display:flex}.voet .n{font-weight:700;color:#1e3a8a}
+
+#f1 .kopr,#f1 .r{grid-template-columns:36px 2.1fr 0.7fr 1.6fr 0.9fr 116px}
+#f1 .get{text-align:right;font-weight:700;padding-right:14px}
+.stap3{display:flex;gap:6px;flex-wrap:wrap}
+.tl{display:flex;margin:4px 0 4px;position:relative;z-index:0}.tl div{flex:1;text-align:center;font-size:11px;font-weight:700;color:#94a3b8;padding-top:22px;position:relative}.tl div:before{content:"";position:absolute;top:6px;left:50%;width:12px;height:12px;border-radius:50%;background:#cbd5e1;transform:translateX(-50%);z-index:1}.tl div:after{content:"";position:absolute;top:11px;left:-50%;width:100%;height:2px;background:#cbd5e1;z-index:0}.tl div:first-child:after{display:none}.tl div.ok{color:#1d4ed8}.tl div.ok:before{background:#2563eb}.tl div.nu{color:#1e3a8a}.tl div.nu:before{background:#fff;border:3px solid #2563eb;width:8px;height:8px}
+</style></head><body>
+<input type="radio" name="kz" id="r1" checked>
+<div class="keuze"><b>Voorraad &amp; controles › Tekorten &amp; bestellingen</b><span>standaardpatroon · één rij per artikel, alle tekorten van alle bakken samen · Voorraad gaat op in Materiaal › Catalogus · 1920×900</span></div>
+<div class="frame" id="f1"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">2</span></a><a>📅 Planning</a><a>🚚 Transport</a><a>📦 Materiaal</a><a>📍 Locaties</a><a class="act">🧮 Voorraad &amp; controles <span class="b">5</span></a><a>⚙️ Beheer</a><div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="sub"><a>Nakijken</a><a class="act">Tekorten &amp; bestellingen</a><a>Aanvullijst</a><span class="r"><button class="knop licht klein">🖨 Bestellijst</button><button class="knop licht klein">⬇ Export</button><button class="knop klein">+ Tekort melden</button></span></div>
+<div class="body"><div class="kaart lijst"><div class="filters"><input placeholder="🔍 Zoek artikel, bak, locatie…"><span class="chip act">Open 10</span><span class="chip">Te beslissen 1</span><span class="chip">Te bestellen 2</span><span class="chip">Besteld 2</span><span class="chip">Binnen 1</span><span class="chip">Afgehandeld 23</span></div>
+<div class="kopr"><span><input type="checkbox"></span><span>Artikel ▾</span><span style="text-align:right;padding-right:14px">Tekort</span><span>Waar</span><span style="text-align:right;padding-right:14px">Rozenweg</span><span>Stand</span></div>
+<div class="scroll"><div class="r act"><span><input type="checkbox" checked></span><span><b>Ballonnen</b><span class="k" style="display:block">3 bakken · 2 locaties</span></span><span class="get">40</span><span class="k">Abdijschool · De Kraal</span><span class="get">40 <small style="color:#b91c1c">/100</small></span><span><span class="pil rood">te bestellen</span></span></div><div class="r"><span><input type="checkbox" checked></span><span><b>Zout</b><span class="k" style="display:block">1 bak</span></span><span class="get">2 pak</span><span class="k">Boutersem</span><span class="get">3 <small style="color:#b91c1c">/5</small></span><span><span class="pil rood">te bestellen</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Pijpenragers</b><span class="k" style="display:block">2 bakken · 2 locaties</span></span><span class="get">35</span><span class="k">Rotselaar · Betekom</span><span class="get">1.200</span><span><span class="pil" style="background:#ede9fe;color:#6d28d9">uit voorraad</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Batterijen AA</b><span class="k" style="display:block">verbruik · 4 locaties</span></span><span class="get">24</span><span class="k">4 locaties</span><span class="get">0 <small style="color:#b91c1c">/48</small></span><span><span class="pil" style="background:#dbeafe;color:#1d4ed8">📦 besteld</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Wiebeloogjes</b><span class="k" style="display:block">1 bak</span></span><span class="get">1 zak</span><span class="k">De Waaier</span><span class="get">6</span><span><span class="pil" style="background:#ede9fe;color:#6d28d9">uit voorraad</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Kinderschaar</b><span class="k" style="display:block">2 bakken · 2 locaties</span></span><span class="get">3</span><span class="k">De Ark 3 · De Kraal</span><span class="get">0</span><span><span class="pil" style="background:#dbeafe;color:#1d4ed8">📦 besteld</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Lijmstift</b><span class="k" style="display:block">1 bak</span></span><span class="get">4</span><span class="k">Sportschuur</span><span class="get">0</span><span><span class="pil groen">binnen</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Croquetbal (rood)</b><span class="k" style="display:block">attribuut A04 · kapot</span></span><span class="get">1</span><span class="k">Betekom</span><span class="get">—</span><span><span class="pil oranje">te beslissen</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Touw</b><span class="k" style="display:block">1 bak</span></span><span class="get">1 rol</span><span class="k">Rotselaar</span><span class="get">20</span><span><span class="pil" style="background:#ede9fe;color:#6d28d9">uit voorraad</span></span></div><div class="r"><span><input type="checkbox"></span><span><b>Whiteboardstift zwart</b><span class="k" style="display:block">1 bak</span></span><span class="get">2</span><span class="k">Boutersem</span><span class="get">48</span><span><span class="pil" style="background:#ede9fe;color:#6d28d9">uit voorraad</span></span></div></div>
+<div class="voet sel"><span>10 open tekorten · <span class="n">2 geselecteerd</span></span><span class="bulk"><button class="knop licht klein">Op bestellijst</button><button class="knop licht klein">Besteld</button><button class="knop licht klein">Bestelling binnen</button><button class="knop licht klein">Negeren</button></span></div></div>
+<div class="kaart"><div class="detail">
+ <div class="dkop"><div><h2>Ballonnen</h2><span>Tekort 40 stuks in 3 bakken · Rozenweg heeft 40, minimum 100</span></div><div class="acts"><button class="knop licht">Aanvullen uit voorraad</button><button class="knop licht">Negeren</button><button class="knop">Bestellen</button></div></div>
+ <div class="dtabs"><a class="act">Tekort</a><a>Catalogus ›</a><a>Historiek 5</a></div>
+ <div class="dgrid">
+  <div class="blok vol"><h4>Stand</h4><div class="tl"><div class="ok">gemeld door KV</div><div class="ok">gekeurd</div><div class="nu">bestellen</div><div>besteld</div><div>binnen</div><div>aangevuld</div></div></div>
+  <div class="blok"><h4>Waar ontbreekt het (3)</h4>
+   <div class="rij"><span class="code">C12</span><div class="nm">Knutselbak kleuters<b>Abdijschool Vlierbeek · wk 1 · KV Evy · geteld 10 van 30</b></div><span class="getal">20</span></div>
+   <div class="rij"><span class="code">C14</span><div class="nm">Feestbak<b>Abdijschool Vlierbeek · wk 1 · KV Evy · geteld 5 van 15</b></div><span class="getal">10</span></div>
+   <div class="rij"><span class="code">K03</span><div class="nm">Boerderijbak 2/3<b>De Kraal · wk 1 · KV Seppe · "zak gescheurd"</b></div><span class="getal">10</span></div>
+  </div>
+  <div class="blok"><h4>Voorraad</h4>
+   <div class="kv"><span>Rozenweg</span><b>40 · minimum 100</b></div>
+   <div class="kv"><span>Kantoor</span><b>—</b></div>
+   <div class="kv"><span>Na aanvullen</span><b style="color:#b91c1c">0 · onder minimum</b></div>
+   <div class="kv"><span>Voorstel</span><b>bestel 100 (40 tekort + 60 tot minimum)</b></div>
+  </div>
+  <div class="blok"><h4>Bestelling</h4>
+   <div class="kv"><span>Aantal</span><b>100 stuks</b></div><div class="kv"><span>Waar kopen</span><b>Action (vrij veld)</b></div><div class="kv"><span>Leveren aan</span><b>Rozenweg</b></div>
+   <div class="stap3" style="margin-top:8px"><button class="knop klein">Besteld</button><button class="knop licht klein">Bestelling binnen</button></div>
+  </div>
+  <div class="blok"><h4>Na levering</h4><div class="kv"><span>Aanvullijst</span><b>3 handelingen (C12, C14, K03) worden afvinkbaar zodra "binnen"</b></div><div class="kv"><span>Rest</span><b>60 naar voorraad Rozenweg</b></div></div>
+ </div></div></div></div></div>
+</body></html>
