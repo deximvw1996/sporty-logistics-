@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KV-scherm — definitief</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze label{height:28px;line-height:28px;padding:0 12px;border-radius:6px;background:#333;color:#fff;cursor:pointer;user-select:none}
+.keuze span{color:#aaa;margin-left:8px}
+input[name=kz]{position:absolute;opacity:0;pointer-events:none}
+#rA:checked~.keuze label[for=rA],#rB:checked~.keuze label[for=rB],#rC:checked~.keuze label[for=rC]{background:#2563eb}
+#rA:checked~#fA,#rB:checked~#fB,#rC:checked~#fC{display:block}
+.frame{display:none;width:1920px;height:860px;margin:40px auto 0;overflow:hidden;position:relative;padding:4px 0 0}
+.uitleg{position:absolute;left:50%;top:300px;width:300px;margin-left:-690px;font-size:13px;color:#334155;line-height:1.5}.uitleg b{display:block;font-size:16px;margin-bottom:6px}
+.telefoons{display:flex;justify-content:center;gap:60px;margin-top:0}
+.phone{width:390px;height:844px;background:#fff;border-radius:28px;box-shadow:0 10px 40px rgba(0,0,0,.25);overflow:hidden;position:relative;border:3px solid #111;box-sizing:content-box}
+.phone .lbl{position:absolute;top:8px;right:-230px;width:220px;font-size:12px;color:#64748b;font-weight:700}
+.tel{height:100%;display:flex;flex-direction:column;background:#f5f5f5;font-size:15px}
+button{font:inherit;cursor:pointer;border:0}
+.knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.knop.licht{background:#e8eefc;color:#1e3a8a}.knop.klein{height:44px;padding:0 14px;font-size:14px}.knop.breed{width:100%;margin-top:8px}
+.pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.groen{background:#dcfce7;color:#15803d}.pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
+.body{flex:1;overflow-y:auto;min-height:0;padding:12px 14px 20px}
+.body::-webkit-scrollbar{width:0}
+.rij{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 0;border-top:1px solid #eef2f7}
+.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.bak{display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.bak.groen{border-left-color:#16a34a}.bak.rood{border-left-color:#dc2626}
+.bak .code{font-weight:800;width:44px}.bak .nm{flex:1;font-weight:600;font-size:14px;line-height:1.3}.bak .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.twee{display:flex;gap:8px;margin-top:8px}.twee .knop{flex:1}
+.hint{font-size:13px;color:#64748b;margin-bottom:8px}
+.it{display:flex;align-items:center;gap:10px;min-height:60px;padding:6px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.it.groen{border-left-color:#16a34a}.it.rood{border-left-color:#dc2626;background:#fff5f5}
+.it .nm{flex:1;font-weight:600;line-height:1.3}.it .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stp{display:flex;align-items:center;gap:4px}.stp button{width:44px;height:44px;border-radius:10px;background:#e8eefc;color:#1e3a8a;font-size:20px;font-weight:800}.stp span{width:36px;text-align:center;font-weight:800;font-size:18px}
+.ja{display:flex;gap:4px}.ja button{height:44px;padding:0 12px;border-radius:10px;background:#f1f5f9;color:#334155;font-weight:700;min-width:60px}.ja button.act{background:#2563eb;color:#fff}.it.rood .ja button.act{background:#dc2626}
+.it input{width:64px;height:44px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;font-weight:800;text-align:center;font-size:18px}
+.it .kapot{width:44px;height:44px;border-radius:10px;background:#fee2e2}
+.kop2{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-bottom:1px solid #e2e8f0;min-height:64px}
+.kop2 a{color:#2563eb;font-weight:700;font-size:15px;height:44px;display:flex;align-items:center}.kop2 b{display:block;font-size:16px}.kop2 span{font-size:12px;color:#64748b}
+.voet{display:flex;gap:8px;padding:10px 14px 16px;background:#fff;border-top:1px solid #e2e8f0}.voet .knop{flex:1}
+/* A */
+.kopA{background:#1e3a8a;color:#fff;padding:14px 14px 12px}.kopA .l{font-size:12px;opacity:.8}.kopA b{display:block;font-size:18px;margin-top:2px}.kopA span{font-size:13px;opacity:.9}
+.sec{background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.sec h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;justify-content:space-between}
+.sec .bak{margin:4px 0;padding:6px 8px;background:#f8fafc}
+/* B */
+.kopB{background:#fff;padding:14px 14px 10px;border-bottom:1px solid #e2e8f0}.kopB b{display:block;font-size:18px}.kopB span{font-size:13px;color:#64748b}
+.kaartB{background:#fff;border-radius:14px;padding:14px 44px 14px 14px;margin-bottom:10px;border-left:5px solid #cbd5e1;position:relative;min-height:64px}
+.kaartB.groen{border-left-color:#16a34a}.kaartB.blauw{border-left-color:#2563eb}.kaartB.oranje{border-left-color:#f59e0b}
+.kaartB .t{font-weight:800;font-size:16px}.kaartB .s{font-size:13px;color:#64748b;margin-top:3px;line-height:1.35}
+.kaartB .pijl{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:24px;color:#94a3b8}
+.tabs{display:flex;background:#fff;border-top:1px solid #e2e8f0;padding:6px 4px 14px}
+.tabs a{flex:1;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:700;color:#64748b;border-radius:10px}
+.tabs a.act{color:#1d4ed8;background:#eff6ff}
+/* C */
+.kopC{background:#fff;padding:14px;border-bottom:1px solid #e2e8f0}.kopC .l{font-size:12px;color:#64748b}.kopC b{display:block;font-size:18px}.kopC span{font-size:13px;color:#64748b}
+.stap{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;min-height:72px;border:2px solid transparent}
+.stap.nu{border-color:#2563eb;background:#f5f9ff}.stap.klaar{opacity:.75}
+.stap .n{width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.stap.nu .n{background:#2563eb;color:#fff}.stap.klaar .n{background:#16a34a;color:#fff}
+.stap .nm{flex:1;font-weight:700;line-height:1.3;font-size:15px}.stap .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stap .sub{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}.stap .sub span{font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px;background:#e2e8f0}.stap .sub span.groen{background:#dcfce7;color:#15803d}.stap .sub span.rood{background:#fee2e2;color:#b91c1c}
+.stap .knop{height:44px}
+.info{font-size:12px;color:#64748b;text-align:center;padding:6px;display:flex;flex-direction:column;gap:8px;align-items:center}
+
+#r1:checked~.keuze label[for=r1],#r2:checked~.keuze label[for=r2],#r3:checked~.keuze label[for=r3]{background:#2563eb}
+#r1:checked~#f1,#r2:checked~#f2,#r3:checked~#f3{display:block}
+.hint b{color:#1a1a1a}
+.it{display:block;padding:8px 10px}.it.blauw{border-left-color:#2563eb;background:#f5f9ff}.it.oranje{border-left-color:#ea580c;background:#fff7ed}
+.it .r1{display:flex;align-items:center;gap:8px;min-height:44px}
+.it .meer{width:44px;height:44px;border-radius:10px;background:#f1f5f9;font-size:20px;color:#334155}
+.it.open{box-shadow:0 0 0 2px #bfdbfe}
+.ex{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 0 2px;font-size:12px}
+.ex .not{color:#475569;background:#f1f5f9;border-radius:6px;padding:3px 8px}
+.thumb{width:36px;height:36px;border-radius:8px;background:#cbd5e1;display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+.uitklap{margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1;display:flex;flex-direction:column;gap:8px}
+.veld{display:flex;align-items:center;gap:8px;min-height:44px}.veld label{width:58px;font-size:12px;color:#64748b;font-weight:700}.veld i{font-size:12px;color:#64748b;font-style:normal}
+.veld input{flex:1;height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 10px;font:inherit;font-size:14px;text-align:left;font-weight:500}
+.stp.klein button{width:44px;height:44px}.stp.klein span{width:30px;font-size:16px}
+.ja button.af{background:#dc2626;color:#fff}.it.blauw .ja button.af{background:#2563eb}.it.oranje .ja button.af{background:#ea580c}
+.knop.klein.breed{width:100%}
+.kaart3 .r1 input{width:72px;height:44px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;font-weight:800;text-align:center;font-size:18px}
+.kaart3 .r2{display:flex;gap:6px;margin-top:6px}
+.kaart3 .ic{flex:1;height:44px;border-radius:10px;background:#f1f5f9;color:#334155;font-size:13px;font-weight:700}
+.kaart3 .ic.act{background:#fde68a;color:#78350f}
+
+.frame{display:block;width:1920px;height:860px;padding:4px 0 0}
+.telefoons{gap:28px}
+.phone .lbl{top:-2px;right:auto;left:0;width:390px;text-align:center;position:absolute;background:rgba(27,27,31,.85);color:#fff;border-radius:0 0 10px 10px;padding:3px 0;font-weight:700;font-size:12px;z-index:2}
+.uitleg{display:none}
+</style></head><body>
+<div class="keuze"><b>KV: kampverantwoordelijke — DEFINITIEF</b><span>B koerier-tabs + telscherm B2 (✓ klopt / anders) · vier telefoons: Overzicht · Tellen · Telscherm N09 · Aanvragen (Info staat in de brief) · 390×844</span></div>
+<div class="frame"><div class="telefoons"><div class="phone"><div class="lbl">Overzicht</div><div class="tel"><div class="kopB"><b>Abdijschool Vlierbeek · week 1</b><span>Alles op wieltjes · ma 2 – vr 6 nov · KV Lotte</span></div>
+<div class="body">
+ <div class="kaartB groen"><div class="t">Levering ✓ geleverd</div><div class="s">vrijdag 30 okt · 14:00 · Jan · 11 stuks</div></div>
+ <div class="kaartB"><div class="t">Ophaling gepland</div><div class="s">vrijdag 6 nov · 13:30 · Piet · deelophaling bij sluiting</div></div>
+ <div class="kaartB blauw klik"><div class="t">Tellen · 4/8 bakken</div><div class="s">N09: tekort springtouw, te veel hoepels, 2 pionnen kapot · 5 bakken nog te tellen</div><div class="pijl">›</div></div>
+ <div class="kaartB oranje klik"><div class="t">Aanvragen · 1 wacht op kantoor</div><div class="s">Oven kapot (foto) · 3 rollen tape komen mee met de spoedrit</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Melding chauffeur</div><div class="s">Chauffeur Jan: locatie gesloten, geen sleutel · afgehandeld</div><div class="pijl">›</div></div>
+ <div class="kaartB klik"><div class="t">Boodschappen · 3</div><div class="s">Bloem 2 kg · Eieren 30 · Melk 4 l</div><div class="pijl">›</div></div>
+</div><div class="tabs"><a class="act">🏠<span>Overzicht</span></a><a class="">🧮<span>Tellen 4/8</span></a><a class="">📩<span>Aanvragen 2</span></a><a class="">ℹ️<span>Info</span></a></div></div></div><div class="phone"><div class="lbl">Tellen</div><div class="tel"><div class="kopB"><b>Tellen · 4/8 bakken</b><span>maandag nakijken · tik een bak om te tellen</span></div>
+<div class="body"><div class="bak groen"><div class="code">N08</div><div class="nm">Themabak 1/4 (kleuter)<b>6 soorten</b></div><span class="pil groen">✓ ok</span></div><div class="bak rood"><div class="code">N09</div><div class="nm">Themabak 2/4 (lager)<b>8 soorten · ⚠ Springtouw 2 van 4</b></div><span class="pil rood">tekort</span></div><div class="bak groen"><div class="code">N10</div><div class="nm">Themabak 3/4 (spelmateriaal)<b>5 soorten</b></div><span class="pil groen">✓ ok</span></div><div class="bak "><div class="code">N11</div><div class="nm">Themabak 4/4 (knutsel)<b>9 soorten</b></div><span class="knop klein">Tellen</span></div><div class="bak "><div class="code">V03</div><div class="nm">Vaste bak EHBO<b>12 soorten</b></div><span class="knop klein">Tellen</span></div><div class="bak "><div class="code">V17</div><div class="nm">Vaste bak sport (ballen)<b>7 soorten</b></div><span class="knop klein">Tellen</span></div><div class="bak "><div class="code">A41</div><div class="nm">Oven (attribuut)<b>attribuut</b></div><span class="knop klein">Tellen</span></div><div class="bak groen"><div class="code">A12</div><div class="nm">Springkasteel groot<b>attribuut</b></div><span class="pil groen">✓ ok</span></div><button class="knop breed">Telling versturen (4/8)</button><div class="hint" style="margin-top:8px">Versturen kan ook als nog niet alles geteld is; kantoor ziet wat ontbreekt.</div></div><div class="tabs"><a class="">🏠<span>Overzicht</span></a><a class="act">🧮<span>Tellen 4/8</span></a><a class="">📩<span>Aanvragen 2</span></a><a class="">ℹ️<span>Info</span></a></div></div></div><div class="phone"><div class="lbl">Telscherm N09 (pion uitgeklapt)</div><div class="tel"><div class="kop2"><a>‹ Tellen</a><div><b>N09 · Themabak 2/4 (lager)</b><span>4 van 8 geteld · 1 tekort · 1 te veel · 1 kapot</span></div></div><div class="body"><div class="hint">Per stuk: tik <b>✓</b> als het aantal klopt. Anders het echte aantal (ook méér mag). 💥 kapot met foto, 📝 notitie.</div><div class="it rood "><div class="r1"><div class="nm">Springtouw <b>× 4</b></div><div class="ja"><button class="">✓ 4</button><button class="act af">tekort</button></div></div><div class="ex"><span class="not">📝 twee zitten in de knoop, bruikbaar</span></div></div><div class="it blauw "><div class="r1"><div class="nm">Hoepel <b>× 6</b></div><div class="ja"><button class="">✓ 6</button><button class="act af">te veel</button></div></div></div><div class="it oranje open"><div class="r1"><div class="nm">Pion <b>× 10</b></div><div class="ja"><button class="">✓ 10</button><button class="act af">kapot</button></div></div><div class="ex"><span class="pil oranje">💥 2 kapot</span><span class="thumb">📷</span><span class="not">📝 gebarsten</span></div><div class="uitklap"><div class="veld"><label>Geteld</label><div class="stp klein"><button>−</button><span>10</span><button>+</button></div><i>klopt</i></div><div class="veld"><label>Kapot</label><div class="stp klein"><button>−</button><span>2</span><button>+</button></div><button class="knop licht klein">📷</button><span class="thumb">📷</span></div><div class="veld"><label>Notitie</label><input value="gebarsten" placeholder="optioneel"></div><button class="knop klein breed">Opslaan</button></div></div><div class="it groen "><div class="r1"><div class="nm">Bal zacht <b>× 4</b></div><div class="ja"><button class="act">✓ 4</button><button class="">anders</button></div></div></div><div class="it  "><div class="r1"><div class="nm">Lintje <b>× 12</b></div><div class="ja"><button class="">✓ 12</button><button class="">anders</button></div></div></div><div class="it  "><div class="r1"><div class="nm">Fluitje <b>× 2</b></div><div class="ja"><button class="">✓ 2</button><button class="">anders</button></div></div></div><div class="it  "><div class="r1"><div class="nm">Krijt (doos) <b>× 1</b></div><div class="ja"><button class="">✓ 1</button><button class="">anders</button></div></div></div><div class="it  "><div class="r1"><div class="nm">Tape <b>× 2</b></div><div class="ja"><button class="">✓ 2</button><button class="">anders</button></div></div></div></div><div class="voet"><button class="knop licht">Rest klopt ✓</button><button class="knop">Bak klaar</button></div></div></div><div class="phone"><div class="lbl">Aanvragen</div><div class="tel"><div class="kopB"><b>Aanvragen</b><span>materiaal vragen of kapot melden · kantoor antwoordt hier</span></div>
+<div class="body">
+ <div class="twee"><button class="knop">📩 Materiaal vragen</button><button class="knop licht">💥 Kapot melden</button></div>
+ <div class="sec" style="margin-top:12px"><h3>Mijn aanvragen</h3><div class="rij"><div class="nm">3 rollen tape<b>ma 08:12 · komt mee met de spoedrit van Jan</b></div><span class="pil groen">goedgekeurd</span></div><div class="rij"><div class="nm">Oven kapot (foto)<b>ma 07:55 · wacht op kantoor</b></div><span class="pil oranje">nieuw</span></div></div>
+ <div class="sec"><h3>Meldingen chauffeur</h3><div class="rij"><div class="nm">Chauffeur Jan: locatie gesloten, geen sleutel<b>ma 08:31 · afgehandeld door kantoor</b></div></div></div>
+ <div class="sec"><h3>Nieuwe aanvraag (overlay)</h3><div class="hint">Wat heb je nodig? → tekst · aantal · foto (optioneel) · knop "Versturen". Kapot melden: stuk kiezen uit de bak of vrij typen · foto · "Versturen". Daarna toast "Verstuurd naar kantoor".</div></div>
+</div><div class="tabs"><a class="">🏠<span>Overzicht</span></a><a class="">🧮<span>Tellen 4/8</span></a><a class="act">📩<span>Aanvragen 2</span></a><a class="">ℹ️<span>Info</span></a></div></div></div></div></div>
+<div class="frame" style="height:860px;margin-top:20px"><div class="telefoons"><div class="phone"><div class="lbl">Info</div><div class="tel"><div class="kopB"><b>Info</b><span>Abdijschool Vlierbeek · week 1</span></div>
+<div class="body">
+ <div class="sec"><h3>Boodschappen (zelf kopen)</h3><div class="rij"><div class="nm">Bloem 2 kg</div></div><div class="rij"><div class="nm">Eieren 30</div></div><div class="rij"><div class="nm">Melk 4 l</div></div></div>
+ <div class="sec"><h3>Monitor-link</h3><div class="rij"><div class="nm">Alleen het telscherm, zonder aanvragen<b>sporty…/tel/7f3k…</b></div><button class="knop licht klein">Kopieer</button></div></div>
+ <div class="sec"><h3>Kantoor</h3><div class="rij"><div class="nm">Sporty logistiek<b>📞 016 00 00 00 · ma–vr 9–17</b></div><button class="knop licht klein">Bel</button></div></div>
+ <div class="sec"><h3>Locatie</h3><div class="rij"><div class="nm">Abdijschool Vlierbeek<b>Molenstraat 90, 3010 Kessel-Lo · sleutel bij de buren nr. 12</b></div></div></div>
+</div><div class="tabs"><a class="">🏠<span>Overzicht</span></a><a class="">🧮<span>Tellen 4/8</span></a><a class="">📩<span>Aanvragen 2</span></a><a class="act">ℹ️<span>Info</span></a></div></div></div></div></div>
+</body></html>
