@@ -16,12 +16,12 @@
   var SUB = {
     planning: [['Kampmomenten', '/kampmomenten'], ['Rooster', '/#kampplanner'], ['Periodes', '/#periodes'], ['Thema’s per week', '/#themas']],
     transport: [['Ritten', '/#transport'], ['Ritplanning', '/ritplanning'], ['Taken', '/taken'], ['Voertuigen', '/#voertuigen']],
-    materiaal: [['Thema’s', '/#themas'], ['Bakken', '/bakken'], ['Pool', '/#pool'], ['Catalogus', '/#catalogus']],
+    materiaal: [['Thema’s', '/themas'], ['Bakken', '/bakken'], ['Pool', '/pool'], ['Catalogus', '/catalogus']],
     voorraad: [['Nakijken', '/nakijken'], ['Tekorten', '/#tekorten'], ['Bestellingen', '/#tekorten'], ['Voorraad', '/#voorraad']],
     beheer: [['Personeel', '/personeel'], ['Logboek', '/logboek'], ['Export & back-up', '/#beheer'], ['Instellingen', '/#beheer']]
   };
   // Welke pagina hoort bij welk onderdeel (en welke subknop).
-  var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/bakken': 'materiaal', '/nakijken': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer' };
+  var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer' };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   function boven(actief) {

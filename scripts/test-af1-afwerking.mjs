@@ -64,7 +64,7 @@ try {
   let th = NK.telTabel(det);
   const knop = new RegExp(`data-act="binnen" data-a="${spr.regel_id}">Bestelling binnen<`);
   T.check(knop.test(th) && /min-height:36px/.test(th), 'telTabel: knop "Bestelling binnen" bij status besteld (≥ 36 px)');
-  const datum = new Date().toISOString().slice(0, 10);
+  const nu = new Date(), datum = `${nu.getFullYear()}-${String(nu.getMonth() + 1).padStart(2, '0')}-${String(nu.getDate()).padStart(2, '0')}`; // lokale datum, zoals de server
   let h1 = null;
   const zoek = (j) => { h1 = null; for (const g of j.bakken || []) for (const x of g.handelingen) if (x.regel_id === spr.regel_id) h1 = x; };
   r = await A('GET', `/api/aanvullijst?datum=${datum}`); zoek(r.json);

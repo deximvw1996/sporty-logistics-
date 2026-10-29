@@ -14,7 +14,7 @@ try {
   T.check(NAV.BOVEN.map((o) => o.href).join() === HREFS.join() && NAV.BOVEN.map((o) => o.naam).join() === NAMEN.join(), 'mapping bovenbalk: Vandaag /vandaag · Planning /kampmomenten · Transport /ritplanning · Materiaal /bakken · Locaties /#locaties · Voorraad & controles /nakijken · Beheer /personeel');
   const SUBS = {
     planning: ['/kampmomenten', '/#kampplanner', '/#periodes', '/#themas'], transport: ['/#transport', '/ritplanning', '/taken', '/#voertuigen'],
-    materiaal: ['/#themas', '/bakken', '/#pool', '/#catalogus'], voorraad: ['/nakijken', '/#tekorten', '/#tekorten', '/#voorraad'], beheer: ['/personeel', '/logboek', '/#beheer', '/#beheer']
+    materiaal: ['/themas', '/bakken', '/pool', '/catalogus'] /* MA2 */, voorraad: ['/nakijken', '/#tekorten', '/#tekorten', '/#voorraad'], beheer: ['/personeel', '/logboek', '/#beheer', '/#beheer']
   };
   T.check(Object.entries(SUBS).every(([k, v]) => NAV.SUB[k].map((s) => s[1]).join() === v.join()), 'mapping subbalken (planning, transport, materiaal, voorraad, beheer) exact volgens de prompt');
   const PAGINAS = { '/vandaag': ['vandaag', 'vandaag.js'], '/kampmomenten': ['planning', 'kampmomenten.js'], '/ritplanning': ['transport', 'ritplanning.js'], '/taken': ['transport', 'taken.js'], '/bakken': ['materiaal', 'bakken.js'], '/nakijken': ['voorraad', 'nakijken.js'], '/personeel': ['beheer', 'personeel.js'], '/logboek': ['beheer', 'logboek.js'] };

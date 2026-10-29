@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Catalogus — Sporty logistiek</title>
+<link rel="stylesheet" href="/public/patroon.css">
+<link rel="stylesheet" href="/public/catalogus.css">
+</head><body>
+<div class="frame"><div class="top"><div class="logo">Sporty logistiek</div><div class="rechts"><span class="per">Periode: <b id="per-naam">…</b> ▾<select id="per-kies" aria-label="Periode kiezen"></select></span><span id="wie"></span></div></div><div class="sub"><span class="r"><button class="knop licht klein" id="export">⬇ Export</button><button class="knop klein" id="nieuw">+ Nieuw artikel</button></span></div><div class="body" id="body"><div class="kaart lijst lijstkaart"><div class="filters"><input id="zoek" placeholder="🔍 Zoek artikel…"><span class="chip act" data-f="alle">Alle <b>0</b></span><span class="chip" data-f="materiaal">Materiaal <b>0</b></span><span class="chip" data-f="sport">Sport <b>0</b></span><span class="chip" data-f="onder_min">⚠ Onder minimum <b>0</b></span><span class="chip" data-f="dubbel">Dubbel? <b>0</b></span><span class="chip" data-f="ongebruikt">Niet gebruikt <b>0</b></span></div><div class="kopr"><span><input type="checkbox" id="alles" aria-label="Alles selecteren"></span><span>Artikel ▾</span><span>Eenheid</span><span>In bakken</span><span style="text-align:right">Rozenweg</span><span style="text-align:right">Kantoor</span><span></span></div><div class="scroll" id="lijst"></div><div class="voet" id="voet"><span><span id="n-tot">0</span> · <span class="n" id="n-sel">0 geselecteerd</span></span><span class="bulk"><button class="knop licht klein" id="b-samen">Samenvoegen</button><button class="knop licht klein" id="b-cat">Categorie wijzigen</button><button class="knop licht klein" id="b-weg">Verwijderen</button></span></div></div><div class="kaart detailkaart"><div class="detail" id="detail"><div class="leegd">Klik een artikel in de lijst voor het detail.</div></div></div></div></div>
+<div id="toasts"></div>
+<script src="/public/nav.js"></script>
+<script src="/public/catalogus.js"></script>
+</body></html>
