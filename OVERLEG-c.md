@@ -1358,11 +1358,11 @@ Een meegegeven aantal blijft gelden. Bewijs: tekort → 3 en kapot → 1 (was 0)
 
 ## RP2 — Ritplanning interactief (chat C, Opus) · 2026-10-29
 
-**Commits op `bouw-c`** (na een rebase op origin/main 68515d7):
-- a01f58b: punt 1, API
-- d822dcf: punt 3, spoed
-- 2e34a61: punt 2 + 4, agenda en gsm, plus de test
-- een commit met fixes uit de browsercontrole
+**Commits op `bouw-c`** (na een rebase op origin/main 91f2bb3):
+- ad228e3: punt 1, API
+- d34df50: punt 3, spoed
+- 38bc4d2: punt 2 + 4, agenda en gsm, plus de test
+- 295b864: fixes uit de browsercontrole
 - dit verslag
 
 ### Per gebaar: route, body, log-tekst
