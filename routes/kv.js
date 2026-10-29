@@ -2,6 +2,7 @@
 // Kopjes: KV-scherm API (/api/kv/:token/*), S3.5 KV-SCHERM pagina (/kv/:token)
 'use strict';
 module.exports = function(ctx){
+  const {zonderHaakjes}=require('../lib/tijd');
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
 
   // KV1: toegang via kv_token (volledig) of monitor_token (enkel tellen). Resultaat {km,monitor} of null.
@@ -58,7 +59,7 @@ module.exports = function(ctx){
         const r=regels.find(r=>r.item_id===it.id);
         const aang=(r&&r.aangetroffen!=null)?r.aangetroffen:null;
         const kap=r?(r.kapot_aantal||0):0;
-        return {id:it.id, naam:it.naam, gewenst:it.qty, aangetroffen:aang,
+        return {id:it.id, naam:zonderHaakjes(it.naam), gewenst:it.qty, aangetroffen:aang,
           te_veel:aang!=null&&aang>it.qty?aang-it.qty:0, kapot_aantal:kap, notitie:(r&&r.notitie)||'',
           foto_url:(r&&r.foto_path)?'/uploads/'+r.foto_path:null, status:_itemStatus(it.qty,r&&aang!=null?{aangetroffen:aang,kapot_aantal:kap}:null)};
       });
@@ -66,14 +67,16 @@ module.exports = function(ctx){
       const st=itemsOut.map(i=>i.status);
       const afw=st.includes('tekort')?'tekort':st.includes('kapot')?'kapot':st.includes('te_veel')?'te_veel':null;
       const status=afw||(itemsOut.length&&geteld===itemsOut.length?'ok':'nog_niet');
-      return {id:b.id, soort:b.soort, code:b.code, naam:b.naam, ingediend:sessie?sessie.kv_status==='ingediend':false,
+      const th=b.soort==='thema'?get('SELECT t.name FROM thema_bak tb JOIN themas t ON t.id=tb.thema_id WHERE tb.bak_id=? ORDER BY t.id LIMIT 1',[b.id]):null;
+      const bn=zonderHaakjes(b.naam);
+      return {id:b.id, soort:b.soort, code:b.code, naam:th&&/^Themabak/i.test(bn)?th.name+' · '+bn:bn, ingediend:sessie?sessie.kv_status==='ingediend':false,
         status, geteld, aantal:itemsOut.length, items:itemsOut};
     });
     const attrSessies=sessies.filter(s=>s.bak_type==='attribuut');
     const attributenOut=attributen.map(a=>{
       const s=attrSessies.find(s=>s.attribuut_id===a.id);
       const st=s?(s.notities||null):null;
-      return {id:a.id, code:a.code, naam:a.naam, status:st, uitslag:st==='aanwezig'?'ok':st==='beschadigd'?'kapot':'nog_niet'};
+      return {id:a.id, code:a.code, naam:zonderHaakjes(a.naam), status:st, uitslag:st==='aanwezig'?'ok':st==='beschadigd'?'kapot':'nog_niet'};
     });
     // Datums van de kampweek (ma–vr) uit de periode.
     let dagen=null;

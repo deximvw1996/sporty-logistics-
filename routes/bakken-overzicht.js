@@ -61,7 +61,7 @@ module.exports = function(ctx){
     const w=waarNu(b,soort,L);
     let inhoud='1';
     if(soort==='pool')inhoud=`${b.aantal||0} stuks`;
-    else if(soort!=='attribuut'){const n=get(`SELECT COUNT(*) AS s,COALESCE(SUM(qty),0) AS q FROM ${itemTabel(soort)} WHERE bak_id=?`,[b.id]);inhoud=n.s?`${n.s} soorten · ${n.q} stuks`:'leeg';}
+    else if(soort!=='attribuut'){const n=get(`SELECT COUNT(*) AS s,COALESCE(SUM(qty),0) AS q FROM ${itemTabel(soort)} WHERE bak_id=?`,[b.id]);inhoud=n.s?`${n.s} ${n.s===1?'soort':'soorten'} · ${n.q} ${n.q===1?'stuk':'stuks'}`:'leeg';}
     const ls=laatsteSessie(soort==='pool'?'vast':soort,b.id), st=stand(ls.s,ls.regels);
     return {id:b.id,soort,code:b.code||'',naam:b.naam||'',thema:th,waar_nu_tekst:w.tekst,waar_nu:{locatie_id:w.locatie_id,rit_id:w.rit_id},
       inhoud_tekst:inhoud,stand_tekst:st.tekst,status:st.status,incompleet:st.incompleet,rek:b.rek||'',plank:b.plank||'',thuis_locatie_id:b.thuislocatie_id||null};

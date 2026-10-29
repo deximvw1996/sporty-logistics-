@@ -2,6 +2,7 @@
 // Kopjes: TRANSPORT, TRANSPORT RITTEN, VOERTUIGTYPES, VERHUIS CHECKS, chauffeurspagina vink-fases, TERUGKOMST, SPOEDTRANSPORT, CHAUFFEUR-VIEW, VOERTUIGBEZETTING, RETOUR STATUS
 'use strict';
 module.exports = function(ctx){
+  const {zonderHaakjes}=require('../lib/tijd');
   const {app,db,get,all,run,ins,saveDb,backupDb,now,isoDate,_genToken,resolveItemTypeId,logAct,logWijziging,insMetLog,updateMetLog,delMetLog,vereisRol,alleenKantoor,hashPin,checkSessie,_actieveLocatieConfig,_kvVerwacht,_kvKampmoment,_kvNaam,_bakItems,effectiefMateriaal,ensureGedeeldStock,DATA_DIR,DB_PATH,UPLOADS_DIR,BUNDELS_DIR,FRONTEND_PATH,ROOT_DIR,APP_PASSWORD,PORT,path,fs,express,crypto} = ctx;
   const bulk=require('../lib/bulk')(ctx); // V3a punt 1
   // ── TRANSPORT ──
@@ -912,7 +913,7 @@ module.exports = function(ctx){
   // Waarschuwingen zijn uitleg, nooit een verbod (KERNREGEL).
   function _ritWaarschuwingen(rit,x){
     const w=[];
-    if(rit.voertuig_capaciteit&&x.bezetting>rit.voertuig_capaciteit)w.push(`${x.bezetting} bakken op ${rit.voertuig_capaciteit} plaatsen`);
+    if(rit.voertuig_capaciteit&&x.bezetting>rit.voertuig_capaciteit)w.push(`${x.bezetting} stuks op ${rit.voertuig_capaciteit} plaatsen`);
     const naam=rit.chauffeur||'';
     if(rit.personeel_id||naam){
       const a0=_min(x.vertrek),a1=_min(x.einde);
@@ -1248,7 +1249,9 @@ module.exports = function(ctx){
         const code=(b&&b.code)||(a&&a.code)||'';
         const isBulk=!!(b&&b.is_bulk);
         if(!(c.niet_mee_reden&&!c.rest_gesplitst)){stuks++;if(c.geladen)geladen++;if(c.gelost)gelost++;}
-        return {check_id:c.id, code, naam:c.item_naam||'', qty:c.qty||1, soort:c.item_soort||'',
+        const th=b&&c.item_soort==='thema'?get('SELECT t.name FROM thema_bak tb JOIN themas t ON t.id=tb.thema_id WHERE tb.bak_id=? ORDER BY t.id LIMIT 1',[b.id]):null;
+        const schoon=zonderHaakjes(c.item_naam||''), kaal=schoon.replace(/^Bak\s+/i,'');
+        return {check_id:c.id, code, naam:th&&/^Themabak/i.test(kaal)?th.name+' · '+kaal:schoon, qty:c.qty||1, soort:c.item_soort||'',
           rek:_rekVanCode(code,c.item_naam),
           foto_url:b?_fotoUrlBak(b):(a&&a.foto_path?'/uploads/'+a.foto_path:null),
           bak_id:c.bak_id||null, attribuut_id:c.attribuut_id||null, is_bulk:isBulk,

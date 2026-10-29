@@ -104,7 +104,7 @@ module.exports = function(ctx){
     all(`SELECT * FROM transport_taken WHERE (rit_id IS NULL OR rit_id=0) AND status='gepland'
       AND ((datum>=? AND datum<=?) OR ((datum IS NULL OR datum='') AND week=?)) ORDER BY datum,tijd,id`,[weekStart,weekEind,week??-1]).forEach(t=>{
       const n=get('SELECT COALESCE(SUM(qty),0) AS q,COUNT(*) AS c FROM transport_regels WHERE taak_id=?',[t.id]);
-      const stuks=n.c?`${n.q} stuks`:'';
+      const stuks=n.c?`${n.q} ${n.q===1?'stuk':'stuks'}`:'';
       const rest=/^Rest van rit/.test(t.opmerking||'');
       const weekend=t.datum&&isWeekend(t.datum);
       let ico=t.aanvraag_id?'📩':t.type==='levering'?'📦':t.type==='ophaling'?'↩':'🔁';

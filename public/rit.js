@@ -121,7 +121,7 @@
     var groepen = rekGroepen(s.regels).map(function (g) {
       var mee = g.regels.filter(function (x) { return !isNietMee(x); });
       var tot = mee.reduce(function (a, x) { return a + (x.qty || 1); }, 0), gel = mee.reduce(function (a, x) { return a + eenheden(x); }, 0);
-      return '<div class="rek"><span>' + esc(g.naam) + '</span><span>' + gel + ' van ' + tot + ' geladen</span></div>' + g.regels.map(stukHtml).join('');
+      return (tot > 0 ? '<div class="rek"><span>' + esc(g.naam) + '</span><span>' + gel + ' van ' + tot + ' geladen</span></div>' : '') + g.regels.map(stukHtml).join('');
     }).join('');
     var volgende = data.stops[idx + 1];
     var prim = volgende ? '<button type="button" class="prim" data-act="stop" data-a="' + volgende.taak_id + '">Stop ' + (idx + 2) + ' →</button>'

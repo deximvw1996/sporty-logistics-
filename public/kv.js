@@ -62,12 +62,12 @@
     var ts = telStand(data);
     var afw = (data.bakken || []).filter(function (b) { return afwijkingTekst(b); }).slice(0, 2).map(function (b) { return (b.code || b.naam) + ': ' + afwijkingTekst(b); });
     var nog = ts.totaal - ts.klaar;
-    var tellenS = afw.concat(nog ? [nog + (nog === 1 ? ' bak' : ' bakken') + ' nog te tellen'] : []).join(' · ') || 'Alles geteld';
+    var tellenS = afw.concat(nog ? [nog + ' ' + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? (nog === 1 ? 'stuk' : 'stuks') : (nog === 1 ? 'bak' : 'bakken')) + ' nog te tellen'] : []).join(' · ') || 'Alles geteld';
     var av = data.aanvragen || [], nieuw = av.filter(function (a) { return a.status === 'nieuw'; }).length;
     var avS = av.slice(0, 2).map(function (a) { return esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + (a.antwoord ? ' — ' + esc(a.antwoord) : ''); }).join(' · ') || 'Nog geen aanvragen';
     var mc = data.meldingen_chauffeur || [], bs = data.boodschappen || [];
     var kaarten = leveringKaart('Levering', data.levering) + leveringKaart('Ophaling', data.ophaling)
-      + '<button type="button" class="kaartB blauw" data-act="tab" data-a="tellen"><div class="t">Tellen · ' + ts.klaar + '/' + ts.totaal + ' bakken</div><div class="s">' + esc(tellenS) + '</div><div class="pijl">›</div></button>'
+      + '<button type="button" class="kaartB blauw" data-act="tab" data-a="tellen"><div class="t">Tellen · ' + ts.klaar + '/' + ts.totaal + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? ' stuks' : ' bakken') + '</div><div class="s">' + esc(tellenS) + '</div><div class="pijl">›</div></button>'
       + '<button type="button" class="kaartB' + (nieuw ? ' oranje' : '') + '" data-act="tab" data-a="aanvragen"><div class="t">Aanvragen' + (nieuw ? ' · ' + nieuw + ' wacht op kantoor' : '') + '</div><div class="s">' + avS + '</div><div class="pijl">›</div></button>'
       + (mc.length ? '<button type="button" class="kaartB" data-act="tab" data-a="aanvragen"><div class="t">Melding chauffeur</div><div class="s">' + esc(mc[0].tekst) + (mc[0].status === 'afgehandeld' ? ' · afgehandeld' : '') + '</div><div class="pijl">›</div></button>' : '')
       + (bs.length ? '<button type="button" class="kaartB" data-act="tab" data-a="info"><div class="t">Boodschappen · ' + bs.length + '</div><div class="s">' + bs.slice(0, 3).map(function (b) { return esc(b.naam) + (b.qty > 1 ? ' ' + b.qty : ''); }).join(' · ') + '</div><div class="pijl">›</div></button>' : '');
@@ -83,13 +83,13 @@
       var sub;
       if (r.type === 'bak') {
         var b = r.ref, eerste = b.items.filter(function (i) { return i.status === 'tekort'; })[0];
-        sub = b.aantal + ' soorten' + (eerste ? ' · ⚠ ' + esc(eerste.naam) + ' ' + eerste.aangetroffen + ' van ' + eerste.gewenst : (b.geteld > 0 && !r.klaar ? ' · ' + b.geteld + ' geteld' : ''));
+        sub = b.aantal + (b.aantal === 1 ? ' soort' : ' soorten') + (eerste ? ' · ⚠ ' + esc(eerste.naam) + ' ' + eerste.aangetroffen + ' van ' + eerste.gewenst : (b.geteld > 0 && !r.klaar ? ' · ' + b.geteld + ' geteld' : ''));
       } else sub = 'attribuut';
       var rechts = r.status !== 'nog_niet' && PIL[r.status] ? '<span class="pil ' + PIL[r.status][0] + '">' + PIL[r.status][1] + '</span>' : '<span class="knop klein">Tellen</span>';
       return '<div class="bak ' + kl + '" role="button" tabindex="0" data-act="' + (r.type === 'bak' ? 'bak' : 'attr') + '" data-a="' + r.id + '"><div class="code">' + esc(r.code || '—') + '</div><div class="nm">' + esc(r.naam) + '<b>' + sub + '</b></div>' + rechts + '</div>';
     }).join('') || '<div class="leeg">Nog geen bakken gekoppeld aan dit kampmoment.</div>';
     var versturen = monitor ? '' : '<button type="button" class="knop breed" data-act="versturen">Telling versturen (' + ts.klaar + '/' + ts.totaal + ')</button><div class="hint" style="margin-top:8px">Versturen kan ook als nog niet alles geteld is; kantoor ziet wat ontbreekt.</div>';
-    return kopOverzicht(data, 'Tellen · ' + ts.klaar + '/' + ts.totaal + ' bakken', 'maandag nakijken · tik een bak om te tellen')
+    return kopOverzicht(data, 'Tellen · ' + ts.klaar + '/' + ts.totaal + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? ' stuks' : ' bakken'), 'maandag nakijken · tik een bak om te tellen')
       + '<div class="body">' + lijst + versturen + '</div>' + tabsHtml(data, 'tellen', monitor);
   }
 
@@ -162,7 +162,7 @@
   function sheetHtml(data, sh) {
     var kapot = sh.soort === 'kapot';
     var stukken = [];
-    (data.bakken || []).forEach(function (b) { b.items.forEach(function (i) { stukken.push((b.code ? b.code + ' · ' : '') + i.naam); }); });
+    (data.bakken || []).forEach(function (b) { b.items.forEach(function (i) { stukken.push(i.naam + ' · ' + (b.code || '(geen code)')); }); });
     return '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (kapot ? 'Kapot melden' : 'Materiaal vragen') + '</h3>'
       + '<p>' + (kapot ? 'Kies het stuk uit een bak of typ het zelf. Kantoor ziet het meteen.' : 'Wat heb je nodig? Kantoor ziet je aanvraag meteen.') + '</p>'
       + (kapot && stukken.length ? '<select data-f="stuk" aria-label="Stuk uit een bak"><option value="">— zelf typen —</option>' + stukken.map(function (s) { return '<option value="' + esc(s) + '"' + (sh.stuk === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select>' : '')
