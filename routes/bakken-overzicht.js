@@ -18,7 +18,7 @@ module.exports = function(ctx){
   const locs=()=>new Map(all('SELECT id,name,type FROM locaties').map(l=>[l.id,l]));
   // Thema-bakken bewaren hun stukken in bak_items, vaste bakken (en pool) in vaste_bak_items.
   const itemTabel=soort=>soort==='thema'?'bak_items':'vaste_bak_items';
-  const plaatsTekst=b=>[b.rek?'rek '+b.rek:'',b.plank?'plank '+b.plank:''].filter(Boolean).join(' · ');
+  const plaatsTekst=b=>[b.rek?'rek '+b.rek:'',b.plank?'plank '+b.plank:''].filter(Boolean).join(' ');
 
   // Stand uit de laatste telling van deze bak.
   function stand(sessie,regels){
@@ -72,8 +72,8 @@ module.exports = function(ctx){
     all('SELECT tb.bak_id,t.id,t.name FROM thema_bak tb JOIN themas t ON t.id=tb.thema_id ORDER BY t.name').forEach(r=>{if(!tb.has(r.bak_id))tb.set(r.bak_id,{id:r.id,naam:r.name});});
     all('SELECT ta.attribuut_id,t.id,t.name FROM thema_attribuut ta JOIN themas t ON t.id=ta.thema_id ORDER BY t.name').forEach(r=>{if(!ta.has(r.attribuut_id))ta.set(r.attribuut_id,{id:r.id,naam:r.name});});
     const bakken=[
-      ...all('SELECT * FROM bakken ORDER BY soort,code,naam').map(b=>rij(b,b.soort==='thema'?'thema':b.is_bulk?'pool':'vast',L,tb)),
-      ...all('SELECT * FROM attributen ORDER BY code,naam').map(a=>rij(a,'attribuut',L,ta))];
+      ...all('SELECT * FROM bakken ORDER BY soort,(COALESCE(LENGTH(code),0)=0),code,naam').map(b=>rij(b,b.soort==='thema'?'thema':b.is_bulk?'pool':'vast',L,tb)),
+      ...all('SELECT * FROM attributen ORDER BY (COALESCE(LENGTH(code),0)=0),code,naam').map(a=>rij(a,'attribuut',L,ta))];
     const per_stockage={};
     bakken.forEach(b=>{const l=L.get(b.waar_nu.locatie_id);if(l&&l.type==='stockage')per_stockage[l.name]=(per_stockage[l.name]||0)+1;});
     return {tellers:{alle:bakken.length,thema:bakken.filter(b=>b.soort==='thema').length,vast:bakken.filter(b=>b.soort==='vast'||b.soort==='pool').length,
@@ -129,7 +129,7 @@ module.exports = function(ctx){
     const veldTekst=(o,n)=>{try{o=JSON.parse(o||'{}');n=JSON.parse(n||'{}');}catch(e){return '';}
       return Object.keys(n).filter(k=>String(o[k]??'')!==String(n[k]??'')).map(k=>`${k}: ${o[k]||'—'} → ${n[k]||'—'}`).join(', ');};
     all(`SELECT * FROM wijzigingen WHERE (tabel=? AND rij_id=?)${itemIds.length?` OR (tabel='${itemTabel(soort)}' AND rij_id IN (${itemIds.map(()=>'?').join(',')}))`:''} ORDER BY id DESC LIMIT 100`,
-      [isAttr?'attributen':'bakken',b.id,...itemIds]).forEach(w=>hist.push({t:tijdTekst(w.tijdstip),wie:w.persoon_naam||'',
+      [isAttr?'attributen':'bakken',b.id,...itemIds]).filter(w=>w.actie!=='update'||veldTekst(w.oud,w.nieuw)).forEach(w=>hist.push({t:tijdTekst(w.tijdstip),wie:w.persoon_naam||'',
         wat:(/items$/.test(w.tabel)?'inhoud: ':'')+(w.actie==='insert'?'aangemaakt':w.actie==='delete'?'verwijderd':(veldTekst(w.oud,w.nieuw)||'gewijzigd'))+(w.context?` (${w.context})`:''),wijziging_id:w.id}));
     if(b.code)all("SELECT * FROM activiteiten_log WHERE beschrijving LIKE ? ORDER BY id DESC LIMIT 50",[`%(${b.code})%`]).forEach(a=>hist.push({t:tijdTekst(a.tijdstip),wie:'',wat:a.beschrijving,wijziging_id:null}));
     res.json({bak:{...basis,thuis_tekst:waar.thuis_tekst,notitie:b.notitie||''},inhoud,fotos,waar,waar_geweest,tellingen,historiek:hist});
