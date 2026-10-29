@@ -4,7 +4,7 @@
 // (geen tweede kopie van die logica).
 'use strict';
 module.exports = function(ctx){
-  const {app,get,all,run,alleenKantoor,path,ROOT_DIR} = ctx;
+  const {app,get,all,run,alleenKantoor,path,ROOT_DIR,_kvVerwacht,_bakItems} = ctx;
   // Lokale datum (niet UTC): kort na middernacht mag 'vandaag' niet nog gisteren zijn.
   const isoDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
@@ -143,8 +143,8 @@ module.exports = function(ctx){
     sessies.forEach(s=>(s.tekorten||[]).forEach(r=>{nOpen++;if(r.tekort_status==='besteld')nBesteld++;}));
     if(nOpen)nakijken.push({id:'tekorten',ico:'🧮',kleur:'blauw',titel:`${nOpen} tekort${nOpen===1?'':'en'} open uit vrijdagcontroles · ${nBesteld} besteld`,sub:'voorraad',acties:[link('Open','materiaal?tekorten',false)]});
 
-    // ── Ritten vandaag ──
-    const ritten_vandaag=all(`SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id`,[datum]).map(r=>{
+    // ── Ritten vandaag (en morgen: kantoor ziet op donderdag de leveringen van vrijdag) ──
+    const rittenVan=(dag,enkelPersoon)=>all(`SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id`,[dag]).filter(r=>!enkelPersoon||(r.personeel_id&&String(r.personeel_id)===String(enkelPersoon))).map(r=>{
       const taken=all(`SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id`,[r.id]);
       const gedaan=taken.filter(t=>t.status==='gedaan').length;
       return {id:r.id,tijd:taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',chauffeur:r.chauffeur||_persNaam(r.personeel_id)||'',voertuig:r.voertuig||'',
@@ -152,6 +152,32 @@ module.exports = function(ctx){
         stop_huidig:taken.length?Math.min(gedaan+1,taken.length):0,stops_totaal:taken.length,
         stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast'}))};
     }).sort((a,b)=>(a.tijd||'99').localeCompare(b.tijd||'99'));
+    const ritten_vandaag=rittenVan(datum),ritten_morgen=rittenVan(plus(datum,1));
+
+    // ── Nakijken: de telling van de KV's (VC1) staat ook op Vandaag ──
+    if(pid){
+      const teKeuren=get(`SELECT COUNT(*) AS n FROM nakijk_sessies ns JOIN kampmomenten km ON km.id=ns.kampmoment_id WHERE ns.kv_status='ingediend'
+        AND COALESCE(ns.kantoor_status,'') NOT IN ('nagekeken','verwerkt') AND COALESCE(ns.kantoor_afgerond_op,'')='' AND km.periode_id=?`,[pid]).n;
+      if(teKeuren)nakijken.unshift({id:'tellingen-te-keuren',ico:'🧮',kleur:'blauw',titel:`${teKeuren} telling${teKeuren===1?'':'en'} te keuren`,sub:'ingediend door de KV, nog niet nagekeken',acties:[{label:'Open',primair:true,soort:'link',url:'/nakijken'}]});
+      // Bakken van de afgelopen kampweek die niemand telde (ook bakken zonder sessie).
+      const weken=all('SELECT DISTINCT week FROM kampmomenten WHERE periode_id=? AND week IS NOT NULL ORDER BY week',[pid]).map(r=>r.week)
+        .filter(w=>plus(periode.start_datum,(w-1)*7+6)<datum);
+      const vorige=weken.length?weken[weken.length-1]:null;
+      if(vorige){
+        let nietGeteld=0;
+        all('SELECT * FROM kampmomenten WHERE periode_id=? AND week=?',[pid,vorige]).forEach(km=>{
+          const v=_kvVerwacht(km);
+          v.bakken.forEach(b=>{
+            const veld=b.soort==='thema'?'thema_bak_id':'vaste_bak_id';
+            const s=get(`SELECT id FROM nakijk_sessies WHERE bak_type=? AND ${veld}=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend') ORDER BY id DESC`,[b.soort,b.id,km.id]);
+            const geteld=s?get('SELECT COUNT(*) AS n FROM nakijk_regels WHERE sessie_id=? AND aangetroffen IS NOT NULL',[s.id]).n:0;
+            if(!geteld)nietGeteld++;
+          });
+          v.attributen.forEach(a=>{const s=get("SELECT id,notities FROM nakijk_sessies WHERE bak_type='attribuut' AND attribuut_id=? AND kampmoment_id=? ORDER BY id DESC",[a.id,km.id]);if(!s||!s.notities)nietGeteld++;});
+        });
+        if(nietGeteld)nakijken.unshift({id:'bakken-niet-geteld',ico:'📋',kleur:'blauw',titel:`${nietGeteld} bak${nietGeteld===1?'':'ken'} niet geteld van kampweek ${vorige}`,sub:'herinnering naar de KV sturen kan in Nakijken',acties:[{label:'Open',primair:false,soort:'link',url:'/nakijken'}]});
+      }
+    }
 
     // ── Deze week: open kampmomenten ──
     const deze_week=kmsWeek.map(km=>{
@@ -173,12 +199,25 @@ module.exports = function(ctx){
       periode:periode?{id:periode.id,naam:periode.naam}:null,
       gebruiker:{naam:req.persoon?.naam||''},
       datum,datum_tekst:datumLang(datum),week,
-      beslissen,inplannen,nakijken,ritten_vandaag,deze_week,
+      beslissen,inplannen,nakijken,ritten_vandaag,ritten_morgen,deze_week,
       cijfers:{ritten_onderweg:ritten_vandaag.filter(r=>r.status==='onderweg').length,locaties_open:deze_week.length}
     };
   }
 
-  app.get('/api/vandaag',alleenKantoor,(req,res)=>res.json(vandaagData(req)));
+  // GF1: een coördinator (of chauffeur) ziet met ?mijn=1 enkel zijn eigen ritten en aanvul-handelingen; zonder mijn=1 blijft Vandaag kantoor.
+  app.get('/api/vandaag',(req,res,next)=>{
+    if(req.query.mijn==='1'&&req.persoon&&req.persoon.rol!=='kv'){
+      const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoDate(new Date());
+      const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' AND personeel_id=? ORDER BY id",[dag,req.persoon.persoon_id]).map(r=>{
+        const taken=all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[r.id]);
+        return {id:r.id,tijd:taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',voertuig:r.voertuig||'',status:r.status,stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast'})),token:r.rit_token||''};
+      });
+      const lijst=_roep('/api/aanvullijst',{datum},req);
+      return res.json({mijn:true,gebruiker:{naam:req.persoon.naam,rol:req.persoon.rol},datum,datum_tekst:datumLang(datum),
+        ritten_vandaag:rit(datum),ritten_morgen:rit(plus(datum,1)),aanvullen:{open:lijst&&lijst.tellers?lijst.tellers.totaal:0,bakken:lijst&&lijst.tellers?lijst.tellers.bakken:0}});
+    }
+    return alleenKantoor(req,res,()=>res.json(vandaagData(req)));
+  });
 
   // ── Voorkeuren per ingelogde gebruiker (JSON in personeel.voorkeuren) ──
   const _leesVk=id=>{try{return JSON.parse((get('SELECT voorkeuren FROM personeel WHERE id=?',[id])||{}).voorkeuren||'{}')||{};}catch(e){return {};}};
