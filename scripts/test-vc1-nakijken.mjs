@@ -126,7 +126,7 @@ try {
 
   // ── 7. pagina's ──
   const pg = await (await fetch(`${srv.base}/nakijken`, { headers: { Authorization: BASIC } })).text();
-  T.check(/Nakijken/.test(pg) && /class="sub"/.test(pg) && /Printlijst/.test(pg) && /id="lijst"/.test(pg) && /id="detail"/.test(pg) && /Tekorten/.test(pg) && /Bestellingen/.test(pg), '/nakijken → 200 met bovenbalk, subbalk (Nakijken · Tekorten · Bestellingen · Voorraad · Export · Printlijst) en lijst/detail (chips en voet bouwt nakijken.js: zie lijst-test hierboven)');
+  T.check(/Nakijken/.test(pg) && /class="sub"/.test(pg) && /Printlijst/.test(pg) && /id="lijst"/.test(pg) && /id="detail"/.test(pg) && /nav\.js/.test(pg), '/nakijken → 200 met bovenbalk, subbalk (Nakijken · Tekorten · Bestellingen · Voorraad · Export · Printlijst) en lijst/detail (chips en voet bouwt nakijken.js: zie lijst-test hierboven)');
   const pr = await (await fetch(`${srv.base}/aanvullijst-print`, { headers: { Authorization: BASIC } })).text();
   T.check(/<table/.test(pr) && /@media print/.test(pr) && /Aanvullijst Rozenweg/.test(pr), '/aanvullijst-print → 200 met tabel en @media print');
   const NK = require(T.ROOT + '/public/nakijken.js');

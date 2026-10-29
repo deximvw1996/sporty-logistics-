@@ -84,7 +84,7 @@ try {
   // ── pagina's ──
   const html = await (await fetch(srv.base + '/taken', { headers: { authorization: BASIC } })).text();
   const chips = (html.match(/class="chip[ "]/g) || []).length;
-  T.check(html.includes('class="sub"') && html.includes('>Ritplanning<') && html.includes('class="voet') && chips === 7, `GET /taken: subbalk, ${chips} filterchips, voet`);
+  T.check(html.includes('class="sub"') && html.includes('/public/nav.js') && html.includes('class="voet') && chips === 7, `GET /taken: subbalk, ${chips} filterchips, voet`);
   for (const p of ['/taken', '/vandaag', '/ritplanning']) {
     const res = await fetch(srv.base + p, { headers: { authorization: BASIC } });
     T.check(res.status === 200 && (await res.text()).includes('/public/patroon.css'), `${p} → 200 en laadt patroon.css`);

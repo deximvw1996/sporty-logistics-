@@ -117,7 +117,7 @@ try {
   for (const [p, chips] of [['/personeel', 6], ['/logboek', 0]]) {
     const html = await (await fetch(srv.base + p, { headers: { authorization: BASIC } })).text();
     const n = (html.match(/class="chip[ "]/g) || []).length;
-    T.check(html.includes('class="sub"') && html.includes('>Personeel<') && html.includes('>Logboek<') && html.includes('class="voet') && html.includes('/public/patroon.css') && n === chips, `GET ${p}: subbalk, ${n} chips, voet`);
+    T.check(html.includes('class="sub"') && html.includes('/public/nav.js') && html.includes('class="voet') && html.includes('/public/patroon.css') && n === chips, `GET ${p}: subbalk, ${n} chips, voet`);
   }
 } catch (e) { T.fout('onverwachte fout: ' + (e.stack || e)); }
 await T.einde(srv);

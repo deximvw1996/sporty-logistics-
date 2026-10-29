@@ -327,3 +327,21 @@ Gewijzigd: `routes/transport.js`, `routes/vandaag.js` + `public/vandaag.js`, `ro
 - Gat 7: `elders_nodig_vast` en `locatieconfig_onvolledig` komen uit de testdata (te weinig vrije vaste exemplaren voor de fictieve locaties), geen codefout.
 - `volledig-verwijderen` laat de `activiteiten_log`-regels staan (logboek); de FICTIEF-markering ervan is niet apart toegevoegd omdat de teksten de locatienaam bevatten, niet het woord FICTIEF.
 - De volle-run-testpoorten zijn per worktree vast: twee chats die tegelijk `volle-run.mjs` draaien botsen af en toe (zie hierboven).
+
+## NAV1 — bovenbalk en subbalken wijzen naar de nieuwe schermen (chat D)
+
+**Gedaan:** één tabel in `public/nav.js` (BOVEN/SUB/PAGINA); de acht pagina's laden het en tekenen er hun balken mee (alleen de `<a>`'s; logo, periode-kiezer, naam, knoppen rechts en alle ids blijven). Actieve knop volgt de URL. Tellers (Vandaag = te beslissen, Transport = in te plannen, Voorraad = te keuren tellingen) komen uit `/api/vandaag` (alleen kantoor). `index.html`: vervangstrook op oude tabs met nieuw scherm + `ALIAS`-tabel voor de `/#…`-links.
+
+| Bovenbalk | Href | | Subbalk | Knoppen |
+|---|---|---|---|---|
+| Vandaag | /vandaag | | Planning | Kampmomenten /kampmomenten · Rooster /#kampplanner · Periodes /#periodes · Thema's per week /#themas |
+| Planning | /kampmomenten | | Transport | Ritten /#transport · Ritplanning /ritplanning · Taken /taken · Voertuigen /#voertuigen |
+| Transport | /ritplanning | | Materiaal | Thema's /#themas · Bakken /bakken · Pool /#pool · Catalogus /#catalogus |
+| Materiaal | /bakken | | Voorraad | Nakijken /nakijken · Tekorten /#tekorten · Bestellingen /#tekorten · Voorraad /#voorraad |
+| Locaties | /#locaties (later /locaties) | | Beheer | Personeel /personeel · Logboek /logboek · Export & back-up /#beheer · Instellingen /#beheer |
+| Voorraad & controles | /nakijken | | | |
+| Beheer | /personeel | | | |
+
+**Bewijs:** `scripts/test-nav1.mjs` 34 ok; volle-run 2× 29/29 groen. Beeld ongewijzigd: computed-style-hash vóór/na op alle 8 pagina's → niets buiten `.top`/`.sub` veranderd (nietInVoor 0). Live: `/#transport` toont de strook "vervangen door Ritplanning en Taken". Vijf oudere tests (bh1, ma1, pl1, tr1, vc1) controleerden linkteksten in de statische HTML; die staan nu op "laadt nav.js" (de teksten zelf worden in test-nav1 gecontroleerd).
+
+**GEVONDEN / afwijkingen:** Locaties blijft `/#locaties`; `/#transport` opent oude tab Transporten; Export & back-up en Instellingen openen beide Materiaal › Thema's (daar staat de back-upkaart); Bestellingen deelt Tekorten; geen vervangstrook voor Kaart/Locaties; tellers alleen voor kantoor.
