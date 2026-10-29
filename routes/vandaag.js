@@ -181,7 +181,7 @@ module.exports = function(ctx){
     }
 
     // ── Deze week: open kampmomenten ──
-    const deze_week=kmsWeek.map(km=>{
+    const weekLijst=kmsLijst=>kmsLijst.map(km=>{
       const th=all('SELECT t.name,t.heeft_kookactiviteit,kt.dag FROM kampmoment_themas kt JOIN themas t ON t.id=kt.thema_id WHERE kt.kampmoment_id=? ORDER BY kt.dag,t.name',[km.id]);
       const dagSet=th.every(t=>t.dag!=null)&&th.length?[...new Set(th.map(t=>t.dag))].sort():null;
       const dagen=!dagSet?'ma–vr':dagSet.length===1?KORT[dagSet[0]+1]:(dagSet[dagSet.length-1]-dagSet[0]===dagSet.length-1?`${KORT[dagSet[0]+1]}–${KORT[dagSet[dagSet.length-1]+1]}`:dagSet.map(x=>KORT[x+1]).join('/'));
@@ -195,12 +195,18 @@ module.exports = function(ctx){
       if(kook.length)mark.push(kook.every(t=>t.dag!=null)?'kookdagen '+[...new Set(kook.map(t=>KORT[t.dag+1]))].join('/'):'kookactiviteit');
       return {kampmoment_id:km.id,locatie:km.loc_nm,thema:th.map(t=>t.name).filter((v,i,a)=>a.indexOf(v)===i).join(', '),kv_naam:_persNaam(km.kv_persoon_id),dagen,markeringen:mark};
     });
+    const deze_week=weekLijst(kmsWeek);
+    // KD1: is deze week leeg (bv. donderdag vóór de kampweek), dan toont Vandaag de week erna.
+    const volgNr=week?week+1:(periode&&datum<periode.start_datum&&periode.start_datum<=plus(weekEind,7)?1:null);
+    const volgende_week=volgNr&&pid?weekLijst(all(`SELECT km.*,l.name AS loc_nm,l.contact_tel FROM kampmomenten km JOIN locaties l ON l.id=km.locatie_id
+      WHERE km.periode_id=? AND km.week=? ORDER BY l.name`,[pid,volgNr])):[];
+    const week_label=!deze_week.length&&volgende_week.length?'Volgende week':'Deze week';
 
     return {
       periode:periode?{id:periode.id,naam:periode.naam}:null,
       gebruiker:{naam:req.persoon?.naam||''},
       datum,datum_tekst:datumLang(datum),week,
-      beslissen,inplannen,nakijken,ritten_vandaag,ritten_morgen,deze_week,
+      beslissen,inplannen,nakijken,ritten_vandaag,ritten_morgen,deze_week,volgende_week,week_label,
       cijfers:{ritten_onderweg:ritten_vandaag.filter(r=>r.status==='onderweg').length,locaties_open:deze_week.length}
     };
   }
