@@ -1,0 +1,23 @@
+# PROMPT LO1 — LOCATIES op het standaardpagina-patroon (exacte kopie van PATROON-DEFINITIEF, het goedgekeurde Locaties-voorbeeld)
+**Chat C (Opus) · map `D:\Sporty\sporty-c` · branch `bouw-c` · poort 3303 · verslag `OVERLEG-c.md` · TIJDSLIMIET 2,5 uur**
+
+Lees eerst `CLAUDE.md`. Begin met `git fetch origin` en `git rebase origin/main` (BH1 en eventueel NAV1 staan op main). Lees dan volledig:
+1. `design/PATROON-DEFINITIEF.html` — dit IS het Locaties-ontwerp (Maxim 30/10): lijst met zoek + chips (Alle · Kamp · Stockage · ⚠ Let op · Deze periode), kolommen naam / type / gemeente / "Deze periode (week · KV)" / status, selectievakjes + bulk-voet (Export selectie · Contact mailen · Verwijderen), detail met kop (naam, type · adres; knoppen Bewerken · 📍 Kaart · Rit plannen), tabs Gegevens · Foto's · Kampmomenten · Historiek, blokken Contact & toegang (contact, sleutel, wifi, ter plaatse: eigen oven / eigen sportmateriaal), Foto's met + foto, Kampmomenten met Open, Historiek met ↶ Terug.
+2. `design/DESIGN-BRIEF.md` "Scherm 5" + de correctie over de KV-kolom (KV hoort bij een kampmoment, niet bij een locatie).
+3. `routes/locaties.js` (contact, sleutel_info, adres-alias), `routes/kampmomenten.js` (PL1), `lib/fotos.js`, en als voorbeeld `public/bakken.js` + `routes/bakken-overzicht.js` (MA1) en `public/nav.js` als dat bestaat (NAV1).
+
+Je raakt ALLEEN: `public/locaties.html` + `public/locaties.js` + `public/locaties.css` (nieuw; laadt `patroon.css` en `nav.js` als die bestaat), `routes/locaties-overzicht.js` (nieuw; één regel in `server.js`), `routes/locaties.js` (alleen Punt 1), `lib/migraties.js` (één migratie onderaan, alleen als nodig), `scripts/test-lo1-locaties.mjs`, `OVERLEG-c.md`, en `public/nav.js` uitsluitend om Locaties → `/locaties` te laten wijzen. Bestaande API's verder NIET wijzigen; ontbreekt iets, dan GEVONDEN.
+
+## Punt 1 — Data en API
+- Migratie alleen als nodig: `locaties.wifi TEXT DEFAULT ''`, `locaties.gemeente TEXT DEFAULT ''` (backfill uit `addr`: het deel na de postcode), foto's per locatie via `lib/fotos.js` (soort `locatie`; bestaat er al een foto-veld/tabel voor locaties, gebruik die).
+- `GET /api/locaties-overzicht?periode_id=` (alleenKantoor): `tellers {alle, kamp, stockage, let_op, deze_periode}` en `locaties[]` `{id, naam, type, gemeente, periode_tekst ("wk 1 Lotte · wk 3 Bram" / "—"), periode[{week, kv_naam, kampmoment_id, loopt_nu}], status (ok|let), aandacht[] (geen contact, geen sleutel-info, kampmoment zonder thema/KV, …)}`.
+- `GET /api/locaties/:id/detail`: gegevens + `contact {naam, telefoon}`, `sleutel_info`, `wifi`, `ter_plaatse {eigen_oven, eigen_sportmateriaal, zelf_kuisen}`, `fotos[]`, `kampmomenten[]` (alle periodes, nieuwste eerst: periode, week, thema, kv, levering/ophaling-stand), `historiek[]`.
+- `PUT /api/locaties/:id` (bestaand) accepteert ook `wifi` en `gemeente`; nieuw: `POST /api/locaties/:id/foto` en `DELETE …/foto/:fotoId`; `POST /api/locaties/contact-mail {ids[]}` geeft een `mailto:`-lijst terug (geen mail versturen).
+
+## Punt 2 — De pagina `/locaties` (alleen kantoor)
+Exacte kopie van PATROON-DEFINITIEF, gevuld uit Punt 1. Subbalk Locaties (deze) · Kaart (→ oude kaart-tab) · Contacten (→ zelfde lijst gefilterd op kamp, met telefoon-kolom i.p.v. periode) + Export (bestaand) · + Nieuwe locatie (overlay: naam, type, adres, gemeente, contact, sleutel-info, wifi, ter plaatse). Bulk: Export selectie, Contact mailen (overlay met de mailto-links), Verwijderen (409 als de locatie kampmomenten of taken heeft). Detail: Bewerken (overlay), 📍 Kaart (→ oude kaart-tab met `?id=`), Rit plannen (→ `/ritplanning`), + foto, Kampmomenten → `/kampmomenten?id=`, Historiek met ↶ Terug (bestaande terugdraai-route of knop uit + GEVONDEN). `?id=` opent dat detail.
+
+## Bewijs
+- `scripts/test-lo1-locaties.mjs` (via `_testhulp` op `herfst-test.db`, eigen poort): tellers per type; `periode_tekst` toont week + KV per kampmoment (en "—" bij stockage); `aandacht` bij ontbrekend contact; detail met kampmomenten en historiek; PUT met wifi/gemeente gelogd; foto toevoegen en verwijderen; verwijderen met kampmomenten → 409; contact-mail geeft mailto's; `GET /locaties` → 200 met subbalk, 5 chips, voet; niet-kantoor → 403.
+- DOM-bouw-test met echte data-JSON + DOM-dump in het verslag (geen browser nodig).
+- Volle run 2× groen. Commit per punt, push `origin HEAD:bouw-c`. NOOIT naar main, NOOIT deploy.bat. Verslag onderaan `OVERLEG-c.md`. Laatste bericht eindigt met exact: **VOLLEDIG KLAAR MET DE PROMPT. NU IS HET TERUG AAN DE HOOFDCHAT.** Bij de tijdslimiet: stop, commit, "Stand bij tijdslimiet", push, **TIJDSLIMIET BEREIKT: GESTOPT MET EEN TUSSENSTAND. NU IS HET TERUG AAN DE HOOFDCHAT.** Volgorde bij tijdnood: 1, dan 2.
