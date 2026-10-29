@@ -203,6 +203,7 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 ---
 
 ## STATUSLOG
+- **29/10 16:30** CH1 (chat C) GEKEURD en op main (6 commits + reviewfix): slot vast/vrij + volgorde (migratie 73), wissel-route, GET /api/rit-token/:token/data (contract voor CH2), contacten/sleutel-info per locatie (export zonder), niet-mee → rest-taak, probleem melden → aanvraag probleem_chauffeur + kv-data. Herdraai: test-ch1 39 ok, volle run 16/16 (C zag 14/16 door lokale db). Design: kantoor Vandaag + ritplanning DEFINITIEF (E1 + lade E2). Volgende: CH2-prompt (chat D), KV-schermen.
 
 | Datum | Fase/taak | Status | Bewijs |
 |---|---|---|---|
