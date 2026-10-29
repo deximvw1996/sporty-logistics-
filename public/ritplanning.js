@@ -2,7 +2,71 @@
 // Weekagenda (tijdas 07–17, banen bij gelijktijdige ritten, dagkolommen groeien mee) + lade met dag-inzoom
 // per bestuurder en het ritdetail. Alles uit GET /api/ritplanning; na elke actie de week opnieuw laden.
 'use strict';
-(function(){
+// ── RP2: gebaren (los van de browser, zodat node ze kan testen) ──
+// Elk gebaar = één route; de pagina geeft de pointer-punten (of het berekende doel) en krijgt de API-call terug.
+const GEBAREN=(function(){
+  const STAP=15,AS0=420,AS_MIN=600; // tijdas 07:00–17:00 = 600 min over de kolomhoogte
+  const min=s=>{const m=/^(\d{1,2}):(\d{2})$/.exec(s||'');return m?(+m[1])*60+(+m[2]):null;};
+  const hm=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
+  const snap=m=>Math.round(m/STAP)*STAP;
+  const klem=m=>Math.max(0,Math.min(23*60+45,m));
+  const plusDag=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;};
+  const weekend=d=>[0,6].includes(new Date(d+'T12:00:00').getDay());
+  const BEZIG=['onderweg','aangekomen','gedaan'];
+  const DG=['zo','ma','di','wo','do','vr','za'];
+  const label=(d,a,b)=>{const x=new Date(d+'T12:00:00');return `${DG[x.getDay()]} ${x.getDate()}/${x.getMonth()+1} · ${a}${b?'–'+b:''}`;};
+  // dag onder punt x: geo.dagOp(x) (pagina: kolom onder de pointer) of vaste kolombreedte (test)
+  const dagOp=(geo,x0,x,datum)=>geo.dagOp?geo.dagOp(x)||datum:geo.dagen[Math.max(0,Math.min(geo.dagen.length-1,geo.dagen.indexOf(datum)+Math.round((x-x0)/geo.kolomBreedte)))];
+  const dMin=(geo,dy)=>snap(dy/geo.kolomHoogte*AS_MIN);
+  // Mobiele maten (MOBIEL-REGEL): 1 dag, knoppen ≥ 44 px, grepen 14 px op touch, lang drukken 250 ms.
+  const mobielMaten=w=>({dagen:w<768?1:7,knop:44,greep:w<768?14:8,langDruk:250});
+  function maak({P,api,vraag,toast,na}){
+    na=na||(()=>{});
+    const ritten=()=>P.dagen.flatMap(d=>d.ritten);
+    async function klaar(r,fout,tekst,ritId){if(!r.ok){toast(r.json.error||fout,'error');return null;}await na(ritId,tekst);return r.json;}
+    const g={
+      // doel berekenen tijdens het slepen (schaduwblok + tijdlabel)
+      doelRit(rit,geo,p0,p){const a=min(rit.vertrek)??480,b=Math.max(min(rit.einde)??a,a+30);
+        const datum=dagOp(geo,p0.x,p.x,rit.datum||P.dagen.find(d=>d.ritten.some(x=>x.id===rit.id)).datum),d=dMin(geo,p.y-p0.y);
+        const v=klem(snap(a)+d);return {datum,vertrek:hm(v),einde:hm(v+(b-a)),label:label(datum,hm(v),hm(v+(b-a)))};},
+      doelGreep(rit,kant,geo,p0,p){const a=min(rit.vertrek)??480,b=Math.max(min(rit.einde)??a,a+30),d=dMin(geo,p.y-p0.y);
+        const datum=rit.datum||P.dagen.find(x=>x.ritten.some(y=>y.id===rit.id)).datum;
+        if(kant==='boven'){const v=Math.min(klem(snap(a)+d),b);return {datum,vertrek:hm(v),einde:hm(b),label:label(datum,hm(v),hm(b))};}
+        const e=Math.max(klem(snap(b)+d),a);return {datum,vertrek:hm(a),einde:hm(e),label:label(datum,hm(a),hm(e)),samen:rit.stops.filter(s=>min(s.tijd)!=null&&min(s.tijd)>e).map(s=>s.taak_id)};},
+      async verplaats(rit,datum,vertrek){
+        if(BEZIG.includes(rit.status)){toast('rit is al bezig','warn');return null;}
+        return klaar(await api('PUT',`/api/ritten/${rit.id}/verplaats`,{datum,vertrek}),'Verplaatsen mislukt','✓ verplaatst',rit.id);},
+      async tijden(rit,body){
+        if(BEZIG.includes(rit.status)){toast('rit is al bezig','warn');return null;}
+        return klaar(await api('PUT',`/api/ritten/${rit.id}/tijden`,body),'Tijden aanpassen mislukt',body.einde?'✓ einde aangepast':'✓ vertrek aangepast',rit.id);},
+      async sleepRit(rit,geo,punten){const d=g.doelRit(rit,geo,punten[0],punten[punten.length-1]);return g.verplaats(rit,d.datum,d.vertrek);},
+      async sleepGreep(rit,kant,geo,punten){const d=g.doelGreep(rit,kant,geo,punten[0],punten[punten.length-1]);
+        return g.tijden(rit,kant==='boven'?{vertrek:d.vertrek}:{einde:d.einde});},
+      // open taak droppen: doel {soort:'rit',rit_id,volgorde?} of {soort:'uur',datum,vertrek}
+      async dropOpen(open,doel){
+        const rit=doel.soort==='rit'?ritten().find(x=>x.id===doel.rit_id):null;
+        const datum=doel.soort==='rit'?(rit&&rit.datum)||P.dagen.find(d=>d.ritten.some(x=>x.id===doel.rit_id))?.datum||open.datum:doel.datum;
+        if(weekend(datum)&&!await vraag({titel:'Weekendtaak inplannen?',tekst:'Dit is een weekendtaak: een uitzondering, geen verbod. Toch inplannen?',ok:'Ja, inplannen'}))return null;
+        const r=doel.soort==='rit'?await api('PUT',`/api/transport-taken/${open.taak_id}/rit`,{rit_id:doel.rit_id,...(doel.volgorde?{volgorde:doel.volgorde}:{})})
+          :await api('POST','/api/ritten',{datum,vertrek:doel.vertrek,taak_ids:[open.taak_id]});
+        if(r.ok&&weekend(datum)){const wb=await api('POST',`/api/transport-taken/${open.taak_id}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
+        return klaar(r,'Inplannen mislukt',doel.soort==='rit'?'✓ op rit gezet':'✓ nieuwe rit',doel.soort==='rit'?doel.rit_id:r.json.id);},
+      // stop slepen: binnen de rit (volgorde) of naar een andere rit {rit_id,volgorde}
+      async dropStop(stop,doel){
+        const van=ritten().find(x=>x.id===stop.rit_id),s=van&&van.stops.find(x=>x.taak_id===stop.taak_id);
+        if(s&&s.geladen){toast('Deze stop is al geladen — eerst lossen of terugzetten','warn');return null;}
+        if(doel.rit_id===stop.rit_id){
+          const ids=van.stops.map(x=>x.taak_id).filter(x=>x!==stop.taak_id);ids.splice(Math.max(0,doel.volgorde-1),0,stop.taak_id);
+          return klaar(await api('PUT',`/api/ritten/${stop.rit_id}/stops/volgorde`,{taak_ids:ids}),'Volgorde aanpassen mislukt','✓ volgorde',stop.rit_id);}
+        return klaar(await api('PUT',`/api/transport-taken/${stop.taak_id}/rit`,{rit_id:doel.rit_id,volgorde:doel.volgorde}),'Stop verplaatsen mislukt','✓ stop verplaatst',doel.rit_id);},
+      async ongedaan(ritId){return klaar(await api('POST',`/api/ritten/${ritId}/ongedaan`),'Ongedaan maken mislukt','↶ ongedaan',ritId);},
+    };
+    return g;
+  }
+  return {maak,snap,mobielMaten,label,BEZIG,AS0,AS_MIN,min,hm,plusDag};
+})();
+if(typeof module!=='undefined'&&module.exports)module.exports={gebaren:GEBAREN};
+if(typeof window!=='undefined')(function(){
   const TOKEN=localStorage.getItem('sporty-auth-token');
   if(!TOKEN){location.href='/';return;}
   const $=id=>document.getElementById(id);
@@ -43,13 +107,13 @@
   }
 
   const Q=new URLSearchParams(location.search);
-  let WEEK=Q.get('week')||iso(new Date()), P=null, DAG=null, RIT=null, MODUS='rit', NIEUW={}, LADE=true;
+  let SLEEP=null, FLITS=null, WEEK=Q.get('week')||iso(new Date()), P=null, DAG=null, RIT=null, MODUS='rit', NIEUW={}, LADE=true;
 
   async function laad(){
     const r=await api('GET','/api/ritplanning?week='+WEEK);
     if(r.status===401||r.status===403){location.href='/';return;}
     if(!r.ok){toast(r.json.error||'Ritplanning laden mislukt','error');return;}
-    P=r.json;
+    P=r.json;P.dagen.forEach(d=>d.ritten.forEach(x=>{x.datum=d.datum;}));
     if(!DAG||!P.dagen.some(d=>d.datum===DAG))DAG=(P.dagen.find(d=>d.ritten.length)||P.dagen[0]).datum;
     if(RIT&&!alleRitten().some(x=>x.id===RIT))RIT=null;
     teken();
@@ -72,14 +136,16 @@
     const w=P.week,ma=d0(w.start),zo=d0(w.eind);
     $('wk-label').textContent=`Week ${w.nummer} · ma ${ma.getDate()}${ma.getMonth()!==zo.getMonth()?' '+MAAND[ma.getMonth()]:''} – zo ${zo.getDate()} ${MAAND[zo.getMonth()]}`;
     $('leg').innerHTML=P.personen.map(p=>`<i style="background:${p.kleur}"></i>${esc(p.naam)}${p.bestuurder_rol!=='chauffeur'?' <em>coörd.</em>':''}`).join('');
-    const per=P.dagen.map(d=>({d,...banen(d.ritten)}));
+    const per=P.dagen.map(d=>({d,...banen(SLEEP&&SLEEP.doel&&SLEEP.doel.datum===d.datum?[...d.ritten.filter(r=>SLEEP.soort!=='rit'||r.id!==SLEEP.rit.id),{id:'schaduw',vertrek:SLEEP.doel.vertrek,einde:SLEEP.doel.einde,schaduw:true}]:d.ritten.filter(r=>!(SLEEP&&SLEEP.doel&&SLEEP.soort==='rit'&&r.id===SLEEP.rit.id)))}));
     const flex=x=>x.d.weekend&&!x.d.ritten.length?0.55:x.n;
-    $('dagkop').innerHTML='<div class="tk"></div>'+per.map(x=>`<div class="${x.d.weekend?'wk':''} ${x.d.datum===DAG?'act':''}" style="flex:${flex(x)}" data-dag="${x.d.datum}">${esc(x.d.dag)}${x.d.weekend?'<i>weekend</i>':''}${x.d.ritten.length?`<span class="pil">${x.d.ritten.length} ritten</span>`:''}${x.d.open.length?`<span class="pil oranje" data-open="${x.d.datum}">${x.d.open.length} open</span>`:''}</div>`).join('');
+    $('dagkop').innerHTML='<div class="tk"><button class="dagnav" data-dagnav="-1" aria-label="Vorige dag">‹</button><button class="dagnav" data-dagnav="1" aria-label="Volgende dag">›</button></div>'+per.map(x=>`<div class="${x.d.weekend?'wk':''} ${x.d.datum===DAG?'act':''}" style="flex:${flex(x)}" data-dag="${x.d.datum}">${esc(x.d.dag)}${x.d.weekend?'<i>weekend</i>':''}${x.d.ritten.length?`<span class="pil">${x.d.ritten.length} ritten</span>`:''}${x.d.open.length?`<span class="pil oranje" data-open="${x.d.datum}">${x.d.open.length} open</span>`:''}</div>`).join('');
     const uren=['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
     $('raster').innerHTML=`<div class="tk">${uren.map(u=>`<span>${u}</span>`).join('')}</div>`+per.map(x=>{
       const blokken=x.lijst.map(({r,a,b,baan})=>{
-        const k=r.bestuurder.kleur,wv=echteW(r).length;
-        return `<div class="be ${r.status} ${wv?'w':''} ${r.id===RIT?'sel':''}" data-rit="${r.id}" style="top:${f2(pct(a))}%;height:calc(${f2(pct(b))}% - ${f2(pct(a))}%);left:calc(${f2(baan/x.n*100)}% + 2px);width:calc(${f2(100/x.n)}% - 4px);border-color:${k}"><b style="color:${k}">${esc(r.bestuurder.naam||'geen bestuurder')}${coord(r)?' ·c':''} #${r.id}${wv?' ⚠':''}</b><span class="vt">${esc(r.voertuig.naam||'geen voertuig')} ${bez(r)}</span>${r.stops.map(s=>`<span class="${s.slot}">${esc(s.tijd)} ${s.slot==='vrij'?'◌':'🔒'} ${esc(s.locatie)}</span>`).join('')}</div>`;
+        const pos=`top:${f2(pct(a))}%;height:calc(${f2(pct(b))}% - ${f2(pct(a))}%);left:calc(${f2(baan/x.n*100)}% + 2px);width:calc(${f2(100/x.n)}% - 4px)`;
+        if(r.schaduw)return `<div class="be schaduw" style="${pos}"><span class="tl">${esc(SLEEP.doel.label)}</span></div>`;
+        const k=r.bestuurder.kleur,wv=echteW(r).length,bezig=GEBAREN.BEZIG.includes(r.status);
+        return `<div class="be ${r.status} ${wv?'w':''} ${r.id===RIT?'sel':''} ${bezig?'bezig':'sleepbaar'}" tabindex="0" data-rit="${r.id}" style="${pos};border-color:${k}">${bezig?'':'<i class="greep boven" data-greep="boven"></i>'}<b style="color:${k}">${esc(r.bestuurder.naam||'geen bestuurder')}${coord(r)?' ·c':''} #${r.id}${wv?' ⚠':''}</b><span class="vt">${esc(r.voertuig.naam||'geen voertuig')} ${bez(r)}</span>${r.stops.map(s=>`<span class="${s.slot}${SLEEP&&SLEEP.samen&&SLEEP.samen.includes(s.taak_id)?' samen':''}">${esc(s.tijd)} ${s.slot==='vrij'?'◌':'🔒'} ${esc(s.locatie)}</span>`).join('')}${FLITS&&FLITS.rit===r.id?`<div class="flits">${esc(FLITS.tekst)} ${r.laatste_wijziging?`<button data-ongedaan="${r.id}">ongedaan</button>`:''}</div>`:''}${bezig?'':'<i class="greep onder" data-greep="onder"></i>'}</div>`;
       }).join('');
       return `<div class="kolom ${x.d.weekend?'wk':''} ${x.d.datum===DAG?'act':''}" style="flex:${flex(x)}" data-dag="${x.d.datum}">${'<i></i>'.repeat(11)}${blokken}${x.d.ritten.length?'':`<button class="knop licht klein plus" data-plus="${x.d.datum}">+ rit</button>`}</div>`;
     }).join('');
@@ -111,7 +177,7 @@
     if(MODUS==='nieuw')return tekenNieuw(el);
     if(MODUS==='open'||!RIT||!ritVan(RIT)){
       el.innerHTML=`<div class="ritkop"><div><b>Nog te plannen · ${esc(d.dag)}</b><span>${d.open.length} taken zonder rit</span></div><div class="acties"><button class="knop klein" data-plus="${DAG}">+ rit</button></div></div><div class="scroll">${
-        d.open.length?d.open.map(o=>`<div class="open ${o.soort==='rest'||o.soort==='weekend'?'oranje':''}"><div class="nm">${esc(o.naam)}<b>${esc([o.route,o.stuks?o.stuks+(o.stuks===1?' stuk':' stuks'):null,o.tijd].filter(Boolean).join(' · '))}</b></div><span class="pil ${o.soort==='weekend'||o.soort==='rest'?'oranje':''}">${esc(o.soort)}</span><button class="knop klein" data-aanrit="${o.taak_id}">→ aan rit</button></div>`).join('')
+        d.open.length?d.open.map(o=>`<div data-sleepopen="${o.taak_id}" class="sleepbaar open ${o.soort==='rest'||o.soort==='weekend'?'oranje':''}"><div class="nm">${esc(o.naam)}<b>${esc([o.route,o.stuks?o.stuks+(o.stuks===1?' stuk':' stuks'):null,o.tijd].filter(Boolean).join(' · '))}</b></div><span class="pil ${o.soort==='weekend'||o.soort==='rest'?'oranje':''}">${esc(o.soort)}</span><button class="knop klein" data-aanrit="${o.taak_id}">→ aan rit</button></div>`).join('')
         :'<div class="leegtxt">Niets meer te plannen op deze dag</div>'}</div>`;
       return;
     }
@@ -119,7 +185,7 @@
     const over=r.voertuig.capaciteit&&r.bezetting>r.voertuig.capaciteit;
     el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(r.bestuurder.naam||'geen bestuurder')}${coord(r)?' (coördinator rijdt mee)':''} · ${esc(r.voertuig.naam||'geen voertuig')} · <i class="${over&&r.status!=='gedaan'?'over':''}">${bez(r)} bakken</i>${r.notitie?' · '+esc(r.notitie):''}</span></div>${
       wv.length?`<div class="waarsch">⚠ ${esc(wv.join(' · '))}</div>`:r.waarschuwingen.includes('weekend')?(()=>{const b=r.waarschuwingen.find(w=>/^weekend · /.test(w));return '<div class="waarsch">'+(b&&/bevestigd door/.test(b)?'✓ '+esc(b):'⚠ '+esc(b||'weekend: uitzondering'))+'</div>';})():''}<div class="acties"><button class="knop licht klein" data-act="splits">Splitsen</button><button class="knop licht klein" data-act="link">Rit-link</button><button class="knop klein" data-act="klaar">${r.klaarzet_status==='klaar'?'Klaargezet ✓':'Klaarzetten'}</button></div></div><div class="scroll">${
-      r.stops.length?r.stops.map((s,i)=>`<div class="stop ${s.slot}"><div class="t">${esc(s.tijd)}</div><div class="nm">${esc(s.locatie)}<b>${esc(s.wat)}${s.status!=='gepland'?' · '+esc(s.status):''}</b></div><span class="pil ${s.slot==='vrij'?'oranje':''}" data-slot="${s.taak_id}" title="Tik om te wisselen tussen vast en vrij">${s.slot==='vrij'?'vrij':'🔒 vast'}</span><div class="pijl"><button data-wissel="${s.taak_id}" data-r="omhoog" ${i===0?'disabled':''}>▲</button><button data-wissel="${s.taak_id}" data-r="omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><button class="knop licht klein" data-uit="${s.taak_id}">✕</button></div>`).join('')
+      r.stops.length?r.stops.map((s,i)=>`<div class="stop ${s.slot} ${s.geladen?'geladen':'sleepbaar'}" data-taak="${s.taak_id}" data-i="${i}"><div class="t">${esc(s.tijd)}</div><div class="nm">${esc(s.locatie)}<b>${esc(s.wat)}${s.status!=='gepland'?' · '+esc(s.status):''}</b></div><span class="pil ${s.slot==='vrij'?'oranje':''}" data-slot="${s.taak_id}" title="Tik om te wisselen tussen vast en vrij">${s.slot==='vrij'?'vrij':'🔒 vast'}</span><div class="pijl"><button data-wissel="${s.taak_id}" data-r="omhoog" ${i===0?'disabled':''}>▲</button><button data-wissel="${s.taak_id}" data-r="omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><button class="knop licht klein" data-uit="${s.taak_id}">✕</button></div>`).join('')
       :'<div class="leegtxt">Nog geen stops — zet een taak op deze rit via "N open" in de dagkop</div>'}</div>`;
   }
 
@@ -232,6 +298,99 @@
         const r=await api('POST',`/api/ritten/${RIT}/klaarzet`,over?{bevestigd_over_capaciteit:true}:{});if(!r.ok)return toast(r.json.error||'Klaarzetten mislukt','error');toast('Rit klaargezet door '+r.json.klaarzet_door,'success');return laad();}
     }
   });
+  // ── RP2: pointer-gebaren (muis én touch; touch = lang drukken 250 ms, zodat scrollen blijft werken) ──
+  const gb=()=>{return GEBAREN.maak({P,api,vraag,toast,na:async(ritId,tekst)=>{if(ritId&&tekst){FLITS={rit:ritId,tekst};setTimeout(()=>{if(FLITS&&FLITS.rit===ritId){FLITS=null;teken();}},1500);}SLEEP=null;if(ritId)RIT=ritId;await laad();}});};
+  const geoNu=()=>{const k=document.querySelector('#raster .kolom');return {kolomHoogte:k?k.getBoundingClientRect().height:600,
+    dagOp:x=>{const kol=[...document.querySelectorAll('#raster .kolom')].find(c=>{const b=c.getBoundingClientRect();return x>=b.left&&x<=b.right;});return kol?kol.dataset.dag:null;}};};
+  const uurOp=(kolom,y)=>{const b=kolom.getBoundingClientRect();return GEBAREN.hm(Math.max(0,Math.min(23*60+45,GEBAREN.snap(GEBAREN.AS0+(y-b.top)/b.height*GEBAREN.AS_MIN))));};
+  const onder=(x,y)=>{const els=document.elementsFromPoint?document.elementsFromPoint(x,y):[document.elementFromPoint(x,y)];return els.find(e=>e&&!e.closest('.schaduw,.sleepkaart,.bron'))||null;};
+  let wacht=null;
+  document.addEventListener('pointerdown',e=>{
+    if(e.button>0||e.target.closest('button,select,input,[data-slot],.pijl'))return;
+    const blok=e.target.closest('#raster .be[data-rit]'),stop=e.target.closest('#detail .stop[data-taak]'),open=e.target.closest('[data-sleepopen]');
+    if(!blok&&!stop&&!open)return;
+    const p0={x:e.clientX,y:e.clientY},touch=e.pointerType==='touch';
+    const start=()=>{wacht=null;
+      if(blok){const rit=alleRitten().find(r=>r.id===parseInt(blok.dataset.rit));
+        if(GEBAREN.BEZIG.includes(rit.status)){toast('rit is al bezig','warn');return;}
+        const gr=e.target.closest('[data-greep]');SLEEP={soort:gr?'greep':'rit',kant:gr&&gr.dataset.greep,rit,p0,doel:null};}
+      else if(stop){const s=ritVan(RIT).stops.find(x=>x.taak_id===parseInt(stop.dataset.taak));
+        if(s.geladen){toast('Deze stop is al geladen — eerst lossen of terugzetten','warn');return;}
+        SLEEP={soort:'stop',stop:{rit_id:RIT,taak_id:s.taak_id},p0,el:stop,kaart:sleepKaart(stop,p0)};}
+      else SLEEP={soort:'open',open:{taak_id:parseInt(open.dataset.sleepopen),datum:DAG},p0,kaart:sleepKaart(open,p0)};
+      document.body.classList.add('sleept');
+    };
+    if(touch){wacht={t:setTimeout(start,GEBAREN.mobielMaten(innerWidth).langDruk),p0};}else{e.preventDefault();start();}
+  });
+  function sleepKaart(el,p0){const b=el.getBoundingClientRect(),k=el.cloneNode(true);k.classList.add('sleepkaart');
+    Object.assign(k.style,{left:b.left+'px',top:b.top+'px',width:b.width+'px'});k.dataset.dx=p0.x-b.left;k.dataset.dy=p0.y-b.top;document.body.appendChild(k);return k;}
+  document.addEventListener('pointermove',e=>{
+    if(wacht){if(Math.hypot(e.clientX-wacht.p0.x,e.clientY-wacht.p0.y)>8){clearTimeout(wacht.t);wacht=null;}return;}
+    if(!SLEEP)return;e.preventDefault();
+    const p={x:e.clientX,y:e.clientY};
+    if(SLEEP.kaart){SLEEP.kaart.style.left=(p.x-SLEEP.kaart.dataset.dx)+'px';SLEEP.kaart.style.top=(p.y-SLEEP.kaart.dataset.dy)+'px';
+      const el=onder(p.x,p.y),kol=el&&el.closest('#raster .kolom');document.querySelectorAll('.doel').forEach(x=>x.classList.remove('doel'));
+      const doelEl=el&&(el.closest('[data-rit]')||el.closest('#detail .stop[data-taak]')||kol);if(doelEl)doelEl.classList.add('doel');
+      SLEEP.kaart.querySelector('.tl')?.remove();
+      if(SLEEP.soort==='open'&&kol&&!el.closest('[data-rit]')){const t=document.createElement('span');t.className='tl';t.textContent=GEBAREN.label(kol.dataset.dag,uurOp(kol,p.y));SLEEP.kaart.prepend(t);}
+      return;}
+    const geo=geoNu(),d=SLEEP.soort==='rit'?gb().doelRit(SLEEP.rit,geo,SLEEP.p0,p):gb().doelGreep(SLEEP.rit,SLEEP.kant,geo,SLEEP.p0,p);
+    if(!SLEEP.doel||d.label!==SLEEP.doel.label){SLEEP.doel=d;SLEEP.samen=d.samen||null;teken();}
+  },{passive:false});
+  document.addEventListener('pointerup',async e=>{
+    if(wacht){clearTimeout(wacht.t);wacht=null;return;}
+    if(!SLEEP)return;
+    const s=SLEEP,g=gb(),p={x:e.clientX,y:e.clientY};document.body.classList.remove('sleept');
+    if(s.kaart)s.kaart.remove();document.querySelectorAll('.doel').forEach(x=>x.classList.remove('doel'));
+    if(Math.hypot(p.x-s.p0.x,p.y-s.p0.y)<5){SLEEP=null;teken();return;} // een klik, geen sleep
+    LAATSTE_SLEEP=Date.now();
+    if(s.soort==='rit'||s.soort==='greep'){if(!s.doel){SLEEP=null;return teken();}
+      const r=s.soort==='rit'?await g.verplaats(s.rit,s.doel.datum,s.doel.vertrek):await g.tijden(s.rit,s.kant==='boven'?{vertrek:s.doel.vertrek}:{einde:s.doel.einde});
+      if(!r){SLEEP=null;teken();}return;} // tijdens het wachten blijft het schaduwblok staan; laad() tekent opnieuw
+    SLEEP=null;
+    const el=onder(p.x,p.y);if(!el)return;
+    const ritEl=el.closest('[data-rit]'),stopEl=el.closest('#detail .stop[data-taak]'),kol=el.closest('#raster .kolom');
+    if(s.soort==='open'){
+      if(ritEl)return g.dropOpen(s.open,{soort:'rit',rit_id:parseInt(ritEl.dataset.rit)});
+      if(stopEl)return g.dropOpen(s.open,{soort:'rit',rit_id:RIT,volgorde:parseInt(stopEl.dataset.i)+1});
+      if(kol)return g.dropOpen(s.open,{soort:'uur',datum:kol.dataset.dag,vertrek:uurOp(kol,p.y)});
+      return;}
+    if(stopEl&&stopEl!==s.el)return g.dropStop(s.stop,{rit_id:RIT,volgorde:parseInt(stopEl.dataset.i)+1});
+    if(ritEl&&parseInt(ritEl.dataset.rit)!==s.stop.rit_id){const doel=ritVan(parseInt(ritEl.dataset.rit));
+      if(doel.datum!==ritVan(s.stop.rit_id).datum)return toast('Een stop gaat alleen naar een rit van dezelfde dag','warn');
+      return g.dropStop(s.stop,{rit_id:doel.id,volgorde:doel.stops.length+1});}
+  });
+  document.addEventListener('pointercancel',()=>{if(wacht){clearTimeout(wacht.t);wacht=null;}if(SLEEP){SLEEP.kaart&&SLEEP.kaart.remove();SLEEP=null;document.body.classList.remove('sleept');teken();}});
+  let LAATSTE_SLEEP=0;
+  document.addEventListener('click',e=>{if(Date.now()-LAATSTE_SLEEP<300){e.stopImmediatePropagation();e.preventDefault();}},true);
+  // ongedaan in de bevestigingsflits
+  document.addEventListener('click',async e=>{const o=e.target.closest('[data-ongedaan]');if(!o)return;e.stopImmediatePropagation();FLITS=null;await gb().ongedaan(parseInt(o.dataset.ongedaan));},true);
+  // Toetsenbord: gekozen blok ±15 min (pijl op/neer), Alt+pijl links/rechts ±1 dag; Enter bevestigt, Esc annuleert.
+  document.addEventListener('keydown',async e=>{
+    const blok=e.target.closest&&e.target.closest('#raster .be[data-rit]');if(!blok)return;
+    const rit=ritVan(parseInt(blok.dataset.rit));
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+      if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&!e.altKey)return;
+      e.preventDefault();if(GEBAREN.BEZIG.includes(rit.status))return toast('rit is al bezig','warn');
+      const a=GEBAREN.min(rit.vertrek)??480,b=Math.max(GEBAREN.min(rit.einde)??a,a+30);
+      const k=SLEEP&&SLEEP.toets&&SLEEP.rit.id===rit.id?SLEEP:{soort:'rit',toets:true,rit,dm:0,dd:0};
+      if(e.key==='ArrowUp')k.dm-=15;if(e.key==='ArrowDown')k.dm+=15;if(e.key==='ArrowLeft')k.dd-=1;if(e.key==='ArrowRight')k.dd+=1;
+      const datum=GEBAREN.plusDag(rit.datum,k.dd),v=Math.max(0,GEBAREN.snap(a)+k.dm);
+      k.doel={datum,vertrek:GEBAREN.hm(v),einde:GEBAREN.hm(v+b-a),label:GEBAREN.label(datum,GEBAREN.hm(v),GEBAREN.hm(v+b-a))};SLEEP=k;teken();
+      document.querySelector(`#raster .be[data-rit="${rit.id}"]`)?.focus();return;}
+    if(e.key==='Enter'&&SLEEP&&SLEEP.toets){e.preventDefault();const s=SLEEP;if(!(await gb().verplaats(s.rit,s.doel.datum,s.doel.vertrek))){SLEEP=null;teken();}return;}
+    if(e.key==='Escape'&&SLEEP){SLEEP=null;teken();}
+  });
+  document.addEventListener('click',e=>{const n=e.target.closest('[data-dagnav]');if(!n)return;e.stopPropagation();
+    const i=P.dagen.findIndex(d=>d.datum===DAG)+parseInt(n.dataset.dagnav);
+    if(i<0||i>6){const d=d0(P.week.start);d.setDate(d.getDate()+(i<0?-7:7));WEEK=iso(d);DAG=null;RIT=null;return laad().then(()=>{DAG=P.dagen[i<0?6:0].datum;teken();});}
+    DAG=P.dagen[i].datum;RIT=null;MODUS=dagVan(DAG).ritten.length?'rit':'open';teken();},true);
+  // swipe ‹ › op de agenda (mobiel): horizontaal vegen zonder slepen wisselt van dag
+  let veeg=null;
+  $('raster').addEventListener('touchstart',e=>{veeg={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
+  $('raster').addEventListener('touchend',e=>{if(!veeg||SLEEP||innerWidth>=768)return;const dx=e.changedTouches[0].clientX-veeg.x,dy=e.changedTouches[0].clientY-veeg.y;veeg=null;
+    if(Math.abs(dx)>60&&Math.abs(dx)>2*Math.abs(dy))document.querySelector(`[data-dagnav="${dx<0?1:-1}"]`)?.click();},{passive:true});
+
   $('wk-vorig').onclick=()=>{const d=d0(P.week.start);d.setDate(d.getDate()-7);WEEK=iso(d);DAG=null;RIT=null;laad();};
   $('wk-volg').onclick=()=>{const d=d0(P.week.start);d.setDate(d.getDate()+7);WEEK=iso(d);DAG=null;RIT=null;laad();};
   $('lade-sluit').onclick=()=>{LADE=false;teken();};

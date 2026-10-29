@@ -59,3 +59,37 @@ button{font:inherit;cursor:pointer;border:0}button:disabled{opacity:.35;cursor:d
 /* ── aanvullingen ── */
 .top a,.sub a{text-decoration:none}.dagkop>div,.kolom,.be,.inzoom .blok{cursor:pointer}.stop .pil{cursor:pointer}
 .leegtxt{font-size:13px;color:#94a3b8;padding:10px 4px}
+/* ── RP2: slepen (schaduwblok, tijdlabel, grepen, bevestigingsflits) — geen nieuwe ontwerpelementen ── */
+.be.sleepbaar,.stop.sleepbaar,.open.sleepbaar{touch-action:none;user-select:none}
+.be .greep{position:absolute;left:0;right:0;height:8px;cursor:ns-resize;touch-action:none;z-index:2}.be .greep.boven{top:0}.be .greep.onder{bottom:0}
+@media (pointer:coarse){.be .greep{height:14px}}
+.be.schaduw{border:2px dashed #1e3a8a;background:rgba(191,219,254,.55);z-index:5;pointer-events:none}
+.tl{display:block;background:#1e3a8a;color:#fff;font-size:11px;font-weight:700;padding:1px 5px;border-radius:5px;white-space:nowrap;width:max-content;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.be span.samen{color:#c2410c;font-weight:700}
+.be .flits{position:absolute;left:2px;right:2px;bottom:2px;background:#1D9E75;color:#fff;font-size:11px;font-weight:700;padding:2px 4px;border-radius:5px;display:flex;gap:6px;align-items:center;z-index:3}
+.be .flits button{background:#fff;color:#15803d;border-radius:4px;padding:0 6px;font-size:11px;font-weight:700}
+.sleepkaart{position:fixed;z-index:50;pointer-events:none;opacity:.9;background:#fff;box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:8px}
+.doel{outline:2px dashed #1e3a8a;outline-offset:-2px}
+body.sleept{cursor:grabbing;user-select:none}
+.stop.geladen,.be.bezig{cursor:default}
+.be:focus-visible{outline:3px solid #1e3a8a}
+.dagnav{display:none}
+/* ── RP2 punt 4: gsm (≤ 767 px) — dezelfde elementen, gestapeld; 1 dag tegelijk, knoppen ≥ 44 px ── */
+@media (max-width:767px){
+  .frame{height:auto;min-height:100vh;overflow:visible}
+  #f1 .body1{height:auto;padding:8px 16px}
+  #f1 .agenda.boven{height:560px;flex:none}
+  .dagkop>div:not(.tk):not(.act),.raster .kolom:not(.act){display:none}
+  .dagkop>div.act,.raster .kolom.act{flex:1 !important}
+  .dagkop .tk{flex:0 0 96px;display:flex;gap:4px}
+  .dagnav{display:block;width:44px;height:40px;border-radius:8px;background:#e2e8f0;color:#1e3a8a;font-size:18px;font-weight:800}
+  .raster .tk{flex:0 0 96px}
+  #f1 .lade{height:auto}
+  #f1 .ladegrid{grid-template-columns:1fr}
+  #f1 .ladegrid .detail{padding:8px 0 0;border-left:0;border-top:1px solid #e2e8f0}
+  #f1 .ladekop{flex-wrap:wrap;height:auto}#f1 .ladekop span{display:none}
+  .sub{flex-wrap:wrap}.sub .leg{margin-left:0;flex-wrap:wrap}
+  .knop,.pijl button,.be .flits button{min-height:44px;min-width:44px}
+  .ritkop .acties{margin-left:0;flex-wrap:wrap}
+  .stop{min-height:52px}
+}
