@@ -1,0 +1,69 @@
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#d9dde3}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1a1a1a;-webkit-text-size-adjust:100%}
+button{font:inherit;cursor:pointer;border:0;-webkit-tap-highlight-color:transparent}
+/* tokens uit design/KV-DEFINITIEF.html: blauw #2563eb/#1e3a8a · groen #16a34a/#dcfce7 · rood #dc2626/#fee2e2 · oranje #ea580c/#ffedd5 · lijn #e2e8f0 · vlak #f5f5f5 */
+#app{max-width:480px;min-height:100vh;min-height:100dvh;margin:0 auto;background:#f5f5f5;display:flex;flex-direction:column;font-size:15px}
+.knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.knop.licht{background:#e8eefc;color:#1e3a8a}.knop.klein{height:44px;padding:0 14px;font-size:14px}.knop.breed{width:100%;margin-top:8px}
+.knop:disabled{opacity:.55}
+a.knop{text-decoration:none}
+.pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.groen{background:#dcfce7;color:#15803d}.pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
+.body{flex:1;padding:12px 14px 20px}
+.rij{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 0;border-top:1px solid #eef2f7}
+.rij:first-of-type{border-top:0}.rij .nm{flex:1;min-width:0;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:12px;color:#64748b;font-weight:500;overflow-wrap:anywhere}
+.bak{display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1;cursor:pointer}
+.bak.groen{border-left-color:#16a34a}.bak.rood{border-left-color:#dc2626}.bak.blauw{border-left-color:#2563eb}.bak.oranje{border-left-color:#ea580c}
+.bak .code{font-weight:800;width:44px;flex-shrink:0;overflow-wrap:anywhere;font-size:14px}.bak .nm{flex:1;min-width:0;font-weight:600;font-size:14px;line-height:1.3}.bak .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.twee{display:flex;gap:8px;margin-top:8px}.twee .knop{flex:1;padding:0 8px}
+.hint{font-size:13px;color:#64748b;margin-bottom:8px}.hint b{color:#1a1a1a}
+.it{display:block;padding:8px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.it.groen{border-left-color:#16a34a}.it.rood{border-left-color:#dc2626;background:#fff5f5}
+.it.blauw{border-left-color:#2563eb;background:#f5f9ff}.it.oranje{border-left-color:#ea580c;background:#fff7ed}
+.it.open{box-shadow:0 0 0 2px #bfdbfe}
+.it .r1{display:flex;align-items:center;gap:8px;min-height:44px}
+.it .nm{flex:1;min-width:0;font-weight:600;line-height:1.3}.it .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.ja{display:flex;gap:4px}.ja button{height:44px;padding:0 12px;border-radius:10px;background:#f1f5f9;color:#334155;font-weight:700;min-width:60px}
+.ja button.act{background:#2563eb;color:#fff}.it.groen .ja button.act{background:#16a34a}
+.ja button.act.af{background:#dc2626}.it.blauw .ja button.act.af{background:#2563eb}.it.oranje .ja button.act.af{background:#ea580c}
+.ex{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 0 2px;font-size:12px}
+.ex .not{color:#475569;background:#f1f5f9;border-radius:6px;padding:3px 8px;overflow-wrap:anywhere}
+.thumb{width:36px;height:36px;border-radius:8px;background:#cbd5e1;display:inline-flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.uitklap{margin-top:8px;padding-top:8px;border-top:1px dashed #cbd5e1;display:flex;flex-direction:column;gap:8px}
+.veld{display:flex;align-items:center;gap:8px;min-height:44px}.veld label{width:58px;font-size:12px;color:#64748b;font-weight:700;flex-shrink:0}.veld i{font-size:12px;color:#64748b;font-style:normal}
+.veld input{flex:1;min-width:0;height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 10px;font:inherit;font-size:16px;text-align:left;font-weight:500}
+.stp{display:flex;align-items:center;gap:4px}.stp button{width:44px;height:44px;border-radius:10px;background:#e8eefc;color:#1e3a8a;font-size:20px;font-weight:800}.stp span{width:30px;text-align:center;font-weight:800;font-size:16px}
+.kop2{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-bottom:1px solid #e2e8f0;min-height:64px;position:sticky;top:0;z-index:5}
+.kop2 .terug{color:#2563eb;font-weight:700;font-size:15px;height:44px;display:flex;align-items:center;background:transparent;padding:0;flex-shrink:0}.kop2 b{display:block;font-size:16px;overflow-wrap:anywhere}.kop2 span.s{font-size:12px;color:#64748b}
+.voet{display:flex;gap:8px;padding:10px 14px 16px;background:#fff;border-top:1px solid #e2e8f0;position:sticky;bottom:0;z-index:5}.voet .knop{flex:1}
+.sec{background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.sec h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;justify-content:space-between}
+.kopB{background:#fff;padding:14px 14px 10px;border-bottom:1px solid #e2e8f0}.kopB b{display:block;font-size:18px;overflow-wrap:anywhere}.kopB span{font-size:13px;color:#64748b}
+.kaartB{background:#fff;border-radius:14px;padding:14px 44px 14px 14px;margin-bottom:10px;border-left:5px solid #cbd5e1;position:relative;min-height:64px;width:100%;text-align:left;display:block;color:inherit}
+.kaartB.groen{border-left-color:#16a34a}.kaartB.blauw{border-left-color:#2563eb}.kaartB.oranje{border-left-color:#f59e0b}
+.kaartB .t{font-weight:800;font-size:16px}.kaartB .s{font-size:13px;color:#64748b;margin-top:3px;line-height:1.35;overflow-wrap:anywhere}
+.kaartB .pijl{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:24px;color:#94a3b8}
+.tabs{display:flex;background:#fff;border-top:1px solid #e2e8f0;padding:6px 4px 14px;position:sticky;bottom:0;z-index:5}
+.tabs button{flex:1;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:700;color:#64748b;border-radius:10px;background:transparent;min-width:0}
+.tabs button.act{color:#1d4ed8;background:#eff6ff}
+.tabs button span{white-space:nowrap}
+.leeg{color:#94a3b8;font-size:13px;padding:8px 0}
+/* OVERLAYS + TOAST (zelfde als de chauffeurspagina) */
+.dim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.sheet{background:#fff;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:16px 16px 20px}
+.sheet h3{font-size:17px;font-weight:700}.sheet p{font-size:13px;color:#555;margin-top:4px}
+.sheet textarea,.sheet input.getal,.sheet select{width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:10px;font:inherit;font-size:16px;margin-top:8px;display:block;background:#fff}
+.sheet textarea{min-height:72px}.sheet input.getal,.sheet select{min-height:48px}
+.sheet label.lbl{display:block;font-size:12px;font-weight:700;color:#334155;margin-top:10px}
+.sheet .foto{min-height:52px;border:2px dashed #cbd5e1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#64748b;margin-top:8px;cursor:pointer;background:#fff;width:100%}
+.sheet .foto.ok{border-color:#16a34a;color:#15803d}
+.sheet .knoppen{display:flex;gap:8px;margin-top:12px}
+.sheet .knoppen button{flex:1;height:48px;border-radius:12px;font-weight:700;font-size:15px;background:#f1f5f9;color:#334155}
+.sheet .knoppen button.prim{background:#2563eb;color:#fff}
+.sheet .knoppen button:disabled{opacity:.6}
+.toast{position:fixed;left:50%;bottom:84px;transform:translate(-50%,16px);width:calc(100% - 32px);max-width:448px;background:#15803d;color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;font-weight:600;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:100}
+.toast.fout{background:#b91c1c}
+.toast.zicht{opacity:1;transform:translate(-50%,0)}
+@media(min-width:520px){#app{box-shadow:0 0 24px rgba(0,0,0,.12)}}
