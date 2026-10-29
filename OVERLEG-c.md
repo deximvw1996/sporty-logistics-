@@ -1353,3 +1353,135 @@ Een meegegeven aantal blijft gelden. Bewijs: tekort → 3 en kapot → 1 (was 0)
 ### Buiten mijn gebied
 - **`public/ritplanning.js`:** de bevestiging bij klaarzetten en de stille notitie (G12) staan in de pagina; de prompt noemde alleen `routes/ritplanning.js`. Zonder deze aanpassing kan G12 niet.
 - **`scripts/test-f1-wijzigingen.mjs` en `scripts/test-vc1-nakijken.mjs`:** één verwachting elk (zie hierboven).
+
+---
+
+## RP2 — Ritplanning interactief (chat C, Opus) · 2026-10-29
+
+**Commits op `bouw-c`** (na een rebase op origin/main 68515d7):
+- a01f58b: punt 1, API
+- d822dcf: punt 3, spoed
+- 2e34a61: punt 2 + 4, agenda en gsm, plus de test
+- een commit met fixes uit de browsercontrole
+- dit verslag
+
+### Per gebaar: route, body, log-tekst
+Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één context `Rit #N: <beschrijving> ⟦g:<id>⟧`. `planning()` geeft per rit `laatste_wijziging {id, beschrijving}`.
+
+| gebaar | route | body | log-beschrijving |
+|---|---|---|---|
+| ritblok slepen | `PUT /api/ritten/:id/verplaats` | `{datum, vertrek}` | `Rit #22: di 10/11 08:00 → wo 11/11 10:00` |
+| greep boven | `PUT /api/ritten/:id/tijden` | `{vertrek}` | `Rit #22: di 10/11 vertrek 08:00 → 09:30` |
+| greep onder | `PUT /api/ritten/:id/tijden` | `{einde}` | `Rit #22: di 10/11 einde 09:45 → 09:20` |
+| stop binnen de rit | `PUT /api/ritten/:id/stops/volgorde` | `{taak_ids:[…]}` | `Rit #22: volgorde #196,#197 → #197,#196` |
+| stop naar een andere rit (zelfde dag) | `PUT /api/transport-taken/:id/rit` | `{rit_id, volgorde}` | `Rit #22: stop #201 van rit #24 → rit #22` |
+| open taak op een rit | `PUT /api/transport-taken/:id/rit` | `{rit_id[, volgorde]}` | `Rit #24: taak #202 → rit #24 (plaats 1)` |
+| open taak op een leeg uur | `POST /api/ritten` | `{datum, vertrek, taak_ids:[id]}` | `Rit #25: nieuwe rit di 10/11 14:00 met taak #203` |
+| weekendtaak (na de vraagModal) | + `POST /api/transport-taken/:id/weekend-bevestig` | — | (GF1) |
+| ↶ ongedaan (knop in de flits) | `POST /api/ritten/:id/ongedaan` | — | `↶ Rit #22: …` |
+| toetsenbord | ↑↓ ±15 min, Alt+←→ ±1 dag (schaduwblok); Enter → `verplaats`, Esc annuleert | | |
+
+### Punt 1 — API (`routes/transport.js`, `routes/ritplanning.js`)
+- **`verplaats`:** de rit en alle stops schuiven met hetzelfde verschil in dagen en minuten (`_verschuifRit`). Een rit die onderweg, aangekomen of gedaan is, geeft 409 "rit is al bezig/gedaan". Het antwoord is de rit met `waarschuwingen` en `laatste_wijziging`.
+- **`tijden`:**
+  - **Vertrek:** wordt gezet; stops vóór het nieuwe vertrek krijgen een tijd via de G6-helper. Die helper heeft nu een optionele context, zodat de stoptijden in dezelfde ongedaan-groep vallen.
+  - **Einde vroeger dan de laatste stop:** de stops erna komen ≤ einde, in volgorde en telkens STOP_STAP_MIN terug. Passen ze niet tussen de vorige stop en het einde, dan komen ze gelijk verdeeld dichter op elkaar.
+  - **Waarschuwing:** `_ritWaarschuwingen` geeft "stops samengedrukt: N stops binnen M min" voor de langste reeks stops die dichter dan STOP_STAP_MIN op elkaar liggen. Geen verbod.
+- **`stops/volgorde`:**
+  - `taak_ids` moet precies de stops van die rit bevatten, anders 400.
+  - Aangekomen of gedane stops blijven vooraan in dezelfde volgorde, anders 409. Kantoor mag 🔒 vaste stops verplaatsen.
+  - De bestaande tijden (gesorteerd) volgen de nieuwe volgorde; daarna de G6-helper.
+- **`PUT /api/transport-taken/:id/rit`** (bestond al):
+  - Nieuw: 409 als de taak naar een andere rit gaat en al geladen (niet geloste) regels heeft.
+  - Nieuw: optionele `volgorde` (positie).
+  - De checks van de oude én de nieuwe rit worden gesynchroniseerd.
+- **`POST /api/ritten`:** logt nu als één groep. Ongedaan van een nieuwe rit verwijdert de rit en zet de taken terug op open.
+- **`ongedaan`:**
+  - Er bestond **geen** generieke terugdraai-route (TR1 #1, LO1/BH1 "terugdraaibaar:false"), dus deze is nieuw.
+  - Hij draait de groep in omgekeerde volgorde terug: update → de oude waarden, insert → delete. Dat wordt zelf gelogd met "↶ …".
+  - Daarna is `laatste_wijziging` null; een tweede ongedaan geeft 404.
+- **`planning()`:** geeft per rit `laatste_wijziging` en per stop `geladen` (geladen stop = geen greep).
+
+### Punt 2 — De interactieve agenda (`public/ritplanning.js` / `.css`)
+- De gebaren staan in een los object `GEBAREN`. Dat wordt in node geëxporteerd, zodat de test het zonder browser kan aanroepen. De pagina-bedrading gebruikt pointer events en geen bibliotheek.
+- **Ritblok slepen:**
+  - Een schaduwblok met tijdlabel ("vr 30/10 · 10:15–12:45") snapt op 15 min.
+  - De dag onder de pointer telt het schaduwblok als extra baan, via `banen()` met een fantoomrit.
+  - Bij loslaten verschijnt de flits "✓ verplaatst" met de knop "ongedaan", 1,5 s na het herladen.
+  - Een bezige rit heeft geen greep en geeft de toast "rit is al bezig".
+- **Grepen:** 8 px boven- en onderaan (14 px bij `pointer:coarse`). Stops die samengedrukt worden, kleuren oranje in het schaduwblok tot het antwoord binnen is.
+- **Stops:** in het ritdetail sleepbaar, binnen de rit of naar een ritblok van dezelfde dag (in de agenda of de dag-inzoom). Een geladen stop krijgt een toast en er gaat geen call.
+- **Open taken ("Nog te plannen"):** sleepbaar naar een ritblok, een stop (positie) of een leeg uur van een dagkolom. Een weekenddatum toont eerst de vraagModal en roept daarna `weekend-bevestig` aan.
+- Na elk gebaar laadt `laad()` de hele week opnieuw, en de lade springt naar de dag van de rit. Tijdens het wachten blijft het schaduwblok staan.
+
+### Punt 3 — Rest TF1
+- **"Goedkeuren + spoed"** (`routes/aanvragen.js`):
+  - Met `spoedtransport.personeel_id`/`chauffeur` (en `voertuig`) krijgt de rit die bestuurder.
+  - Zonder bestuurder bevat het antwoord `rit_zonder_chauffeur:true` en komt er de logregel "spoedrit zonder chauffeur".
+  - De Vandaag-kaart heeft **geen** vraagModal (ze roept de actie meteen aan), dus de bestuurder-keuzelijst is niet gebouwd: zie GEVONDEN.
+- **`PUT /api/ritten/:id` met een ander `vertrek`:** gebruikt dezelfde `_verschuifRit`, dus de stops schuiven mee.
+- **Bulk `geleverd`:** voor een ophaalregel van een bulkbak geldt `bulk_spreiding` op de ophaallocatie (aantal > 0).
+
+### Punt 4 — Gsm (gemeten in de browser, 390×844)
+- **Breedte:** `scrollWidth` 390, dus geen horizontale scroll.
+- **Agenda:** 1 zichtbare dagkolom (228×492). De dag-tabs ‹ › zijn 44×44; vegen over de agenda wisselt ook van dag. De lade staat eronder (358 breed) en het ritdetail daaronder.
+- **Knoppen:** alle 11 zichtbare knoppen zijn ≥ 44 px.
+- **Grepen:** 14 px; `touch-action:none` op de blokken en de grepen (gemeten).
+- **Touch (gesimuleerde pointer events met `pointerType:'touch'`):**
+  - Tikken en meteen bewegen start geen sleep, dus scrollen blijft werken.
+  - Lang drukken (300 ms) en dan slepen geeft het schaduwlabel "do 29/10 · 01:45–02:15", en de rit staat daarna op 01:45 met de flits.
+- **Bovenbalk:** die is breder dan een gsm (877 px, `nav.js`). In `ritplanning.css` scrollt de balk binnen zichzelf.
+
+### Bewijs
+- **`node scripts/test-rp2-interactief.mjs` (poort 3343): 35 ok, 0 fout, ALLES GROEN.** Gecontroleerd:
+  - verplaats (dag + uur, stops mee, log met →);
+  - ongedaan (terug, en een tweede keer 404);
+  - inkorten → "stops samengedrukt: 2 stops binnen 20 min";
+  - vertrek later → G6;
+  - volgorde 200, en 409 bij een aangekomen stop;
+  - verplaats van een gedane of onderweg-rit → 409;
+  - droppen op een rit met plaats 1, plus log;
+  - een geladen stop naar een andere rit → 409;
+  - een stop naar een andere rit;
+  - een leeg uur → nieuwe rit met ["geen chauffeur","geen voertuig"], en ongedaan haalt de rit weg;
+  - weekend: eerst niet bevestigd, daarna bevestigd;
+  - spoed: `rit_zonder_chauffeur`, en mét `personeel_id` "Jeroen";
+  - PUT vertrek: 13:00,13:45 → 14:00,14:45;
+  - bulk geleverd true en false;
+  - rechten.
+  - **DOM-bouw met de echte planning-JSON en gesimuleerde pointer-punten:**
+    - slepen → `PUT /api/ritten/22/verplaats {"datum":"2026-11-11","vertrek":"10:30"}`
+    - greep → `PUT …/tijden {"einde":…}`
+    - droppen → `PUT /api/transport-taken/203/rit {"rit_id":22,"volgorde":2}`, `POST /api/ritten {"datum":"2026-11-10","vertrek":"14:15","taak_ids":[203]}`, en voor het weekend `POST /api/ritten …` + `weekend-bevestig`
+    - stop → `PUT /api/ritten/22/stops/volgorde {"taak_ids":[…]}` en `PUT /api/transport-taken/201/rit {"rit_id":24,"volgorde":1}`
+    - snap 15 min;
+    - bezige rit: geen call + toast;
+    - gsm-maten.
+- **In de browser (testserver op 3303, herfst-test.db), met de muis:**
+  - ritblok vr → wo 28 10:15 (flits + ongedaan), en terug;
+  - ongedaan: 13:45 → 10:15;
+  - open taak naar do 29 14:00 → nieuwe rit #23 "⚠ geen chauffeur · geen voertuig";
+  - greep onder → einde 11:15, "⚠ stops samengedrukt: 3 stops binnen 30 min";
+  - stop 1 → plaats 3.
+- **Volle run:**
+  - run 1: 31/33;
+  - run 2: 30/33 (`f1-schrijven` 4 fout; los daarna 22/22 groen — hij gebruikt een gedeelde wegwerpmap buiten de worktree);
+  - run 3: 31/33.
+  - Steeds rood: alleen de bekende `v3c-fotos` en `veiligheid`.
+
+### Fixes uit de browsercontrole (eigen commit)
+- Na het verplaatsen naar een andere dag bleef de lade op de oude dag staan; nu volgt ze de rit.
+- De flits startte zijn 1,5 s vóór het herladen; nu erna.
+- Op gsm mat ik de hoogte van een verborgen kolom (0 px), waardoor de tijd naar 00:00 sprong; nu meet ik de zichtbare kolom.
+
+### GEVONDEN
+1. **De Vandaag-kaart "Goedkeuren + spoed" heeft geen vraagModal.** De bestuurder-keuzelijst is daarom niet gebouwd (de prompt: "alleen als die kaart al een vraagModal heeft"). De API neemt `spoedtransport.personeel_id/chauffeur/voertuig` al aan.
+2. **Alleen ritplanning-gebaren zijn ongedaan te maken.** Ongedaan werkt per rit op de groepen van RP2. Wijzigingen via andere routes (oude transporttab, rit-link) staan niet in zo'n groep en zijn dus niet ongedaan te maken.
+3. **Verlengen aan de onderkant (einde later) verandert niets.** Het einde is de laatste stoptijd en er is geen kolom `einde`. Er gaat geen call als er niets verandert (antwoord = de rit zoals hij is).
+4. **De flits duurt 1,5 s (zoals gevraagd).** Voor een echte klik op "ongedaan" is dat krap; misschien 4 s?
+5. **De bovenbalk (`nav.js`) is 877 px breed op een gsm.** Opgevangen met scrollen binnen de balk in `ritplanning.css`; andere pagina's hebben hetzelfde probleem.
+6. **Stops "samengedrukt" na een herschikking worden door de G6-helper weer op 45 min gezet**, zoals de prompt vraagt ("tijden volgen de volgorde via de G6-helper"). Herschikken na inkorten maakt het inkorten dus deels ongedaan.
+
+### Buiten mijn gebied
+- Geen. Er is geen migratie nodig (de groepering zit in `wijzigingen.context`; samengedrukt wordt berekend).
+- `ritplanning.css` kreeg naast de sleepklassen ook de gsm-media-query (punt 4).
