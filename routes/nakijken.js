@@ -5,6 +5,7 @@
 module.exports = function(ctx){
   const {app,get,all,run,ins,now,logAct,updateMetLog,insMetLog,alleenKantoor,_kvVerwacht,_kvNaam,_bakItems,path,ROOT_DIR} = ctx;
   const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR);
+  const {fmtDatumTijd}=require('../lib/tijd');
 
   const ACTIES={
     tekort:[['bestellen','Bestellen'],['uit_pool','Uit pool aanvullen'],['aanvaarden','Aanvaarden']],
@@ -205,7 +206,7 @@ module.exports = function(ctx){
       bak:rij.bak,geteld:rij.geteld,totaal:rij.totaal,uitslag_tekst:rij.uitslag_tekst,status:rij.status,
       kv_naam:kvNaam,ingediend_op:rij.ingediend_op,nagekeken_op:rij.nagekeken_op,
       afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').length,te_veel:items.filter(i=>i.afwijking==='te_veel').length,kapot:items.filter(i=>i.kapot_aantal>0||i.afwijking==='kapot').length},
-      items,foto_s:fotoUrls,vorige_tellingen:vorige,historiek:hist.map(({sorteer,...h})=>h),
+      items,foto_s:fotoUrls,vorige_tellingen:vorige,historiek:hist.map(({sorteer,...h})=>({...h,tijd:fmtDatumTijd(h.tijd)})),
       contact:{kv_naam:kvNaam,kv_telefoon:(kvP&&kvP.telefoon)||''}};
   }
   // Bak uit "soort:id" voor een bak zonder sessie.

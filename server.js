@@ -1,3 +1,4 @@
+process.env.TZ = 'Europe/Brussels'; // TF2 G2: alle server-tijden (now(), getHours…) in Belgische tijd; opslag blijft ISO/UTC
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
