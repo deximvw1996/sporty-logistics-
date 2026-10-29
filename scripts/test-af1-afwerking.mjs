@@ -36,7 +36,7 @@ try {
     const s = lees(`public/${f}.js`);
     T.check(/sportyApi/.test(s), `${f}.js laat zijn api() door sportyApi lopen`);
   }
-  T.check(!/sportyApi/.test(lees('public/ritplanning.js')), 'ritplanning.js is niet aangeraakt (chat C)');
+  T.check(/sportyApi/.test(lees('public/ritplanning.js')), 'ritplanning.js laat zijn api() door sportyApi lopen (reviewfix na RP2)');
   for (const f of ['vandaag', 'taken', 'nakijken', 'kampmomenten', 'bakken', 'personeel', 'logboek', 'ritplanning']) {
     const html = lees(`public/${f}.html`);
     T.check(html.indexOf('/public/nav.js') > -1 && html.indexOf('/public/nav.js') < html.indexOf(`/public/${f}.js`), `${f}.html laadt nav.js vóór het eigen script`);

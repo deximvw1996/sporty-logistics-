@@ -203,6 +203,7 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 ---
 
 ## STATUSLOG
+- **30/10 10:30** RP2 (C) GEKEURD en live: ritplanning interactief (slepen, verlengen/inkorten, stops, taken droppen, ongedaan, gsm 1 dag). KD1 (D) live (91f2bb3). Mockup Materiaal-rest goedgekeurd; MA2 (D) geschreven. Oude schermen in 6 groepen → werklijst 97-102.
 - **30/10 08:30** AF1 (D) GEKEURD en op main: sportyApi-herpoging op alle kantoorpagina's, knop Bestelling binnen, aanvullijst-strip; reviewfix nav.js op Locaties; M2 kolomkaders. Volle run 33/33. Maxims run loopt (M1 → werklijst 96). C bouwt RP2.
 - **30/10 07:30** Prod opgeruimd + vers geseed (ritten #31-#36) voor Maxims run. Prompts RP2 (C, werklijst 94) en AF1 (D, werklijst 95) geschreven; C en D bouwen.
 - **30/10 07:15** TF2 (D) GEKEURD en op main: 10 testpunten dicht (TZ Europe/Brussels, lib/tijd.js, herpoging rit/kv, bakcodes, bestelling binnen, teksten); 2 merge-conflicten met TF1 opgelost (beide kanten). Volle run 31/31. Werklijst 93. Volgende: prod opruimen + herseeden, Maxims run; RP2.
