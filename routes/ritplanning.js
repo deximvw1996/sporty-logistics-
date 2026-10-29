@@ -52,11 +52,13 @@ module.exports = function(ctx){
         const stops=takenVanRit(r.id).map(t=>{
           const q=regelsQ(t.id),kv=kvVan(t);
           return {taak_id:t.id,volgorde:t.volgorde,tijd:t.tijd||'',slot:t.slot==='vrij'?'vrij':'vast',locatie:locNaam(stopLoc(t)),
-            wat:[t.type+(q.n?' '+q.q:''),kv?kvL(kv):null].filter(Boolean).join(' · '),bakken:q.q,status:t.status};
+            wat:[t.type+(q.n?' '+q.q:''),kv?kvL(kv):null].filter(Boolean).join(' · '),bakken:q.q,status:t.status,
+            geladen:!!get('SELECT 1 AS x FROM verhuis_checks WHERE taak_id=? AND geladen=1 AND COALESCE(gelost,0)=0 LIMIT 1',[t.id])};
         });
         return {id:r.id,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
           voertuig:{naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},
-          bezetting:info.bezetting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:info.waarschuwingen,notitie:info.notitie||'',stops};
+          bezetting:info.bezetting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:info.waarschuwingen,notitie:info.notitie||'',stops,
+          laatste_wijziging:ctx._laatsteRitWijziging?ctx._laatsteRitWijziging(r.id):null};
       }).sort((a,b)=>(a.vertrek||'99').localeCompare(b.vertrek||'99'));
       const open=all("SELECT * FROM transport_taken WHERE datum=? AND (rit_id IS NULL OR rit_id=0) AND status='gepland' ORDER BY tijd,id",[datum]).map(t=>{
         const q=regelsQ(t.id);

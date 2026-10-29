@@ -630,9 +630,15 @@ module.exports = function(ctx){
     } else {
       const rit=get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]);
       if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
-      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[rit_id,rit.datum,rit.chauffeur||'',req.params.id]);
-      _stoptijdenNaarVertrek(req,rit.id); // TF1 G6: "→ aan rit" in de Ritplanning
-      _syncChecksRit(parseInt(rit_id));
+      // RP2: een stop met geladen (nog niet geloste) regels verhuist niet naar een andere rit.
+      const nGel=String(t.rit_id||'')!==String(rit_id)?_geladenOpenRegels(t.id):0;
+      if(nGel)return res.status(409).json({error:`Taak #${t.id}: ${nGel} regel${nGel===1?' is':'s zijn'} al geladen — eerst lossen of terugzetten`});
+      const vanRit=t.rit_id;
+      const ctxt=_ritCtx(rit.id,vanRit&&String(vanRit)!==String(rit_id)?`stop #${t.id} van rit #${vanRit} → rit #${rit.id}`:`taak #${t.id} → rit #${rit.id}`+(req.body.volgorde?` (plaats ${req.body.volgorde})`:''));
+      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[rit_id,rit.datum,rit.chauffeur||'',req.params.id],ctxt);
+      if(req.body.volgorde){const ids=_takenVanRit(rit.id).map(x=>x.id).filter(x=>x!==t.id);ids.splice(Math.max(0,parseInt(req.body.volgorde)-1),0,t.id);_zetVolgorde(req,rit.id,ids,ctxt,false);}
+      _stoptijdenNaarVertrek(req,rit.id,ctxt); // TF1 G6: "→ aan rit" in de Ritplanning
+      _syncChecksRit(parseInt(rit_id));if(vanRit)_syncChecksRit(vanRit);
     }
     const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
     const regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[req.params.id]);
@@ -897,7 +903,7 @@ module.exports = function(ctx){
       const vt=naam?get('SELECT capaciteit_bakken FROM voertuig_types WHERE naam=?',[naam]):null;v.voertuig_capaciteit=vt?vt.capaciteit_bakken:null;}
     return {velden:v};
   }
-  function _zetRitVelden(req,id,v){const k=Object.keys(v);if(k.length)updateMetLog(req,`UPDATE transport_ritten SET ${k.map(x=>x+'=?').join(',')} WHERE id=?`,[...k.map(x=>v[x]),id]);}
+  function _zetRitVelden(req,id,v,context){const k=Object.keys(v);if(k.length)updateMetLog(req,`UPDATE transport_ritten SET ${k.map(x=>x+'=?').join(',')} WHERE id=?`,[...k.map(x=>v[x]),id],context);}
   // Bezetting = wat er maximaal aan boord is (som van de regels): vertrekt met alles behalve ophalingen,
   // lost bij een levering/transfer, laadt bij een ophaling; het maximum over de stops in volgorde.
   function _ritBezetting(ritId){
@@ -921,6 +927,10 @@ module.exports = function(ctx){
     // TF1 G5: een rit zonder chauffeur of voertuig (bv. een spoedrit uit "Goedkeuren + spoed") vraagt om een keuze.
     if(nogTeRijden&&!(rit.chauffeur||'').trim()&&!rit.personeel_id)w.push('geen chauffeur');
     if(nogTeRijden&&!(rit.voertuig||'').trim())w.push('geen voertuig');
+    // RP2: stops dichter op elkaar dan STOP_STAP_MIN (bv. na inkorten) → "stops samengedrukt: N stops binnen M min".
+    if(nogTeRijden&&rit.vertrek){const tm=all("SELECT tijd FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[rit.id]).map(t=>_min(t.tijd)).filter(x=>x!=null);
+      let best=null,a=0;for(let i=1;i<=tm.length;i++){if(i<tm.length&&tm[i]-tm[i-1]<STOP_STAP_MIN)continue;if(i-a>1&&(!best||i-a>best.n))best={n:i-a,m:tm[i-1]-tm[a]};a=i;}
+      if(best)w.push(`stops samengedrukt: ${best.n} stops binnen ${best.m} min`);}
     const naam=rit.chauffeur||'';
     if(rit.personeel_id||naam){
       const a0=_min(x.vertrek),a1=_min(x.einde);
@@ -956,7 +966,7 @@ module.exports = function(ctx){
   // TF1 G6: stoptijden volgen de vertrektijd van de rit. Stops zonder tijd of met een tijd vóór het vertrek krijgen een tijd
   // vanaf het vertrek, in volgorde en telkens STOP_STAP_MIN later; een bestaande latere tijd blijft staan.
   const STOP_STAP_MIN=45;
-  function _stoptijdenNaarVertrek(req,ritId){
+  function _stoptijdenNaarVertrek(req,ritId,context){
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[ritId]);
     const m=/^(\d{1,2}):(\d{2})$/.exec(rit&&rit.vertrek||'');if(!m)return 0;
     const hhmm=n=>`${String(Math.floor(n/60)%24).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
@@ -964,13 +974,114 @@ module.exports = function(ctx){
     let cur=(+m[1])*60+(+m[2]),n=0;
     all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[ritId]).forEach((t,i)=>{
       let tm=min(t.tijd);
-      if(tm===null||tm<cur){tm=cur;updateMetLog(req,'UPDATE transport_taken SET tijd=?,volgorde=? WHERE id=?',[hhmm(tm),i+1,t.id],'stoptijd volgt vertrek');n++;}
+      if(tm===null||tm<cur){tm=cur;updateMetLog(req,'UPDATE transport_taken SET tijd=?,volgorde=? WHERE id=?',[hhmm(tm),i+1,t.id],context||'stoptijd volgt vertrek');n++;}
       else if(t.volgorde!==i+1)run('UPDATE transport_taken SET volgorde=? WHERE id=?',[i+1,t.id]);
       cur=tm+STOP_STAP_MIN;
     });
     return n;
   }
   ctx._stoptijdenNaarVertrek=_stoptijdenNaarVertrek;
+
+  // ── RP2: interactieve ritplanning — verplaatsen, verlengen/inkorten, stopvolgorde, ongedaan ──
+  // Elk gebaar logt al zijn wijzigingen met één context "Rit #31: <beschrijving> ⟦g:<id>⟧"; ongedaan draait die groep terug.
+  const _hm=n=>`${String(Math.floor(n/60)%24).padStart(2,'0')}:${String(((n%60)+60)%60).padStart(2,'0')}`;
+  const _DG=['zo','ma','di','wo','do','vr','za'];
+  const _dagTekst=(d,t)=>{const x=new Date(d+'T12:00:00');return `${_DG[x.getDay()]} ${x.getDate()}/${x.getMonth()+1}${t?' '+t:''}`;};
+  const _isoD=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+  const _plusDagen=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return _isoD(x);};
+  let _gTeller=0;
+  function _ritCtx(ritId,beschrijving){return `Rit #${ritId}: ${beschrijving} ⟦g:${Date.now().toString(36)}${(++_gTeller).toString(36)}⟧`;}
+  const _takenVanRit=id=>all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[id]);
+  const _BEZIG=['onderweg','aangekomen','gedaan'];
+  // Rit + alle stops schuiven met hetzelfde verschil (dagen en minuten). Geeft de logcontext terug.
+  function _verschuifRit(req,rit,datum,vertrek,context){
+    const oud=_ritTijden(rit),oudM=_min(oud.vertrek),nieuwM=_min(vertrek)??oudM;
+    const dDagen=Math.round((new Date(datum+'T12:00:00')-new Date(rit.datum+'T12:00:00'))/864e5),dMin=oudM!=null&&nieuwM!=null?nieuwM-oudM:0;
+    const ctxt=context||_ritCtx(rit.id,`${_dagTekst(rit.datum,oud.vertrek)} → ${_dagTekst(datum,_hm(nieuwM??0))}`);
+    updateMetLog(req,'UPDATE transport_ritten SET datum=?,vertrek=? WHERE id=?',[datum,nieuwM!=null?_hm(nieuwM):(rit.vertrek||''),rit.id],ctxt);
+    _takenVanRit(rit.id).forEach(t=>{const m=_min(t.tijd);
+      updateMetLog(req,'UPDATE transport_taken SET datum=?,tijd=? WHERE id=?',[dDagen?_plusDagen(t.datum||rit.datum,dDagen):(t.datum||datum),m!=null?_hm(Math.max(0,m+dMin)):t.tijd,t.id],ctxt);});
+    return ctxt;
+  }
+  ctx._verschuifRit=_verschuifRit;
+  // Nieuwe volgorde zetten; metTijden: de bestaande tijden (gesorteerd) volgen de nieuwe volgorde.
+  function _zetVolgorde(req,ritId,ids,ctxt,metTijden){
+    const taken=_takenVanRit(ritId),tijden=taken.map(t=>t.tijd).filter(t=>_min(t)!=null).sort((a,b)=>_min(a)-_min(b));
+    ids.forEach((id,i)=>{const t=taken.find(x=>x.id===id);if(!t)return;
+      const tijd=metTijden&&!['aangekomen','gedaan'].includes(t.status)&&tijden.length===taken.length?tijden[i]:t.tijd;
+      if(t.volgorde!==i+1||t.tijd!==tijd)updateMetLog(req,'UPDATE transport_taken SET volgorde=?,tijd=? WHERE id=?',[i+1,tijd,id],ctxt);});
+  }
+  const _planRit=id=>{const r=get('SELECT * FROM transport_ritten WHERE id=?',[id]);return {...r,..._ritPlanInfo(r),laatste_wijziging:_laatsteRitWijziging(id)};};
+  function _laatsteRitWijziging(ritId){
+    const w=get("SELECT id,context FROM wijzigingen WHERE context LIKE ? ORDER BY id DESC LIMIT 1",[`Rit #${ritId}: %⟦g:%`]);
+    if(!w)return null;const g=/⟦g:(\w+)⟧/.exec(w.context);if(!g)return null;
+    if(get("SELECT id FROM wijzigingen WHERE context LIKE ? LIMIT 1",[`↶ %⟦g:${g[1]}⟧`]))return null;
+    return {id:g[1],beschrijving:w.context.replace(/^Rit #\d+: /,'').replace(/ ⟦g:\w+⟧$/,'')};
+  }
+  ctx._laatsteRitWijziging=_laatsteRitWijziging;
+  app.put('/api/ritten/:id/verplaats',alleenKantoor,(req,res)=>{
+    const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
+    if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
+    if(_BEZIG.includes(rit.status))return res.status(409).json({error:'rit is al bezig/gedaan'});
+    const {datum,vertrek}=req.body||{};
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(datum||''))return res.status(400).json({error:'datum moet YYYY-MM-DD zijn'});
+    if(!_hhmm(vertrek))return res.status(400).json({error:'vertrek moet HH:MM zijn'});
+    _verschuifRit(req,rit,datum,_hhmm(vertrek));_syncChecksRit(rit.id);
+    res.json(_planRit(rit.id));
+  });
+  app.put('/api/ritten/:id/tijden',alleenKantoor,(req,res)=>{
+    const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
+    if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
+    if(_BEZIG.includes(rit.status))return res.status(409).json({error:'rit is al bezig/gedaan'});
+    const b=req.body||{};
+    if(b.vertrek!==undefined&&!_hhmm(b.vertrek))return res.status(400).json({error:'vertrek moet HH:MM zijn'});
+    if(b.einde!==undefined&&!_hhmm(b.einde))return res.status(400).json({error:'einde moet HH:MM zijn'});
+    const oud=_ritTijden(rit),delen=[];
+    if(b.vertrek!==undefined&&_hhmm(b.vertrek)!==oud.vertrek)delen.push(`vertrek ${oud.vertrek||'?'} → ${_hhmm(b.vertrek)}`);
+    if(b.einde!==undefined&&_hhmm(b.einde)!==oud.einde)delen.push(`einde ${oud.einde||'?'} → ${_hhmm(b.einde)}`);
+    if(!delen.length)return res.json(_planRit(rit.id));
+    const ctxt=_ritCtx(rit.id,`${_dagTekst(rit.datum)} ${delen.join(', ')}`);
+    if(b.vertrek!==undefined){updateMetLog(req,'UPDATE transport_ritten SET vertrek=? WHERE id=?',[_hhmm(b.vertrek),rit.id],ctxt);_stoptijdenNaarVertrek(req,rit.id,ctxt);}
+    if(b.einde!==undefined){
+      // Inkorten: stops na het einde schuiven terug tot ≤ einde, in volgorde en telkens STOP_STAP_MIN terug;
+      // past dat niet tussen de vorige stop (of het vertrek) en het einde, dan komen ze dichter op elkaar (waarschuwing).
+      const E=_min(b.einde),taken=_takenVanRit(rit.id).filter(t=>!['aangekomen','gedaan'].includes(t.status));
+      const na=taken.filter(t=>_min(t.tijd)!=null&&_min(t.tijd)>E);
+      if(na.length){
+        const voor=taken.filter(t=>!na.includes(t)&&_min(t.tijd)!=null).map(t=>_min(t.tijd));
+        const vm=_min(get('SELECT vertrek FROM transport_ritten WHERE id=?',[rit.id]).vertrek);
+        const vloer=voor.length?Math.max(...voor):null,k=na.length;
+        const stap=vloer!=null?Math.min(STOP_STAP_MIN,(E-vloer)/k):(k>1?Math.min(STOP_STAP_MIN,(E-(vm??E))/(k-1)):STOP_STAP_MIN);
+        na.forEach((t,j)=>updateMetLog(req,'UPDATE transport_taken SET tijd=? WHERE id=?',[_hm(Math.round(E-(k-1-j)*Math.max(0,stap))),t.id],ctxt));
+      }
+    }
+    res.json(_planRit(rit.id));
+  });
+  app.put('/api/ritten/:id/stops/volgorde',alleenKantoor,(req,res)=>{
+    const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
+    if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
+    const ids=(req.body&&req.body.taak_ids||[]).map(Number),taken=_takenVanRit(rit.id);
+    if(ids.length!==taken.length||!taken.every(t=>ids.includes(t.id)))return res.status(400).json({error:'taak_ids moet precies de stops van deze rit bevatten'});
+    // Aangekomen/gedane stops blijven vooraan, in dezelfde volgorde (kantoor mag 🔒 vaste stops wel verplaatsen).
+    const vast=taken.filter(t=>['aangekomen','gedaan'].includes(t.status)).map(t=>t.id);
+    if(vast.some((id,i)=>ids[i]!==id))return res.status(409).json({error:'Stops die al aangekomen of gedaan zijn blijven vooraan in dezelfde volgorde'});
+    const ctxt=_ritCtx(rit.id,`volgorde ${taken.map(t=>'#'+t.id).join(',')} → ${ids.map(x=>'#'+x).join(',')}`);
+    _zetVolgorde(req,rit.id,ids,ctxt,true);_stoptijdenNaarVertrek(req,rit.id,ctxt);
+    res.json(_planRit(rit.id));
+  });
+  // ↶ Ongedaan: draait de laatste rit-wijziging (één logcontext-groep) terug; zelf gelogd met "↶ …".
+  app.post('/api/ritten/:id/ongedaan',alleenKantoor,(req,res)=>{
+    const l=_laatsteRitWijziging(req.params.id);
+    if(!l)return res.status(404).json({error:'Geen rit-wijziging om ongedaan te maken'});
+    const rijen=all('SELECT * FROM wijzigingen WHERE context LIKE ? AND context NOT LIKE ? ORDER BY id DESC',[`%⟦g:${l.id}⟧`,'↶ %']);
+    const ctxt='↶ '+rijen[0].context,ritten=new Set();
+    rijen.forEach(w=>{const oud=w.oud?JSON.parse(w.oud):null;
+      if(w.actie==='insert')delMetLog(req,w.tabel,w.rij_id,ctxt);
+      else if(w.actie==='update'&&oud){const v={...oud};delete v.id;updateMetLog(req,w.tabel,w.rij_id,v,ctxt);if(w.tabel==='transport_taken'&&oud.rit_id)ritten.add(oud.rit_id);}
+      if(w.tabel==='transport_ritten')ritten.add(w.rij_id);});
+    ritten.forEach(id=>_syncChecksRit(id));
+    res.json({ok:true,ongedaan:l.beschrijving,rit:get('SELECT id FROM transport_ritten WHERE id=?',[req.params.id])?_planRit(parseInt(req.params.id)):null});
+  });
   ctx._ritPlanInfo=_ritPlanInfo; // RP1: gedeeld met routes/ritplanning.js (zelfde berekening, geen kopie)
   app.get('/api/ritten',(req,res)=>{
     // RP1: ?week=YYYY-MM-DD → alleen de ritten van die kalenderweek (ma–zo).
@@ -999,11 +1110,15 @@ module.exports = function(ctx){
     const rv=_ritVelden(req.body||{},null);if(rv.fout)return res.status(400).json({error:rv.fout});
     const id=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,personeel_id,opmerking,status,created_at,voertuig) VALUES (?,?,?,?,?,?,?)',
       [datum,chauffeur||'',personeel_id||null,opmerking||'',status||'gepland',now(),req.body.voertuig||'']);
-    _zetRitVelden(req,id,rv.velden);
+    // RP2: alles van deze nieuwe rit in één omkeerbare groep (ongedaan = rit weg, taken terug open).
+    const ctxt=_ritCtx(id,`nieuwe rit ${_dagTekst(datum,rv.velden.vertrek||'')}${Array.isArray(taak_ids)&&taak_ids.length?' met taak #'+taak_ids.join(', #'):''}`);
+    run("UPDATE wijzigingen SET context=? WHERE id=(SELECT MAX(id) FROM wijzigingen WHERE tabel='transport_ritten' AND rij_id=? AND actie='insert')",[ctxt,id]);
+    _zetRitVelden(req,id,rv.velden,ctxt);
     if(Array.isArray(taak_ids)) taak_ids.forEach((tid,i)=>{
-      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=?,volgorde=? WHERE id=?',[id,datum,chauffeur||'',i+1,tid]);
+      updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=?,volgorde=? WHERE id=?',[id,datum,chauffeur||'',i+1,tid],ctxt);
     });
-    _stoptijdenNaarVertrek(req,id); // TF1 G6
+    _stoptijdenNaarVertrek(req,id,ctxt); // TF1 G6
+    if(Array.isArray(taak_ids)&&taak_ids.length)_syncChecksRit(id);
     res.json(_ritMetTaken(get('SELECT * FROM transport_ritten WHERE id=?',[id])));
   });
   app.put('/api/ritten/:id',(req,res)=>{
@@ -1012,6 +1127,9 @@ module.exports = function(ctx){
     if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
     if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
     const rv=_ritVelden(req.body||{},rit);if(rv.fout)return res.status(400).json({error:rv.fout});
+    // RP2: verandert het vertrek (of de datum met een vertrek), dan schuiven de stops mee — één functie met /verplaats.
+    if(rv.velden.vertrek&&rv.velden.vertrek!==_ritTijden(rit).vertrek){
+      _verschuifRit(req,rit,datum||rit.datum,rv.velden.vertrek);delete rv.velden.vertrek;datum=undefined;rit.datum=get('SELECT datum FROM transport_ritten WHERE id=?',[rit.id]).datum;}
     _zetRitVelden(req,req.params.id,rv.velden);
     updateMetLog(req,'UPDATE transport_ritten SET datum=?,chauffeur=?,personeel_id=?,opmerking=?,status=?,voertuig=? WHERE id=?',
       [datum||rit.datum,
@@ -1279,7 +1397,8 @@ module.exports = function(ctx){
         const b=c.bak_id?get('SELECT id,code,naam,is_bulk,foto_opgeplooid,huidige_locatie_id FROM bakken WHERE id=?',[c.bak_id]):null;
         const a=c.attribuut_id?get('SELECT id,code,naam,foto_path,huidige_locatie_id FROM attributen WHERE id=?',[c.attribuut_id]):null;
         // TF1 G10: bij een ophaling — staat het stuk volgens de db op die locatie? (bulk: spreiding onbekend → niet gemarkeerd)
-        const geleverd=t.type!=='ophaling'||c.geladen?true:(b&&!b.is_bulk)?b.huidige_locatie_id===t.van_locatie_id:a?a.huidige_locatie_id===t.van_locatie_id:true;
+        // RP2: bulk → volgens de bulk-spreiding (bezit > 0 op die locatie).
+        const geleverd=t.type!=='ophaling'||c.geladen?true:b&&b.is_bulk?(get('SELECT COALESCE(SUM(aantal),0) AS s FROM bulk_spreiding WHERE bak_id=? AND locatie_id=?',[b.id,t.van_locatie_id]).s>0):b?b.huidige_locatie_id===t.van_locatie_id:a?a.huidige_locatie_id===t.van_locatie_id:true;
         const code=(b&&b.code)||(a&&a.code)||'';
         const isBulk=!!(b&&b.is_bulk);
         if(!(c.niet_mee_reden&&!c.rest_gesplitst)){stuks++;if(c.geladen)geladen++;if(c.gelost)gelost++;}
