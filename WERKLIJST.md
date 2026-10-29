@@ -71,7 +71,8 @@ Spiegel van https://claude.ai/artifact/4RCousUbe3AhyaohNKF8Ge (Fable schrijft he
 | 66 | test-f1-schrijven flaky in volle run (AFGEBROKEN/1 fout, los altijd groen): poller 100 ms | Testen | Bouwchat | open | 3 | GEVONDEN B |
 | 67 | Tekortenlijst-UI: kop 'zonder kampmoment' tonen (backend levert ze al achteraan) | Vrijdagcontrole en voorraad | Bouwchat | open | 2 | GEVONDEN B (V2b) |
 | 68 | setActivePeriode (Periodes-lijst) herlaadt kalender niet; andere isoDate-middernacht-plekken (tijdzone) | Periodes en planning | Bouwchat | open | 3 | GEVONDEN B (V2b) |
-| 69 | Dagoverzicht chauffeur met tijdlijn; stops vast (kantoor) of vrij (chauffeur wisselt met ▲▼); terug naar vorige stop | Chauffeur | Bouwchat | gebouwd | 1 | CH1 (C) GEKEURD 29/10 16:30: migratie 73, wissel-route, rit-data-JSON, niet-mee→rest-taak, probleem melden; herdraai 39 ok + volle run 16/16; reviewfix: afgewerkte stops wisselen niet; live op main. CH2 (D) pagina volgt |
+| 69 | Dagoverzicht chauffeur met tijdlijn; stops vast (kantoor) of vrij (chauffeur wisselt met ▲▼); terug naar vorige stop | Chauffeur | Bouwchat | gebouwd | 1 | CH1 (C) + CH2 (D) GEKEURD 29/10: rit-pagina = exacte kopie van CHAUFFEUR-DEFINITIEF op de CH1-data (public/rit.*); herdraai ch2 38 ok, ch1 40 ok, volle run 17/17; live-check op 390 px (wissel, contacten, past-niet) ok; 2 reviewfixes (wissel van afgewerkte stop; gedeeltelijke PUT locatie). Live op main |
+| 70 | Rit-link en KV-link achter het Basic-wachtwoord: chauffeur/KV moet het app-wachtwoord kennen; beslissen: wachtwoord delen of /rit, /kv, /uploads buiten de muur (token = toegang) | Veiligheid | Maxim | open | 1 | gevonden door chat D bij CH2 (29/10) |
 | 60 | /api/conflicten: periode-filter + gestructureerde velden (week, locatie_ids, kampmoment_ids); 'kampmoment zonder thema' terug | Periodes en planning | Bouwchat | gekeurd | 1 | V2: ?periode_id, velden, geen_thema |
 
 ## Volgorde van de prompts (voorlopig — brainstorm legt vast)
