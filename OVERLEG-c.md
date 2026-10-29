@@ -534,3 +534,163 @@ Regels:
 ### Buiten mijn gebied
 - **`scripts/test-ko1-vandaag.mjs`:** één verwachting aangepast, de link van "Op een rit zetten" is nu `/ritplanning?taak=…`. Het is mijn eigen test van KO1, maar die stond niet in de lijst van deze prompt.
 - **`server.js`:** zoals toegestaan één regel (`'ritplanning'` in de routelijst).
+
+---
+
+## TR1 — Transport › Taken op het standaardpagina-patroon (chat C, Opus) · 2026-10-29
+
+**Commits op `bouw-c`:**
+- 5aa3c16 (punt 1: API)
+- 6bb4883 (punt 3: `patroon.css`)
+- e18eb64 (punt 2: pagina `/taken` + test)
+- een commit met de regel in `test-f1-modules`
+- dit verslag
+
+Gewerkt van 17:55 tot ±18:30.
+
+### Wat er gebouwd is
+
+**Punt 1 — `routes/taken.js`**
+- `GET /api/taken-overzicht?week=YYYY-MM-DD[&alle=1]` en `GET /api/taken/:id/detail`, allebei alleen voor kantoor. Daarnaast `GET /taken` voor de pagina.
+- Er worden alleen gegevens gelezen. Alle acties gaan via bestaande routes, behalve ✕ "Van rit halen": die gebruikt de RP1-route `POST /api/ritten/:id/taken/:taakId/ontkoppel`.
+- Data en weergave zijn gescheiden, zodat de latere gsm-laag op dezelfde API kan (MOBIEL-REGEL).
+
+**Punt 2 — De pagina (`public/taken.html`, `.css`, `.js`)**, als exacte kopie van de mockup:
+- **Lijst:** zoekveld (op taak, locatie, rit en regel/bak) en 7 filterchips met tellers, waarvan er één actief is. Kolommen Taak (soort + pil rest/vrij/weekend), Wanneer, Route, Wat, Rit en Status.
+- **Selectie:** selectievakjes plus "alles", met de voet "N taken · M geselecteerd" en de bulkknoppen.
+- **Detailkop:** naam, subregel en de knoppen Bewerken, Splitsen, Van rit halen en Open rit #n (zonder rit: "Op een rit zetten").
+- **Detailtabs:** Regels (het volle overzicht zoals in de mockup), Checks, Kampmoment en Historiek.
+- **Inhoud van het detail:**
+  - regels met ✕ en "+ Regel";
+  - rit met bezetting/capaciteit en ⚠;
+  - slot met de knop "🔒 Zet vast" of "Zet vrij";
+  - checks (geladen, gelost, klaargezet);
+  - de stops van de rit, met deze stop onderstreept;
+  - het kampmoment met KV, contact, sleutel en de gekoppelde ophaling of levering (aanklikbaar);
+  - de historiek met "↶ Terug".
+- **Bulk:**
+  - **Op een rit zetten:** keuze uit de ritten van die dag + "nieuwe rit" (→ `/ritplanning?taak=`), via `bulk-move`.
+  - **Verplaatsen:** datum en/of tijd, via `PUT /api/transport-taken/:id` met de volledige taak.
+  - **Verwijderen:** met bevestiging, via `bulk-delete`. Bij 409 verschijnt een toast.
+  - **Bundelen:** uitgeschakeld, zie GEVONDEN.
+- **Subbalk:** Export (bestaande `/api/export`, download), "Genereer uit planning" (bestaande `POST /api/transport-genereer`, na bevestiging) en "+ Nieuwe taak" (venster met de velden van de bewerkmodal).
+- `?taak=ID` opent de week en het detail van die taak. Na elke actie wordt de pagina opnieuw geladen en elke fout verschijnt als toast.
+
+**Punt 3 — `public/patroon.css`**
+- Bevat de regels die Vandaag en Ritplanning letterlijk deelden (14), de subbalk (3) en de stijl van het bevestigingsvenster en het formulier (7).
+- Die regels zijn uit `vandaag.css` en `ritplanning.css` gehaald. De drie pagina's laden `patroon.css` vóór hun eigen CSS.
+- **Bewijs dat het beeld niet veranderde:** ik maakte een hash over álle berekende stijlen en posities van elk element op 1920×900, met dezelfde data.
+  - Vandaag: 160 elementen, hash 1823108888 vóór en na.
+  - Ritplanning (met rit #27 open): 377 elementen, hash 2487664090 vóór, na de eerste verschuiving en na de tweede.
+  - Ik heb eerst gecontroleerd dat de hash bij herladen stabiel is.
+
+### JSON-vorm
+
+`GET /api/taken-overzicht?week=2026-11-04`
+```json
+{
+  "week": {"start": "2026-11-02", "eind": "2026-11-08"},
+  "bereik": {"van": "2026-11-02", "tot": "2026-11-08", "alle": false},
+  "tellers": {"deze_week": 7, "zonder_rit": 4, "levering": 5, "ophaling": 1, "rest": 1, "weekend": 1, "gedaan": 0},
+  "taken": [
+    {"id": 196, "type": "levering", "soort": "rest|aanvraag|levering|ophaling|transfer", "pil": "rest|vrij|weekend|null",
+     "datum": "2026-11-06", "tijd": "08:15", "wanneer_tekst": "vr 6 nov 08:15", "route": "Rozenweg → Abdijschool Vlierbeek",
+     "wat": "3 bakken + Springkasteel ×2", "rit": {"id": 22, "chauffeur": "Jeroen", "voertuig": "Camionette", "status": "gepland"},
+     "slot": "vast", "status": "gepland", "kampmoment_id": 168, "locatie_id": 29, "zoek": "196 rozenweg abdijschool … rit #22 jeroen bak …"}
+  ]
+}
+```
+Regels voor de lijst:
+- **`wat`:** regels van soort thema, vast of bak tellen als "N bakken". De rest staat bij naam ("Oven ×1"); bij meer dan 2 andere regels wordt het "N stuks".
+- **`wanneer_tekst`:** bevat de tijd alleen als de taak op een rit staat, zoals in de mockup.
+- **`pil`:** de volgorde is rest, dan weekend, dan vrij (vrij alleen op een rit).
+- **`?alle=1`:** geeft alle taken van de actieve periode. De tellers gaan altijd over de gekozen week.
+
+`GET /api/taken/:id/detail`
+```json
+{
+  "taak": {"…zelfde velden als in de lijst…": "", "opmerking": "", "van_locatie_id": 7, "naar_locatie_id": 29, "week": null},
+  "regels": [{"id": 512, "code": "N20", "naam": "Bak Themabak 1/4 (kleuterbak) (N20)", "qty": 1, "soort": "thema"}],
+  "rit": {"id": 22, "datum": "2026-11-06", "vertrek": "08:15", "chauffeur": "Jeroen", "voertuig": "Camionette", "bezetting": 19, "capaciteit": 20,
+          "status": "gepland", "waarschuwingen": [], "stop_nr": 1,
+          "stops": [{"taak_id": 196, "naam": "Abdijschool Vlierbeek", "slot": "vast", "is_deze": true}, {"taak_id": 197, "naam": "Betekom", "slot": "vrij", "is_deze": false}]},
+  "checks": {"geladen": 0, "gelost": 0, "totaal": 3, "klaargezet": false},
+  "kampmoment": {"id": 168, "locatie": "Abdijschool Vlierbeek", "thema": "Holderdebolder", "week": 1, "kv_naam": "Test KV Abdijschool", "kv_telefoon": "",
+                 "contact_naam": "Conciërge", "contact_telefoon": "0470 11 22 33", "sleutel_info": "sleutel bij de buren"},
+  "gekoppeld": {"ophaling_taak_id": 199, "tekst": "taak #199 · vr 6 nov · zonder rit"},
+  "historiek": [{"t": "2026-10-29T17:20:39.000Z", "wie": "Claude (API)", "wat": "op rit #22 gezet (api)", "wijziging_id": 41},
+                {"t": "…", "wie": "", "wat": "Taak #196: 1 regel(s) afgesplitst …", "wijziging_id": null}]
+}
+```
+- **`rit` en `kampmoment`** zijn `null` als de taak geen rit of geen kampmoment heeft.
+- **`gekoppeld`** bevat bij een levering de ophaling van hetzelfde kampmoment, en omgekeerd.
+- **`historiek`:**
+  - Bevat de rijen uit `wijzigingen` voor deze taak (nieuwste eerst, in leesbare taal: "op rit #22 gezet", "van rit #22 gehaald", "slot: vast → vrij"), plus de regels uit `activiteiten_log` die "Taak #id" noemen.
+  - `wijziging_id` staat erbij voor een latere terugdraai-route.
+
+### Bewijs
+- **`node scripts/test-tr1-taken.mjs` (poort 3336): 26 ok, 0 fout, ALLES GROEN.** De test controleert:
+  - 7 taken in kampweek 1: levering op een rit, levering op een rit met slot vrij, levering zonder rit, ophaling, rest-taak, goedgekeurde aanvraag (spoed) en zaterdagtaak;
+  - de tellers;
+  - soort, pil, wat, route en `wanneer_tekst`;
+  - `?alle=1`;
+  - het detail: regels met code N20, de rit met stops, `is_deze` en capaciteit 20, de checks, het kampmoment met KV, contacttelefoon en sleutel, gekoppeld = de ophaling, en minstens 2 historiekregels;
+  - 404 voor een onbekende taak;
+  - `bulk-move` zet 2 taken op een andere rit;
+  - na het laden van een stuk geeft `bulk-delete` 409 en wordt niets verwijderd;
+  - een chauffeur krijgt 403;
+  - `/taken` heeft de subbalk, 7 chips en de voet;
+  - `/taken`, `/vandaag` en `/ritplanning` laden `patroon.css`.
+- **Live in de browser op 1920×900** (kopie van herfst-test.db met de RP1-demoweek):
+  - **Lijst:** 23 taken; chips "Deze week 23 · Zonder rit 4 · Levering 23 · Ophaling 0 · Rest 0 · Weekend 1 · Gedaan 0", elk 36 px hoog en op één regel.
+  - **Filter en zoeken:** "Zonder rit" toont 4 taken, zoeken op "marko" 2.
+  - **Selectie:** 2 taken aangevinkt → voet "23 taken · 2 geselecteerd" met de bulkknoppen.
+  - **`?taak=216`** opent het detail.
+  - **Acties die werkten:**
+    - "+ Regel" (Pionnen ×20) → "Regel toegevoegd";
+    - Splitsen → "1 regel(s) naar taak #219";
+    - Bewerken (tijd 11:30) → "Taak opgeslagen", Historiek 3;
+    - "Op een rit zetten" met keuze #27/#28/#29… → "1 taak op rit #27 gezet", "stop 3 van 3";
+    - "Zet vrij" → "Slot: vrij";
+    - "Van rit halen" → "zonder rit";
+    - "+ Nieuwe taak" → taak #220;
+    - bulk Verplaatsen van #220 en #219 naar do 5 nov → "2 taken verplaatst";
+    - bulk Verwijderen met bevestiging "2 taken verwijderen?" → weg uit de lijst;
+    - ✕ regel met bevestiging "Pionnen × 20 van taak #216" → "Regel verwijderd".
+  - De screenshot van lijst + detail (#201) komt overeen met de mockup.
+- **`node scripts/volle-run.mjs`:**
+
+| run | groen | rood / afgebroken |
+|---|---|---|
+| 1 | 18/21 | f1-modules (1, van mij: nieuw pad niet ingevuld), v3c-fotos (2), veiligheid (3) |
+| 2 | 17/21 | f1-modules (1, idem), f1-wijzigingen (afgebroken), v3c-fotos (2), veiligheid (3) |
+| 3 (na de f1-modules-regel) | 19/21 | v3c-fotos (2), veiligheid (3) |
+| 4 | 18/21 | ch1-rit-api (afgebroken na 0,2 s zonder uitvoer), v3c-fotos (2), veiligheid (3) |
+
+`tr1-taken`, `rp1-ritplanning` en `ko1-vandaag` zijn in alle runs groen.
+
+### Afwijkingen van de mockup
+- **Demo-balk en frame:** de demo-balk (`.keuze`) valt weg. Het frame vult het venster; op 1920×900 is het beeld identiek.
+- **Tab "Regels":** toont zoals de mockup alle blokken. De tabs Checks, Kampmoment en Historiek tonen alleen hun eigen blok; de mockup laat die tabs niet zien.
+- **Filterchips:** `white-space:nowrap` erbij. Met echte tellers liep "Deze week 23" anders over twee regels.
+- **Pilkleuren:** `.pil.rood` en `.pil.blauw` toegevoegd. De mockup gebruikt die klassen (weekend, onderweg) maar definieert ze niet; de kleuren komen uit Vandaag en Ritplanning.
+- **Knoppen zonder route** zijn uitgeschakeld, met uitleg (zie GEVONDEN): "↶ Terug" en "Bundelen".
+
+### GEVONDEN
+1. **Er bestaat geen terugdraai-route voor `wijzigingen`.** `wijziging_id` zit in de historiek, maar "↶ Terug" is uitgeschakeld met de uitleg "Terugdraaien bestaat nog niet als route". Nodig: een route die één wijziging terugzet (`oud` terugschrijven, zelf gelogd).
+2. **Er bestaat geen bundel-route** om meerdere taken van dezelfde dag en bestemming samen te voegen. "Bundelen" is uitgeschakeld met uitleg.
+3. **`bulk-move` verplaatst taken naar een rit, niet naar een datum.** Voor "Verplaatsen" (datum/tijd) bestaat geen bulkroute. De pagina doet daarom per taak `PUT /api/transport-taken/:id` met de volledige taak.
+   - Die PUT zet bij ontbrekende velden standaardwaarden (type, tijd 09:00, status gepland), dus de pagina stuurt altijd de hele taak mee.
+   - Taken op een rit houden de datum van hun rit; dat staat ook in het venster.
+4. **`PUT /api/transport-taken/:id/move` maakt bij een losse taak een eigen 1-op-1-rit aan.** Daarom heb ik die niet gebruikt voor Verplaatsen.
+5. **Bewerken:** de bewerkmodal van `index.html` zit in dat bestand en is niet los te laden. Taken heeft een eigen venster met dezelfde velden: type, datum, tijd, van, naar, opmerking.
+6. **Export** is de bestaande volledige export (`/api/export`, JSON van de hele database). Een export van alleen de takenlijst bestaat niet.
+7. **"Genereer uit planning" heb ik niet live geklikt**, omdat die voor alle kampmomenten taken aanmaakt. Hij roept de bestaande route aan na bevestiging.
+8. **Rode of afgebroken tests die niet van mij zijn:**
+   - `v3c-fotos` en `veiligheid` lezen de lokale `sporty.db` (zie V3a/CH1/KO1/RP1).
+   - `f1-wijzigingen` (run 2) en `ch1-rit-api` (run 4) braken af. Los gedraaid zijn ze groen (46 ok en 40 ok). Waarschijnlijk een poortbotsing met testruns van andere chats.
+
+### Buiten mijn gebied
+- **`scripts/test-f1-modules.mjs`:** één regel (`.replace('/api/taken/:id', '/api/taken/999999')`). Zonder die regel kan de route-inventaris het nieuwe pad niet invullen, zoals bij CH1. Resultaat: 404, geen 500.
+- **`public/ritplanning.html`:** de subbalklink "Taken" gaat nu naar `/taken` (was `/#transport-plan`). De prompt noemde alleen `ritplanning.js`, maar de link staat in de HTML.
+- **`server.js`:** één regel, `'taken'` in de routelijst.
