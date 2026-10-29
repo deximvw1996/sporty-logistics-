@@ -1,0 +1,28 @@
+/* public/patroon.css — gedeelde regels van het kantoorpatroon (bovenbalk, subbalk, knop, pil, scroll, toast,
+   periode-kiezer). Letterlijk overgenomen uit de goedgekeurde ontwerpen; Vandaag, Ritplanning en Taken laden dit
+   bestand vóór hun eigen CSS. Wat per scherm verschilt (kaart, frame, kolommen) blijft in de eigen CSS. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}
+.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
+.top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
+.top .logo{font-size:17px;font-weight:800;color:#1e3a8a;margin-right:22px}
+.top a{height:40px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;cursor:pointer}
+.top a.act{background:#eff6ff;color:#1d4ed8}.top a .b{background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:999px}
+.top .rechts{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#64748b}.top .rechts b{color:#1e3a8a}
+.scroll{overflow-y:auto;min-height:0;flex:1;padding-right:4px}
+.per{position:relative;cursor:pointer}.per select{position:absolute;inset:0;opacity:0;cursor:pointer;font:inherit}
+#toasts{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+#toasts div{padding:10px 16px;border-radius:10px;color:#fff;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.18);max-width:320px;pointer-events:auto;cursor:pointer}
+.sub{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:4px}
+.sub a{height:36px;padding:0 12px;border-radius:8px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#64748b;cursor:pointer}
+.sub a.act{color:#1d4ed8;background:#eff6ff}
+/* venster (vraagModal-stijl) + formulier */
+.form{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px;padding:6px 0}.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:600;color:#64748b}
+.form input,.form select{height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 8px;font:inherit;font-size:13px;color:#1a1a1a;background:#fff}
+.form .knoppen{grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end}
+.mbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2600;display:flex;align-items:center;justify-content:center;padding:12px}
+.mbox{background:#fff;border-radius:12px;padding:1.25rem;width:440px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.mbox h4{font-size:16px;font-weight:600;margin-bottom:6px}.mbox p{font-size:13px;color:#64748b;margin-bottom:12px;white-space:pre-line}.mbox .form{grid-template-columns:1fr}
+.mbox .chk{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:500;color:#1a1a1a;flex-direction:row}

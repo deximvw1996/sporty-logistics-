@@ -1,29 +1,18 @@
 /* public/vandaag.css — KO1: exacte kopie van de stijlen in design/KANTOOR-DEFINITIEF.html.
    Enige aanpassingen: de demo-balk (.keuze) valt weg en het frame vult het venster i.p.v. vast 1920×900
    (op 1920×900 identiek). Onderaan: lege-kolomtekst, periode-kiezer en toast (geen ontwerpelementen). */
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
 .frame{width:100%;max-width:1920px;height:100vh;margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
 button{font:inherit;cursor:pointer;border:0}
 input[name=wg]{position:absolute;opacity:0;pointer-events:none}
-.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
 .pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.groen{background:#dcfce7;color:#15803d}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
 .kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:16px}
 .kaart h3{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
-.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}
-.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
 .cijfer{background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-top:4px solid #cbd5e1}
 .cijfer.blauw{border-top-color:#2563eb}.cijfer.groen{border-top-color:#16a34a}
 .cijfer .n{font-size:26px;font-weight:800;line-height:1}.cijfer .l{font-size:12px;color:#64748b;margin-top:4px}
-.top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
-.top .logo{font-size:17px;font-weight:800;color:#1e3a8a;margin-right:22px}
-.top a{height:40px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;cursor:pointer}
-.top a.act{background:#eff6ff;color:#1d4ed8}.top a .b{background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:999px}
-.top .rechts{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#64748b}.top .rechts b{color:#1e3a8a}
 .rit{display:flex;gap:12px;padding:9px 0;border-top:1px solid #f1f5f9;align-items:flex-start}
 .rit .u{width:48px;font-weight:700;font-size:13px;color:#334155;padding-top:2px;flex:none}
 .rit .nm{flex:1;font-size:13px;line-height:1.35}.rit .nm b{display:block;font-weight:700;font-size:14px}
-.scroll{overflow-y:auto;min-height:0;flex:1;padding-right:4px}
 .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
 .body{display:grid;grid-template-columns:1fr 400px;gap:20px;padding:20px 28px;height:calc(100vh - 56px)}
 .werk{display:flex;flex-direction:column;min-height:0}
@@ -60,6 +49,3 @@ input[name=wg]{position:absolute;opacity:0;pointer-events:none}
 #wgC:checked~.frame .it .acts .knop.licht{display:none}
 /* ── aanvullingen (geen nieuwe ontwerpelementen) ── */
 .leeg{font-size:13px;color:#94a3b8;padding:10px 4px}
-.per{position:relative;cursor:pointer}.per select{position:absolute;inset:0;opacity:0;cursor:pointer;font:inherit}
-#toasts{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-#toasts div{padding:10px 16px;border-radius:10px;color:#fff;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.18);max-width:320px;pointer-events:auto;cursor:pointer}
