@@ -74,7 +74,7 @@ try {
   const rit = (await A('POST', '/api/ritten', { datum: '2026-11-02', chauffeur: 'Test', taak_ids: [taak2] })).json.id;
   const rtok = await T.ritToken(srv.base, tok, rit);
   const pagina = await fetch(`${srv.base}/rit/${rtok}`, { headers: { authorization: 'Basic ' + Buffer.from('sporty:' + T.APP_PASSWORD).toString('base64') } }).then((x) => x.text());
-  T.check(!/alert\(/.test(pagina) && /function toast\(/.test(pagina), 'rit-pagina: geen alert() meer, wel toast()');
+  T.check(!/alert\(/.test(pagina) && /id="toast"/.test(pagina), 'rit-pagina: geen alert() meer, wel toast()');
   const ch = (await A('GET', `/api/ritten/${rit}/checks`)).json.checks;
   await T.ritActie(srv.base, rtok, ch[0].id, 'laden');
   T.check((await db('SELECT status FROM bakken WHERE id=?', [koffer.id]))[0].status === 'onderweg', 'Verkeerskoffer 1 geladen → onderweg');

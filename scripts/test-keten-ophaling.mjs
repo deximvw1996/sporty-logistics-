@@ -2,6 +2,7 @@
 // Gewenst (DRAAIBOEK 3.5/4.1): de chauffeur opent de rit-link van een ophaalrit en ziet per stop
 // meteen de bakkenlijst met codes — zonder dat iemand op kantoor eerst "Klaarzetten" (checks/init) deed.
 import * as T from './_testhulp.mjs';
+import { ritTekst } from './_rit-render.mjs';
 const POORT = parseInt(process.env.TEST_POORT || '3322');
 const ijk = T.leesIjk();
 const srv = await T.startServer({ poort: POORT });
@@ -28,6 +29,9 @@ try {
   const O = await T.voorstelNaarRit(srv.base, tok, oph, { chauffeur });
   const otok = await T.ritToken(srv.base, tok, O.ritId);
   const pagina = await A('GET', `/rit/${otok}`);
+  // CH2: de pagina tekent zich in de browser uit de rit-data; we zoeken in de HTML die rit.js daaruit bouwt.
+  const ritData = async () => ({ text: ritTekst((await T.api(srv.base, null, 'GET', `/api/rit-token/${otok}/data`)).json) });
+  pagina.text = (await ritData()).text;
   T.check(pagina.status === 200, `rit-link ophaalrit → 200 (kreeg ${pagina.status})`);
   const codes = oph.materiaal.map((m) => (m.naam.match(/\(([A-Z][0-9]+[^)]*)\)/) || [])[1]).filter(Boolean);
   T.info(`ophaalvoorstel: ${oph.materiaal.length} regels, codes ${codes.join(', ') || '—'}`);
@@ -40,7 +44,7 @@ try {
   T.check(checks.length === oph.materiaal.length, `ophaalrit heeft meteen ${oph.materiaal.length} afvinkbare checks (kreeg ${checks.length})`);
   // Controle op het script zelf: mét klaarzetten moet de pagina de codes wél tonen (anders zoekt de test verkeerd).
   await A('POST', `/api/ritten/${O.ritId}/checks/init`);
-  const na = await A('GET', `/rit/${otok}`);
+  const na = await ritData();
   T.check(codes.every((c) => na.text.includes(c)), `controle: na klaarzetten toont de rit-pagina ${codes.join(', ')} (zoekmethode van deze test klopt)`);
 } catch (e) { T.fout('onverwachte fout: ' + (e.stack || e)); }
 await T.einde(srv);
