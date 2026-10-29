@@ -45,7 +45,7 @@ try {
   const o = await opbouw(c, (m) => console.log('  ' + m));
   const kms = o.kampmomenten, ritten = o.ritten;
   const lev = ritten.filter((r) => r.datum === LEVERDAG), oph = ritten.filter((r) => r.datum === OPHAALDAG);
-  const ritJan = lev[0], ritPiet = lev.find((r) => r.waarschuwingen.some((w) => /bakken op/.test(w))) || lev[1], ritLotte = lev.find((r) => /coördinator/.test(r.titel));
+  const ritJan = lev[0], ritPiet = lev.find((r) => r !== lev[0] && r.waarschuwingen.some((w) => /(bakken|stuks) op/.test(w))) || lev[1], ritLotte = lev.find((r) => /coördinator/.test(r.titel));
 
   // ── 1 ──
   stap('donderdag 29 okt — kantoor kijkt naar morgen');
@@ -93,8 +93,8 @@ try {
   d = await ritData(ritJan.rit_token);
   check(d.rit.status === 'gedaan', `rit Jan na lossen: ${d.rit.status} (stops gedaan ${d.voortgang.stops_gedaan}/${d.voortgang.stops})`);
   const rpp = (await A('GET', `/api/ritplanning?week=${LEVERDAG}`)).json.dagen.find((x) => x.datum === LEVERDAG).ritten.find((x) => x.id === ritPiet.id);
-  check(rpp && rpp.waarschuwingen.some((w) => /bakken op \d+ plaatsen/.test(w)), `ritplanning: rit #${ritPiet.id} toont "${rpp?.waarschuwingen.join(' · ')}"`);
-  const andereOver = lev.filter((x) => x.id !== ritPiet.id && x.waarschuwingen.some((w) => /bakken op/.test(w)));
+  check(rpp && rpp.waarschuwingen.some((w) => /(bakken|stuks) op \d+ plaatsen/.test(w)), `ritplanning: rit #${ritPiet.id} toont "${rpp?.waarschuwingen.join(' · ')}"`);
+  const andereOver = lev.filter((x) => x.id !== ritPiet.id && x.waarschuwingen.some((w) => /(bakken|stuks) op/.test(w)));
   if (andereOver.length) gat(`"bewust één rit over capaciteit" lukt niet: ${andereOver.length + 1} leveringsritten zitten erover (${[ritPiet, ...andereOver].map((x) => `#${x.id} ${x.bezetting}/${x.capaciteit}`).join(', ')}), want de bezetting telt elke regel (bv. "5 × kleuterfiets" = 5) en één themaset is al groter dan een Camionette.`);
   const dl = await ritData(ritLotte.rit_token);
   for (const s of dl.stops) for (const rg of s.regels) await P('POST', `/api/rit-token/${ritLotte.rit_token}/checks/${rg.check_id}/laden`);
