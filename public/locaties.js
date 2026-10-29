@@ -39,7 +39,7 @@
     t.textContent=msg;t.onclick=()=>t.remove();$('toasts').appendChild(t);
     setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';setTimeout(()=>t.remove(),300);},type==='error'?5000:3000);
   }
-  async function api(m,url,body){const r=await fetch(url,{method:m,headers:{'Content-Type':'application/json','x-auth-token':TOKEN},body:body?JSON.stringify(body):undefined});const j=await r.json().catch(()=>({}));return {status:r.status,ok:r.ok,json:j};}
+  async function api(m,url,body){if(window.sportyApi)return window.sportyApi(m,url,body,{toast:x=>toast(x,'info'),token:TOKEN});const r=await fetch(url,{method:m,headers:{'Content-Type':'application/json','x-auth-token':TOKEN},body:body?JSON.stringify(body):undefined});const j=await r.json().catch(()=>({}));return {status:r.status,ok:r.ok,json:j};} // nav.js ontbreekt op deze pagina: geen herpoging
   function vraag({titel,tekst,html,ok='Bevestigen',annuleer='Annuleren',lees}){
     return new Promise(resolve=>{
       const bg=document.createElement('div');bg.className='mbg';

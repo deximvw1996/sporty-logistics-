@@ -6,7 +6,7 @@ module.exports = function(ctx){
   const {kvL}=require('../lib/tijd');
   const {app,get,all,run,ins,now,logAct,updateMetLog,insMetLog,alleenKantoor,_kvVerwacht,_kvNaam,_bakItems,path,ROOT_DIR} = ctx;
   const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR);
-  const {fmtDatumTijd}=require('../lib/tijd');
+  const {fmtDatumTijd,zonderHaakjes}=require('../lib/tijd');
 
   const ACTIES={
     tekort:[['bestellen','Bestellen'],['uit_pool','Uit pool aanvullen'],['aanvaarden','Aanvaarden']],
@@ -139,7 +139,7 @@ module.exports = function(ctx){
       const ar=sessie&&st==='beschadigd'?get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_naam=?',[sessie.id,bak.naam]):null;
       items=[{regel_id:ar?ar.id:null,naam:bak.naam,verwacht:1,aangetroffen:st?1:null,te_veel:0,kapot_aantal:st==='beschadigd'?1:0,notitie:'',foto_url:null,
         afwijking:!st?'niet_geteld':st==='beschadigd'?'kapot':'klopt',kantoor_actie:ar?(ar.kantoor_actie||''):'',kantoor_aantal:ar&&ar.kantoor_aantal?ar.kantoor_aantal:(st==='beschadigd'?1:0),kantoor_notitie:ar?(ar.kantoor_notitie||''):'',
-        aangevuld:ar?(ar.aangevuld||0):0,aantal_afwijking:st==='beschadigd'?1:0,
+        aangevuld:ar?(ar.aangevuld||0):0,tekort_status:ar?(ar.tekort_status||''):'',aantal_afwijking:st==='beschadigd'?1:0,
         acties:st==='beschadigd'?ACTIES.kapot.map(([waarde,label])=>({waarde,label})):[]}];
     }else{
       const regels=sessie?all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessie.id]):[];
@@ -151,7 +151,7 @@ module.exports = function(ctx){
         return {regel_id:r?r.id:null,naam:it.naam,verwacht:it.qty,aangetroffen:r&&r.aangetroffen!=null?r.aangetroffen:null,te_veel:r&&r.aangetroffen>it.qty?r.aangetroffen-it.qty:0,
           kapot_aantal:r?(r.kapot_aantal||0):0,notitie:r?(r.notitie||''):'',foto_url:r&&r.foto_path?'/uploads/'+r.foto_path:null,afwijking:afw,
           kantoor_actie:r?(r.kantoor_actie||''):'',kantoor_aantal:r&&r.kantoor_aantal?r.kantoor_aantal:aantal,kantoor_notitie:r?(r.kantoor_notitie||''):'',
-          aangevuld:r?(r.aangevuld||0):0,aantal_afwijking:aantal,
+          aangevuld:r?(r.aangevuld||0):0,tekort_status:r?(r.tekort_status||''):'',aantal_afwijking:aantal,
           acties:opties.map(([waarde,label])=>({waarde,label}))};
       });
     }
@@ -342,7 +342,7 @@ module.exports = function(ctx){
         else return;
         if(r.aangevuld&&!alles)return;
         const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({regel_id:r.id,stuk:r.item_naam,aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen});
+        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).

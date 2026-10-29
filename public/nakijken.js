@@ -64,7 +64,14 @@
     if (it.afwijking === 'klopt') return '<span class="pil groen">✓</span>';
     if (it.afwijking === 'niet_geteld' || !it.acties.length) return '<span class="not">—</span>';
     var gekozen = it.kantoor_actie || it.acties[0].waarde, n = it.kantoor_aantal || it.aantal_afwijking;
-    return '<select data-act="actie" data-a="' + (it.regel_id || '') + '" data-n="' + esc(it.aantal_afwijking) + '" aria-label="Actie kantoor voor ' + esc(it.naam) + '"' + (it.regel_id ? '' : ' disabled') + '>' + it.acties.map(function (o) { return '<option value="' + esc(o.waarde) + '"' + (o.waarde === gekozen ? ' selected' : '') + '>' + esc(actieLabel(o.waarde, n)) + '</option>'; }).join('') + '</select>';
+    return '<select data-act="actie" data-a="' + (it.regel_id || '') + '" data-n="' + esc(it.aantal_afwijking) + '" aria-label="Actie kantoor voor ' + esc(it.naam) + '"' + (it.regel_id ? '' : ' disabled') + '>' + it.acties.map(function (o) { return '<option value="' + esc(o.waarde) + '"' + (o.waarde === gekozen ? ' selected' : '') + '>' + esc(actieLabel(o.waarde, n)) + '</option>'; }).join('') + '</select>' + binnenCel(it);
+  }
+  // AF1: een bestelling is pas af te vinken in de aanvullijst als kantoor ze op "binnen" zet.
+  function binnenCel(it) {
+    if (!it.regel_id || (it.kantoor_actie !== 'bestellen' && it.kantoor_actie !== 'afschrijven_bestellen')) return '';
+    if (it.tekort_status === 'binnen') return '<span class="pil groen" data-binnen="ja">binnen, klaar om te plaatsen</span>';
+    if (it.tekort_status === 'besteld') return '<button type="button" class="knop klein" style="min-height:36px" data-act="binnen" data-a="' + it.regel_id + '">Bestelling binnen</button>';
+    return '';
   }
   function telTabel(det) {
     var rijen = det.items.map(function (it) {
@@ -132,7 +139,7 @@
     return dagLang(lijst.datum) + (uit ? ' · uit Nakijken ' + uit : '') + ' · afgedrukt ' + uur + (naam ? ' door ' + naam : '') + ' · ' + (lijst.tellers ? lijst.tellers.totaal : 0) + ' handelingen';
   }
 
-  var api = { esc: esc, lijstHtml: lijstHtml, detailHtml: detailHtml, telTabel: telTabel, fotoOverlayHtml: fotoOverlayHtml, notitieOverlayHtml: notitieOverlayHtml, printRijenHtml: printRijenHtml, printSubtekst: printSubtekst, zichtbaar: zichtbaar, sleutel: sleutel };
+  var api = { binnenCel: binnenCel, esc: esc, lijstHtml: lijstHtml, detailHtml: detailHtml, telTabel: telTabel, fotoOverlayHtml: fotoOverlayHtml, notitieOverlayHtml: notitieOverlayHtml, printRijenHtml: printRijenHtml, printSubtekst: printSubtekst, zichtbaar: zichtbaar, sleutel: sleutel };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NakijkenPagina = api;
 
@@ -149,10 +156,8 @@
   }
   async function aanroep(methode, url, body) {
     var r, j = {};
-    try { r = await root.fetch(url, { method: methode, headers: { 'Content-Type': 'application/json', 'x-auth-token': TOKEN || '' }, body: body ? JSON.stringify(body) : undefined }); }
+    try { return await root.sportyApi(methode, url, body, { toast: function (m) { toast(m, 'info'); }, token: TOKEN || '' }); }
     catch (e) { toast('Geen verbinding — probeer het zo opnieuw.', 'error'); return { ok: false, status: 0, json: {} }; }
-    try { j = await r.json(); } catch (e) { /* leeg */ }
-    return { ok: r.ok, status: r.status, json: j };
   }
   async function download() {
     var r = await aanroep('GET', '/api/export');
@@ -230,6 +235,7 @@
     if (act === 'week') { var nw = weekVan(+a); if (!nw) return; ST.week = nw; ST.weekGezet = true; ST.geselecteerd = new Set(); ST.open = null; DETAIL = null; await laadLijst(); tekenDetail(); return; }
     if (act === 'open') { await laadDetail(a); return; }
     if (act === 'tab') { ST.tab = a; tekenDetail(); return; }
+    if (act === 'binnen') { var rb = await aanroep('POST', '/api/nakijken/regel/' + a + '/binnen', {}); if (!rb.ok) { toast(rb.json.error || 'Dat lukte niet.', 'error'); return; } toast('✓ Bestelling staat op binnen', 'success'); await ververs(); return; }
     if (act === 'fotos') { $('overlay').innerHTML = fotoOverlayHtml(DETAIL); return; }
     if (act === 'sluit' || (act === 'sluit-bg' && e.target === el)) { $('overlay').innerHTML = ''; return; }
     if (act === 'notitie-open') { $('overlay').innerHTML = notitieOverlayHtml(DETAIL, ''); $('notitie-tekst').focus(); return; }
