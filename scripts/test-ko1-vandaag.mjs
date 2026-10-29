@@ -54,7 +54,7 @@ try {
   T.check(bm && bm.ico === '🚪' && /^melding /.test(bm.sub) && /rit gepland/.test(bm.sub) && /KV .+ ook verwittigd/.test(bm.sub), `melding chauffeur: ${bm?.ico} "${bm?.sub}"`);
   T.check(bm && bm.acties.map((a) => a.label).join('|') === 'Bel conciërge|Afgehandeld' && bm.acties[0].url === 'tel:0470112233', `acties melding: ${bm?.acties.map((a) => a.label + (a.url ? ' ' + a.url : '')).join(' / ')}`);
   const ir = v.inplannen.find((x) => x.taak_id === rest);
-  T.check(ir && ir.ico === '🚚' && /^Rest van rit #\d+: Rozenweg/.test(ir.titel) && ir.acties[0].label === 'Op een rit zetten' && ir.acties[0].url === `/#transport-plan?taak=${rest}`, `rest-taak in Inplannen: ${ir?.ico} "${ir?.titel}" → ${ir?.acties[0].url}`);
+  T.check(ir && ir.ico === '🚚' && /^Rest van rit #\d+: Rozenweg/.test(ir.titel) && ir.acties[0].label === 'Op een rit zetten' && ir.acties[0].url === `/ritplanning?taak=${rest}`, `rest-taak in Inplannen: ${ir?.ico} "${ir?.titel}" → ${ir?.acties[0].url}`);
   const iw = v.inplannen.find((x) => x.taak_id === weekendTaak);
   T.check(iw && iw.ico === '🏃' && iw.pil === 'weekend', `weekendtaak: ${iw?.ico} pil ${iw?.pil}`);
   T.check(!v.inplannen.some((x) => [t1, t2, t3].includes(x.taak_id)), 'taken die al op een rit staan, staan niet in Inplannen');

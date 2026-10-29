@@ -758,9 +758,78 @@ module.exports = function(ctx){
     const bakken_totaal=takenMet.reduce((s,t)=>s+_bakkenVoorTaak(t),0);
     return {...rit, taken: takenMet, bakken_totaal};
   }
+  // ── RP1 punt 1: bestuurder = elke medewerker, voertuig vrij, bezetting/einde/waarschuwingen ──
+  const _ROLLEN=['chauffeur','coordinator','kantoor','anders'], _VSOORTEN=['pool','eigen','huur'];
+  const _hhmm=s=>/^\d{1,2}:\d{2}$/.test(s||'')?s.padStart(5,'0'):'';
+  const _min=s=>{const m=/^(\d{1,2}):(\d{2})$/.exec(s||'');return m?(+m[1])*60+(+m[2]):null;};
+  function _rolVanPersoon(pid){const p=pid?get('SELECT rol FROM personeel WHERE id=?',[pid]):null;
+    return !p?'chauffeur':p.rol==='chauffeur'?'chauffeur':p.rol==='kantoor'?'kantoor':'coordinator';}
+  // Velden uit de body valideren → {fout} of {velden} (alleen wat meegegeven of afgeleid is).
+  function _ritVelden(b,rit){
+    const v={};
+    if(b.bestuurder_rol!==undefined){if(!_ROLLEN.includes(b.bestuurder_rol))return {fout:'bestuurder_rol moet chauffeur, coordinator, kantoor of anders zijn'};v.bestuurder_rol=b.bestuurder_rol;}
+    else if(b.personeel_id&&(!rit||String(b.personeel_id)!==String(rit.personeel_id)))v.bestuurder_rol=_rolVanPersoon(b.personeel_id);
+    if(b.voertuig_soort!==undefined){if(!_VSOORTEN.includes(b.voertuig_soort))return {fout:'voertuig_soort moet pool, eigen of huur zijn'};v.voertuig_soort=b.voertuig_soort;}
+    if(b.voertuig_capaciteit!==undefined){const c=b.voertuig_capaciteit===null||b.voertuig_capaciteit===''?null:parseInt(b.voertuig_capaciteit);
+      if(c!==null&&!(c>0))return {fout:'voertuig_capaciteit moet een positief aantal bakken zijn'};v.voertuig_capaciteit=c;}
+    if(b.vertrek!==undefined){if(b.vertrek&&!_hhmm(b.vertrek))return {fout:'vertrek moet HH:MM zijn'};v.vertrek=_hhmm(b.vertrek);}
+    // Pool-voertuig zonder opgegeven capaciteit: die van het voertuigtype.
+    const soort=v.voertuig_soort||(rit&&rit.voertuig_soort)||'pool', naam=b.voertuig!==undefined?b.voertuig:(rit&&rit.voertuig);
+    if(soort==='pool'&&v.voertuig_capaciteit===undefined&&(b.voertuig!==undefined||v.voertuig_soort)){
+      const vt=naam?get('SELECT capaciteit_bakken FROM voertuig_types WHERE naam=?',[naam]):null;v.voertuig_capaciteit=vt?vt.capaciteit_bakken:null;}
+    return {velden:v};
+  }
+  function _zetRitVelden(req,id,v){const k=Object.keys(v);if(k.length)updateMetLog(req,`UPDATE transport_ritten SET ${k.map(x=>x+'=?').join(',')} WHERE id=?`,[...k.map(x=>v[x]),id]);}
+  // Bezetting = wat er maximaal aan boord is (som van de regels): vertrekt met alles behalve ophalingen,
+  // lost bij een levering/transfer, laadt bij een ophaling; het maximum over de stops in volgorde.
+  function _ritBezetting(ritId){
+    const taken=all("SELECT id,type FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[ritId]);
+    const q=t=>get('SELECT COALESCE(SUM(qty),0) AS q FROM transport_regels WHERE taak_id=?',[t.id]).q;
+    let boord=taken.filter(t=>t.type!=='ophaling').reduce((s,t)=>s+q(t),0),max=boord;
+    taken.forEach(t=>{boord+=t.type==='ophaling'?q(t):-q(t);if(boord>max)max=boord;});
+    return max;
+  }
+  function _ritTijden(rit){
+    const tijden=all("SELECT tijd FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' AND tijd<>''",[rit.id]).map(t=>_hhmm(t.tijd)).filter(Boolean).sort();
+    const vertrek=_hhmm(rit.vertrek)||tijden[0]||'';
+    return {vertrek,einde:tijden[tijden.length-1]||vertrek};
+  }
+  // Waarschuwingen zijn uitleg, nooit een verbod (KERNREGEL).
+  function _ritWaarschuwingen(rit,x){
+    const w=[];
+    if(rit.voertuig_capaciteit&&x.bezetting>rit.voertuig_capaciteit)w.push(`${x.bezetting} bakken op ${rit.voertuig_capaciteit} plaatsen`);
+    const naam=rit.chauffeur||'';
+    if(rit.personeel_id||naam){
+      const a0=_min(x.vertrek),a1=_min(x.einde);
+      all("SELECT * FROM transport_ritten WHERE datum=? AND id<>? AND status<>'geannuleerd' AND ((personeel_id IS NOT NULL AND personeel_id=?) OR (chauffeur<>'' AND chauffeur=?))",
+        [rit.datum,rit.id,rit.personeel_id||-1,naam]).forEach(o=>{
+        const ot=_ritTijden(o),b0=_min(ot.vertrek),b1=_min(ot.einde);
+        if(a0==null||b0==null||(a0<=b1&&b0<=a1))w.push(`${naam||'Deze bestuurder'} staat ook op rit #${o.id} om ${ot.vertrek||'?'}`);
+      });
+    }
+    if(rit.personeel_id&&rit.datum){
+      all('SELECT km.week,l.name,p.start_datum FROM kampmomenten km JOIN locaties l ON l.id=km.locatie_id JOIN vakantieperiodes p ON p.id=km.periode_id WHERE km.kv_persoon_id=?',[rit.personeel_id]).forEach(k=>{
+        const s=new Date(k.start_datum+'T12:00:00');s.setDate(s.getDate()+(k.week-1)*7);
+        const e=new Date(s);e.setDate(e.getDate()+6);const d=new Date(rit.datum+'T12:00:00');
+        if(d>=s&&d<=e)w.push(`${naam||'Deze bestuurder'} is die dag KV op ${k.name}`);
+      });
+    }
+    if(rit.datum){const g=new Date(rit.datum+'T12:00:00').getDay();if(g===0||g===6)w.push('weekend');}
+    return w;
+  }
+  function _ritPlanInfo(rit){const t=_ritTijden(rit);const bezetting=_ritBezetting(rit.id);
+    return {vertrek:t.vertrek,einde:t.einde,bezetting,waarschuwingen:_ritWaarschuwingen(rit,{...t,bezetting})};}
+  ctx._ritPlanInfo=_ritPlanInfo; // RP1: gedeeld met routes/ritplanning.js (zelfde berekening, geen kopie)
   app.get('/api/ritten',(req,res)=>{
-    const ritten=all('SELECT * FROM transport_ritten ORDER BY datum');
-    res.json(ritten.map(_ritMetTaken));
+    // RP1: ?week=YYYY-MM-DD → alleen de ritten van die kalenderweek (ma–zo).
+    let ritten;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(req.query.week||'')){
+      const d=new Date(req.query.week+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));
+      const iso=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+      const ma=iso(d);d.setDate(d.getDate()+6);
+      ritten=all('SELECT * FROM transport_ritten WHERE datum>=? AND datum<=? ORDER BY datum,id',[ma,iso(d)]);
+    }else ritten=all('SELECT * FROM transport_ritten ORDER BY datum');
+    res.json(ritten.map(r=>({..._ritMetTaken(r),..._ritPlanInfo(r)})));
   });
   // CH1: één rit met taken (slot, volgorde, tijd) — kantoor.
   app.get('/api/ritten/:id',(req,res)=>{
@@ -775,8 +844,10 @@ module.exports = function(ctx){
     // op ÉN blijven de naam in het bestaande vrije-tekstveld chauffeur zetten, zodat alles wat
     // de naam toont (rit-kaartjes, /rit/:token, filters) blijft werken zonder aan te passen.
     if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
-    const id=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,personeel_id,opmerking,status,created_at) VALUES (?,?,?,?,?,?)',
-      [datum,chauffeur||'',personeel_id||null,opmerking||'',status||'gepland',now()]);
+    const rv=_ritVelden(req.body||{},null);if(rv.fout)return res.status(400).json({error:rv.fout});
+    const id=insMetLog(req,'INSERT INTO transport_ritten (datum,chauffeur,personeel_id,opmerking,status,created_at,voertuig) VALUES (?,?,?,?,?,?,?)',
+      [datum,chauffeur||'',personeel_id||null,opmerking||'',status||'gepland',now(),req.body.voertuig||'']);
+    _zetRitVelden(req,id,rv.velden);
     if(Array.isArray(taak_ids)) taak_ids.forEach(tid=>{
       updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',[id,datum,chauffeur||'',tid]);
     });
@@ -787,6 +858,8 @@ module.exports = function(ctx){
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
     if(personeel_id&&!chauffeur){const p=get('SELECT naam FROM personeel WHERE id=?',[personeel_id]);if(p)chauffeur=p.naam;}
+    const rv=_ritVelden(req.body||{},rit);if(rv.fout)return res.status(400).json({error:rv.fout});
+    _zetRitVelden(req,req.params.id,rv.velden);
     updateMetLog(req,'UPDATE transport_ritten SET datum=?,chauffeur=?,personeel_id=?,opmerking=?,status=?,voertuig=? WHERE id=?',
       [datum||rit.datum,
        chauffeur!==undefined?chauffeur:rit.chauffeur,
