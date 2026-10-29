@@ -344,6 +344,7 @@ module.exports = function(ctx){
         else if(SOORT[r.kantoor_actie]){soort=SOORT[r.kantoor_actie];waar=WAAR[r.kantoor_actie](r);if(r.kantoor_notitie)waar=(waar?waar+' · ':'')+r.kantoor_notitie;}
         else return;
         if(r.aangevuld&&!alles)return;
+        if(r.tekort_status==='genegeerd')return; // TB2: genegeerd op Tekorten → niet meer op de aanvullijst
         const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
         handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen});
       });
@@ -384,6 +385,14 @@ module.exports = function(ctx){
       try{fotoPad=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}
     }
     updateMetLog(req,'nakijk_regels',r.id,{aangevuld:aan,aangevuld_door:aan?wie(req):'',aangevuld_op:aan?isoNu():''},'aanvullen');
+    // TB2: aanvullen uit de stockage verlaagt item_type_stock (Rozenweg) pas nu, bij het afvinken; terugzetten zet het terug.
+    if(['uit_pool','bestellen','afschrijven_bestellen'].includes(r.kantoor_actie)&&(r.kantoor_aantal||0)>0&&aan!==(r.aangevuld?1:0)){
+      const bi=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
+      const typeId=(bi&&bi.item_type_id)||((get('SELECT id FROM item_types WHERE lower(naam)=lower(?) ORDER BY id LIMIT 1',[zonderHaakjes(r.item_naam||'').trim()])||{}).id);
+      const roz=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
+      const st=typeId&&roz?get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[typeId,roz.id]):null;
+      if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)+(aan?-1:1)*r.kantoor_aantal)},'aanvullen: '+zonderHaakjes(r.item_naam||''));
+    }
     logAct('nakijken',aan?'aangevuld':'aangevuld_terug',`${r.item_naam}: ${aan?'aangevuld':'teruggezet naar open'} door ${wie(req)||'?'}${fotoPad?' (foto '+fotoPad+')':''}`,s.locatie_id,_locNaam(s.locatie_id));
     res.json({ok:true,regel_id:r.id,aangevuld:aan,foto:fotoPad?'/uploads/'+fotoPad:null});
   });
