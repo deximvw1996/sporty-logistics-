@@ -1,0 +1,27 @@
+# PROMPT CH2 — CHAUFFEURSSCHERM, DEEL 2: DE RIT-PAGINA (exacte kopie van het goedgekeurde ontwerp)
+**Chat D (Sonnet) · map `D:\Sporty\sporty-d` · branch `bouw-d` · poort 3304 · verslag `OVERLEG-d.md` · TIJDSLIMIET 2,5 uur**
+
+Lees eerst `CLAUDE.md` in je map. Begin met `git fetch origin` en `git rebase origin/main` (CH1 van chat C staat op main). Lees dan, in deze volgorde en volledig:
+1. `design/CHAUFFEUR-DEFINITIEF.html` — het goedgekeurde ontwerp. Dit is de wet: je bouwt het **exact** na (zelfde opbouw, teksten, kleuren, groottes, knoppen, overlays, toast). Geen eigen versie, geen "vereenvoudigde" variant. Wat in het ontwerp staat en in de data ontbreekt, laat je leeg of verberg je netjes; wat in de data zit en niet in het ontwerp, toon je NIET.
+2. `design/DESIGN-BRIEF.md`, "Scherm 1" (de 8 bindende punten + keuze Maxim).
+3. `OVERLEG-c.md`, het CH1-verslag onderaan: het **JSON-contract** van `GET /api/rit-token/:token/data` en de acties. Dat is je enige databron; je verzint geen velden.
+
+Je raakt ALLEEN: `routes/transport.js` (uitsluitend de route `GET /rit/:token` die de HTML serveert; je mag die HTML naar een eigen bestand `public/rit.html` + `public/rit.js` + `public/rit.css` verplaatsen en vanuit de route serveren), `public/rit.*` (nieuw), `scripts/test-ch2-rit-pagina.mjs` en `OVERLEG-d.md`. API-routes raak je NIET (die zijn van CH1 en gekeurd); mis je iets in de data, dan schrijf je dat in GEVONDEN en werk je om het heen.
+
+## Waarom deze prompt
+Maxim keurde het chauffeursontwerp goed (29/10). Chat C legde de data en API's (CH1, gekeurd). Jij bouwt nu de pagina die de chauffeur op zijn telefoon opent via de rit-link, als exacte kopie van het ontwerp, op de echte data.
+
+## Wat de pagina doet (samenvatting van het ontwerp; het bestand zelf is bindend)
+- **Dag-scherm** (start): kop met rit, datum, chauffeur/voertuig, voortgang (stops gedaan / stuks geladen-gelost); een **tijdlijn** van alle stops op volgorde met tijd, locatie, wat er gebeurt, status, en per stop het slot: 🔒 vast of vrij. Bij vrije stops staan ▲▼-knoppen (geen slepen); een wissel roept `POST …/taken/:taakId/wissel {richting}` aan en tekent de tijdlijn opnieuw uit het antwoord; een 409 toont de servertekst als toast. De huidige stop is uitgelicht; elke stop is aanklikbaar naar het Stop-scherm; ook naar een vorige stop (terugkijken).
+- **Stop-scherm**: kop met locatie, tijd, slot; **belbare contacten** (`tel:`-links): KV (naam + telefoon) en sleutelcontact van de locatie (contact_naam + contact_telefoon) + sleutel_info + adres; de regels gegroepeerd per **rek** (letter), elk stuk met foto (foto_url, anders een placeholder), code, naam, aantal; per stuk de knop geladen/gelost (toggle via de bestaande laden/lossen-routes; bij een ophaling is "geladen" de actie, bij een levering "gelost"; volg het ontwerp); per stuk "past niet / niet gevonden / kapot" via de **overlay "past niet"** → `POST …/checks/:checkId/niet-mee {reden, opmerking, aantal}` (bulk: aantal dat NIET mee gaat); terugdraaien met `{reden:null}`; de regel toont daarna de rode markering zoals in het ontwerp. Knop "Aangekomen" → `POST …/taken/:taakId/aangekomen`. **Overlay "probleem melden"** (soort gesloten / past niet in lokaal / anders, tekst, foto) → `POST …/taken/:taakId/probleem {soort,tekst,foto_data}` → toast "Gemeld aan kantoor en KV". Terug naar Dag.
+- **Toast** zoals in het ontwerp voor elke bevestiging en elke `{error}` van de server (status 400/403/409 → tekst tonen, niets zelf verzinnen).
+- Alles werkt zonder sessie, enkel via de token in de URL. Geen prompt()/confirm(); alleen de overlays uit het ontwerp.
+- Mobiel eerst: 390×844 zonder horizontale scroll, knoppen ≥ 44 px; op desktop gecentreerd op max. 480 px breed (zoals het ontwerp).
+- Na elke actie haal je `GET /api/rit-token/:token/data` opnieuw op en teken je uit de data (geen lokale toestand die kan afwijken).
+
+## Bewijs
+- `scripts/test-ch2-rit-pagina.mjs` (via `_testhulp` op `herfst-test.db`, eigen poort): maakt een rit met 3 stops (slots vast/vrij/vrij, regels met rek N en H, 1 bulkregel) en een token; `GET /rit/:token` → 200, HTML bevat de Dag-structuur (tijdlijn, 3 stops, 🔒 bij stop 1, ▲▼ enkel bij vrije stops) — laad de pagina in jsdom of een headless browser als die in de map staat (`npx playwright` is NIET toegestaan te installeren; staat er niets, test dan de statische HTML + de JS-functies die uit de data de DOM bouwen door ze als module te exporteren en met de echte data-JSON aan te roepen); wissel via de pagina-functie → tijdlijn 1,3,2; niet-mee via de pagina-functie → rode markering + rest-taak bestaat; probleem melden → aanvraag bestaat. Verkeerde token → nette foutpagina (geen stacktrace).
+- Een screenshot op 390×844 van Dag en Stop als je een headless browser hebt; anders een tekstuele DOM-dump van beide schermen in het verslag.
+- `node scripts/volle-run.mjs` 2×: 16/16 + jouw test groen. Eindtabel in het verslag.
+- Commit per scherm (Dag, Stop, overlays), push `origin HEAD:bouw-d`. NOOIT naar main, NOOIT deploy.bat.
+- Verslag onderaan `OVERLEG-d.md`: wat exact gelijk is aan het ontwerp, en elke afwijking met reden (die lijst moet leeg zijn of heel kort). Laatste bericht eindigt met exact: **VOLLEDIG KLAAR MET DE PROMPT. NU IS HET TERUG AAN DE HOOFDCHAT.** Bij de tijdslimiet: stop, commit, "Stand bij tijdslimiet", push, en eindig met **TIJDSLIMIET BEREIKT: GESTOPT MET EEN TUSSENSTAND. NU IS HET TERUG AAN DE HOOFDCHAT.** Volgorde bij tijdnood: Dag-scherm, Stop-scherm, overlay past-niet, overlay probleem.
