@@ -451,6 +451,7 @@ input[type=radio]:checked+.tk-status-lbl{font-weight:600;border-color:var(--gree
   <!-- ═══════════════════════════════════════════════════════
        TAB 1: OVERZICHT
   ═══════════════════════════════════════════════════════ -->
+  <div id="vervang-strook" role="status" style="display:none;margin:8px 0;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-size:13px;color:#1e3a8a;align-items:center;gap:10px;flex-wrap:wrap"></div>
   <div class="sec active" id="sec-overzicht">
     <!-- Overzicht navigatie -->
     <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
@@ -1996,7 +1997,23 @@ function setSimDate(v){
 const SECS=['overzicht','planning','materiaal','transport-noden','transport-plan','transporten','kaart','seizoensoverzicht','kampplanner','personeel'];
 
 
+// NAV1: elke oude tab die een nieuw scherm heeft, toont bovenaan een strook met de link naar dat scherm.
+function toonVervangstrook(id,sub){
+  const el=document.getElementById('vervang-strook');if(!el)return;
+  const sec=id||((document.querySelector('.sec.active')||{}).id||'').replace('sec-','');
+  const ms=sub||(typeof matSubtab!=='undefined'?matSubtab:'');
+  let links=null;
+  if(sec==='overzicht')links=[['Vandaag','/vandaag']];
+  else if(sec==='kampplanner')links=[['Kampmomenten','/kampmomenten']];
+  else if(['transport-plan','transport-noden','transporten'].includes(sec))links=[['Ritplanning','/ritplanning'],['Taken','/taken']];
+  else if(sec==='materiaal'){ if(ms==='nakijken')links=[['Voorraad & controles › Nakijken','/nakijken']]; else if(ms==='themabakken'||ms==='vastebakken'||!ms)links=[['Bakken','/bakken']]; }
+  else if(sec==='personeel')links=[['Personeel','/personeel'],['Logboek','/logboek']];
+  if(!links){el.style.display='none';el.innerHTML='';return;}
+  el.innerHTML='<span>Dit scherm is vervangen door '+links.map(l=>'<b>'+l[0]+'</b>').join(' en ')+'.</span>'+links.map(l=>'<a href="'+l[1]+'" style="color:#fff;background:#2563eb;border-radius:8px;padding:6px 12px;font-weight:700;text-decoration:none">'+l[0]+' → openen</a>').join('')+'<a href="/vandaag" style="margin-left:auto;color:#1e3a8a;font-weight:700;text-decoration:none">🏠 Vandaag</a>';
+  el.style.display='flex';
+}
 function goTo(id){
+  toonVervangstrook(id);
   SECS.forEach(s=>{
     const el=document.getElementById('sec-'+s);
     if(el) el.classList.toggle('active',s===id);
@@ -2040,7 +2057,7 @@ function goTo(id){
 // Materiaal subtabs
 let matSubtab='themabakken'; // Sport + Themabakken zichtbaar tijdens opbouw thema's/materiaal
 function setMatSubtab(tab,btn){
-  matSubtab=tab;
+  matSubtab=tab;toonVervangstrook(null,tab);
   document.querySelectorAll('#sec-materiaal .kal-subtab').forEach(b=>b.classList.remove('active'));
   if(btn&&btn.classList.contains('kal-subtab'))btn.classList.add('active');
   ['themabakken','vastebakken','gedeeld','voorraad','sport','themas','catalogus','standaard','voertuigen','nakijken'].forEach(t=>{
@@ -8775,7 +8792,11 @@ function bootApp(){
     .then(()=>{
       handleQrScan();
       updateMateriaalBadge();
-      { const [h,sub]=location.hash.slice(1).split('?'); if(h&&SECS.includes(h)){goTo(h); if(sub==='conflicten')showConflicten(); else if(sub==='tekorten')setMatSubtab('nakijken',null);} } // KO1: links vanuit /vandaag
+      { const [h0,sub]=location.hash.slice(1).split('?');
+        // NAV1: de bovenbalk/subbalken van de nieuwe schermen wijzen naar oude tabbladen via deze namen (public/nav.js).
+        const ALIAS={locaties:['planning'],transport:['transporten'],periodes:['overzicht','periodes'],themas:['materiaal','themas'],pool:['materiaal','vastebakken'],catalogus:['materiaal','catalogus'],tekorten:['materiaal','nakijken'],voorraad:['materiaal','voorraad'],voertuigen:['materiaal','voertuigen'],beheer:['materiaal','themas']};
+        const al=ALIAS[h0],h=al?al[0]:h0;
+        if(h&&SECS.includes(h)){goTo(h); if(al&&al[1]==='periodes')showPeriodesBeheer(); else if(al&&al[0]==='materiaal')setMatSubtab(al[1],null); else if(sub==='conflicten')showConflicten(); else if(sub==='tekorten')setMatSubtab('nakijken',null);} } // KO1: links vanuit /vandaag
       // Re-render whatever tab is currently visible (incl. if user clicked a tab during loading)
       const _initRenderMap={
         overzicht:renderOverzicht,
