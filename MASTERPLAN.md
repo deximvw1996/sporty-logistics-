@@ -203,6 +203,7 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 ---
 
 ## STATUSLOG
+- **30/10 06:30** TF1 (C) GEKEURD en op main: 9 testpunten dicht; volle run 31/31. Rest naar RP2. D werkt aan TF2. Werklijst 92/94.
 - **30/10 05:50** T1 (chat T) klaar: generale repetitie op prod, 8 stappen (4 groen, 4 deels), 20 bevindingen; blokkerend: tijdzone UTC, 502 bij deploy, spoedrit zonder chauffeur onzichtbaar, wissel-hint. Prompts TF1 (C) en TF2 (D). Na de fixes: prod opruimen + opnieuw seeden, dan Maxims eigen run. Werklijst 91-93.
 - **30/10 05:30** NAV1 (D) GEKEURD en op main: hele desktop-navigatie wijst naar de nieuwe schermen. Volle run 30/30. DESKTOP VOLLEDIG NIEUW. T loopt T1. Volgende: T-verslag → fixes; daarna gsm-ontwerpen (na zondag-reset).
 - **30/10 05:10** LO1 (C) GEKEURD en op main (migratie 82). Volle run 29/29. Desktop: alle zeven onderdelen gebouwd; NAV1 (D) bedraadt de navigatie. T loopt T1 op prod. Werklijst 90.
