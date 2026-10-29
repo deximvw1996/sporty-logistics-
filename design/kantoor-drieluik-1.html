@@ -92,12 +92,13 @@ button{font:inherit;cursor:pointer;border:0}
 #fC .rk .stops span{font-size:12px;padding:4px 8px;border-radius:8px;background:#f1f5f9;color:#334155}
 #fC .rk .stops span.g{background:#dcfce7;color:#15803d}#fC .rk .stops span.b{background:#dbeafe;color:#1d4ed8}#fC .rk .stops span.v{border:1px dashed #fdba74;background:#fff7ed;color:#c2410c}
 </style></head><body>
+<input type="radio" name="kz" id="rA" checked><input type="radio" name="kz" id="rB"><input type="radio" name="kz" id="rC">
 <div class="keuze"><b>Kantoor: Vandaag + navigatie — drieluik 1</b>
- <button class="act" onclick="kies('A',this)">A. Linkerbalk + kaartenraster</button><button onclick="kies('B',this)">B. Bovenbalk + één werklijst</button><button onclick="kies('C',this)">C. Commandocentrum</button>
+ <label for="rA">A. Linkerbalk + kaartenraster</label><label for="rB">B. Bovenbalk + één werklijst</label><label for="rC">C. Commandocentrum</label>
  <span>dezelfde inhoud: 7 hoofdonderdelen · actieve periode · te keuren aanvragen · ritten vandaag · conflicten · tekorten · meldingen chauffeur · deze week · 1920×900</span></div>
 
 <!-- ═══ A ═══ -->
-<div class="frame act" id="fA"><div class="A">
+<div class="frame" id="fA"><div class="A">
  <div class="zij"><div class="logo">Sporty logistiek</div><div class="per">Actieve periode<b>Herfst 2026 · week 1 (2–8 nov)</b></div>
   <a class="act">🏠 Vandaag<span class="b">4</span></a><a>📅 Planning</a><a>🚚 Transport<span class="b">1</span></a><a>📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a>
   <div class="onder">Ingelogd: Maxim (kantoor)<br>Laatste wijziging 08:41 · logboek</div></div>
@@ -187,5 +188,5 @@ button{font:inherit;cursor:pointer;border:0}
     <div class="rk"><div class="k"><span>Boutersem</span><span class="pil">Holderdebolder</span></div><div class="stops"><span>KV Eva</span><span class="g">geleverd</span></div></div>
    </div></div></div></div></div>
 
-<script>function kies(k,b){document.querySelectorAll('.frame').forEach(f=>f.classList.toggle('act',f.id==='f'+k));document.querySelectorAll('.keuze button').forEach(x=>x.classList.toggle('act',x===b));}</script>
+
 </body></html>
