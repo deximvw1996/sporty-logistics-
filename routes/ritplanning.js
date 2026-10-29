@@ -55,7 +55,7 @@ module.exports = function(ctx){
         });
         return {id:r.id,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
           voertuig:{naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},
-          bezetting:info.bezetting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:info.waarschuwingen,stops};
+          bezetting:info.bezetting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:info.waarschuwingen,notitie:info.notitie||'',stops};
       }).sort((a,b)=>(a.vertrek||'99').localeCompare(b.vertrek||'99'));
       const open=all("SELECT * FROM transport_taken WHERE datum=? AND (rit_id IS NULL OR rit_id=0) AND status='gepland' ORDER BY tijd,id",[datum]).map(t=>{
         const q=regelsQ(t.id);

@@ -46,7 +46,7 @@ try {
   r = await A('GET', '/api/nakijken');
   const L = r.json; const rij = (code) => L.bakken.find((b) => b.kampmoment_id === km && b.bak.code === code);
   T.check(rij('NK01').status === 'te_keuren' && rij('NK02').status === 'te_keuren' && rij('NK03').status === 'niet_geteld', `statussen: NK01 ${rij('NK01').status}, NK02 ${rij('NK02').status}, NK03 ${rij('NK03').status}`);
-  T.check(rij('NK01').uitslag_tekst === 'tekort 1 · te veel 1 · kapot 1' && rij('NK01').geteld === 8 && rij('NK01').totaal === 8, `NK01 uitslag "${rij('NK01').uitslag_tekst}" ${rij('NK01').geteld}/${rij('NK01').totaal}`);
+  T.check(rij('NK01').uitslag_tekst === 'tekort 2 · te veel 2 · kapot 2' /* TF1 G13: stuks, geen regels */ && rij('NK01').geteld === 8 && rij('NK01').totaal === 8, `NK01 uitslag "${rij('NK01').uitslag_tekst}" ${rij('NK01').geteld}/${rij('NK01').totaal}`);
   T.check(/^tekort \d · \d niet geteld$|^\d niet geteld$|niet geteld/.test(rij('NK02').uitslag_tekst) && rij('NK02').geteld === 2 && rij('NK02').totaal === 5, `NK02 "${rij('NK02').uitslag_tekst}" ${rij('NK02').geteld}/${rij('NK02').totaal}`);
   T.check(r.json.tellers.te_keuren >= 2 && r.json.tellers.niet_geteld >= 1 && r.json.tellers.met_tekort >= 1 && r.json.tellers.met_kapot >= 1, `tellers ${JSON.stringify(r.json.tellers)}`);
   r = await A('GET', '/api/nakijken?week=1999-01-04');
