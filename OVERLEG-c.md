@@ -1129,3 +1129,126 @@ Gewerkt van 20:04 tot ±20:45.
   - `test-f1-modules`: 113 ok.
   - Volle run, twee keer: telkens **26/28 groen**. Alleen `v3c-fotos` (2) en `veiligheid` (3) zijn rood, de bekende omgevingsafhankelijke tests.
 - **Push tijdens het conflict:** tijdens het conflict ging een `git push origin HEAD:bouw-c` mee. Die zette `bouw-c` even gelijk aan main (63c5e26); main zelf is niet geraakt. Daarna is de juiste branch (met BH1) gepusht.
+
+---
+
+## LO1 — Locaties op het patroon (chat C, Opus) · 2026-10-29
+
+Gewerkt van 20:32 tot ±21:00.
+
+**Commits op `bouw-c`:**
+- punt 1: migratie 82 + API
+- punt 2: pagina + test
+- dit verslag
+
+### Wat er gebouwd is
+
+**Punt 1 — Data en API**
+- **Migratie 82:**
+  - nieuwe kolommen `locaties.wifi` en `locaties.gemeente`;
+  - een nieuwe tabel `locatie_fotos` (id, locatie_id, tijdstip, wie, beschrijving, foto_path). Er bestond geen foto-veld of -tabel voor locaties.
+  - eenmalige backfill (`migratie82_klaar`): `gemeente` = het deel na de postcode in `addr` ("…, 3010 Kessel-Lo" → "Kessel-Lo").
+- **`PUT /api/locaties/:id`** (bestaand):
+  - neemt nu ook `wifi` en `gemeente` aan;
+  - schrijft voortaan via `updateMetLog` (context `locatie`). Tot nu toe ging dat met `run`, dus zonder spoor in `wijzigingen`.
+- **Foto's** (alleen kantoor, gelogd, bestanden via `lib/fotos.js` soort `locatie`): `POST /api/locaties/:id/foto` en `DELETE /api/locaties/:id/foto/:fotoId`.
+- **`routes/locaties-overzicht.js`** (alleen kantoor):
+  - `GET /api/locaties-overzicht?periode_id=`
+  - `GET /api/locaties/:id/detail`
+  - `POST /api/locaties/contact-mail {ids[]}`: geeft mailto-links, verstuurt niets.
+  - `DELETE /api/locaties-overzicht/:id`: geeft 409 als er nog kampmomenten, transporttaken of bakken (thuis of nu daar) zijn. Anders roept hij de bestaande `DELETE /api/locaties/:id` aan.
+  - `GET /locaties`: de pagina.
+
+**Punt 2 — De pagina `/locaties`** (`public/locaties.{html,css,js}`, laadt `patroon.css`), een exacte kopie van PATROON-DEFINITIEF:
+- **Subbalk:** Locaties · Kaart (→ oude kaarttab) · Contacten (dezelfde lijst, gefilterd op kamp, met een kolom "Contact · telefoon" in plaats van de periode), plus Export (bestaande volledige export) en "+ Nieuwe locatie".
+- **Lijst:** 5 chips (Alle · Kamp · Stockage · ⚠ Let op · Deze periode) en een zoekveld. Kolommen naam, type, gemeente, "Deze periode (week · KV)" en stand.
+  - Een kampmoment dat nu loopt, staat vet.
+  - Bij "⚠ let op" toont een tooltip de reden.
+- **Bulk:**
+  - **Export selectie:** CSV, met puntkomma.
+  - **Contact mailen:** een venster met de mailto-links en "Allemaal in één mail (bcc)".
+  - **Verwijderen:** met bevestiging; bij 409 een toast met de reden.
+- **Detail:**
+  - **Kop:** naam en "Kamplocatie · adres", met de knoppen Bewerken · 📍 Kaart · Rit plannen.
+  - **Tabs:** Gegevens · Foto's N · Kampmomenten N · Historiek N.
+  - **Blokken:**
+    - Contact & toegang: contact, sleutel, wifi, ter plaatse (eigen oven, eigen sportmateriaal, zelf kuisen), en "Let op" met de redenen.
+    - Foto's met "+ foto" en ✕.
+    - Kampmomenten: alle periodes, nieuwste eerst, met levering/ophaling en "Open" (→ `/kampmomenten?id=`).
+    - Historiek met "↶ Terug" (uitgeschakeld).
+- **`?id=`** opent dat detail, **`?weergave=contacten`** de contactenlijst.
+- **Testbaar zonder browser:** de HTML-bouwers (`BOUW.rij`, `BOUW.detail`) zijn los van de browser. In node exporteert het bestand ze, zodat de test ze met de echte API-data aanroept.
+
+### JSON-vorm
+`GET /api/locaties-overzicht`
+```json
+{"periode": {"id": 2, "naam": "Herfst TEST"},
+ "tellers": {"alle": 41, "kamp": 27, "stockage": 14, "let_op": 27, "deze_periode": 2},
+ "locaties": [{"id": 29, "naam": "Abdijschool Vlierbeek", "type": "kamp|stockage", "gemeente": "Kessel-Lo", "adres": "…", "contact_naam": "…", "telefoon": "…",
+   "periode_tekst": "wk 1 Lotte · wk 3 Bram | —", "periode": [{"week": 1, "kv_naam": "Lotte", "kampmoment_id": 168, "loopt_nu": false}],
+   "status": "ok|let", "aandacht": ["geen contact", "geen telefoon", "geen sleutel-info", "geen adres", "wk 1 zonder KV", "wk 1 zonder thema"], "zoek": "…"}]}
+```
+`GET /api/locaties/:id/detail`
+```json
+{"locatie": {"id": 29, "naam": "…", "type": "kamp", "adres": "…", "gemeente": "Kessel-Lo", "notities": "", "lat": null, "lng": null, "status": "ok", "aandacht": [], "periode_tekst": "wk 1 …"},
+ "contact": {"naam": "Conciërge Jan <jan@abdij.be>", "telefoon": "0470 11 22 33"}, "sleutel_info": "bij de buren nr. 12", "wifi": "Sporty-gast / zomer2026",
+ "ter_plaatse": {"eigen_oven": false, "eigen_sportmateriaal": true, "zelf_kuisen": false},
+ "fotos": [{"id": 1, "url": "/uploads/locatie/…", "beschrijving": "ingang", "t": "do 29 okt 20:35", "wie": "Claude (API)"}],
+ "kampmomenten": [{"kampmoment_id": 168, "periode": "Herfst TEST", "periode_actief": true, "week": 1, "type": "kamp", "thema": "Holderdebolder", "kv_naam": "…", "loopt_nu": false, "transport": "levering vr 30 okt ✓ · ophaling vr 6 nov (nog geen rit) | nog geen transport"}],
+ "historiek": [{"t": "…", "wie": "Claude (API)", "wat": "wifi: — → Sporty-gast / zomer2026 | foto toegevoegd (ingang)", "wijziging_id": 900, "terugdraaibaar": false}]}
+```
+`POST /api/locaties/contact-mail` → `{mails:[{id,naam,contact,email,mailto}], zonder:[{id,naam,contact,telefoon,reden}], alles:"mailto:?bcc=…"|null}`
+
+### Bewijs
+- **`node scripts/test-lo1-locaties.mjs` (poort 3339): 24 ok, 0 fout, ALLES GROEN.** Gecontroleerd:
+  - **Overzicht:**
+    - de tellers per type;
+    - `periode_tekst` "wk 1 Test KV Abdijschool" met `kampmoment_id`, en "—" voor stockage;
+    - de gemeente uit de backfill (Abdijschool → Kessel-Lo);
+    - de aandacht "geen contact · geen sleutel-info".
+  - **PUT:** wifi en gemeente worden bewaard, staan in `wijzigingen` (oud "" → nieuw) en de aandacht verdwijnt.
+  - **Foto's:** er een toevoegen en er een verwijderen werkt.
+  - **Detail:**
+    - contact, sleutel, wifi en ter plaatse;
+    - 1 foto;
+    - het kampmoment met transportstand;
+    - historiek met "wifi: — → …", "foto toegevoegd (ingang)" en "foto verwijderd (berging)".
+  - **Verwijderen:**
+    - Abdijschool → 409 "heeft nog 1 kampmoment";
+    - Rozenweg → 409 "heeft nog 466 bakken";
+    - een lege locatie wordt verwijderd.
+  - **Contact-mail:** een mailto voor Abdijschool; Betekom staat bij "zonder".
+  - **Rechten:** een chauffeur krijgt 403 op alle vijf de nieuwe routes.
+  - **Pagina:** `/locaties` geeft subbalk, 5 chips en voet.
+  - **DOM-bouw met de echte data-JSON:** zie de dump hieronder.
+- **DOM-dump** (uit de testuitvoer, tags weggelaten):
+  - **Rij (geselecteerd):** `Abdijschool Vlierbeek | kamp | Kessel-Lo | wk 1 Test KV Abdijschool | ok`
+  - **Rij:** `Rozenweg | stockage | Lubbeek | — | ok`
+  - **Rij (contacten):** `Abdijschool Vlierbeek | kamp | Kessel-Lo | Conciërge Jan <jan@abdij.be> · 0470 11 22 33 | ok`
+  - **Detail:**
+    - Kop: `Abdijschool Vlierbeek | Kamplocatie · Molenstraat 90, 3010 Kessel-Lo | Bewerken | 📍 Kaart | Rit plannen`
+    - Tabs: `Gegevens | Foto's 1 | Kampmomenten 1 | Historiek 51`
+    - Contact & toegang: `Contact | Conciërge Jan <jan@abdij.be> · 0470 11 22 33 | Sleutel | bij de buren nr. 12 | Wifi | Sporty-gast / zomer2026 | Ter plaatse | eigen oven: nee · eigen sportmateriaal: ja · zelf kuisen: nee`
+    - Foto's: `ingang | ✕ | + foto`
+    - Kampmomenten: `Herfst TEST · week 1 · Holderdebolder | KV Test KV Abdijschool · nog geen transport | Open`
+    - Historiek: `foto verwijderd (berging) | do 29 okt 20:35 · Claude (API) | ↶ Terug | …`
+- **`test-f1-modules`:** 116 ok. De nieuwe paden worden via de bestaande `/api/locaties/:id`-vervanging ingevuld.
+- **`node scripts/volle-run.mjs`, twee keer: 27/29 groen.** Alleen `v3c-fotos` (2) en `veiligheid` (3) zijn rood, de bekende omgevingsafhankelijke tests. `lo1-locaties` is in beide runs groen.
+
+### Afwijkingen van het ontwerp
+- **Demo-balk en frame:** de demo-balk (`.keuze`) valt weg. Het frame vult het venster; op 1920×900 is het beeld identiek.
+- **"↶ Terug"** is uitgeschakeld met uitleg: er bestaat nog geen terugdraai-route (TR1 #1).
+- **Ter plaatse** toont ook "zelf kuisen": dat veld bestaat en de prompt noemt het.
+- **"Let op"** komt als extra regel in Contact & toegang wanneer er aandachtspunten zijn. Het ontwerp toont een voorbeeld zonder aandachtspunten.
+
+### GEVONDEN
+1. **`public/nav.js` bestaat nog niet** (NAV1 staat niet op main). De bovenbalk van `/locaties` linkt zelf naar `/locaties`; de oude tabbalk in `index.html` niet (dicht).
+2. **Locaties hebben geen e-mailveld.** "Contact mailen" zoekt een adres in `contact_naam` of `notities` (bv. "Conciërge Jan <jan@abdij.be>"). Zonder adres komt de locatie bij "zonder", met telefoon. Een kolom `contact_email` zou één migratie zijn.
+3. **Op de testdatabase staan alle 27 kamplocaties op "⚠ let op"**, want geen enkele heeft contact of sleutel-info. Dat is de echte stand van de data, geen fout.
+4. **`DELETE /api/locaties/:id` (bestaand) controleert niets en is niet beperkt tot kantoor.** De controle zit in `DELETE /api/locaties-overzicht/:id`; de oude route bleef ongemoeid.
+5. **`POST /api/locaties` (bestaand) kent sleutel, wifi, gemeente en ter plaatse niet** en logt niet in `wijzigingen`. "+ Nieuwe locatie" doet daarom POST + PUT; de PUT logt wel.
+6. **📍 Kaart linkt naar `/#kaart?id=`.** De oude kaarttab leest `?id=` niet (index.html dicht): hij opent de kaart zonder in te zoomen.
+7. **Er bestaat nog geen terugdraai-route** (TR1 #1).
+
+### Buiten mijn gebied
+- **`server.js`:** één regel, `'locaties-overzicht'` in de routelijst.
