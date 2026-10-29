@@ -1126,7 +1126,7 @@ module.exports = function(ctx){
     // TF1 G12: boven capaciteit is geen verbod (KERNREGEL); de pagina vraagt bevestiging en die komt in het log.
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     const bez=rit?_ritBezetting(rit.id):0, over=!!(rit&&rit.voertuig_capaciteit&&bez>rit.voertuig_capaciteit);
-    if(over)logAct('transport','klaargezet boven capaciteit',`Rit #${rit.id} klaargezet met ${bez} bakken op ${rit.voertuig_capaciteit} plaatsen${req.body?.bevestigd_over_capaciteit?' — bevestigd':' — zonder bevestiging'} door ${naam}`,null,null);
+    if(over)logAct('transport','klaargezet boven capaciteit',`Rit #${rit.id} klaargezet met ${bez} stuks op ${rit.voertuig_capaciteit} plaatsen${req.body?.bevestigd_over_capaciteit?' — bevestigd':' — zonder bevestiging'} door ${naam}`,null,null);
     res.json({ok:true,klaarzet_door:naam,klaarzet_op:tijdstip,over_capaciteit:over,bezetting:bez,capaciteit:rit?rit.voertuig_capaciteit:null});
   });
 
