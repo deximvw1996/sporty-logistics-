@@ -145,7 +145,8 @@ try {
   r = await call('GET', nieuwAttr.foto_data);
   check(r.status === 200 && r.headers.get('content-type')?.startsWith('image/'), `GET ${nieuwAttr.foto_data} met Basic-auth → 200 ${r.headers.get('content-type')}`);
   r = await call('GET', nieuwAttr.foto_data, { basic: false });
-  check(r.status === 401, `dezelfde URL zonder Basic-auth → 401 (kreeg ${r.status})`);
+  // Werklijst 70 (29/10): /uploads staat buiten de Basic-muur (foto's bij rit-/kv-link; willekeurige bestandsnamen + nosniff).
+  check(r.status === 200 && r.headers.get('x-content-type-options') === 'nosniff', `dezelfde URL zonder Basic-auth → 200 + nosniff (werklijst 70) (kreeg ${r.status})`);
   // PUT met teruggestuurde URL laat de foto staan
   r = await call('PUT', `/api/attributen/${nieuwAttr.id}`, { token: kantoor, body: { naam: 'TEST-attribuut-foto2', foto_data: nieuwAttr.foto_data } });
   check(r.status === 200 && r.json.foto_path === nieuwAttr.foto_path && fs.existsSync(path.join(UPLOADS, nieuwAttr.foto_path)), 'PUT met dezelfde URL laat pad en bestand ongemoeid');
