@@ -29,9 +29,10 @@ module.exports = function(ctx){
     if(b.sleutel_info!==undefined)run('UPDATE locaties SET sleutel_info=? WHERE id=?',[(b.sleutel_info||'').toString(),req.params.id]);
     // Reviewfix Fable (CH2-keuring): een gedeeltelijke PUT (bv. enkel contact) vult de rest aan uit de huidige rij,
     // anders werd name=undefined weggeschreven (500) terwijl sleutel_info al was bijgewerkt.
-    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven,zelf_kuisen}={...cur0,...b};
-    run('UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=?,heeft_eigen_sportmateriaal=?,heeft_eigen_oven=?,zelf_kuisen=? WHERE id=?',
-      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,heeft_eigen_sportmateriaal?1:0,heeft_eigen_oven?1:0,zelf_kuisen?1:0,req.params.id]);
+    const{name,addr,type,contact_naam,contact_tel,notities,lat,lng,stockage_rol,parent_id,heeft_eigen_sportmateriaal,heeft_eigen_oven,zelf_kuisen,wifi,gemeente}={...cur0,...b};
+    // LO1: wifi en gemeente erbij; de wijziging gaat nu via updateMetLog (oud/nieuw in wijzigingen, omkeerbaar).
+    updateMetLog(req,'UPDATE locaties SET name=?,addr=?,type=?,contact_naam=?,contact_tel=?,notities=?,lat=?,lng=?,stockage_rol=?,parent_id=?,heeft_eigen_sportmateriaal=?,heeft_eigen_oven=?,zelf_kuisen=?,wifi=?,gemeente=? WHERE id=?',
+      [name,addr||'',type||'kamp',contact_naam||'',contact_tel||'',notities||'',lat||null,lng||null,stockage_rol||'beide',parent_id||null,heeft_eigen_sportmateriaal?1:0,heeft_eigen_oven?1:0,zelf_kuisen?1:0,(wifi||'').toString().slice(0,200),(gemeente||'').toString().slice(0,100),req.params.id],'locatie');
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
     logAct('locatie','bewerkt',`Locatie "${loc.name}" bewerkt`,loc.id,loc.name);
     res.json(loc);
@@ -67,6 +68,25 @@ module.exports = function(ctx){
     const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
     run('DELETE FROM locaties WHERE id=?',[req.params.id]);
     if(loc) logAct('locatie','verwijderd',`Locatie "${loc.name}" verwijderd`,null,loc.name);
+    res.json({ok:true});
+  });
+  // LO1: foto's per locatie (ingang, lokaal, berging…) als bestand via lib/fotos.js; gelogd.
+  const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR);
+  app.post('/api/locaties/:id/foto',alleenKantoor,(req,res)=>{
+    const loc=get('SELECT * FROM locaties WHERE id=?',[req.params.id]);
+    if(!loc)return res.status(404).json({error:'Locatie niet gevonden'});
+    if(!req.body?.foto_data)return res.status(400).json({error:'Geen foto meegegeven'});
+    let f;try{f=fotos.verwerkWaarde(req.body.foto_data,'','locatie');}catch(e){return res.status(e.status||500).json({error:e.status?e.message:'Foto opslaan mislukt'});}
+    const id=insMetLog(req,'INSERT INTO locatie_fotos (locatie_id,tijdstip,wie,beschrijving,foto_path) VALUES (?,?,?,?,?)',
+      [loc.id,now(),(req.persoon&&req.persoon.naam)||'',String(req.body.beschrijving||'').slice(0,100),f.pad],'locatie: foto');
+    logAct('locatie','foto',`Foto toegevoegd bij "${loc.name}"${req.body.beschrijving?' ('+req.body.beschrijving+')':''}`,loc.id,loc.name);
+    res.json({id,url:f.url});
+  });
+  app.delete('/api/locaties/:id/foto/:fotoId',alleenKantoor,(req,res)=>{
+    const f=get('SELECT * FROM locatie_fotos WHERE id=? AND locatie_id=?',[req.params.fotoId,req.params.id]);
+    if(!f)return res.status(404).json({error:'Foto niet gevonden'});
+    delMetLog(req,'DELETE FROM locatie_fotos WHERE id=?',[f.id],'locatie: foto');
+    if(f.foto_path)fotos.verwijderFoto(f.foto_path);
     res.json({ok:true});
   });
   // Geocodeer adressen -> lat/lng via OpenStreetMap Nominatim (gratis, geen sleutel).
