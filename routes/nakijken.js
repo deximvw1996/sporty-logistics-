@@ -315,7 +315,7 @@ module.exports = function(ctx){
   const WAAR={
     // MA1: pool-stukken met hun vaste plaats (item_types.pool_plaats, bv. 'rek P · bak P-03') als die gekend is.
     uit_pool:r=>'uit de pool'+_poolPlaats(r),naar_pool:r=>'terug naar de pool'+_poolPlaats(r),afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
-    bestellen:r=>'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
+    bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
   };
   function _aanvullijst(datum,alles){
     const sessies=all("SELECT * FROM nakijk_sessies WHERE kantoor_afgerond_op<>'' AND kantoor_afgerond_op IS NOT NULL ORDER BY kantoor_afgerond_op,id");
@@ -336,7 +336,8 @@ module.exports = function(ctx){
         else if(SOORT[r.kantoor_actie]){soort=SOORT[r.kantoor_actie];waar=WAAR[r.kantoor_actie](r);if(r.kantoor_notitie)waar=(waar?waar+' · ':'')+r.kantoor_notitie;}
         else return;
         if(r.aangevuld&&!alles)return;
-        handelingen.push({regel_id:r.id,stuk:r.item_naam,aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0});
+        const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
+        handelingen.push({regel_id:r.id,stuk:r.item_naam,aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
@@ -352,12 +353,24 @@ module.exports = function(ctx){
     const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoLokaal(new Date());
     res.json({..._aanvullijst(datum,req.query.alles==='1'),afgedrukt_door:wie(req)});
   });
+  // G15: kantoor meldt dat de bestelling geleverd is; pas daarna kan de handeling "aangevuld" worden.
+  app.post('/api/nakijken/regel/:id/binnen',alleenKantoor,(req,res)=>{
+    const r=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
+    if(!r)return res.status(404).json({error:'Deze regel bestaat niet (meer).'});
+    if(SOORT[r.kantoor_actie]!=='bestelling')return res.status(409).json({error:'Dit is geen bestelling.'});
+    const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[r.sessie_id]);
+    const binnen=!(req.body&&(req.body.binnen===false||req.body.binnen===0||req.body.binnen==='0'));
+    updateMetLog(req,'nakijk_regels',r.id,{tekort_status:binnen?'binnen':'open'},'nakijken');
+    logAct('nakijken',binnen?'bestelling_binnen':'bestelling_terug',`${r.item_naam}: bestelling ${binnen?'is binnen':'teruggezet op wacht op levering'} (${wie(req)||'kantoor'})`,s?s.locatie_id:null,s?_locNaam(s.locatie_id):'');
+    res.json({ok:true,regel_id:r.id,tekort_status:binnen?'binnen':'open'});
+  });
   app.post('/api/aanvullijst/:regelId/aangevuld',(req,res)=>{
     const r=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.regelId]);
     if(!r)return res.status(404).json({error:'Deze handeling bestaat niet (meer).'});
     const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[r.sessie_id]);
     if(!s||!s.kantoor_afgerond_op)return res.status(409).json({error:'Deze keuring is nog niet afgerond door kantoor.'});
     const aan=req.body?.aangevuld===false||req.body?.aangevuld===0||req.body?.aangevuld==='0'?0:1;
+    if(aan&&SOORT[r.kantoor_actie]==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld)return res.status(409).json({error:'Deze bestelling is nog niet binnen — zet ze eerst op "Bestelling binnen".'});
     let fotoPad='';
     if(aan&&typeof req.body?.foto_data==='string'&&req.body.foto_data){
       try{fotoPad=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}
