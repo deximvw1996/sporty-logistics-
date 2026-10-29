@@ -203,6 +203,7 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 ---
 
 ## STATUSLOG
+- **30/10 03:20** MA1 (C) GEKEURD en op main: /bakken + /etiketten, migratie 79 (rek/plank/pool_plaats), aanvullijst met echte plaatsen. Volle run 26/26. Werklijst 82/87. Prompt BH1 (Beheer, C) klaar. D werkt aan GF1.
 - **30/10 02:55** Railway 'Deployment crashed'-mails: oorzaak = npm als PID 1 kreeg SIGTERM en meldde 'command failed'; fix railway.json startCommand 'node server.js'. Werklijst 86.
 - **30/10 02:30** GR1 (C) en PL1 (D) GEKEURD en op main: generale-repetitie-script + ketentest (8 stappen groen, 14 gaten gevonden) + draaiboek; /kampmomenten (migratie 78). Volle run 25/25. Prompts GF1 (gaten, D) en MA1 (Materiaal, C) klaar. Prod-seed + draaiboek voor Maxim ná GF1. Werklijst 83-85.
 - **30/10 01:40** TB1 (chat D) GEKEURD en op main: bundelen (route + knop), één ontkoppel-functie zonder dataverlies, splitsen weigert geladen regels, kapot attribuut → nakijk-regel + kantoor-actie, berichten van kantoor op KV-pagina, patroon-CSS samengevoegd. Herdraai 42 ok, volle run 23/23. Werklijst 80/81 gebouwd. C werkt aan GR1 (generale repetitie).
