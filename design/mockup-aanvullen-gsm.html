@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><title>Mockup — Aanvullijst Rozenweg (gsm + print)</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze label{height:28px;line-height:28px;padding:0 12px;border-radius:6px;background:#333;color:#fff;cursor:pointer;user-select:none}
+.keuze span{color:#aaa;margin-left:8px}
+input[name=kz]{position:absolute;opacity:0;pointer-events:none}
+#rA:checked~.keuze label[for=rA],#rB:checked~.keuze label[for=rB],#rC:checked~.keuze label[for=rC]{background:#2563eb}
+#rA:checked~#fA,#rB:checked~#fB,#rC:checked~#fC{display:block}
+.frame{display:none;width:1920px;height:860px;margin:40px auto 0;overflow:hidden;position:relative;padding:4px 0 0}
+.uitleg{position:absolute;left:50%;top:300px;width:300px;margin-left:-690px;font-size:13px;color:#334155;line-height:1.5}.uitleg b{display:block;font-size:16px;margin-bottom:6px}
+.telefoons{display:flex;justify-content:center;gap:60px;margin-top:0}
+.phone{width:390px;height:844px;background:#fff;border-radius:28px;box-shadow:0 10px 40px rgba(0,0,0,.25);overflow:hidden;position:relative;border:3px solid #111;box-sizing:content-box}
+.phone .lbl{position:absolute;top:8px;right:-230px;width:220px;font-size:12px;color:#64748b;font-weight:700}
+.tel{height:100%;display:flex;flex-direction:column;background:#f5f5f5;font-size:15px}
+button{font:inherit;cursor:pointer;border:0}
+.knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.knop.licht{background:#e8eefc;color:#1e3a8a}.knop.klein{height:44px;padding:0 14px;font-size:14px}.knop.breed{width:100%;margin-top:8px}
+.pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.groen{background:#dcfce7;color:#15803d}.pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
+.body{flex:1;overflow-y:auto;min-height:0;padding:12px 14px 20px}
+.body::-webkit-scrollbar{width:0}
+.rij{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 0;border-top:1px solid #eef2f7}
+.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.bak{display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.bak.groen{border-left-color:#16a34a}.bak.rood{border-left-color:#dc2626}
+.bak .code{font-weight:800;width:44px}.bak .nm{flex:1;font-weight:600;font-size:14px;line-height:1.3}.bak .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.twee{display:flex;gap:8px;margin-top:8px}.twee .knop{flex:1}
+.hint{font-size:13px;color:#64748b;margin-bottom:8px}
+.it{display:flex;align-items:center;gap:10px;min-height:60px;padding:6px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.it.groen{border-left-color:#16a34a}.it.rood{border-left-color:#dc2626;background:#fff5f5}
+.it .nm{flex:1;font-weight:600;line-height:1.3}.it .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stp{display:flex;align-items:center;gap:4px}.stp button{width:44px;height:44px;border-radius:10px;background:#e8eefc;color:#1e3a8a;font-size:20px;font-weight:800}.stp span{width:36px;text-align:center;font-weight:800;font-size:18px}
+.ja{display:flex;gap:4px}.ja button{height:44px;padding:0 12px;border-radius:10px;background:#f1f5f9;color:#334155;font-weight:700;min-width:60px}.ja button.act{background:#2563eb;color:#fff}.it.rood .ja button.act{background:#dc2626}
+.it input{width:64px;height:44px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;font-weight:800;text-align:center;font-size:18px}
+.it .kapot{width:44px;height:44px;border-radius:10px;background:#fee2e2}
+.kop2{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-bottom:1px solid #e2e8f0;min-height:64px}
+.kop2 a{color:#2563eb;font-weight:700;font-size:15px;height:44px;display:flex;align-items:center}.kop2 b{display:block;font-size:16px}.kop2 span{font-size:12px;color:#64748b}
+.voet{display:flex;gap:8px;padding:10px 14px 16px;background:#fff;border-top:1px solid #e2e8f0}.voet .knop{flex:1}
+/* A */
+.kopA{background:#1e3a8a;color:#fff;padding:14px 14px 12px}.kopA .l{font-size:12px;opacity:.8}.kopA b{display:block;font-size:18px;margin-top:2px}.kopA span{font-size:13px;opacity:.9}
+.sec{background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.sec h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;justify-content:space-between}
+.sec .bak{margin:4px 0;padding:6px 8px;background:#f8fafc}
+/* B */
+.kopB{background:#fff;padding:14px 14px 10px;border-bottom:1px solid #e2e8f0}.kopB b{display:block;font-size:18px}.kopB span{font-size:13px;color:#64748b}
+.kaartB{background:#fff;border-radius:14px;padding:14px 44px 14px 14px;margin-bottom:10px;border-left:5px solid #cbd5e1;position:relative;min-height:64px}
+.kaartB.groen{border-left-color:#16a34a}.kaartB.blauw{border-left-color:#2563eb}.kaartB.oranje{border-left-color:#f59e0b}
+.kaartB .t{font-weight:800;font-size:16px}.kaartB .s{font-size:13px;color:#64748b;margin-top:3px;line-height:1.35}
+.kaartB .pijl{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:24px;color:#94a3b8}
+.tabs{display:flex;background:#fff;border-top:1px solid #e2e8f0;padding:6px 4px 14px}
+.tabs a{flex:1;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:700;color:#64748b;border-radius:10px}
+.tabs a.act{color:#1d4ed8;background:#eff6ff}
+/* C */
+.kopC{background:#fff;padding:14px;border-bottom:1px solid #e2e8f0}.kopC .l{font-size:12px;color:#64748b}.kopC b{display:block;font-size:18px}.kopC span{font-size:13px;color:#64748b}
+.stap{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;min-height:72px;border:2px solid transparent}
+.stap.nu{border-color:#2563eb;background:#f5f9ff}.stap.klaar{opacity:.75}
+.stap .n{width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.stap.nu .n{background:#2563eb;color:#fff}.stap.klaar .n{background:#16a34a;color:#fff}
+.stap .nm{flex:1;font-weight:700;line-height:1.3;font-size:15px}.stap .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stap .sub{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}.stap .sub span{font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px;background:#e2e8f0}.stap .sub span.groen{background:#dcfce7;color:#15803d}.stap .sub span.rood{background:#fee2e2;color:#b91c1c}
+.stap .knop{height:44px}
+.info{font-size:12px;color:#64748b;text-align:center;padding:6px;display:flex;flex-direction:column;gap:8px;align-items:center}
+
+.frame{display:block;width:1920px;height:860px;margin:40px auto 0;padding:4px 0 0;overflow:hidden;position:relative}
+.telefoons{display:flex;justify-content:center;gap:40px;align-items:flex-start}
+.phone{border:3px solid #111;box-sizing:content-box}.phone .lbl{position:absolute;top:0;left:0;width:390px;text-align:center;background:rgba(27,27,31,.85);color:#fff;border-radius:0 0 10px 10px;padding:3px 0;font-weight:700;font-size:12px;z-index:2}
+.filters2{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}.chip{height:40px;padding:0 12px;border-radius:999px;background:#e8eefc;color:#1e3a8a;font-size:13px;font-weight:700;display:inline-flex;align-items:center}.chip.act{background:#1e3a8a;color:#fff}
+.sec h3 .rek{font-weight:600;text-transform:none;letter-spacing:0;color:#1e3a8a}
+.it{padding:6px 8px}.it .vink{width:44px;height:44px;display:flex;align-items:center;justify-content:center}.it .vink input{width:26px;height:26px}
+.it .nm .pil{margin-left:6px}
+.a4{width:794px;height:844px;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:40px 44px;font-size:12px;color:#111;position:relative;overflow:hidden}
+.a4 .pk{border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:12px}.a4 .pk b{display:block;font-size:18px}.a4 .pk span{font-size:11px;color:#444}
+.a4 table{width:100%;border-collapse:collapse}.a4 th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#444;border-bottom:1px solid #999;padding:4px 6px}
+.a4 td{padding:9px 6px;border-bottom:1px solid #ddd;vertical-align:top}.a4 td.box{font-size:18px;width:28px}.a4 td.c{text-align:center;font-weight:700}.a4 td.lijn{width:90px;border-bottom:1px solid #ddd}.a4 small{color:#555}
+.a4 .pv{position:absolute;bottom:30px;left:44px;right:44px;font-size:11px;color:#444;border-top:1px solid #999;padding-top:8px}
+.lblp{position:absolute;top:-2px;left:0;width:794px;text-align:center;background:rgba(27,27,31,.85);color:#fff;border-radius:0 0 10px 10px;padding:3px 0;font-weight:700;font-size:12px}
+.wrapp{position:relative}
+</style></head><body>
+<div class="keuze"><b>Mockup 2b: Voorraad &amp; controles › Aanvullen (Rozenweg, zonder desktop)</b><span>zelfde inhoud als wat kantoor bij Nakijken besliste · links de gsm-versie (afvinken per stuk, foto bij afschrijven, bak klaar) · rechts de A4-printlijst met vakjes · gegroepeerd per bak met rek/plank</span></div>
+<div class="frame"><div class="telefoons"><div class="phone"><div class="lbl">Gsm · Aanvullen (kantoor-login of eigen link)</div><div class="tel"><div class="kopB"><b>Aanvullen · Rozenweg</b><span>di 3 nov · 8 handelingen in 4 bakken · uit Nakijken van ma 2 nov</span></div>
+<div class="body">
+ <div class="filters2"><span class="chip act">Alles 8</span><span class="chip">Uit pool 4</span><span class="chip">Bestelling 2</span><span class="chip">Klaar 0</span></div>
+ <div class="sec"><h3><span>N09 · Themabak 2/4 (lager) · Abdijschool wk 1</span><span class="rek">rek N · plank 2</span></h3><div class="it groen"><label class="vink"><input type="checkbox" checked></label><div class="nm">Springtouw <b style="display:inline">× 2</b><span class="pil blauw">uit pool</span><b>pool: rek P, bak P-03</b></div><button class="knop licht klein">📷</button></div><div class="it "><label class="vink"><input type="checkbox" ></label><div class="nm">Hoepel <b style="display:inline">× 2</b><span class="pil">naar pool</span><b>terug in rek P, bak P-07</b></div><button class="knop licht klein">📷</button></div><div class="it "><label class="vink"><input type="checkbox" ></label><div class="nm">Pion <b style="display:inline">× 2</b><span class="pil oranje">afschrijven</span><b>gebarsten · foto · 2 nieuwe uit bestelling #41</b></div><button class="knop licht klein">📷</button></div></div><div class="sec"><h3><span>V03 · Vaste bak EHBO · Abdijschool wk 1</span><span class="rek">rek V · plank 1</span></h3><div class="it "><label class="vink"><input type="checkbox" ></label><div class="nm">Pleisters (doos) <b style="display:inline">× 1</b><span class="pil blauw">uit pool</span><b>pool: kast EHBO</b></div><button class="knop licht klein">📷</button></div><div class="it "><label class="vink"><input type="checkbox" ></label><div class="nm">Koelzakje <b style="display:inline">× 1</b><span class="pil rood">wacht op bestelling</span><b>bestelling #41 · komt wo</b></div><button class="knop licht klein">📷</button></div></div><div class="sec"><h3><span>N20 · Themabak 1/3 · Betekom wk 1</span><span class="rek">rek N · plank 4</span></h3><div class="it "><label class="vink"><input type="checkbox" ></label><div class="nm">Ballen zacht <b style="display:inline">× 1</b><span class="pil blauw">uit pool</span><b>pool: rek P, bak P-11</b></div><button class="knop licht klein">📷</button></div><div class="it "><label class="vink"><input type="checkbox" ></label><div class="nm">Lintjes <b style="display:inline">× 12</b><span class="pil groen">zelf tellen</span><b>KV telde niet · zelf tellen</b></div><button class="knop licht klein">📷</button></div></div><div class="sec"><h3><span>V17 · Vaste bak sport · Boutersem wk 1</span><span class="rek">rek V · plank 3</span></h3><div class="it "><label class="vink"><input type="checkbox" ></label><div class="nm">Ballen <b style="display:inline">× 3</b><span class="pil rood">wacht op bestelling</span><b>bestelling #41 · komt wo</b></div><button class="knop licht klein">📷</button></div></div>
+ <div class="hint">Vink af wat je gedaan hebt; de bak staat pas "klaar" als alles afgevinkt is. Afschrijven vraagt een foto. Wat op een bestelling wacht, komt vanzelf terug zodra die binnen is.</div>
+</div>
+<div class="voet"><button class="knop licht">🖨 Printlijst</button><button class="knop">Bak N09 klaar (1/3)</button></div></div></div><div class="wrapp"><div class="lblp">A4 · Printlijst (knop 🖨 op Nakijken en op de gsm)</div><div class="a4"><div class="pk"><b>Sporty logistiek · Aanvullijst Rozenweg</b><span>di 3 nov 2026 · uit Nakijken ma 2 nov · afgedrukt 09:14 door Maxim · 8 handelingen</span></div>
+<table><thead><tr><th>✓</th><th>Bak · plaats</th><th>Stuk</th><th>Aantal</th><th>Wat</th><th>Waar / opmerking</th><th>Gedaan door</th></tr></thead><tbody>
+<tr><td class="box">☐</td><td><b>N09</b><br><small>rek N · plank 2</small></td><td>Springtouw</td><td class="c">2</td><td>uit pool</td><td>pool: rek P, bak P-03</td><td class="lijn"></td></tr><tr><td class="box">☐</td><td></td><td>Hoepel</td><td class="c">2</td><td>naar pool</td><td>terug in rek P, bak P-07</td><td class="lijn"></td></tr><tr><td class="box">☐</td><td></td><td>Pion</td><td class="c">2</td><td>afschrijven</td><td>gebarsten · foto · 2 nieuwe uit bestelling #41</td><td class="lijn"></td></tr><tr><td class="box">☐</td><td><b>V03</b><br><small>rek V · plank 1</small></td><td>Pleisters (doos)</td><td class="c">1</td><td>uit pool</td><td>pool: kast EHBO</td><td class="lijn"></td></tr><tr><td class="box">☐</td><td></td><td>Koelzakje</td><td class="c">1</td><td>bestelling</td><td>bestelling #41 · komt wo</td><td class="lijn"></td></tr><tr><td class="box">☐</td><td><b>N20</b><br><small>rek N · plank 4</small></td><td>Ballen zacht</td><td class="c">1</td><td>uit pool</td><td>pool: rek P, bak P-11</td><td class="lijn"></td></tr><tr><td class="box">☐</td><td></td><td>Lintjes</td><td class="c">12</td><td>nakijken</td><td>KV telde niet · zelf tellen</td><td class="lijn"></td></tr><tr><td class="box">☐</td><td><b>V17</b><br><small>rek V · plank 3</small></td><td>Ballen</td><td class="c">3</td><td>bestelling</td><td>bestelling #41 · komt wo</td><td class="lijn"></td></tr>
+</tbody></table>
+<div class="pv">Na afloop: vink in de app af (Voorraad &amp; controles › Aanvullen) of geef dit blad aan kantoor. Afschrijvingen met foto in de app.</div></div></div></div></div>
+</body></html>
