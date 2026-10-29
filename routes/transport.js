@@ -331,7 +331,7 @@ module.exports = function(ctx){
           // Laatste OPEN week van de locatie binnen de periode (definitief dicht daarna, of
           // laatste week van de vakantie): haal basis-materiaal, kleurenborden (alles wat
           // cumulatief effectief staat volgens kleurenStand) en locatieconfig-exemplaren op.
-          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          const nextD=openDagen[openDagen.length-1]; // GF1: de laatste open kampdag (vr), niet de werkdag erna
           const kleurenOphaalRegels=Object.entries(kleurenStand).filter(([,q])=>q>0)
             .map(([kleur,aantal])=>({naam:`Kleurenbord ${kleur} ×${aantal}`,qty:aantal,soort:'basis',stockage_id:sportStockageId}));
           const basisPlusKleuren=[...basisRegels,...kleurenOphaalRegels];
@@ -366,7 +366,7 @@ module.exports = function(ctx){
         // 'blijven' (default) volgt de bindende regel: laten staan tijdens tijdelijke sluiting.
         if(!heeftOpvolger && !isLaatsteVanPeriode){
           // Laatste open week vóór een pauze → ophaal van de 'ophalen'-types
-          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          const nextD=openDagen[openDagen.length-1]; // GF1: de laatste open kampdag (vr), niet de werkdag erna
           const pauzeTerug=_actieveLocatieConfig(km).filter(cfg=>cfg.pauze_gedrag==='ophalen').flatMap(cfg=>{
             let exemplaren=all("SELECT * FROM bakken WHERE soort='vast' AND vast_type=? AND status='op_locatie' AND huidige_locatie_id=? LIMIT ?",[cfg.vast_type,loc.id,cfg.aantal||1]);
             if(!exemplaren.length)
@@ -390,12 +390,30 @@ module.exports = function(ctx){
         if(!heeftOpvolger){
           // Laatste week van deze aaneensluitende reeks (kan een gap-week zijn): thema volgt
           // zijn eigen gap-gedrag (via stockage) — niet aanraken, blijft ongewijzigd.
-          const nextD=nextWorkday(openDagen[openDagen.length-1]);
+          const nextD=openDagen[openDagen.length-1]; // GF1: de laatste open kampdag (vr), niet de werkdag erna
           Object.entries(byStockage(themaMatRegels)).forEach(([sid,mat])=>{
             const sLoc=locs.find(l=>l.id==sid);
             voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:nextD,tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling thema week '+km.week+' — '+loc.name+' ('+thNamen+(sLoc?', naar '+sLoc.name:'')+')'});
           });
         }
+      });
+      // GF1: themadag-locatie (elke dag een ander thema): één levering met het materiaal van alle dagen, de werkdag vóór de eerste open dag,
+      // en één ophaling op de laatste open dag. (Voorheen kreeg een themadag-kampmoment geen transport.)
+      kmListAll.filter(k=>k.type==='themadag').forEach(km=>{
+        const openDagen=getOpenDagen(km);
+        const kmThemas=kts.filter(kt=>kt.kampmoment_id===km.id);
+        if(!openDagen.length||!kmThemas.length)return;
+        const themaIdsDag=[...new Set(kmThemas.map(kt=>kt.thema_id))];
+        const regels=themaIdsDag.flatMap(tid=>[
+          ...themaBakken.filter(b=>b.thema_id===tid).map(b=>({naam:'Bak '+b.naam+(b.code?' ('+b.code+')':''),qty:1,soort:'thema',stockage_id:b.thuislocatie_id||themaStockageId,bak_id:b.bak_id})),
+          ...themaAttrRegels.filter(a=>a.thema_id===tid).map(a=>({naam:'Attribuut '+a.naam+(a.code?' ('+a.code+')':''),qty:1,soort:'attribuut',stockage_id:a.thuislocatie_id||themaStockageId,attribuut_id:a.attr_id}))]);
+        const groepen={};regels.forEach(r=>{if(!r.stockage_id)return;(groepen[r.stockage_id]=groepen[r.stockage_id]||[]).push(r);});
+        const dagThemas=themaIdsDag.map(tid=>themas.find(t=>t.id===tid)?.name||'?').join(', ');
+        Object.entries(groepen).forEach(([sid,mat])=>{
+          const sLoc=locs.find(l=>l.id==sid);
+          voorstellen.push({type:'levering',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,van_locatie_id:parseInt(sid),datum:prevWorkday(openDagen[0]),tijd:'09:00',open_dagen:openDagen,materiaal:mat,opmerking:'Levering themadagen week '+km.week+' — '+loc.name+' ('+dagThemas+')'+(sLoc?' (van '+sLoc.name+')':'')});
+          voorstellen.push({type:'ophaling',kampmoment_id:km.id,week:km.week,locatie:loc.name,locatie_id:loc.id,naar_locatie_id:parseInt(sid),datum:openDagen[openDagen.length-1],tijd:'17:00',open_dagen:openDagen,materiaal:mat,opmerking:'Ophaling themadagen week '+km.week+' — '+loc.name+(sLoc?' (naar '+sLoc.name+')':'')});
+        });
       });
     });
 
