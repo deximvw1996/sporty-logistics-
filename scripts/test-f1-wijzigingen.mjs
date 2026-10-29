@@ -121,7 +121,7 @@ try {
   const bakNa = (await leesDb('SELECT * FROM bakken WHERE id=?', [bakId]))[0];
   check(bakNa?.status === 'onderweg', `bak staat op "onderweg" (kreeg ${bakNa?.status})`);
   const wb = await leesDb('SELECT * FROM wijzigingen WHERE tabel=? AND rij_id=? AND actie=? ORDER BY id DESC LIMIT 1', ['bakken', bakId, 'update']);
-  check(wb.length === 1 && wb[0].context === 'rit-link' && wb[0].persoon_id === null && wb[0].persoon_naam === null, `bak-update via chauffeursroute: context rit-link, persoon_id null (kreeg ${wb[0]?.context}/${wb[0]?.persoon_id})`);
+  check(wb.length === 1 && wb[0].context === 'rit-link' && !!wb[0].persoon_naam, `bak-update via chauffeursroute: context rit-link, persoon_naam = chauffeur van de rit (TF1 G16; kreeg ${wb[0]?.context}/${wb[0]?.persoon_naam})`);
   check(wb[0] && gelijk(parse(wb[0].oud), bakVoor) && gelijk(parse(wb[0].nieuw), bakNa), 'bak-update: oud/nieuw exact de rij voor/na');
 
   // ── 3. KV-link: aanvraag ──
