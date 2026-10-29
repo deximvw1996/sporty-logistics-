@@ -203,6 +203,7 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 ---
 
 ## STATUSLOG
+- **30/10 05:30** NAV1 (D) GEKEURD en op main: hele desktop-navigatie wijst naar de nieuwe schermen. Volle run 30/30. DESKTOP VOLLEDIG NIEUW. T loopt T1. Volgende: T-verslag → fixes; daarna gsm-ontwerpen (na zondag-reset).
 - **30/10 05:10** LO1 (C) GEKEURD en op main (migratie 82). Volle run 29/29. Desktop: alle zeven onderdelen gebouwd; NAV1 (D) bedraadt de navigatie. T loopt T1 op prod. Werklijst 90.
 - **30/10 04:40** BH1 (C) GEKEURD en op main (migratie 81). Volle run 28/28. Cloud-test BH1 gestopt (dubbel met C; €6 krediet gebruikt): cloud werkt technisch, maar erft het Fable-model → eerst Opus als cloud-model instellen. T loopt T1 (testrun generale repetitie op prod). Prompts NAV1 (D) en LO1 (C) klaar. Werklijst 88-90.
 - **30/10 04:05** Seed generale repetitie op PROD gedraaid (fictieve herfst actief). Draaiboek + links naar Maxim. Cloud-test gestart: BH1 in cloud-sessie (branch bouw-cloud). Lokale chats blijven standaard.
