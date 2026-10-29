@@ -109,6 +109,8 @@ module.exports = function(ctx){
       aanvragen, boodschappen,
       // CH1: problemen die de chauffeur bij deze locatie meldde (zelfde rij als in kantoor-aanvragen).
       meldingen_chauffeur:all("SELECT id,tekst,status,created_at,foto_data FROM aanvragen WHERE kampmoment_id=? AND soort='probleem_chauffeur' ORDER BY id DESC",[km.id]),
+      // VC1: herinneringen en notities van kantoor aan de KV (nakijken).
+      meldingen_kantoor:all("SELECT id,soort,tekst,status,created_at FROM aanvragen WHERE kampmoment_id=? AND soort IN ('herinnering_kv','notitie_kantoor') ORDER BY id DESC",[km.id]),
       levering:lev, ophaling:oph,
       kantoor:{telefoon:kantoorTel},
       locatie:{naam:loc?loc.name:'',adres:loc?(loc.addr||''):'',sleutel_info:loc?(loc.sleutel_info||''):''},

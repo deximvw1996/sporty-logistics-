@@ -54,7 +54,7 @@
   document.addEventListener('click',async e=>{
     const b=e.target.closest('button[data-k]');if(!b)return;
     const a=DATA[b.dataset.k][b.dataset.i].acties[b.dataset.j];
-    if(a.soort==='link'||a.soort==='tel'){location.href=a.url;return;}
+    if(a.soort==='link'||a.soort==='tel'){location.href=a.url==='/#materiaal?tekorten'?'/nakijken':a.url;return;} // VC1: tekorten/nakijken openen op de nieuwe Nakijken-pagina
     b.disabled=true;
     const r=await api(a.methode,a.url,a.body);
     b.disabled=false;
