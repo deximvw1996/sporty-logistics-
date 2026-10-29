@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kantoor Ritplanning — drieluik 1</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze label{height:28px;line-height:28px;padding:0 12px;border-radius:6px;background:#333;color:#fff;cursor:pointer;user-select:none}
+.keuze span{color:#aaa;margin-left:8px}
+input[name=kz]{position:absolute;opacity:0;pointer-events:none}
+#rA:checked~.keuze label[for=rA],#rB:checked~.keuze label[for=rB],#rC:checked~.keuze label[for=rC]{background:#2563eb}
+#rA:checked~#fA,#rB:checked~#fB,#rC:checked~#fC{display:block}
+.frame{display:none;width:1920px;height:900px;margin:40px auto 0;background:#f5f5f5;overflow:hidden;position:relative}
+button{font:inherit;cursor:pointer;border:0}button:disabled{opacity:.35;cursor:default}
+input,select{font:inherit;height:38px;border:1px solid #e2e8f0;border-radius:8px;padding:0 10px;background:#fff;width:100%}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.groen{background:#dcfce7;color:#15803d}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
+.kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;display:flex;flex-direction:column;min-height:0}
+.kaart h3{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;gap:8px;align-items:center;height:36px}
+.h3r{margin-left:auto;display:flex;gap:4px}
+.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}
+.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
+.top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
+.top .logo{font-size:17px;font-weight:800;color:#1e3a8a;margin-right:22px}
+.top a{height:40px;padding:0 14px;border-radius:8px;display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:#334155;text-decoration:none;cursor:pointer}
+.top a.act{background:#eff6ff;color:#1d4ed8}.top a .b{background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:999px}
+.top .rechts{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#64748b}.top .rechts b{color:#1e3a8a}
+.sub{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:4px}
+.sub a{height:36px;padding:0 12px;border-radius:8px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#64748b;cursor:pointer}
+.sub a.act{color:#1d4ed8;background:#eff6ff}
+.sub .week{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px}
+.scroll{overflow-y:auto;min-height:0;flex:1;padding-right:4px}
+.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
+.tip{font-size:12px;color:#64748b;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px}
+.open{display:flex;align-items:center;gap:10px;padding:8px 0 8px 10px;border-top:1px solid #f1f5f9;border-left:3px solid #cbd5e1;min-height:56px}
+.open.oranje{border-left-color:#f59e0b}.open.blauw{border-left-color:#2563eb}.open.rood{border-left-color:#dc2626}
+.open .nm{flex:1;font-size:13px;font-weight:600;line-height:1.3}.open .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
+.ritkop{display:flex;align-items:center;gap:16px;padding-bottom:10px;border-bottom:1px solid #e2e8f0;margin-bottom:8px;flex-wrap:wrap}
+.ritkop>div:first-child b{display:block;font-size:17px;font-weight:800}.ritkop>div:first-child span{font-size:13px;color:#64748b}
+.ritkop i{font-style:normal;font-weight:700;color:#15803d}.ritkop i.over{color:#b91c1c}
+.ritkop .waarsch{background:#fee2e2;color:#b91c1c;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px}
+.ritkop .acties{margin-left:auto;display:flex;gap:6px}
+.stop{display:flex;align-items:center;gap:10px;padding:8px 0 8px 10px;border-top:1px solid #f1f5f9;border-left:3px solid #334155;min-height:56px}
+.stop.vrij{border-left-color:#f59e0b;border-left-style:dashed}
+.stop .t{width:48px;font-weight:700;font-size:13px}.stop .nm{flex:1;font-size:14px;font-weight:600;line-height:1.3}.stop .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.pijl{display:flex;gap:2px}.pijl button{width:36px;height:36px;border-radius:8px;background:#f1f5f9;color:#1e3a8a;font-size:12px}
+.onder{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#64748b;padding-top:8px;border-top:1px solid #e2e8f0;margin-top:6px}
+/* A */
+#fA .bodyA{display:grid;grid-template-columns:560px 1fr;gap:16px;padding:16px 28px;height:796px}
+#fA .rechtsA{display:flex;flex-direction:column;gap:10px;min-height:0}
+#fA .tabs{display:flex;gap:6px}#fA .tabs a{height:40px;padding:0 14px;border-radius:10px 10px 0 0;background:#e2e8f0;display:flex;align-items:center;font-size:13px;font-weight:700;color:#334155;cursor:pointer}
+#fA .tabs a.act{background:#fff;color:#1d4ed8}#fA .tabs a.nieuw{background:transparent;color:#2563eb}
+#fA .rit{flex:1}#fA .velden{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:8px}
+#fA .velden label{font-size:12px;color:#64748b;font-weight:600;display:flex;flex-direction:column;gap:4px}
+/* B */
+#fB .bodyB{display:grid;grid-template-columns:1fr 520px;gap:16px;padding:16px 28px;height:796px}
+#fB .rooster{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;min-height:0}
+#fB .dag{background:#fff;border-radius:12px;padding:8px;display:flex;flex-direction:column;min-height:0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+#fB .dag.wk{background:#f8fafc;border:1px dashed #cbd5e1}
+#fB .dag h4{font-size:13px;font-weight:800;height:32px;display:flex;align-items:center;gap:6px}#fB .dag h4 i{font-style:normal;font-size:11px;color:#c2410c;font-weight:600}
+#fB .rk{border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin-bottom:6px;font-size:12px}
+#fB .rk.w{border-color:#fca5a5;background:#fff7f7}
+#fB .rk .k b{display:block;font-size:13px}#fB .rk .k span{color:#64748b}
+#fB .rk .stops{margin:6px 0;line-height:1.5;color:#334155}#fB .rk .stops .vrij{color:#c2410c}
+#fB .rk .cap{font-weight:700;color:#15803d}#fB .rk .cap.over{color:#b91c1c}
+#fB .ok{border-left:3px solid #cbd5e1;background:#fff7ed;border-radius:0 8px 8px 0;padding:6px 8px;margin-bottom:6px;font-size:11px;line-height:1.3;display:flex;flex-direction:column;gap:4px}
+#fB .ok.rood{border-left-color:#dc2626;background:#fee2e2}#fB .ok.oranje{border-left-color:#f59e0b}#fB .ok.blauw{border-left-color:#2563eb;background:#eff6ff}
+#fB .ok b{font-size:12px}#fB .ok .knop{align-self:flex-start}
+#fB .plus{margin-top:6px}
+/* C */
+#fC .bodyC{display:grid;grid-template-columns:400px 1fr 380px;gap:16px;padding:16px 28px;height:796px}
+#fC .ri{padding:8px 10px;border-radius:8px;font-size:12px;color:#64748b;border:1px solid transparent;margin-bottom:4px;min-height:48px;cursor:pointer;display:flex;flex-direction:column;justify-content:center;gap:2px}
+#fC .ri b{font-size:13px;color:#1a1a1a}#fC .ri.act{background:#eff6ff;border-color:#bfdbfe}
+#fC .lijn{flex:1;overflow-y:auto;min-height:0;position:relative;padding-left:8px}
+#fC .pt{display:flex;align-items:center;gap:14px;padding:12px 0;position:relative}
+#fC .pt:before{content:"";position:absolute;left:17px;top:0;bottom:0;width:2px;background:#cbd5e1}
+#fC .pt .bol{width:36px;height:36px;border-radius:50%;background:#334155;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;position:relative;flex:none}
+#fC .pt.vrij .bol{background:#f59e0b}
+#fC .pt .t{width:52px;font-weight:700}#fC .pt .loc{flex:1;font-size:15px;font-weight:600}#fC .pt .loc b{display:block;font-size:12px;color:#64748b;font-weight:500}
+#fC .pt .r{display:flex;gap:4px;align-items:center}
+</style></head><body>
+<input type="radio" name="kz" id="rA" checked><input type="radio" name="kz" id="rB"><input type="radio" name="kz" id="rC">
+<div class="keuze"><b>Kantoor: Ritplanning — drieluik 1</b>
+ <label for="rA">A. Bouwtafel</label><label for="rB">B. Weekrooster</label><label for="rC">C. Rit-voor-rit</label>
+ <span>zelfde inhoud: week 2 · 3 ritten (#23 over capaciteit, #25 chauffeur dubbel) · 5 nog te plannen (1 weekend) · stops met 🔒/vrij en ▲▼ · 1920×900</span></div>
+<div class="frame" id="fA"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">4</span></a><a>📅 Planning</a><a class="act">🚚 Transport <span class="b">5</span></a><a>📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a>
+<div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="sub"><a>Ritten</a><a class="act">Ritplanning</a><a>Taken</a><a>Voertuigen</a><span class="week"><button class="knop licht klein">‹</button><b>Week 2 · ma 2 – zo 8 nov</b><button class="knop licht klein">›</button></span></div>
+<div class="bodyA">
+ <div class="kaart links"><h3>Nog te plannen <span class="pil oranje">5</span><span class="h3r"><button class="knop licht klein">Vrijdag</button><button class="knop licht klein">Alles</button></span></h3><div class="scroll"><div class="open oranje"><div class="nm">Rest van rit #22: Oven 1<b>Rozenweg → Abdijschool · 1 stuk · vr</b></div><button class="knop">→ aan rit</button></div><div class="open blauw"><div class="nm">Nalevering ballen<b>Kantoor → Kessel-Lo · 1 stuk · vr</b></div><button class="knop">→ aan rit</button></div><div class="open "><div class="nm">Levering week 2: Tienen (Circus)<b>Rozenweg → Tienen · 11 stuks · vr</b></div><button class="knop">→ aan rit</button></div><div class="open rood"><div class="nm">Sportdag Leuven: 3 springkastelen<b>Rozenweg → Leuven Redingenhof · 3 stuks · za</b></div><span class="pil rood">weekend</span><button class="knop">→ aan rit</button></div><div class="open "><div class="nm">Terugrit springkastelen Boutersem<b>Boutersem → Rozenweg · 2 stuks · ma</b></div><button class="knop">→ aan rit</button></div></div>
+  <div class="tip">Kies een rit rechts en klik "→ aan rit". Weekendtaken vragen een bevestiging (uitzondering, geen verbod).</div></div>
+ <div class="rechtsA">
+  <div class="tabs"><a class="act">#23 vr 6 nov · Jan ⚠</a><a class="">#24 vr 6 nov · Piet</a><a class="">#25 do 5 nov · Sam ⚠</a><a class="nieuw">+ Nieuwe rit</a></div>
+  <div class="kaart rit"><div class="ritkop"><div><b>Rit #23 · vr 6 nov · 07:30</b><span>Jan · Bestelwagen 2 · <i class="over">23/20 bakken</i></span></div><div class="waarsch">⚠ 23 bakken op 20 plaatsen</div><div class="acties"><button class="knop licht">Splitsen</button><button class="knop licht">Rit-link</button><button class="knop">Klaarzetten</button></div></div><div class="velden"><label>Datum <input value="vr 6 nov"></label><label>Vertrek <input value="07:30"></label><label>Chauffeur <select><option>Jan</option><option>Piet</option><option>Sam</option></select></label><label>Voertuig <select><option>Bestelwagen 2 (20)</option><option>Camion (40)</option></select></label></div>
+   <div class="scroll stops"><div class="stop vast"><div class="t">07:30</div><div class="nm">Rozenweg (stockage)<b>laden 23 bakken</b></div><span class="pil">🔒 vast</span><div class="pijl"><button disabled>▲</button><button >▼</button></div><button class="knop licht klein">✕</button></div><div class="stop vast"><div class="t">08:15</div><div class="nm">Kessel-Lo · De bakkerij<b>levering 14 bakken · KV Noor</b></div><span class="pil">🔒 vast</span><div class="pijl"><button >▲</button><button >▼</button></div><button class="knop licht klein">✕</button></div><div class="stop vrij"><div class="t">09:30</div><div class="nm">Boutersem · Holderdebolder<b>levering 9 bakken + 2 springkastelen · KV Eva</b></div><span class="pil oranje">vrij</span><div class="pijl"><button >▲</button><button >▼</button></div><button class="knop licht klein">✕</button></div><div class="stop vast"><div class="t">10:30</div><div class="nm">Rozenweg (stockage)<b>terug</b></div><span class="pil">🔒 vast</span><div class="pijl"><button >▲</button><button disabled>▼</button></div><button class="knop licht klein">✕</button></div></div>
+   <div class="onder"><span>🔒 vast = kantoor beslist de plaats · vrij = chauffeur mag wisselen met ▲▼</span><button class="knop licht">+ Stop zonder taak</button></div></div>
+ </div></div></div>
+<div class="frame" id="fB"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">4</span></a><a>📅 Planning</a><a class="act">🚚 Transport <span class="b">5</span></a><a>📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a>
+<div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="sub"><a>Ritten</a><a class="act">Ritplanning</a><a>Taken</a><a>Voertuigen</a><span class="week"><button class="knop licht klein">‹</button><b>Week 2 · ma 2 – zo 8 nov</b><button class="knop licht klein">›</button></span></div>
+<div class="bodyB">
+ <div class="rooster"><div class="dag "><h4>ma 2</h4><div class="scroll"><div class="ok "><b>Terugrit springkastelen Boutersem</b>Boutersem → Rozenweg · 2<button class="knop klein">→ rit</button></div></div><button class="knop licht klein plus">+ rit</button></div><div class="dag "><h4>di 3</h4><div class="scroll"></div><button class="knop licht klein plus">+ rit</button></div><div class="dag "><h4>wo 4</h4><div class="scroll"></div><button class="knop licht klein plus">+ rit</button></div><div class="dag "><h4>do 5</h4><div class="scroll"><div class="rk w"><div class="k"><b>#25 · 10:00</b><span>Sam · Bestelwagen 1</span></div><div class="stops"><span class="vast">Marco</span>→<span class="vast">Rozenweg</span></div><div class="cap ">5/20 bakken · ⚠</div></div></div><button class="knop licht klein plus">+ rit</button></div><div class="dag "><h4>vr 6</h4><div class="scroll"><div class="rk w"><div class="k"><b>#23 · 07:30</b><span>Jan · Bestelwagen 2</span></div><div class="stops"><span class="vast">Rozenweg</span>→<span class="vast">Kessel-Lo</span>→<span class="vrij">Boutersem</span>→<span class="vast">Rozenweg</span></div><div class="cap over">23/20 bakken · ⚠</div></div><div class="rk "><div class="k"><b>#24 · 13:00</b><span>Piet · Camion</span></div><div class="stops"><span class="vast">Rozenweg</span>→<span class="vast">Abdijschool</span>→<span class="vrij">Betekom</span>→<span class="vast">Rozenweg</span></div><div class="cap ">11/40 bakken</div></div><div class="ok oranje"><b>Rest van rit #22: Oven 1</b>Rozenweg → Abdijschool · 1<button class="knop klein">→ rit</button></div><div class="ok blauw"><b>Nalevering ballen</b>Kantoor → Kessel-Lo · 1<button class="knop klein">→ rit</button></div><div class="ok "><b>Levering week 2: Tienen (Circus)</b>Rozenweg → Tienen · 11<button class="knop klein">→ rit</button></div></div><button class="knop licht klein plus">+ rit</button></div><div class="dag wk"><h4>za 7 <i>weekend</i></h4><div class="scroll"><div class="ok rood"><b>Sportdag Leuven: 3 springkastelen</b>Rozenweg → Leuven Redingenhof · 3<button class="knop klein">→ rit</button></div></div><button class="knop licht klein plus">+ rit</button></div><div class="dag wk"><h4>zo 8 <i>weekend</i></h4><div class="scroll"></div><button class="knop licht klein plus">+ rit</button></div></div>
+ <div class="kaart detail"><div class="ritkop"><div><b>Rit #23 · vr 6 nov · 07:30</b><span>Jan · Bestelwagen 2 · <i class="over">23/20 bakken</i></span></div><div class="waarsch">⚠ 23 bakken op 20 plaatsen</div><div class="acties"><button class="knop licht">Splitsen</button><button class="knop licht">Rit-link</button><button class="knop">Klaarzetten</button></div></div><div class="scroll stops"><div class="stop vast"><div class="t">07:30</div><div class="nm">Rozenweg (stockage)<b>laden 23 bakken</b></div><span class="pil">🔒 vast</span><div class="pijl"><button disabled>▲</button><button >▼</button></div><button class="knop licht klein">✕</button></div><div class="stop vast"><div class="t">08:15</div><div class="nm">Kessel-Lo · De bakkerij<b>levering 14 bakken · KV Noor</b></div><span class="pil">🔒 vast</span><div class="pijl"><button >▲</button><button >▼</button></div><button class="knop licht klein">✕</button></div><div class="stop vrij"><div class="t">09:30</div><div class="nm">Boutersem · Holderdebolder<b>levering 9 bakken + 2 springkastelen · KV Eva</b></div><span class="pil oranje">vrij</span><div class="pijl"><button >▲</button><button >▼</button></div><button class="knop licht klein">✕</button></div><div class="stop vast"><div class="t">10:30</div><div class="nm">Rozenweg (stockage)<b>terug</b></div><span class="pil">🔒 vast</span><div class="pijl"><button >▲</button><button disabled>▼</button></div><button class="knop licht klein">✕</button></div></div><div class="onder"><span>🔒 vast · vrij = chauffeur wisselt</span><button class="knop licht">+ Stop</button></div></div>
+</div></div>
+<div class="frame" id="fC"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">4</span></a><a>📅 Planning</a><a class="act">🚚 Transport <span class="b">5</span></a><a>📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a>⚙️ Beheer</a>
+<div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div>
+<div class="sub"><a>Ritten</a><a class="act">Ritplanning</a><a>Taken</a><a>Voertuigen</a><span class="week"><button class="knop licht klein">‹</button><b>Week 2 · ma 2 – zo 8 nov</b><button class="knop licht klein">›</button></span></div>
+<div class="bodyC">
+ <div class="kaart lijst"><h3>Ritten deze week <span class="pil blauw">3</span><button class="knop klein">+ Nieuw</button></h3><div class="scroll"><div class="ri act"><b>#23 · vr 6 nov · 07:30</b>Jan · Bestelwagen 2 · 23/20<span class="pil rood">⚠</span></div><div class="ri "><b>#24 · vr 6 nov · 13:00</b>Piet · Camion · 11/40</div><div class="ri "><b>#25 · do 5 nov · 10:00</b>Sam · Bestelwagen 1 · 5/20<span class="pil rood">⚠</span></div></div>
+  <h3 style="margin-top:12px">Nog te plannen <span class="pil oranje">5</span></h3><div class="scroll"><div class="ri"><b>Rest van rit #22: Oven 1</b>Rozenweg → Abdijschool · vr</div><div class="ri"><b>Nalevering ballen</b>Kantoor → Kessel-Lo · vr</div><div class="ri"><b>Levering week 2: Tienen (Circus)</b>Rozenweg → Tienen · vr</div><div class="ri"><b>Sportdag Leuven: 3 springkastelen</b>Rozenweg → Leuven Redingenhof · za</div><div class="ri"><b>Terugrit springkastelen Boutersem</b>Boutersem → Rozenweg · ma</div></div></div>
+ <div class="kaart tijdlijn"><div class="ritkop"><div><b>Rit #23 · vr 6 nov · 07:30</b><span>Jan · Bestelwagen 2 · <i class="over">23/20 bakken</i></span></div><div class="waarsch">⚠ 23 bakken op 20 plaatsen</div><div class="acties"><button class="knop licht">Splitsen</button><button class="knop licht">Rit-link</button><button class="knop">Klaarzetten</button></div></div>
+  <div class="lijn"><div class="pt vast"><div class="bol">1</div><div class="t">07:30</div><div class="loc">Rozenweg (stockage)<b>laden 23 bakken</b></div><div class="r"><span class="pil">🔒 vast</span><button class="knop licht klein" disabled>▲</button><button class="knop licht klein" >▼</button><button class="knop licht klein">✕</button></div></div><div class="pt vast"><div class="bol">2</div><div class="t">08:15</div><div class="loc">Kessel-Lo · De bakkerij<b>levering 14 bakken · KV Noor</b></div><div class="r"><span class="pil">🔒 vast</span><button class="knop licht klein" >▲</button><button class="knop licht klein" >▼</button><button class="knop licht klein">✕</button></div></div><div class="pt vrij"><div class="bol">3</div><div class="t">09:30</div><div class="loc">Boutersem · Holderdebolder<b>levering 9 bakken + 2 springkastelen · KV Eva</b></div><div class="r"><span class="pil oranje">vrij</span><button class="knop licht klein" >▲</button><button class="knop licht klein" >▼</button><button class="knop licht klein">✕</button></div></div><div class="pt vast"><div class="bol">4</div><div class="t">10:30</div><div class="loc">Rozenweg (stockage)<b>terug</b></div><div class="r"><span class="pil">🔒 vast</span><button class="knop licht klein" >▲</button><button class="knop licht klein" disabled>▼</button><button class="knop licht klein">✕</button></div></div></div>
+  <div class="onder"><span>Tik op 🔒/vrij om te wisselen · tijden schuiven mee</span><button class="knop licht">+ Stop</button></div></div>
+ <div class="kaart sugg"><h3>Past op deze rit</h3><div class="scroll"><div class="open oranje"><div class="nm">Rest van rit #22: Oven 1<b>Rozenweg → Abdijschool · 1 stuks</b></div><button class="knop">+ Stop</button></div><div class="open blauw"><div class="nm">Nalevering ballen<b>Kantoor → Kessel-Lo · 1 stuks</b></div><button class="knop">+ Stop</button></div><div class="open "><div class="nm">Levering week 2: Tienen (Circus)<b>Rozenweg → Tienen · 11 stuks</b></div><button class="knop">+ Stop</button></div><div class="tip">Zelfde dag, zelfde richting. Past niet in de bakken? Dan verschijnt een splitsvoorstel.</div></div></div>
+</div></div>
+</body></html>

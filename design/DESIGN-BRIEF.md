@@ -50,3 +50,16 @@ Later; LOGISTIEK EERST. Inhoud: bakken + status, levering verwacht, eigen meldin
 
 ## Referenties
 Koeriersapps (PostNL/DHL bezorger-app: één stop per scherm, grote knoppen), magazijn-scanapps (checklist-strook), Linear/Notion voor de kantoorkant (rustig, veel wit, duidelijke hiërarchie).
+
+## Scherm 3 — Kantoor: Ritplanning (desktop 1920×900)
+**Inhoud die in ELKE richting aanwezig moet zijn (bindend):**
+1. Weekkeuze binnen de actieve periode (‹ ›); zaterdag/zondag zichtbaar maar als uitzondering gemarkeerd (weekendtaak = bevestiging, geen verbod; DRAAIBOEK 7).
+2. Nog te plannen: leveringen (vrijdag), ophalingen bij sluiting, rest-taken (past niet), goedgekeurde aanvragen/naleveringen, terugritten; met van → naar, aantal stuks en dag.
+3. Ritten: datum, vertrek, chauffeur, voertuig met bezetting/capaciteit in bakken, status; stops in volgorde met tijd, 🔒 vast / vrij per stop (kantoor beslist), ▲▼ en ✕ per stop, "+ stop zonder taak".
+4. Taak aan rit toevoegen / van rit halen (409 als al geladen), splitsen; wisselen van vast/vrij per tik.
+5. Waarschuwingen in beeld: bakken > capaciteit, chauffeur dubbel op hetzelfde uur, locatie gesloten; nooit blokkeren, altijd uitleggen.
+6. Rit-link naar chauffeur en Klaarzetten (checks aanmaken) vanaf de rit.
+7. Drie stockageplaatsen (Rozenweg, Kantoor, Marco) als gewone van/naar-locaties.
+Meetlat: 1920×900 zonder paginascroll; lijsten scrollen apart; knoppen ≥ 36 px.
+
+**Drie richtingen (drieluik 1, `ritplanning-drieluik-1.html`, zelfde inhoud: week 2, 3 ritten waarvan #23 over capaciteit en #25 chauffeur dubbel, 5 nog te plannen waarvan 1 weekend):** A bouwtafel (links nog te plannen met "→ aan rit", rechts de gekozen rit als tabblad met velden en stoplijst) · B weekrooster (7 dagkolommen met ritkaarten en nog-te-plannen per dag, rechts detail van de gekozen rit) · C rit-voor-rit (links rittenlijst + nog te plannen, midden de rit als genummerde tijdlijn, rechts "past op deze rit"-suggesties van dezelfde dag).
