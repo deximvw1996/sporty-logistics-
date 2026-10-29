@@ -257,6 +257,40 @@ module.exports = function(ctx){
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 
+  // GF1: kampmoment VOLLEDIG verwijderen — ook wat er aan hangt (taken + regels + checks, KV-tellingen, aanvragen en meldingen, kalenderdagen
+  // van die week). 409 als er al iets geladen is. De gewone DELETE /api/kampmomenten/:id laat dit restant staan.
+  app.post('/api/kampmomenten/:id/volledig-verwijderen',alleenKantoor,(req,res)=>{
+    const km=get('SELECT * FROM kampmomenten WHERE id=?',[req.params.id]);
+    if(!km)return res.status(404).json({error:'Dit kampmoment bestaat niet (meer).'});
+    const loc=get('SELECT name FROM locaties WHERE id=?',[km.locatie_id])||{};
+    const geladen=get('SELECT COUNT(*) AS n FROM verhuis_checks vc JOIN transport_taken t ON t.id=vc.taak_id WHERE t.kampmoment_id=? AND vc.geladen=1',[km.id]).n;
+    if(geladen)return res.status(409).json({error:`${loc.name||'Dit kampmoment'} week ${km.week}: ${geladen} stuk${geladen===1?' is':'ken zijn'} al geladen — verwijderen kan pas als dat teruggedraaid is. Er is niets verwijderd.`});
+    const telling={taken:0,sessies:0,aanvragen:0,kalenderdagen:0};
+    all('SELECT id FROM transport_taken WHERE kampmoment_id=?',[km.id]).forEach(t=>{
+      run('DELETE FROM transport_regels WHERE taak_id=?',[t.id]);
+      delMetLog(req,'DELETE FROM verhuis_checks WHERE taak_id=?',[t.id],'volledig-verwijderen');
+      delMetLog(req,'DELETE FROM transport_taken WHERE id=?',[t.id],'volledig-verwijderen');telling.taken++;
+    });
+    all('SELECT id FROM nakijk_sessies WHERE kampmoment_id=?',[km.id]).forEach(s=>{
+      all('SELECT foto_path FROM nakijk_regels WHERE sessie_id=? AND foto_path<>\'\'',[s.id]).forEach(r=>{try{fotosKv.verwijderFoto(r.foto_path);}catch(e){}});
+      delMetLog(req,'DELETE FROM nakijk_regels WHERE sessie_id=?',[s.id],'volledig-verwijderen');
+      delMetLog(req,'DELETE FROM nakijk_sessies WHERE id=?',[s.id],'volledig-verwijderen');telling.sessies++;
+    });
+    all('SELECT foto_path FROM aanvragen WHERE kampmoment_id=? AND foto_path<>\'\'',[km.id]).forEach(r=>{try{fotosKv.verwijderFoto(r.foto_path);}catch(e){}});
+    telling.aanvragen=delMetLog(req,'DELETE FROM aanvragen WHERE kampmoment_id=?',[km.id],'volledig-verwijderen');
+    const per=get('SELECT * FROM vakantieperiodes WHERE id=?',[km.periode_id]);
+    if(per&&per.start_datum&&km.week){
+      for(let i=0;i<7;i++){const d=new Date(per.start_datum+'T12:00:00');d.setDate(d.getDate()+(km.week-1)*7+i);
+        const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        const n=get('SELECT COUNT(*) AS n FROM kalender_dagen WHERE locatie_id=? AND datum=?',[km.locatie_id,iso]).n;
+        if(n){run('DELETE FROM kalender_dagen WHERE locatie_id=? AND datum=?',[km.locatie_id,iso]);telling.kalenderdagen+=n;}}
+    }
+    run('DELETE FROM kampmoment_themas WHERE kampmoment_id=?',[km.id]);
+    delMetLog(req,'DELETE FROM kampmomenten WHERE id=?',[km.id],'volledig-verwijderen');
+    logAct('kampmoment','volledig verwijderd',`Week ${km.week} — ${loc.name||'?'} volledig verwijderd (${telling.taken} taken, ${telling.sessies} tellingen, ${telling.aanvragen} aanvragen) door ${(req.persoon&&req.persoon.naam)||'kantoor'}`,km.locatie_id,loc.name||null);
+    res.json({ok:true,verwijderd:telling});
+  });
+
   // KV1: de pagina's staan in public/kv.{html,css,js} (exacte kopie van design/KV-DEFINITIEF.html) en tekenen zich uit
   // GET /api/kv/:token/data. /kv/:token = volledige KV-pagina, /tel/:token = monitor-stand (enkel tellen).
   const _kvBestand=n=>fs.readFileSync(path.join(__dirname,'..','public',n),'utf8');

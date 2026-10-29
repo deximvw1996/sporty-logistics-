@@ -56,7 +56,7 @@ try {
   check(vr.ritten.filter((r) => lev.some((x) => x.id === r.id)).length === 4, `ritplanning vr 30 okt: ${vr.ritten.length} ritten, waarvan 4 FICTIEF (3 chauffeurs + coördinator)`);
   const onzeLocs = kms.map((k) => k.locatie);
   check(!v.beslissen.some((b) => onzeLocs.some((l) => b.titel.includes(l))), `Vandaag do 29 okt: 0 beslissingen voor de fictieve locaties (totaal ${v.beslissen.length})`);
-  if (!v.ritten_vandaag.some((r) => lev.some((x) => x.id === r.id))) gat('Vandaag toont alleen ritten van vandaag; "de 3 leveringsritten van morgen" staan er niet (geen blok "morgen"). Kantoor moet naar de ritplanning.');
+  check(v.ritten_morgen.filter((r) => lev.some((x) => x.id === r.id)).length === 4, `Vandaag do 29 okt: de 4 leveringsritten van morgen staan onder "Morgen" (${v.ritten_morgen.length} ritten)`);
   check((await pagina('/vandaag')) === 200 && (await pagina('/ritplanning')) === 200, '/vandaag en /ritplanning → 200');
   wijzPerStap.push(await wijzSinds(w0));
 
@@ -78,10 +78,11 @@ try {
   const rest = tk.taken.find((t) => t.id === restRuw?.id) || restRuw;
   v = (await A('GET', `/api/vandaag?datum=${LEVERDAG}`)).json;
   const opTaken = tk.taken.some((t) => t.id === restRuw?.id), opVandaag = v.inplannen.some((i) => i.taak_id === restRuw?.id);
-  if (!opTaken || !opVandaag) gat(`de rest-taak krijgt geen datum (datum "${restRuw?.datum}", week ${restRuw?.week}), dus ze staat ${!opTaken ? 'niet in /taken (filtert op datum in de week)' : ''}${!opTaken && !opVandaag ? ' en ' : ''}${!opVandaag ? 'niet op Vandaag › Inplannen' : ''}. Voorstel: de rest-taak erft de datum van de rit (of /taken en Vandaag tonen taken zonder datum apart).`);
-  else check(true, 'rest-taak staat in /taken en op Vandaag › Inplannen (🚚)');
+  check(restRuw?.datum === LEVERDAG && restRuw?.week >= 1, `rest-taak erft de datum van de rit (${restRuw?.datum}) en een kampweek (${restRuw?.week})`);
+  check(opTaken && opVandaag, 'rest-taak staat in /taken en op Vandaag › Inplannen (🚚)');
   // twee vrije stops wisselen: kantoor zet stop 1 op vrij (in het plan was enkel de laatste vrij)
   await A('PUT', `/api/transport-taken/${d.stops[0].taak_id}`, { slot: 'vrij' });
+  await A('PUT', `/api/transport-taken/${d.stops[1].taak_id}`, { slot: 'vrij' }); // GF1: de rit heeft nu ook de themadag-levering, dus stop 2 moet ook vrij zijn om te wisselen
   r = await P('POST', `/api/rit-token/${ritJan.rit_token}/taken/${d.stops[0].taak_id}/wissel`, { richting: 'omlaag' });
   d = await ritData(ritJan.rit_token);
   check(r.status === 200 && d.stops[1].taak_id === stop2.taak_id ? false : r.status === 200, `chauffeur wisselt de twee vrije stops → ${r.status} (volgorde nu ${d.stops.map((s) => s.locatie.naam).join(' → ')})`);
@@ -160,7 +161,7 @@ try {
   const onze = nk.bakken.filter((b) => kmIds.has(b.kampmoment_id));
   const teKeuren = onze.filter((b) => b.status === 'te_keuren'), nietGeteld = onze.filter((b) => b.status === 'niet_geteld');
   check(teKeuren.length > 0 && nietGeteld.length > 0, `/nakijken: ${teKeuren.length} bakken te keuren, ${nietGeteld.length} niet geteld (${onze.length} in totaal)`);
-  if (!v.nakijken.some((n) => /te keuren|nakijk|telling/i.test(n.titel))) gat(`Vandaag › Nakijken toont de te keuren tellingen niet (alleen conflicten en open tekorten: ${v.nakijken.length} regels).`);
+  check(v.nakijken.some((n) => /telling(en)? te keuren/i.test(n.titel) && n.acties.some((a) => a.url === '/nakijken')), `Vandaag › Nakijken: "${v.nakijken.find((n) => /te keuren/i.test(n.titel))?.titel}" met Open → /nakijken`);
   const met = onze.filter((b) => b.met_tekort || b.met_kapot);
   for (const b of met) {
     const det = (await A('GET', `/api/nakijken/sessie/${b.sessie_id}`)).json;
@@ -185,10 +186,20 @@ try {
   // ── 6 ──
   stap('dinsdag 3 nov — coördinator vinkt de aanvullijst af');
   w0 = await maxW();
-  for (const h of handel) await A('POST', `/api/aanvullijst/${h.regel_id}/aangevuld`, { aangevuld: true });
+  // GF1: een coördinator met eigen rol en pincode (geen kantoor-login): inloggen, aanvullijst, afvinken; 403 op kantoorroutes.
+  const cpers = (await A('POST', '/api/personeel', { naam: 'FICTIEF Coördinator', rol: 'coordinator' })).json;
+  await A('POST', `/api/personeel/${cpers.id}/pincode`, { pincode: '4321' });
+  const clogin = await (await fetch(B + '/api/login', { method: 'POST', headers: { authorization: c.basic, 'Content-Type': 'application/json' }, body: JSON.stringify({ persoon_id: cpers.id, pincode: '4321' }) })).json();
+  const CC = async (m, p, b) => { const r = await fetch(B + p, { method: m, headers: { authorization: c.basic, 'x-auth-token': clogin.token || '', 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); return { status: r.status, json: await r.json().catch(() => ({})) }; };
+  check(!!clogin.token && clogin.rol === 'coordinator', 'coördinator logt in met pincode (rol coordinator)');
+  check((await CC('GET', `/api/aanvullijst?datum=${vandaagIso}`)).status === 200, 'coördinator: 200 op /api/aanvullijst');
+  check((await CC('GET', '/api/vandaag')).status === 403 && (await CC('GET', '/api/nakijken')).status === 403 && (await CC('GET', '/api/taken-overzicht')).status === 403, 'coördinator: 403 op kantoorroutes (Vandaag zonder mijn=1, Nakijken, Taken)');
+  const mijn = await CC('GET', '/api/vandaag?mijn=1');
+  check(mijn.status === 200 && mijn.json.mijn === true && Array.isArray(mijn.json.ritten_vandaag) && mijn.json.aanvullen && !mijn.json.beslissen, `coördinator: /api/vandaag?mijn=1 → 200 (enkel eigen ritten en aanvullen: ${mijn.json.aanvullen?.open} open)`);
+  for (const h of handel) { const r = await CC('POST', `/api/aanvullijst/${h.regel_id}/aangevuld`, { aangevuld: true }); if (r.status !== 200) check(false, `afvinken door de coördinator mislukte: ${r.status} ${r.json.error || ''}`); }
   const al2 = (await A('GET', `/api/aanvullijst?datum=${vandaagIso}&alles=1`)).json;
   check(al2.bakken.flatMap((g) => g.handelingen).filter((h) => handel.some((x) => x.regel_id === h.regel_id)).every((h) => h.aangevuld), `alle ${handel.length} handelingen afgevinkt`);
-  gat('afvinken gebeurt hier met de kantoor-login (persoon 10): er is geen login voor een coördinator met eigen rol; de echte KV-personen hebben geen pincode.');
+  check((await db("SELECT COUNT(*) AS n FROM nakijk_regels WHERE aangevuld=1 AND aangevuld_door LIKE '%Coördinator%'"))[0].n === handel.length, 'het afvinken staat op naam van de coördinator (aangevuld_door)');
   wijzPerStap.push(await wijzSinds(w0));
 
   // ── 7 ──
@@ -205,9 +216,12 @@ try {
   check(ophTaken.length > 0 && ophTaken.every((t) => t.status === 'gedaan'), `/taken: ${ophTaken.length} ophaaltaken gedaan`);
   const wk = tk7.taken.find((t) => t.pil === 'weekend');
   check(!!wk, `/taken: weekendtaak #${wk?.id} (${wk?.wanneer_tekst}) met pil weekend`);
-  gat('"bevestiging" van een weekendtaak bestaat alleen als vraagModal in de pagina; er is geen veld of route die de bevestiging bewaart.');
   r = await A('POST', '/api/ritten', { datum: WEEKENDDAG, vertrek: '08:30', personeel_id: o.chauffeurs[1].id, voertuig: 'Camion', opmerking: 'FICTIEF · sportdag', taak_ids: [wk.id] });
-  check(r.status === 200 && (await A('GET', `/api/ritten?week=${WEEKENDDAG}`)).json.find((x) => x.id === r.json.id)?.waarschuwingen.includes('weekend'), `weekendrit #${r.json?.id} gepland, waarschuwing "weekend"`);
+  const writ = (await A('GET', `/api/ritten?week=${WEEKENDDAG}`)).json.find((x) => x.id === r.json.id);
+  check(r.status === 200 && writ?.waarschuwingen.includes('weekend') && writ.waarschuwingen.includes('weekend · nog niet bevestigd'), `weekendrit #${r.json?.id} gepland, waarschuwing "weekend · nog niet bevestigd"`);
+  const wb = await A('POST', `/api/transport-taken/${wk.id}/weekend-bevestig`);
+  const writ2 = (await A('GET', `/api/ritten?week=${WEEKENDDAG}`)).json.find((x) => x.id === r.json.id);
+  check(wb.status === 200 && wb.json.weekend_bevestigd_door && writ2.waarschuwingen.some((w) => /^weekend · bevestigd door /.test(w)) && !writ2.waarschuwingen.includes('weekend · nog niet bevestigd'), `bevestigd en bewaard: "${writ2.waarschuwingen.find((w) => /bevestigd door/.test(w))}"`);
   wijzPerStap.push(await wijzSinds(w0));
 
   // ── 8 ──
@@ -217,6 +231,7 @@ try {
   console.log(`      conflicten: ${JSON.stringify(soorten)}`);
   check(!cf.some((x) => x.type === 'dubbel_thema'), 'geen dubbel thema');
   if (Object.keys(soorten).some((s) => s !== 'pool_tekort')) gat(`conflicten zijn niet "leeg behalve capaciteit": ${Object.entries(soorten).map(([k, n]) => `${k} ×${n}`).join(', ')}. Capaciteit van een rit is geen conflict in /api/conflicten (alleen een waarschuwing op de rit).`);
+  check(wijzPerStap[3] > 40, `stap 4 (KV's tellen): ${wijzPerStap[3]} wijzigingsregels — de tellingen staan in de historiek (was 3)`);
   check(wijzPerStap[0] === 0 && wijzPerStap.slice(1).every((n) => n > 0), `wijzigingen per stap: ${wijzPerStap.join(', ')} (stap 1 is enkel kijken → 0; elke stap met een handeling heeft regels)`);
   const ruim = await opruimen(c, (m) => console.log('      ' + m));
   const na = await tellingen();
@@ -224,7 +239,7 @@ try {
   const verschil = Object.keys({ ...voor, ...na }).filter((t) => !LOG.has(t) && (voor[t] || 0) !== (na[t] || 0)).map((t) => `${t} ${voor[t] || 0}→${na[t] || 0}`);
   console.log(`      rijtellingen (zonder logtabellen): ${verschil.length ? verschil.join(', ') : 'identiek'}`);
   check(['vakantieperiodes', 'kampmomenten', 'transport_ritten', 'transport_taken', 'personeel'].every((t) => (voor[t] || 0) === (na[t] || 0)), 'periode, kampmomenten, ritten, taken en personeel exact terug op het begin');
-  if (verschil.length) gat(`--opruimen laat rijen achter die niet via de API te verwijderen zijn: ${verschil.join(', ')}.`);
+  check(verschil.length === 0, `na --opruimen zijn alle rijtellingen gelijk aan vóór de opbouw (behalve wijzigingen/activiteiten_log/sessies)${verschil.length ? ': ' + verschil.join(', ') : ''}`);
   check((await A('GET', '/api/periodes')).json.find((p) => p.actief)?.naam === o.vorige_actieve_periode?.naam, `actieve periode terug: ${o.vorige_actieve_periode?.naam}`);
   stappen.push({ nr: stapNr, uitslag: stapFout ? 'ROOD' : stapGat ? 'GROEN met OVERGESLAGEN' : 'GROEN' });
   console.log('\n══ SAMENVATTING ══');

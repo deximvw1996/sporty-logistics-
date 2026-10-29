@@ -44,7 +44,7 @@ export async function verbind(doel, { vers = true } = {}) {
 
 // Voorkeurnamen → bestaande locaties (exact, anders "bevat"); stockage idem.
 const KAMPLOCS = ['Abdijschool Vlierbeek', 'Boutersem', 'Betekom', 'Rotselaar', 'Kraal', 'Waaier', 'Ark', 'Sportschuur'];
-const STOCK = ['Rozenweg', 'Kantoor', 'Marco'];
+const STOCK = ['Rozenweg', 'Kantoor', 'Marko']; // de echte stockage heet Marko (GF1: geen 'Marco' aanmaken)
 const KV_NAMEN = ['Lotte', 'Bram', 'Noor', 'Eva', 'Sam', 'Fien', 'Jonas', 'Lien'];
 // Thema's: echte namen uit de zomerlijst; ontbreekt er een, dan het volgende thema van die leeftijdsgroep met bakken.
 const KLEUTER = ['1001 Ballen en Bellen', 'De Bouwfabriek', 'De Speelfabriek', 'Welkom op de boerderij', 'We slaan in het rond'];
@@ -65,7 +65,7 @@ export async function opbouw(c, log = console.log) {
   // 2. locaties
   const locs = await moet('GET', '/api/locaties');
   const zoek = (naam, type) => locs.find((l) => l.type === type && l.name === naam) || locs.find((l) => l.type === type && l.name.toLowerCase().includes(naam.toLowerCase()))
-    || (naam === 'Marco' ? locs.find((l) => l.type === type && /^mar[ck]o$/i.test(l.name)) : null);
+    || (naam === 'Marko' ? locs.find((l) => l.type === type && /^mar[ck]o$/i.test(l.name)) : null);
   const kamp = KAMPLOCS.map((n) => zoek(n, 'kamp')).filter(Boolean);
   if (kamp.length < 8) for (const l of locs.filter((l) => l.type === 'kamp' && !kamp.includes(l))) { if (kamp.length >= 8) break; kamp.push(l); }
   const stock = {};
@@ -119,7 +119,8 @@ export async function opbouw(c, log = console.log) {
     const kvl = await moet('POST', `/api/kampmomenten/${km.id}/kv-token`);
     kms.push({ id: km.id, locatie: loc.name, locatie_id: loc.id, type: themadag ? 'themadag' : 'kamp', themas: heeft ? (km.themas || []).map((t) => t.name) : gekozen, kv: kvs[i].naam, kv_id: kvs[i].id, kv_link: kvl.url, kv_token: kvl.token });
   }
-  g('punt 1 · kookdagen', 'kookdagen bestaan niet per kampmoment: "heeft_kookactiviteit" is een eigenschap van het thema (alle 184 thema\'s staan op 0). Kookdagen wo/do op 3 locaties kunnen dus niet gezet worden zonder echte thema\'s te wijzigen.');
+  // GF1: kookdagen zijn per kampmoment (PL1): wo/do op de eerste 3 kamplocaties; de generator stuurt dan de oven mee.
+  for (const k of kms.filter((x) => x.type === 'kamp').slice(0, 3)) await moet('PUT', `/api/kampmomenten/${k.id}/velden`, { kookdagen: ['wo', 'do'] });
   // 5. transport genereren + voorstellen aannemen (taken met FICTIEF in de opmerking)
   const kmIds = new Set(kms.map((k) => k.id));
   let taken = (await moet('GET', '/api/transport-taken')).filter((t) => kmIds.has(t.kampmoment_id));
@@ -213,7 +214,8 @@ export async function opruimen(c, log = console.log) {
     if ((r.opmerking || '').match(/aanvraag #/) && !ritIds.has(r.id)) { const a = (r.opmerking.match(/aanvraag #(\d+)/) || [])[1]; if (!a) continue; }
     const d = await A('DELETE', `/api/ritten/${r.id}`); if (d.status === 200) tel('transport_ritten');
   }
-  for (const k of kms) { const d = await A('DELETE', `/api/kampmomenten/${k.id}`); if (d.status === 200) tel('kampmomenten'); else verslag.niet_mogelijk.push(`kampmoment #${k.id}: ${d.status}`); }
+  // GF1: volledig verwijderen — ook tellingen, aanvragen, checks en kalenderdagen van het kampmoment gaan mee.
+  for (const k of kms) { const d = await A('POST', `/api/kampmomenten/${k.id}/volledig-verwijderen`); if (d.status === 200) tel('kampmomenten'); else verslag.niet_mogelijk.push(`kampmoment #${k.id}: ${d.status} ${d.json?.error || ''}`); }
   if (per) {
     const terug = meta?.vorige_actieve_periode?.id || periodes.find((p) => p.id !== per.id)?.id;
     if (terug) await A('POST', `/api/periodes/${terug}/activeer`);
@@ -221,7 +223,7 @@ export async function opruimen(c, log = console.log) {
   }
   for (const p of (await moet('GET', '/api/personeel')).filter((p) => /FICTIEF/.test(p.naam))) { const d = await A('DELETE', `/api/personeel/${p.id}`); if (d.status === 200) tel('personeel'); }
   for (const l of (await moet('GET', '/api/locaties')).filter((l) => /FICTIEF/.test(l.name))) { const d = await A('DELETE', `/api/locaties/${l.id}`); if (d.status === 200) tel('locaties'); }
-  verslag.niet_via_api = ['aanvragen (geen DELETE-route)', 'nakijk_sessies/nakijk_regels (geen DELETE-route)', 'kalender_dagen (blijven staan na DELETE kampmoment)', 'kampmoment_themas worden wél meegewist'];
+  verslag.niet_via_api = []; // GF1: alles gaat via de API (logtabellen wijzigingen en activiteiten_log blijven bewust staan)
   log(`opgeruimd: ${JSON.stringify(verslag.verwijderd)}${verslag.niet_mogelijk.length ? ' · niet gelukt: ' + verslag.niet_mogelijk.join('; ') : ''}`);
   return verslag;
 }
