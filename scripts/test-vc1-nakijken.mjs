@@ -34,7 +34,7 @@ try {
   // ── 0. voor het tellen: alle bakken 'niet geteld' (ook zonder sessie, werklijst 73) ──
   let r = await A('GET', '/api/nakijken');
   const eigen = (j) => j.bakken.filter((b) => b.kampmoment_id === km && ['NK01', 'NK02', 'NK03'].includes(b.bak.code));
-  T.check(r.status === 200 && eigen(r.json).length === 3 && eigen(r.json).every((b) => b.status === 'niet_geteld' && b.sessie_id === null && b.uitslag_tekst === 'niet geteld'), `GET /api/nakijken toont ook bakken zonder sessie (${eigen(r.json).length}× niet_geteld) [week ${r.json.week?.van}${r.json.week?.fallback ? ' (dichtstbijzijnde)' : ''}]`);
+  T.check(r.status === 200 && eigen(r.json).length === 3 && eigen(r.json).every((b) => b.status === 'nog_niet' && b.sessie_id === null && b.uitslag_tekst === 'nog niet geteld'), `GET /api/nakijken toont ook bakken zonder sessie (${eigen(r.json).length}× nog_niet) [week ${r.json.week?.van}${r.json.week?.fallback ? ' (dichtstbijzijnde)' : ''}]`);
 
   // ── 1. KV telt: bak 1 volledig (tekort + te veel + kapot met foto + notitie), bak 2 half, bak 3 niet ──
   for (const n of ['Bal zacht', 'Lintje', 'Fluitje', 'Krijt', 'Tape']) { const it = kb('NK01').items.find((i) => i.naam === n); await tel('NK01', n, { aangetroffen: it.gewenst }); }
@@ -45,10 +45,10 @@ try {
   await kv('POST', '/versturen', {});
   r = await A('GET', '/api/nakijken');
   const L = r.json; const rij = (code) => L.bakken.find((b) => b.kampmoment_id === km && b.bak.code === code);
-  T.check(rij('NK01').status === 'te_keuren' && rij('NK02').status === 'te_keuren' && rij('NK03').status === 'niet_geteld', `statussen: NK01 ${rij('NK01').status}, NK02 ${rij('NK02').status}, NK03 ${rij('NK03').status}`);
+  T.check(rij('NK01').status === 'te_keuren' && rij('NK02').status === 'te_keuren' && rij('NK03').status === 'nog_niet', `statussen: NK01 ${rij('NK01').status}, NK02 ${rij('NK02').status}, NK03 ${rij('NK03').status}`);
   T.check(rij('NK01').uitslag_tekst === 'tekort 2 · te veel 2 · kapot 2' /* TF1 G13: stuks, geen regels */ && rij('NK01').geteld === 8 && rij('NK01').totaal === 8, `NK01 uitslag "${rij('NK01').uitslag_tekst}" ${rij('NK01').geteld}/${rij('NK01').totaal}`);
   T.check(/^tekort \d · \d niet geteld$|^\d niet geteld$|niet geteld/.test(rij('NK02').uitslag_tekst) && rij('NK02').geteld === 2 && rij('NK02').totaal === 5, `NK02 "${rij('NK02').uitslag_tekst}" ${rij('NK02').geteld}/${rij('NK02').totaal}`);
-  T.check(r.json.tellers.te_keuren >= 2 && r.json.tellers.niet_geteld >= 1 && r.json.tellers.met_tekort >= 1 && r.json.tellers.met_kapot >= 1, `tellers ${JSON.stringify(r.json.tellers)}`);
+  T.check(r.json.tellers.te_keuren >= 2 && r.json.tellers.nog_niet >= 1 && r.json.tellers.met_tekort >= 1 && r.json.tellers.met_kapot >= 1, `tellers ${JSON.stringify(r.json.tellers)}`);
   r = await A('GET', '/api/nakijken?week=1999-01-04');
   T.check(r.status === 200 && r.json.bakken.length === 0, 'een week zonder kampmomenten geeft een lege lijst (geen fout)');
   r = await A('GET', '/api/nakijken');

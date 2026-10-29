@@ -44,8 +44,10 @@
     const morgen=(v.ritten_morgen||[]);
     $('l-ritten').innerHTML=(v.ritten_vandaag.length?v.ritten_vandaag.map(ritRij).join(''):'<div class="leeg">Geen ritten vandaag</div>')
       +(morgen.length?'<div class="morgen-kop" style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 2px">Morgen · '+morgen.length+'</div>'+morgen.map(ritRij).join(''):'');
-    $('n-week').textContent=v.deze_week.length+' locatie'+(v.deze_week.length===1?'':'s');
-    $('l-week').innerHTML=v.deze_week.length?v.deze_week.map(k=>`<div class="rit" data-km="${k.kampmoment_id}" style="cursor:pointer"><div class="u">${esc(k.dagen)}</div><div class="nm"><b>${esc(k.locatie)}</b>${
+    const wk=v.week_label==='Volgende week'?(v.volgende_week||[]):v.deze_week;
+    $('t-week').textContent=v.week_label||'Deze week';
+    $('n-week').textContent=wk.length+' locatie'+(wk.length===1?'':'s');
+    $('l-week').innerHTML=wk.length?wk.map(k=>`<div class="rit" data-km="${k.kampmoment_id}" style="cursor:pointer"><div class="u">${esc(k.dagen)}</div><div class="nm"><b>${esc(k.locatie)}</b>${
       esc([k.thema||'geen thema',k.kv_naam?kvL(k.kv_naam):null,...k.markeringen].filter(Boolean).join(' · '))}</div></div>`).join(''):'<div class="leeg">Geen open locaties deze week</div>';
   }
   async function laad(){

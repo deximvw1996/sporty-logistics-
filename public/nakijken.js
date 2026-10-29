@@ -8,13 +8,13 @@
   var MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
   function dagLang(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); if (!m) return esc(iso || ''); var d = new Date(+m[1], +m[2] - 1, +m[3]); return DAGEN[d.getDay()].slice(0, 2) + ' ' + d.getDate() + ' ' + MAANDEN[d.getMonth()].slice(0, 3) + ' ' + d.getFullYear(); }
 
-  var FILTERS = [['te_keuren', 'Te keuren'], ['niet_geteld', 'Niet geteld'], ['met_tekort', 'Met tekort'], ['met_kapot', 'Met kapot'], ['nagekeken', 'Nagekeken']];
-  var PIL = { te_keuren: ['oranje', 'te keuren'], niet_geteld: ['', 'niet geteld'], nagekeken: ['groen', 'nagekeken'] };
+  var FILTERS = [['te_keuren', 'Te keuren'], ['niet_geteld', 'Niet geteld'], ['nog_niet', 'Nog niet geteld'], ['met_tekort', 'Met tekort'], ['met_kapot', 'Met kapot'], ['nagekeken', 'Nagekeken']];
+  var PIL = { te_keuren: ['oranje', 'te keuren'], niet_geteld: ['', 'niet geteld'], nog_niet: ['', 'nog niet geteld'], nagekeken: ['groen', 'nagekeken'] };
   var sleutel = function (b) { return b.kampmoment_id + ':' + b.bak.soort + ':' + b.bak.id; };
 
   function passeert(b, st) {
     var f = st.filter;
-    if (f === 'te_keuren' || f === 'niet_geteld' || f === 'nagekeken') { if (b.status !== f) return false; }
+    if (f === 'te_keuren' || f === 'niet_geteld' || f === 'nog_niet' || f === 'nagekeken') { if (b.status !== f) return false; }
     else if (f === 'met_tekort') { if (!b.met_tekort) return false; }
     else if (f === 'met_kapot') { if (!b.met_kapot) return false; }
     var z = (st.zoek || '').trim().toLowerCase();
@@ -34,9 +34,10 @@
     var body = rijen.map(function (b) {
       var p = PIL[b.status] || PIL.niet_geteld;
       var kan = !!b.sessie_id;
-      return '<div class="r l' + (st.open === sleutel(b) ? ' act' : '') + '" role="button" tabindex="0" data-act="open" data-a="' + esc(sleutel(b)) + '"><span><input type="checkbox" data-act="vink" data-a="' + (b.sessie_id || '') + '"' + (kan ? '' : ' disabled') + (kan && sel.has(b.sessie_id) ? ' checked' : '') + ' aria-label="Selecteer"></span>'
+      var grijs = b.status === 'nog_niet';
+      return '<div class="r l' + (st.open === sleutel(b) ? ' act' : '') + (grijs ? ' nog-niet' : '') + '"' + (grijs ? ' style="opacity:.55"' : '') + ' role="button" tabindex="0" data-act="open" data-a="' + esc(sleutel(b)) + '"><span><input type="checkbox" data-act="vink" data-a="' + (b.sessie_id || '') + '"' + (kan ? '' : ' disabled') + (kan && sel.has(b.sessie_id) ? ' checked' : '') + ' aria-label="Selecteer"></span>'
         + '<span><b>' + esc(b.locatie) + '</b><br><small>wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(b.kv_naam) : '') + '</small></span>'
-        + '<span>' + esc(b.bak.code) + ' ' + esc(b.bak.naam) + '</span><span>' + b.geteld + '/' + b.totaal + (b.bak.soort === 'attribuut' ? '' : ' geteld') + '</span><span>' + esc(b.uitslag_tekst) + '</span><span><span class="pil ' + p[0] + '">' + p[1] + '</span></span></div>';
+        + '<span>' + esc(b.bak.code) + ' ' + esc(b.bak.naam) + '</span><span>' + b.geteld + '/' + b.totaal + (b.bak.soort === 'attribuut' ? '' : ' geteld') + '</span><span>' + esc(grijs && b.kv_naam ? b.uitslag_tekst + ' · ' + kvL(b.kv_naam) : b.uitslag_tekst) + '</span><span><span class="pil ' + p[0] + '">' + p[1] + '</span></span></div>';
     }).join('') || '<div class="leeg">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
     return '<div class="filters"><input type="search" id="zoek" placeholder="🔍 Zoek locatie, bak, KV, stuk…" value="' + esc(st.zoek || '') + '" data-f="zoek">' + chips + '</div>'
       + '<div class="kopr l"><span><input type="checkbox" data-act="vink-alles"' + (alleSel ? ' checked' : '') + ' aria-label="Alles selecteren"></span><span>Locatie · KV</span><span>Bak</span><span>Geteld</span><span>Uitslag</span><span>Status</span></div>'
@@ -110,9 +111,9 @@
     return '<div class="detail"><div class="dkop"><div><h2>' + esc(det.bak.code) + (det.bak.code ? ' · ' : '') + esc(det.bak.naam) + ' · ' + esc(det.locatie) + '</h2><span>week ' + esc(det.week) + ' · ' + wie + ' · ' + det.geteld + ' van ' + det.totaal + ' stuks ' + pils + '</span></div>'
       + '<div class="acts"><button type="button" class="knop licht" data-act="bak-openen">Bak openen</button><button type="button" class="knop licht" data-act="fotos"' + (fotos.length ? '' : ' disabled') + '>Foto\'s ' + fotos.length + '</button>'
       + (tel ? '<a class="knop licht" href="' + tel + '">KV bellen</a>' : '<button type="button" class="knop licht" disabled>KV bellen</button>')
-      + '<button type="button" class="knop" data-act="afronden"' + (kanAfronden ? '' : ' disabled') + '>Keuring afronden ✓</button></div></div>'
+      + (det.status === 'nog_niet' ? '' : '<button type="button" class="knop" data-act="afronden"' + (kanAfronden ? '' : ' disabled') + '>Keuring afronden ✓</button>') + '</div></div>'
       + '<div class="dtabs"><a class="' + (tab === 'telling' ? 'act' : '') + '" data-act="tab" data-a="telling" role="button" tabindex="0">Telling</a><a class="' + (tab === 'vorige' ? 'act' : '') + '" data-act="tab" data-a="vorige" role="button" tabindex="0">Vorige tellingen ' + (det.vorige_tellingen || []).length + '</a><a class="' + (tab === 'historiek' ? 'act' : '') + '" data-act="tab" data-a="historiek" role="button" tabindex="0">Historiek ' + (det.historiek || []).length + '</a></div>'
-      + inhoud + '</div>';
+      + (det.status === 'nog_niet' ? '<div class="leeg" style="padding:10px 0">De KV heeft deze bak nog niet geteld. Hieronder staat wat erin hoort te zitten.</div>' : '') + inhoud + '</div>';
   }
   function fotoOverlayHtml(det) {
     return '<div class="dim" data-act="sluit-bg"><div class="dlg" role="dialog" aria-modal="true"><h3>Foto\'s van de telling</h3><div class="fotogrid">' + (det.foto_s || []).map(function (f) { return '<figure><img src="' + esc(f.url) + '" alt=""><figcaption>' + esc(f.stuk) + '</figcaption></figure>'; }).join('') + '</div><div class="knoppen"><button type="button" class="knop licht" data-act="sluit">Sluiten</button></div></div></div>';
