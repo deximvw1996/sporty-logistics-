@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logboek — Sporty logistiek</title>
+<link rel="stylesheet" href="/public/patroon.css">
+<link rel="stylesheet" href="/public/personeel.css">
+<style>
+/* Logboek (BH1): zelfde patroon als Personeel; eigen kolommen en filtervelden. */
+.kopr,.r{grid-template-columns:130px 110px 1fr 120px 110px}
+.filters input[type=date]{max-width:150px;flex:none}.filters select{height:38px;border:1px solid #e2e8f0;border-radius:8px;padding:0 8px;font:inherit;background:#fff;max-width:170px}
+.filters input.wie{max-width:140px;flex:none}
+.vgl{width:100%;border-collapse:collapse;font-size:13px}.vgl th{text-align:left;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;padding:6px 4px;border-bottom:1px solid #e2e8f0}
+.vgl td{padding:6px 4px;border-bottom:1px solid #eef2f7;vertical-align:top;word-break:break-word}.vgl tr.anders td{background:#fff7ed}.vgl td.k{color:#64748b;width:28%}
+</style>
+</head><body>
+<div class="frame"><div class="top"><div class="logo">Sporty logistiek</div><a href="/vandaag">🏠 Vandaag <span class="b" id="b-vandaag" hidden></span></a><a href="/#kampplanner">📅 Planning</a><a href="/ritplanning">🚚 Transport</a><a href="/bakken">📦 Materiaal</a><a href="/#planning">📍 Locaties</a><a href="/nakijken">🧮 Voorraad &amp; controles</a><a class="act" href="/personeel">⚙️ Beheer</a><div class="rechts"><span class="per">Periode: <b id="per-naam">…</b> ▾<select id="per-kies" aria-label="Periode kiezen"></select></span><span id="wie"></span></div></div><div class="sub"><a href="/personeel">Personeel</a><a class="act" href="/logboek">Logboek</a><a href="/#materiaal">Export &amp; back-up</a><a href="/#overzicht" title="Er bestaat nog geen instellingenpagina (GEVONDEN BH1)">Instellingen</a></div><div class="body"><div class="kaart lijst"><div class="filters"><input type="date" id="f-van" aria-label="Van"><input type="date" id="f-tot" aria-label="Tot"><input class="wie" id="f-wie" placeholder="Wie"><select id="f-tabel" aria-label="Tabel"><option value="">Alle tabellen</option></select><input id="f-zoek" placeholder="🔍 Zoek in wat er veranderde…"></div><div class="kopr"><span>Datum</span><span>Wie</span><span>Wat</span><span>Tabel</span><span>Context</span></div><div class="scroll" id="lijst"></div><div class="voet" id="voet"><span id="n-regels">0 regels</span></div></div><div class="kaart"><div class="detail" id="detail"><div class="leegd">Klik een regel voor oud en nieuw.</div></div></div></div></div>
+<div id="toasts"></div>
+<script src="/public/logboek.js"></script>
+</body></html>

@@ -950,3 +950,182 @@ Regels voor de lijst:
 ### Buiten mijn gebied
 - **`server.js`:** één regel, `'bakken-overzicht'` in de routelijst.
 - **`public/etiketten.html`:** nieuw bestand; de prompt liet een eigen printpagina toe als er geen etiketroute was.
+
+---
+
+## BH1 — Beheer › Personeel + Logboek op het patroon (chat C, Opus) · 2026-10-29
+
+Gewerkt van 20:04 tot ±20:45.
+
+**Commits op `bouw-c`:**
+- punt 1: migratie 80 + API + auth
+- punt 2: pagina's /personeel en /logboek + test
+- een fix in de logboektekst
+- de route-inventaris (`test-f1-modules`)
+- dit verslag
+
+### Wat er gebouwd is
+
+**Punt 1 — Data en API**
+- **Migratie 80** voegt aan `personeel` toe:
+  - `actief` (standaard 1), `rijbewijs`, `eigen_wagen_capaciteit`;
+  - `laatst_actief`, `uitnodiging_op`, `meldingen_aan` (standaard 1);
+  - `pincode_gewijzigd_op`.
+
+  Alles heeft een default; er is geen backfill.
+- **`routes/personeel-overzicht.js`** (alleen kantoor):
+  - `GET /api/personeel-overzicht`;
+  - `GET /api/personeel/:id/detail`;
+  - `PUT /api/personeel/:id/velden`;
+  - `PUT /api/personeel/:id/rol`;
+  - `POST /api/personeel/:id/pincode-reset`;
+  - `POST /api/personeel/:id/deactiveer` en `/activeer`;
+  - `POST /api/personeel/uitnodiging`;
+  - `GET /api/logboek` en `GET /api/logboek/wijziging/:id`;
+  - de pagina's `GET /personeel` en `GET /logboek`.
+- **Rechten per rol** staan in één tabel `RECHTEN` in de code: kantoor, chauffeur, coordinator, monitor, plus de oude rollen kv en animator.
+- **Personeelswijzigingen worden gelogd zonder pincode-hash.** `updateMetLog` zou de volledige rij, mét hash, in `wijzigingen` zetten. Daarom schrijf ik zelf naar `wijzigingen`, met `pincode_gezet: true/false` in plaats van de hash.
+- **Wat de beheeracties doen:**
+  - Deactiveren en een rolwissel maken open sessies meteen ongeldig, ook in de sessiecache.
+  - Jezelf deactiveren of je eigen kantoorrol afnemen geeft 409, net als een reset van je eigen pincode.
+  - De uitnodiging stuurt niets zelf: ze geeft per persoon een tekst met het app-adres, de naam en "kies je pincode bij de eerste keer". KV-rollen krijgen er geen ("KV werkt met de KV-link").
+- **Logboek:** combineert `wijzigingen` en `activiteiten_log` (max. 500 regels).
+  - Filters: van, tot, wie, tabel en zoek.
+  - Elke regel heeft `terugdraaibaar: false` met een reden, want er bestaat geen terugdraai-route.
+  - Het detail toont oud/nieuw en laat het pincode-veld weg.
+
+**Punt 2 — De pagina's**
+- **`/personeel`** (`public/personeel.{html,css,js}`, laadt `patroon.css`) is een exacte kopie van de mockup:
+  - **Subbalk:** Personeel · Logboek · Export & back-up · Instellingen, plus Export en "+ Persoon".
+  - **Lijst:** 6 chips (Alle · Kantoor · Chauffeur · Coördinator · Monitor · ⚠ Zonder pincode) en een zoekveld. Kolommen naam, rol, telefoon, laatst actief en stand.
+  - **Bulkvoet:** Pincode-uitnodiging sturen (venster met de teksten, Kopieer en Kopieer alles) · Rol wijzigen · Deactiveren (met bevestiging).
+  - **Detail:** kop met de knoppen Bewerken · Pincode resetten · Deactiveren/Activeren · Rol wijzigen.
+    - Tabs: Gegevens · Inzet N · Wat deed <naam> N.
+    - Blokken: Gegevens & rechten, Inzet deze periode met Open-links, en het logboek op naam met "Volledig logboek ›" (→ `/logboek?wie=`).
+  - "Pincode resetten" opent na de reset meteen het uitnodigingsvenster.
+- **`/logboek`** (`public/logboek.{html,js}`, zelfde patroon, geen eigen mockup):
+  - **Filters:** van, tot, wie, een tabelkeuze en zoek; ze komen in de URL.
+  - **Lijst:** datum, wie, wat, tabel, context.
+  - **Detail:** oud/nieuw met de gewijzigde velden eerst, en "↶ Terug" uitgeschakeld met de reden.
+
+### Ingrepen in `lib/auth.js` (meer dan de prompt noemt, nodig voor de gevraagde werking)
+- **Inloggen:** een gedeactiveerde persoon krijgt 403 "Dit account is gedeactiveerd — …".
+- **`laatst_actief`** wordt gezet bij de login en bij elke API-oproep met een sessie. Dat is hoogstens één schrijfactie per persoon per 5 minuten (in-memory teller).
+- **Nieuwe export `vergeetSessiesVan(id)`:** wist de sessies van één persoon uit de cache en de tabel.
+- **Nieuw publiek pad `POST /api/eerste-pincode {persoon_id, pincode}`** voor de "eerste pincode" per persoon. De bestaande `setup-eerste-pincode` werkt alleen zolang níemand een pincode heeft, en kon dus niet dienen na een reset of voor een nieuwe coördinator. De nieuwe route kan alleen als:
+  - de persoon actief is;
+  - de persoon nog geen pincode heeft;
+  - kantoor de persoon uitnodigde (`uitnodiging_op`, ook gezet bij een reset).
+
+  De pincode moet minstens 4 tekens hebben (scrypt, zoals overal).
+- **`/api/personeel-lijst-login`:** bevat nu ook coordinator en monitor (nodig voor de mobiele app), laat inactieve personen weg en geeft `heeft_pincode` mee.
+- **`/api/personeel/:id/pincode`** zet nu ook `pincode_gewijzigd_op`.
+
+### JSON-vorm
+`GET /api/personeel-overzicht`
+```json
+{"tellers": {"alle": 16, "kantoor": 4, "chauffeur": 5, "coordinator": 7, "monitor": 0, "zonder_pincode": 5},
+ "personeel": [{"id": 16, "naam": "Lotte BH1", "rol": "coordinator", "rol_groep": "kantoor|chauffeur|coordinator|monitor", "telefoon": "0475 12 34 57", "email": "lotte@x.be",
+   "laatst_actief_tekst": "vandaag 20:09 | gisteren | ma | 12 okt | —", "stand": "actief|geen_pincode|inactief", "heeft_pincode": true, "uitnodiging_op": "2026-10-29 20:07"}]}
+```
+- `rol_groep` vertaalt de oude rollen: `kv` telt als coordinator en `animator` als monitor.
+- `geen_pincode` geldt alleen voor rollen die inloggen (kantoor, chauffeur, coordinator).
+
+`GET /api/personeel/:id/detail`
+```json
+{"persoon": {"id": 16, "naam": "Lotte BH1", "rol": "coordinator", "rol_groep": "coordinator", "telefoon": "…", "email": "…", "notities": "", "actief": true, "stand": "actief",
+             "laatst_actief": "2026-10-29 20:09", "laatst_actief_tekst": "vandaag 20:09", "uitnodiging_op": "…"},
+ "rechten": ["ritten rijden (eigen of huurwagen)", "stockage: aanvullen en klaarzetten", "tellen bij ophaling", "meldingen lezen en doen"],
+ "pincode": {"gezet": true, "gewijzigd_op": "2026-10-29 20:09", "gewijzigd_tekst": "do 29 okt 20:09"},
+ "rijbewijs": "B", "eigen_wagen_capaciteit": 6, "meldingen_aan": true,
+ "inzet": [{"soort": "kv|rit|aanvullen", "titel": "KV Abdijschool Vlierbeek · wk 1", "sub": "Holderdebolder · nog niet geteld", "link": "/nakijken", "kampmoment_id": 168},
+           {"soort": "rit", "titel": "Rit #22 · wo 4 nov · Eigen wagen", "sub": "coördinator rijdt mee · gepland", "link": "/ritplanning?rit=22", "rit_id": 22}],
+ "logboek": [{"bron": "wijziging|activiteit", "id": "w812", "wijziging_id": 812, "t": "…", "tijd_tekst": "do 29 okt 20:09", "wie": "Claude (API)",
+              "wat": "personeel #16: rol coordinator → chauffeur", "tabel": "personeel", "actie": "update", "context": "beheer: rol", "terugdraaibaar": false, "reden_niet_terug": "er bestaat nog geen terugdraai-route"}]}
+```
+`GET /api/logboek?van=&tot=&wie=&tabel=&zoek=&max=`: `{filters, totaal, afgekapt, tabellen[], regels[]}`. Elke regel heeft dezelfde vorm als een logboekregel hierboven.
+
+`POST /api/personeel/uitnodiging {ids[]}`
+```json
+{"adres": "https://…/", "uitnodigingen": [{"id": 2, "naam": "Jeroen", "telefoon": "", "heeft_pincode": false, "instructie": "Hallo Jeroen, open https://…/ op je gsm, kies je naam \"Jeroen\" en kies je pincode bij de eerste keer (minstens 4 cijfers). Groeten, kantoor Sporty"}],
+ "fouten": [{"id": 7, "naam": "Evy", "reden": "rol kv logt niet in (KV werkt met de KV-link)"}]}
+```
+
+### Bewijs
+- **`node scripts/test-bh1-personeel.mjs` (poort 3338): 37 ok, 0 fout, ALLES GROEN.** Gecontroleerd:
+  - **Overzicht:** tellers per rol en zonder pincode; `laatst_actief` is gezet bij de login ("vandaag 20:07").
+  - **Nieuwe coördinator:** stand "geen pincode". De velden (rijbewijs, eigen wagen 6, telefoon) worden bewaard en gelogd, zonder hash in het antwoord; een negatieve capaciteit geeft 400.
+  - **Inzet:** de KV-koppeling ("KV Abdijschool Vlierbeek · wk 1") en een rit als bestuurder ("coördinator rijdt mee"). Ook de rechten en het logboek op naam staan in het detail.
+  - **Uitnodiging en eerste pincode:**
+    - een eerste pincode zonder uitnodiging geeft 403;
+    - de uitnodiging zet `uitnodiging_op` en geeft de instructie; een KV-rol wordt geweigerd met reden;
+    - de coördinator staat in de loginlijst;
+    - daarna lukt de eerste pincode, een tweede keer geeft 409, en inloggen werkt.
+  - **Pincode-reset:**
+    - de oude sessie geeft 401 en de oude pincode geeft 401;
+    - de eerste-pincode-flow werkt opnieuw, met login op de nieuwe pincode;
+    - de reset staat in het logboek, zonder `scrypt$` in de uitvoer.
+  - **Deactiveren:**
+    - de sessie geeft 401, de login 403, en de persoon verdwijnt uit de loginlijst;
+    - na activeren lukt de login weer;
+    - jezelf deactiveren geeft 409.
+  - **Rol wijzigen:** gelogd ("rol coordinator → chauffeur"); een ongeldige rol geeft 400.
+  - **`/api/logboek`:** heeft `terugdraaibaar` en `tijd_tekst`, en de filters tabel, zoek en van werken. Het wijzigingsdetail toont oud/nieuw zonder pincode.
+  - **Rechten:** een chauffeur krijgt 403 op het overzicht, het detail, het logboek en de reset.
+  - **Pagina's:** `/personeel` (subbalk, 6 chips, voet) en `/logboek` (subbalk, voet) geven 200 en laden `patroon.css`.
+- **Live in de browser op 1920×900** (DOM-dump; de screenshot timede uit omdat het paneel niet getekend werd):
+  - Lijst 860 px, detail 988 px. Subbalk "Personeel · Logboek · Export & back-up · Instellingen · ⬇ Export · + Persoon"; 6 chips van 36 px; na het aanvinken "16 personen · 2 geselecteerd" met de 3 bulkknoppen.
+  - **Detail Lotte:**
+    - kop "chauffeur · 0475 12 34 57 · lotte@x.be · ingelogd vandaag 20:09";
+    - tabs "Gegevens · Inzet 2 · Wat deed Lotte 12";
+    - Gegevens & rechten: rol + "mag: …", pincode "gezet (scrypt) · laatste wijziging do 29 okt 20:09", "B · eigen wagen (6 bakken)", meldingen aan;
+    - de inzet (KV + rit) en het logboek op naam.
+  - **Uitnodiging voor 2 chauffeurs:** de 2 teksten met Kopieer, Kopieer alles en Klaar. Voor 2 KV's: "Niet uitgenodigd: … KV werkt met de KV-link".
+  - **Logboek `?wie=Claude`:** 23 regels. Tabel=personeel geeft 12 en de URL wordt bijgewerkt. Het detail toont oud/nieuw (uitnodiging_op) zonder pincode-veld; "↶ Terug" is uitgeschakeld.
+  - **Hersteld na deze controle:** het logboek toonde "actief 1 → —" in plaats van "1 → 0". Gecommit.
+- **`node scripts/volle-run.mjs`:**
+
+| run | groen | rood |
+|---|---|---|
+| 1 | 24/27 | f1-modules (2: nieuwe padparameters nog niet in de inventaris, van mij), v3c-fotos (afgebroken), veiligheid (3) |
+| 2 | 24/27 | f1-modules (2, idem), v3c-fotos (2), veiligheid (3) |
+| 3 (na de f1-modules-regels) | 25/27 | v3c-fotos (2), veiligheid (3) |
+| 4 | 25/27 | v3c-fotos (2), veiligheid (3) |
+
+`v3c-fotos` en `veiligheid` zijn de bekende omgevingsafhankelijke tests: ze lezen de lokale `sporty.db`.
+
+### Afwijkingen van de mockup
+- **Demo-balk en frame:** de demo-balk (`.keuze`) valt weg. Het frame vult het venster; op 1920×900 is het beeld identiek.
+- **Tab "Wat deed hij/zij":** heet "Wat deed <voornaam>", omdat geslacht nergens bewaard wordt. De mockup toont "Wat deed ze".
+- **"Instellingen"** linkt naar Overzicht, met de tooltip dat er nog geen instellingenpagina bestaat (zie GEVONDEN 4).
+- **Pilkleuren** en `nowrap` op de chips: toegevoegd zoals bij Taken en Bakken.
+
+### GEVONDEN
+1. **Rollen:** `coordinator` en `monitor` bestonden niet. De database kent kantoor, chauffeur, kv en animator. Het overzicht telt kv als coördinator en animator als monitor.
+   - Een bestaande KV (rol `kv`) kan niet inloggen en krijgt geen uitnodiging. Kantoor moet eerst de rol op coördinator zetten.
+   - De auth-poort blokkeert alleen `kv` op de admin-API. `coordinator` en `monitor` krijgen dus dezelfde leestoegang als chauffeur. Specifieke rechten (bv. monitor = enkel tellen) worden nog nergens afgedwongen; `RECHTEN` is voorlopig alleen uitleg.
+2. **Er bestaat geen terugdraai-route voor `wijzigingen`** (TR1 #1, nog open). "↶ Terug" staat overal uit met de reden.
+3. **De "Eerste pincode"-flow in de app** (`setup-eerste-pincode`) werkt alleen als nog níemand een pincode heeft. Daarom is er `POST /api/eerste-pincode` per persoon. **Het loginscherm in `index.html` gebruikt die route nog niet:** wie geen pincode heeft, ziet daar nog geen "kies je pincode"-stap. Het loginscherm moet `heeft_pincode` uit `/api/personeel-lijst-login` gebruiken en dan `/api/eerste-pincode` aanroepen. `index.html` was dicht.
+4. **Er is geen instellingenpagina** en geen tabel voor instellingen. `kantoor_telefoon` kon dus nergens bij; daar is een apart onderdeel voor nodig.
+5. **`POST /api/personeel` (bestaand) gebruikt `ins` en niet `insMetLog`.** Het aanmaken van een persoon staat dus niet in `wijzigingen`. Ook `PUT /api/personeel/:id` (bestaand) logt niets. De nieuwe BH1-routes loggen wel.
+6. **`DELETE /api/personeel/:id` (bestaand) verwijdert hard.** Deactiveren is de nieuwe, omkeerbare weg; de oude knop bestaat nog in het oude tabblad.
+7. **Het logboek over één persoon** zoekt in `activiteiten_log` op naam (`LIKE`). Een gewone naam kan dus ook regels van iemand anders met die naam tonen. `activiteiten_log` heeft geen persoon-kolom.
+8. **Uitnodigen via sms of mail bestaat niet.** Kantoor kopieert de tekst, zoals de prompt vraagt.
+9. **`POST /api/transport-taken/bundel` bestaat nu (TB1 van chat D).** Het TR1-gat "Bundelen" is daarmee aan hun kant opgelost. De knop in `/taken` staat nog uit: dat is een kleine opvolging in `public/taken.js`.
+
+### Buiten mijn gebied
+- **`lib/auth.js`:** zie de sectie hierboven. Nodig voor inactief → geen login, `laatst_actief`, de eerste pincode per persoon, het vervallen van sessies en de loginlijst.
+- **`scripts/test-f1-modules.mjs`:** 2 regels, de nieuwe padparameters in de route-inventaris.
+- **`server.js`:** één regel, `'personeel-overzicht'` in de routelijst.
+- **`public/logboek.html`:** heeft een kleine eigen `<style>` voor de kolommen. Een `logboek.css` stond niet in de bestandenlijst, dus de pagina laadt `personeel.css`.
+
+**BH1 · aanvulling na de rebase (20:55).**
+
+- **Conflict met GF1 (chat D), opgelost:**
+  - `lib/auth.js`, in `/api/personeel-lijst-login`: GF1 had `coordinator` toegevoegd. Mijn versie bevat dat al, plus `monitor`, `actief` en `heeft_pincode`.
+  - GF1 gebruikt migratienummer 80. De BH1-migratie heet daarom **Migratie 81**. Ze heeft geen vlag, alleen `addColumnIfMissing`; de nummering staat enkel in het commentaar.
+- **Na de rebase opnieuw gedraaid:**
+  - `test-bh1-personeel`: 37 ok, 0 fout.
+  - `test-f1-modules`: 113 ok.
+  - Volle run, twee keer: telkens **26/28 groen**. Alleen `v3c-fotos` (2) en `veiligheid` (3) zijn rood, de bekende omgevingsafhankelijke tests.
+- **Push tijdens het conflict:** tijdens het conflict ging een `git push origin HEAD:bouw-c` mee. Die zette `bouw-c` even gelijk aan main (63c5e26); main zelf is niet geraakt. Daarna is de juiste branch (met BH1) gepusht.
