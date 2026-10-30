@@ -46,13 +46,13 @@ module.exports = function(ctx){
     const per=periodeVan(req.query.periode_id);
     const locaties=all('SELECT * FROM locaties ORDER BY type,name').map(l=>{
       const p=kmsVan(l.id,per),a=aandacht(l,p);
-      return {id:l.id,naam:l.name,type:l.type,gemeente:l.gemeente||'',adres:l.addr||'',contact_naam:l.contact_naam||'',telefoon:l.contact_tel||'',
+      return {id:l.id,naam:l.name,type:l.type,gemeente:l.gemeente||'',adres:l.addr||'',lat:l.lat==null||l.lat===''?null:+l.lat,lng:l.lng==null||l.lng===''?null:+l.lng,contact_naam:l.contact_naam||'',telefoon:l.contact_tel||'',
         periode_tekst:p.length?p.map(k=>`wk ${k.week}${k.kv_naam?' '+k.kv_naam:''}`).join(' · '):'—',periode:p.map(({thema,...k})=>k),status:a.length?'let':'ok',aandacht:a,
         zoek:[l.name,l.gemeente,l.addr,...p.map(k=>k.kv_naam)].join(' ').toLowerCase()};
     });
     const n=f=>locaties.filter(f).length;
     res.json({periode:per?{id:per.id,naam:per.naam}:null,
-      tellers:{alle:locaties.length,kamp:n(l=>l.type==='kamp'),stockage:n(l=>l.type==='stockage'),let_op:n(l=>l.status==='let'),deze_periode:n(l=>l.periode.length)},locaties});
+      tellers:{alle:locaties.length,kamp:n(l=>l.type==='kamp'),stockage:n(l=>l.type==='stockage'),let_op:n(l=>l.status==='let'),deze_periode:n(l=>l.periode.length),zonder_kaart:n(l=>l.lat==null||l.lng==null||isNaN(l.lat)||isNaN(l.lng))},locaties});
   });
 
   app.get('/api/locaties/:id/detail',alleenKantoor,(req,res)=>{

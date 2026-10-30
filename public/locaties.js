@@ -23,7 +23,7 @@
       const blokHist=`<div class="blok"><h4>Historiek (alles gelogd, omkeerbaar)</h4>${historiek.slice(0,tab==='historiek'?100:5).map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc([h.t,h.wie].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" disabled title="Terugdraaien bestaat nog niet als route (GEVONDEN TR1)">↶ Terug</button></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>'}</div>`;
       const inhoud={gegevens:blokContact+blokFotos+blokKm+blokHist,fotos:blokFotos,kampmomenten:blokKm,historiek:blokHist}[tab]||'';
       const sub=[l.type==='kamp'?'Kamplocatie':l.type==='stockage'?'Stockage':l.type,l.adres].filter(Boolean).map(esc).join(' · ');
-      return `<div class="dkop"><div><h2>${esc(l.naam)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-kaart">📍 Kaart</button><button class="knop" id="d-rit">Rit plannen</button></div></div>
+      return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(l.naam)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-kaart">📍 Kaart</button><button class="knop" id="d-rit">Rit plannen</button></div></div>
         <div class="dtabs">${[['gegevens','Gegevens'],['fotos',`Foto's ${fotos.length}`],['kampmomenten',`Kampmomenten ${kms.length}`],['historiek',`Historiek ${historiek.length}`]].map(([k,t])=>`<a class="${tab===k?'act':''}" data-tab="${k}">${t}</a>`).join('')}</div>
         <div class="dgrid"${tab==='gegevens'?'':' style="grid-template-columns:1fr"'}>${inhoud}</div>`;
     }
@@ -54,9 +54,10 @@
   }
   const Q=new URLSearchParams(location.search);
   const CONTACTEN=Q.get('weergave')==='contacten';
-  let O=null,D=null,SEL=new Set(),FILTER=CONTACTEN?'kamp':'alle',ZOEK='',TAB='gegevens';
+  let O=null,D=null,SEL=new Set(),FILTER=CONTACTEN?'kamp':'alle',ZOEK='',TAB='gegevens',ZICHT=Q.get('zicht')==='kaart'?'kaart':'lijst',MAP=null,LAAG=null,FOCUS=+Q.get('id')||0;
   if(CONTACTEN){$('sub-loc').classList.remove('act');$('sub-contact').classList.add('act');$('kol-periode').textContent='Contact · telefoon';}
-  const FILTERS={alle:()=>true,kamp:l=>l.type==='kamp',stockage:l=>l.type==='stockage',let_op:l=>l.status==='let',deze_periode:l=>l.periode.length>0};
+  const FILTERS={alle:()=>true,kamp:l=>l.type==='kamp',stockage:l=>l.type==='stockage',let_op:l=>l.status==='let',deze_periode:l=>l.periode.length>0,zonder_kaart:l=>!metCoord(l)};
+  const metCoord=l=>l.lat!=null&&l.lng!=null&&!isNaN(l.lat)&&!isNaN(l.lng);
   const zichtbaar=()=>O.locaties.filter(FILTERS[FILTER]).filter(l=>!ZOEK||l.zoek.includes(ZOEK));
 
   async function laad(){
@@ -68,13 +69,31 @@
   function tekenLijst(){
     document.querySelectorAll('.chip').forEach(c=>{c.classList.toggle('act',c.dataset.f===FILTER);c.querySelector('b').textContent=O.tellers[c.dataset.f];});
     const l=zichtbaar();
+    document.querySelectorAll('.seg a').forEach(a=>a.classList.toggle('act',a.dataset.zicht===ZICHT));$('body').classList.toggle('zicht-kaart',ZICHT==='kaart');$('kaartvak').hidden=ZICHT!=='kaart';
+    if(ZICHT==='kaart')tekenKaart(l);
     $('lijst').innerHTML=l.length?l.map(x=>BOUW.rij(x,{sel:SEL.has(x.id),act:D&&D.locatie.id===x.id,contacten:CONTACTEN})).join(''):'<div class="leeg">Geen locaties voor deze filter</div>';
     $('n-loc').textContent=`${l.length} locaties`;$('n-sel').textContent=`${SEL.size} geselecteerd`;$('voet').classList.toggle('sel',SEL.size>0);$('alles').checked=l.length>0&&l.every(x=>SEL.has(x.id));
+  }
+  // Kaart: Leaflet (unpkg, zelfde versie als de oude kaart); kamp groen, stockage oranje; de actieve chips filteren ook de pins.
+  function tekenKaart(l){
+    const metC=l.filter(metCoord),zonder=l.length-metC.length;
+    $('zonder').innerHTML=zonder?`<a data-zonder="1">${zonder} zonder adres op de kaart</a> — open de lijst om ze aan te vullen`:`${metC.length} locaties op de kaart`;
+    if(!window.L){$('zonder').textContent='Kaart kon niet laden (geen verbinding met unpkg)';return;}
+    if(!MAP){MAP=L.map('kaart-map').setView([50.879,4.700],10);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(MAP);LAAG=L.layerGroup().addTo(MAP);}
+    setTimeout(()=>MAP.invalidateSize(),50);
+    LAAG.clearLayers();
+    metC.forEach(x=>{
+      const icon=L.divIcon({className:'',html:`<div class="loc-kaart-pin${x.type==='stockage'?' stockage':''}${D&&D.locatie.id===x.id?' act':''}">${esc(x.naam)}</div>`,iconAnchor:[0,0]});
+      L.marker([x.lat,x.lng],{icon}).on('click',()=>{history.replaceState(null,'',`/locaties?zicht=kaart&id=${x.id}`);laadDetail(x.id);}).addTo(LAAG);
+    });
+    const f=FOCUS&&metC.find(x=>x.id===FOCUS);
+    if(f){MAP.setView([f.lat,f.lng],15);FOCUS=0;}
+    else if(metC.length&&!MAP._gezoomd){MAP.fitBounds(metC.map(x=>[x.lat,x.lng]),{padding:[30,30],maxZoom:13});MAP._gezoomd=true;}
   }
   async function laadDetail(id){
     const r=await api('GET',`/api/locaties/${id}/detail`);
     if(!r.ok){D=null;$('detail').innerHTML='<div class="leegd">Klik een locatie in de lijst voor het detail.</div>';return toast(r.json.error||'Detail laden mislukt','error');}
-    D=r.json;teken();document.querySelectorAll('.r').forEach(x=>x.classList.toggle('act',+x.dataset.id===id));
+    D=r.json;teken();document.querySelectorAll('.r').forEach(x=>x.classList.toggle('act',+x.dataset.id===id));$('body').classList.add('toon-detail');
   }
   function teken(){$('detail').innerHTML=BOUW.detail(D,TAB);const fi=$('foto-in');if(fi)fi.onchange=()=>foto(fi.files[0]);}
   async function foto(bestand){
@@ -102,11 +121,14 @@
   document.addEventListener('click',async e=>{
     const t=e.target;if(t.closest('.mbox'))return;
     if(t.matches('[data-sel]')){const id=+t.dataset.sel;t.checked?SEL.add(id):SEL.delete(id);return tekenLijst();}
+    const zz=t.closest('[data-zicht]');if(zz){ZICHT=zz.dataset.zicht;history.replaceState(null,'',ZICHT==='kaart'?'/locaties?zicht=kaart':'/locaties');return tekenLijst();}
+    if(t.closest('[data-zonder]')){ZICHT='lijst';FILTER='zonder_kaart';history.replaceState(null,'',(CONTACTEN?'/locaties?weergave=contacten':'/locaties'));return tekenLijst();}
+    if(t.closest('[data-act="terug"]')){$('body').classList.remove('toon-detail');return;}
     const chip=t.closest('.chip');if(chip){FILTER=chip.dataset.f;return tekenLijst();}
     const rij=t.closest('.r[data-id]');if(rij)return laadDetail(+rij.dataset.id);
     const tab=t.closest('[data-tab]');if(tab){TAB=tab.dataset.tab;return teken();}
     if(!D)return;const l=D.locatie;
-    if(t.id==='d-kaart')return location.href='/#kaart?id='+l.id;
+    if(t.id==='d-kaart')return location.href='/locaties?zicht=kaart&id='+l.id;
     if(t.id==='d-rit')return location.href='/ritplanning';
     const fw=t.closest('[data-fotoweg]');
     if(fw){e.preventDefault();if(!await vraag({titel:'Foto verwijderen?',ok:'Verwijderen'}))return;const r=await api('DELETE',`/api/locaties/${l.id}/foto/${fw.dataset.fotoweg}`);if(!r.ok)return toast(r.json.error||'Verwijderen mislukt','error');toast('Foto verwijderd','success');return laad();}
@@ -145,5 +167,5 @@
     const sel=$('per-kies');sel.innerHTML=p.json.map(x=>`<option value="${x.id}"${x.actief?' selected':''}>${esc(x.naam)}</option>`).join('');
     sel.onchange=async()=>{const a=await api('POST','/api/periodes/'+sel.value+'/activeer');if(!a.ok)return toast(a.json.error||'Periode wisselen mislukt','error');location.reload();};
   }
-  (async()=>{await laad();const id=+Q.get('id');if(id)laadDetail(id);kop();})();
+  (async()=>{await laad();const id=+Q.get('id');if(id)await laadDetail(id);kop();if(ZICHT==='kaart')tekenKaart(zichtbaar());})();
 })();

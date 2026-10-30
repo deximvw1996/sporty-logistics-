@@ -34,3 +34,28 @@ input[type=checkbox]{width:20px;height:20px}
 .detail .leegd{padding:40px;text-align:center;color:#64748b;font-size:14px}.r>span{overflow:hidden;text-overflow:ellipsis}.f{background-size:cover;background-position:center;text-shadow:0 0 3px #fff;position:relative}
 .f .x{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:6px;background:#fff;color:#b91c1c;font-size:12px;line-height:22px;text-align:center;cursor:pointer}
 .mail{display:flex;gap:8px;align-items:center;font-size:13px;padding:6px 0;border-top:1px solid #eef2f7}.mail a{color:#1d4ed8;font-weight:600}
+
+/* ── LK1: kaartzicht (Lijst / Kaart) ── */
+.seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;flex:none}.seg a{padding:8px 12px;font-size:13px;font-weight:600;color:#475569;min-height:36px;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center}.seg a.act{background:#1e3a8a;color:#fff}
+#kaartvak{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px}#kaartvak[hidden]{display:none}
+#kaart-map{flex:1;min-height:300px;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden}
+.zonder{font-size:12px;color:#64748b;min-height:20px}.zonder a{color:#2563eb;font-weight:600;cursor:pointer}
+.loc-kaart-pin{background:#15803d;color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer}.loc-kaart-pin.stockage{background:#E65100}.loc-kaart-pin.act{outline:3px solid #2563eb}
+.body.zicht-kaart .kopr,.body.zicht-kaart #lijst{display:none}
+.terug{display:none}
+/* gsm (MOBIEL-REGEL): lijst en detail onder elkaar; het detail opent als volgend scherm met ‹ terug; de kaart is volle breedte (~60 % hoogte) met het detail eronder */
+@media (max-width:767px){
+  .frame{height:auto;min-height:100vh;overflow:visible}
+  .body{display:block;height:auto;padding:8px 12px}.body>.kaart{margin-bottom:10px}
+  .body.toon-detail:not(.zicht-kaart)>.kaart.lijstkaart{display:none}.body:not(.toon-detail):not(.zicht-kaart)>.kaart.detailkaart{display:none}
+  .body.zicht-kaart:not(.toon-detail)>.kaart.detailkaart{display:none}
+  .terug{display:inline-flex;align-items:center;height:44px;padding:0 14px;border-radius:8px;background:#e2e8f0;color:#1e3a8a;font-weight:700;margin-bottom:8px}
+  .filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}.filters input{min-width:150px;flex:none}
+  .knop,.chip,.seg a,.dtabs a,.sub a,.top a,.top select,.per select{min-height:44px}.knop.klein{min-height:44px}
+  .kopr{display:none}
+  .r{display:flex !important;flex-wrap:wrap;align-items:center;gap:2px 10px;padding:8px}.r>span:nth-child(1){flex:none}.r>span:nth-child(2){flex:1 1 70%;min-width:0}.r>span:nth-child(n+3){font-size:12px;color:#475569}
+  .top{max-width:100vw;overflow-x:auto}.sub{flex-wrap:wrap;height:auto;min-height:48px;padding:4px 12px}
+  .dgrid{grid-template-columns:1fr !important}.dkop{flex-wrap:wrap}.dkop .acts{margin-left:0;flex-wrap:wrap}
+  .scroll{max-height:60vh}.voet{height:auto;flex-wrap:wrap;min-height:40px}
+  #kaartvak{height:60vh;flex:none}#kaart-map{min-height:0}.zonder a{display:inline-flex;align-items:center;min-height:44px}
+}
