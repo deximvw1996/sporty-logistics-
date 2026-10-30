@@ -1,5 +1,5 @@
 // test-bh2-beheer.mjs — BH2 (chat C): Beheer › Back-up & export en Instellingen, nachtback-up, gesloten dagen per locatie.
-// Eigen server via _testhulp (poort 3351, herfst-test.db, eigen tijdelijke DATA_DIR per poort). Nachtback-up bij opstart, max 14,
+// Eigen server via _testhulp (poort 3367, herfst-test.db, eigen tijdelijke DATA_DIR per poort). Nachtback-up bij opstart, max 14,
 // handmatige back-up in de lijst, download weigert ../-namen, terugzetten = eerst back-up + het woord, gesloten dag per locatie
 // (planning + generator), kantoornummer op KV-/rit-pagina en aanvullijst, 409 bij een gebruikte leeftijdsgroep, pagina's en rechten,
 // vervangstrook, DOM-bouw met de echte data-JSON + gsm-CSS.
@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const POORT = parseInt(process.env.TEST_POORT || '3351');
+const POORT = parseInt(process.env.TEST_POORT || '3367');
 const ijk = T.leesIjk();
 let srv = await T.startServer({ poort: POORT });
 const BASIC = 'Basic ' + Buffer.from('sporty:' + T.APP_PASSWORD).toString('base64');
