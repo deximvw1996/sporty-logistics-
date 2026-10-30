@@ -45,7 +45,7 @@ module.exports = function(ctx){
   app.get('/api/periodes/:id/detail',alleenKantoor,(req,res)=>{
     const p=get('SELECT * FROM vakantieperiodes WHERE id=?',[req.params.id]);if(!p)return res.status(404).json({error:'Periode niet gevonden'});
     const A=ctx._roosterAnalyse(p);
-    const gesloten=all('SELECT * FROM gesloten_dagen WHERE datum>=? AND datum<=? ORDER BY datum',[p.start_datum,p.eind_datum]).map(g=>({id:g.id,datum:g.datum,tekst:`${lang(g.datum).replace(/ \d{4}$/,'')}`,reden:g.reden||''}));
+    const gesloten=all('SELECT g.*,l.name AS locatie FROM gesloten_dagen g LEFT JOIN locaties l ON l.id=g.locatie_id WHERE g.datum>=? AND g.datum<=? ORDER BY g.datum',[p.start_datum,p.eind_datum]).map(g=>({id:g.id,datum:g.datum,locatie:g.locatie||'',tekst:`${lang(g.datum).replace(/ \d{4}$/,'')}`,reden:g.reden||''}));
     const weken=[];for(let w=1;w<=A.aantal;w++){
       const wi=ctx._roosterWeek(p,w),kms=A.kms.filter(k=>k.week===w);
       const dubbel=new Set(A.kts.filter(t=>t.week===w&&t.meldingen.includes('dubbel')).map(t=>t.thema_id)).size,zonderKv=kms.filter(k=>!k.kv_persoon_id).length;

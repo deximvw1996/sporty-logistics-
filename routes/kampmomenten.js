@@ -32,7 +32,7 @@ module.exports = function(ctx){
   function _dagen(km,periode){
     if(!periode||!km.week)return {maandag:null,dagen:[false,false,false,false,false,false,false],datums:[]};
     const ma=plus(periode.start_datum,(km.week-1)*7);
-    const gesloten=new Set(all('SELECT datum FROM gesloten_dagen').map(g=>g.datum));
+    const gesloten=new Set(all('SELECT datum FROM gesloten_dagen WHERE locatie_id IS NULL OR locatie_id=?',[km.locatie_id]).map(g=>g.datum)); // BH2
     const datums=[0,1,2,3,4,5,6].map(i=>plus(ma,i));
     const dagen=datums.map((dt,i)=>{
       if(gesloten.has(dt))return false;

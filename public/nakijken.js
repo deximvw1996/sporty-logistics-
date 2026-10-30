@@ -175,6 +175,7 @@
       if (r.status === 401 || r.status === 403) { root.location.href = '/'; return; }
       if (!r.ok) { $('print-blad').innerHTML = '<p>' + esc(r.json.error || 'De lijst kon niet geladen worden.') + '</p>'; return; }
       $('pk-sub').textContent = printSubtekst(r.json, r.json.afgedrukt_door); $('rijen').innerHTML = printRijenHtml(r.json);
+      var kt = r.json.kantoor; if (kt && (kt.telefoon || kt.gsm)) { var pv = document.createElement('div'); pv.className = 'pv'; pv.id = 'kantoor-regel'; pv.textContent = 'Kantoor: ' + [kt.telefoon, kt.gsm && 'gsm ' + kt.gsm].filter(Boolean).join(' · '); $('print-blad').appendChild(pv); } // BH2
       $('print-knop').onclick = function () { root.print(); };
     })();
     return;

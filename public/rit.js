@@ -66,7 +66,7 @@
     var prim = h ? '<button type="button" class="prim" data-act="stop" data-a="' + h.taak_id + '">Open stop ' + nr + ': ' + esc(stopNaam(h)) + ' →</button>'
       : '<button type="button" disabled>' + (stops.length ? 'Rit afgerond ✓' : 'Geen stops') + '</button>';
     var probleemStop = h || stops[0];
-    return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span>' + pilRit(data.rit.status) + '</div><div class="s">' + esc(kopSub(data)) + '</div></div>'
+    return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span>' + pilRit(data.rit.status) + '</div><div class="s">' + esc(kopSub(data)) + '</div>' + (data.kantoor && data.kantoor.telefoon ? '<a class="belkantoor" href="tel:' + esc(data.kantoor.telefoon.replace(/[^+0-9]/g, '')) + '" style="display:inline-flex;align-items:center;min-height:44px;font-weight:700;color:#1d4ed8">📞 Bel kantoor · ' + esc(data.kantoor.telefoon) + '</a>' : '') + '</div>'
       + '<div class="legenda"><span>🔒 <b>vast</b> door kantoor</span><span>▲▼ <b>vrij</b>: wissel van plaats</span></div>'
       + '<div class="tl">' + tl + '</div>' + uitleg + '<div style="height:12px"></div></div>'
       + '<div class="nav"><button type="button" class="rood" data-act="probleem-open" data-a="' + (probleemStop ? probleemStop.taak_id : '') + '" aria-label="Probleem melden"' + (probleemStop ? '' : ' disabled') + '>⚠</button>' + prim + '</div>';

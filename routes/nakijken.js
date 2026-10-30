@@ -360,7 +360,7 @@ module.exports = function(ctx){
   }
   app.get('/api/aanvullijst',(req,res)=>{
     const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoLokaal(new Date());
-    res.json({..._aanvullijst(datum,req.query.alles==='1'),afgedrukt_door:wie(req)});
+    res.json({..._aanvullijst(datum,req.query.alles==='1'),afgedrukt_door:wie(req),kantoor:ctx.kantoorContact?ctx.kantoorContact():null}); // BH2: kantoornummer onderaan de print
   });
   // G15: kantoor meldt dat de bestelling geleverd is; pas daarna kan de handeling "aangevuld" worden.
   app.post('/api/nakijken/regel/:id/binnen',alleenKantoor,(req,res)=>{

@@ -29,7 +29,7 @@ module.exports = function(ctx){
     const eind = new Date(periode.eind_datum+'T23:59:59');
     const locMat=effectiefMateriaal(km.locatie_id).filter(m=>!m.verborgen);
     const openDagen=[];
-    const gelotenSet=new Set(all('SELECT datum FROM gesloten_dagen').map(g=>g.datum));
+    const gelotenSet=new Set(all('SELECT datum FROM gesloten_dagen WHERE locatie_id IS NULL OR locatie_id=?',[km.locatie_id]).map(g=>g.datum)); // BH2: NULL = heel Sporty
     for(let i=0;i<5;i++){
       const d=new Date(ws); d.setDate(ws.getDate()+i);
       if(d>eind) continue;
@@ -65,7 +65,7 @@ module.exports = function(ctx){
       // Auto-open alle weekdagen voor deze locatie
       const {maandag:ws, periode} = periodeWeekMaandag(week, periodeIdToUse);
       const eind = new Date(periode.eind_datum+'T23:59:59');
-      const gelotenSet=new Set(all('SELECT datum FROM gesloten_dagen').map(g=>g.datum));
+      const gelotenSet=new Set(all('SELECT datum FROM gesloten_dagen WHERE locatie_id IS NULL OR locatie_id=?',[locatie_id]).map(g=>g.datum)); // BH2
       for(let i=0;i<5;i++){
         const d=new Date(ws);d.setDate(ws.getDate()+i);
         if(d>eind)continue;
@@ -140,7 +140,7 @@ module.exports = function(ctx){
     // de vorige dag verschuift (de oude lus begon daardoor op dinsdag en telde zondagen mee).
     const p=(parseInt(req.query.periode_id)&&get('SELECT * FROM vakantieperiodes WHERE id=?',[parseInt(req.query.periode_id)]))||actievePeriode();
     const werkdagen=[];
-    const gesloten=all('SELECT datum FROM gesloten_dagen').map(r=>r.datum);
+    const gesloten=all('SELECT datum FROM gesloten_dagen WHERE locatie_id IS NULL').map(r=>r.datum); // BH2: werkdagen = dagen die voor heel Sporty open zijn
     if(p){
       const eind=new Date(p.eind_datum+'T12:00:00');
       for(const d=new Date(p.start_datum+'T12:00:00');d<=eind;d.setDate(d.getDate()+1)){
@@ -151,8 +151,9 @@ module.exports = function(ctx){
   });
   app.post('/api/kalender/toggle',(req,res)=>{const{locatie_id,datum}=req.body;const b=get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[locatie_id,datum]);if(b){run('UPDATE kalender_dagen SET open=? WHERE id=?',[b.open?0:1,b.id]);}else{ins('INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)',[locatie_id,datum,0]);}res.json(get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[locatie_id,datum]));});
   app.post('/api/kalender/bulk',(req,res)=>{const{locatie_id,datums,open}=req.body;datums.forEach(datum=>{const b=get('SELECT * FROM kalender_dagen WHERE locatie_id=? AND datum=?',[locatie_id,datum]);if(b){run('UPDATE kalender_dagen SET open=? WHERE id=?',[open?1:0,b.id]);}else if(!open){ins('INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)',[locatie_id,datum,0]);}});res.json({ok:true});});
-  app.get('/api/gesloten',(req,res)=>res.json(all('SELECT * FROM gesloten_dagen ORDER BY datum')));
-  app.post('/api/gesloten',(req,res)=>{const{datum,reden}=req.body;try{const id=ins('INSERT INTO gesloten_dagen (datum,reden) VALUES (?,?)',[datum,reden||'']);res.json(get('SELECT * FROM gesloten_dagen WHERE id=?',[id]));}catch(e){res.status(400).json({error:'Datum bestaat al'});}});
+  app.get('/api/gesloten',(req,res)=>res.json(all('SELECT g.*,l.name AS locatie FROM gesloten_dagen g LEFT JOIN locaties l ON l.id=g.locatie_id ORDER BY g.datum')));
+  // BH2: locatie_id leeg = heel Sporty; (datum, locatie) is uniek (ook voor NULL, in code gecontroleerd).
+  app.post('/api/gesloten',(req,res)=>{const{datum,reden}=req.body;const lid=parseInt(req.body.locatie_id)||null;if(get('SELECT id FROM gesloten_dagen WHERE datum=? AND locatie_id IS ?',[datum,lid]))return res.status(400).json({error:'Datum bestaat al'});try{const id=ins('INSERT INTO gesloten_dagen (datum,reden,locatie_id) VALUES (?,?,?)',[datum,reden||'',lid]);res.json(get('SELECT * FROM gesloten_dagen WHERE id=?',[id]));}catch(e){res.status(400).json({error:'Datum bestaat al'});}});
   app.delete('/api/gesloten/:id',(req,res)=>{run('DELETE FROM gesloten_dagen WHERE id=?',[req.params.id]);res.json({ok:true});});
 
   // ── VAKANTIEPERIODES ──

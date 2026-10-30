@@ -25,7 +25,8 @@ module.exports = function(ctx){
     const standaard=all('SELECT * FROM standaard_materiaal');
     const kts=all('SELECT * FROM kampmoment_themas');
     const kalDagen=all('SELECT * FROM kalender_dagen');
-    const gelotenDagen=all('SELECT * FROM gesloten_dagen').map(g=>g.datum);
+    const geslotenRijen=all('SELECT datum,locatie_id FROM gesloten_dagen'); // BH2: NULL = heel Sporty, anders één locatie
+    const isGesloten=(iso,locId)=>geslotenRijen.some(g=>g.datum===iso&&(g.locatie_id==null||g.locatie_id===locId));
     const allKleuren=all('SELECT * FROM locatie_kleuren');
     const stockage=locs.filter(l=>l.type==='stockage');
     // Enkel top-level stockageplaatsen komen in aanmerking (sub-locaties zoals RGA-RGF,
@@ -168,7 +169,7 @@ module.exports = function(ctx){
       const ws=new Date(periode.start_datum+'T12:00:00');ws.setDate(ws.getDate()+(km.week-1)*7);
       const eind=new Date(periode.eind_datum+'T23:59:59');
       const days=[];
-      for(let i=0;i<5;i++){const d=new Date(ws);d.setDate(ws.getDate()+i);if(d>eind)continue;const iso=isoDate(d);if(gelotenDagen.includes(iso))continue;const dr=kalDagen.find(k=>k.locatie_id===km.locatie_id&&k.datum===iso);if(dr?dr.open==1:true)days.push(iso);}
+      for(let i=0;i<5;i++){const d=new Date(ws);d.setDate(ws.getDate()+i);if(d>eind)continue;const iso=isoDate(d);if(isGesloten(iso,km.locatie_id))continue;const dr=kalDagen.find(k=>k.locatie_id===km.locatie_id&&k.datum===iso);if(dr?dr.open==1:true)days.push(iso);}
       return days;
     }
     function prevWorkday(iso){const d=new Date(iso);d.setDate(d.getDate()-1);if(d.getDay()===0)d.setDate(d.getDate()-2);if(d.getDay()===6)d.setDate(d.getDate()-1);return isoDate(d);}
@@ -1450,7 +1451,7 @@ module.exports = function(ctx){
   app.get('/api/rit-token/:token/data',(req,res)=>{
     const rit=_ritVanToken(req.params.token);
     if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
-    res.json(_ritData(rit));
+    res.json({..._ritData(rit),kantoor:ctx.kantoorContact?ctx.kantoorContact():null}); // BH2: "Bel kantoor" op de rit-pagina
   });
 
   // Punt 3: "past niet / niet gevonden / kapot" per stuk → rest-taak (zonder rit, slot vrij) voor kantoor.
