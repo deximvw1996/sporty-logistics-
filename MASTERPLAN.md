@@ -442,3 +442,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-30 — MOB1 schil/login/Vandaag (C) + MOB2 gsm ritplanning/nakijken/rooster (D) gekeurd en live; 44/44.
 - 2026-10-30 — Prompts AV1 (D: aanvullijst gsm, punt 76) en ME1 (C: meldingen + restpunten).
 - 2026-10-30 — AV1 aanvullijst gsm (D) gekeurd en live; 45/45.
+- 2026-10-30 — ME1 meldingen + restpunten (C) gekeurd en live: 36 ok, volle run 45/46, keten-ophaling los groen. Prompt AV2 (D): aanvuller meldt kapot/weg.
