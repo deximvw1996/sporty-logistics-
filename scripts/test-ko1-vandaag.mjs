@@ -111,6 +111,6 @@ try {
   const js = await fetch(srv.base + '/public/vandaag.js', { headers: { authorization: BASIC } });
   T.check(js.status === 200 && (await js.text()).includes('/api/vandaag'), 'vandaag.js wordt geserveerd');
   const ix = await (await fetch(srv.base + '/', { headers: { authorization: BASIC } })).text();
-  T.check(ix.includes("location.href='/vandaag'") && ix.includes('🏠 Vandaag'), 'index.html: doorsturen naar /vandaag + knop 🏠 Vandaag');
+  T.check(ix.includes("'/api/wie-ben-ik'") && ix.includes("'/vandaag'") && !ix.includes('🏠 Vandaag'), 'TF3: / is geen oude app meer, stuurt door naar /vandaag');
 } catch (e) { T.fout('onverwachte fout: ' + (e.stack || e)); }
 await T.einde(srv);

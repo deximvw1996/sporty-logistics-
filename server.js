@@ -93,6 +93,22 @@ function afsluiten(signaal) {
 process.on('SIGTERM', () => afsluiten('SIGTERM'));
 process.on('SIGINT', () => afsluiten('SIGINT'));
 
+// TF3 punt 2: oude tabbladen → nieuw scherm. Onbekende hash → Vandaag.
+const OUDE_HASHES = { vandaag: '/vandaag', kaart: '/locaties', seizoensoverzicht: '/rooster', planning: '/kampmomenten', kampplanner: '/kampmomenten', locaties: '/locaties', overzicht: '/rooster', 'transport-noden': '/taken', 'transport-plan': '/ritplanning', transporten: '/ritplanning', materiaal: '/bakken', themas: '/themas', catalogus: '/catalogus', personeel: '/personeel' };
+const START_HTML = `<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sporty logistiek</title></head><body><script>
+(function(){
+  var H=${JSON.stringify(OUDE_HASHES)},h=location.hash.slice(1),t=h.split('?'),doel=H[t[0]]||'/vandaag',q=t[1]||'',m=/^bak=(\\d+)$/.exec(q);
+  if(t[0]==='materiaal'&&q==='tekorten')doel='/tekorten';else if(m)doel='/bakken?bak='+m[1];
+  var terug=doel;
+  if(!h&&document.referrer){try{var r=new URL(document.referrer);if(r.origin===location.origin&&r.pathname!=='/'&&r.pathname!=='/login')terug=r.pathname+r.search;}catch(e){}}
+  function login(){try{localStorage.removeItem('sporty-auth-token');}catch(e){}location.replace('/login?terug='+encodeURIComponent(terug));}
+  var tok=null;try{tok=localStorage.getItem('sporty-auth-token');}catch(e){}
+  if(!tok)return login();
+  fetch('/api/wie-ben-ik',{headers:{'x-auth-token':tok}}).then(function(a){if(a.status===401)return login();location.replace(doel);}).catch(function(){location.replace(doel);});
+})();
+</script></body></html>`;
+const NIET_GEVONDEN_HTML = '<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Niet gevonden — Sporty logistiek</title><style>body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f5f5f5;color:#1a1a1a;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:16px;text-align:center}a{display:inline-block;margin-top:14px;padding:12px 18px;background:#1e3a8a;color:#fff;border-radius:10px;text-decoration:none;font-weight:700}</style></head><body><div><h1>Deze pagina bestaat niet</h1><p>Het adres klopt niet of het scherm is verhuisd.</p><a href="/vandaag">Naar Vandaag</a></div></body></html>';
+
 async function startServer() {
   const db = await dbx.open();
 
@@ -117,10 +133,14 @@ async function startServer() {
   // uitlokken, want op Windows is child.kill('SIGTERM') een harde TerminateProcess zonder handler.
   if (process.env.SPORTY_TESTHOOK === '1') {
     app.post('/api/_test/sigterm', (req, res) => { res.json({ ok: true }); res.on('finish', () => setTimeout(() => process.emit('SIGTERM'), 50)); });
+    app.get('/api/_test/routes', (req, res) => res.json(app._router.stack.filter((l) => l.route).flatMap((l) => Object.keys(l.route.methods).filter((m) => m !== '_all').map((m) => ({ methode: m.toUpperCase(), pad: l.route.path }))))); // TF3: rechten-veeg
     app.get('/api/_test/schrijfacties', (req, res) => res.json({ schrijfacties: dbx.aantalSchrijfacties(), vuil: dbx.isVuil() }));
   }
 
-  app.get('*',(req,res)=>res.sendFile(path.join(FRONTEND_PATH,'index.html')));
+  // TF3 punt 2: de oude app is weg. / stuurt door (de login zit in localStorage, dus dat kan alleen in de browser) en vertaalt oude /#-adressen.
+  app.get('/', (req, res) => res.type('html').send(START_HTML));
+  app.use('/api', (req, res) => res.status(404).json({ error: 'Deze API bestaat niet' }));
+  app.use((req, res) => res.status(404).type('html').send(NIET_GEVONDEN_HTML));
 
   // ── GLOBALE FOUTAFHANDELING ──
   // Vangt fouten op die in een API-route gegooid worden, zodat 1 fout

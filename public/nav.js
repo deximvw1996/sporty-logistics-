@@ -1,7 +1,6 @@
 // public/nav.js — NAV1: ÉÉN tabel voor de bovenbalk (7 onderdelen) en de subbalken; elke nieuwe pagina laadt dit bestand vóór zijn eigen script
 // en tekent daarmee zijn bovenbalk en subbalk. De actieve knoppen volgen de URL. Alleen de <a>'s worden vervangen: logo, periode-kiezer,
 // naam, de knoppen rechts in de subbalk (Export, Genereer…) en alle ids blijven van de pagina zelf.
-// Links met /#… zijn oude tabbladen (index.html) voor schermen die nog niet vernieuwd zijn; zodra er een nieuw scherm is, verandert enkel deze tabel.
 (function (root) {
   'use strict';
   var BOVEN = [
@@ -27,7 +26,7 @@
     kantoor: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['transport', '🚚', 'Transport', '/ritplanning'], ['voorraad', '🧮', 'Voorraad', '/nakijken'], ['meldingen', '🔔', 'Meldingen', '/meldingen'], ['meer', '☰', 'Meer', '/meer']],
     ploeg: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['ritten', '🚚', 'Ritten', '/vandaag?tab=ritten'], ['stockage', '📦', 'Stockage', '/aanvullen'], ['meldingen', '🔔', 'Meldingen', '/meldingen'], ['meer', '☰', 'Meer', '/meer']]
   };
-  var tabsVan = function (rol) { return rol === 'kantoor' ? TABS.kantoor : TABS.ploeg; };
+  var tabsVan = function (rol) { return rol === 'kantoor' ? TABS.kantoor : rol === 'monitor' ? TABS.ploeg.filter(function (t) { return t[0] !== 'stockage'; }) : TABS.ploeg; }; // TF3: een monitor heeft geen aanvullijst
   // Welke tab is actief: volgt de PAGINA-tabel; de onderdelen zonder eigen tab vallen onder Meer.
   function actieveTab(rol, pad, zoek) {
     var q = /[?&]tab=(\w+)/.exec(zoek || ''), onderdeel = PAGINA[pad];
@@ -45,7 +44,7 @@
       return '<a data-tab="' + t[0] + '"' + (t[0] === act ? ' class="act"' : '') + ' href="' + t[3] + '">' + t[1] + '<span>' + esc(t[2]) + (n ? ' <em>' + n + '</em>' : '') + '</span></a>';
     }).join('');
   }
-  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || pad === '/aanvullen' || pad === '/meldingen' || (rol === 'coordinator' && pad === '/tekorten'); };
+  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || (pad === '/aanvullen' && rol !== 'monitor') || pad === '/meldingen' || (rol === 'coordinator' && pad === '/tekorten'); };
   var isGsm = function () { return !!(root.matchMedia && root.matchMedia('(max-width:767px)').matches); };
   var naarLogin = function () { root.location.replace('/login?terug=' + encodeURIComponent(root.location.pathname + root.location.search)); };
   function tekenSchil(pad, tok) {
@@ -54,11 +53,29 @@
     var balk = document.createElement('nav'); balk.className = 'app-tabs'; balk.setAttribute('aria-label', 'Hoofdmenu');
     var zet = function (t) { balk.innerHTML = tabbalk(rol, pad, root.location.search, t); };
     zet(); document.body.classList.add('heeft-tabs'); document.body.appendChild(balk);
-    if (tok && isGsm() && root.fetch) root.fetch('/api/vandaag?mijn=1', { headers: { 'x-auth-token': tok } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
-      if (!v) return; rol = v.gebruiker.rol; try { root.localStorage.setItem('sporty-rol', rol); } catch (e) { /* geen opslag */ }
-      zet(v.tellers);
-    }).catch(function () { /* geen tellers */ });
+    if (!tok || !root.fetch) return;
+    // TF3 (G31, G33): de rol komt uit de sessie, sporty-rol is alleen de eerste tekening. Verlopen → /login; pagina niet voor deze rol → /vandaag; ploeg op desktop ziet alleen zijn eigen menu.
+    root.fetch('/api/wie-ben-ik', { headers: { 'x-auth-token': tok } }).then(function (r) {
+      if (r.status === 401) { try { root.localStorage.removeItem('sporty-auth-token'); } catch (e) { /* geen opslag */ } naarLogin(); return null; }
+      return r.ok ? r.json() : null;
+    }).then(function (w) {
+      if (!w) return;
+      rol = w.rol; try { root.localStorage.setItem('sporty-rol', rol); } catch (e) { /* geen opslag */ }
+      if (!magOpGsm(rol, pad)) { root.location.replace('/vandaag'); return; }
+      zet();
+      if (rol === 'kantoor') { if (kantoorTellers) kantoorTellers(); } else ploegMenu();
+      if (isGsm() || rol !== 'kantoor') root.fetch('/api/vandaag?mijn=1', { headers: { 'x-auth-token': tok } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) { if (v) zet(v.tellers); }).catch(function () { /* geen tellers */ });
+    }).catch(function () { /* geen verbinding: de pagina meldt het zelf */ });
   }
+  // TF3: chauffeur, coördinator en monitor op desktop: geen kantoorbovenbalk maar dezelfde tabbalk als op de gsm.
+  function ploegMenu() {
+    ['.top', '.sub'].forEach(function (q) { var b = document.querySelector(q); if (b) Array.prototype.filter.call(b.children, function (e) { return e.tagName === 'A'; }).forEach(function (e) { e.remove(); }); });
+    if (isGsm() || document.getElementById('ploeg-desktop')) return;
+    var st = document.createElement('style'); st.id = 'ploeg-desktop';
+    st.textContent = 'body.heeft-tabs{padding-bottom:84px}.app-tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1000;justify-content:center;gap:8px;background:#fff;border-top:1px solid #e2e8f0;padding:6px 4px}.app-tabs a{width:120px;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:700 12px system-ui;color:#64748b;border-radius:10px;text-decoration:none}.app-tabs a.act{background:#1e3a8a;color:#fff}.app-tabs em{font-style:normal;background:#dc2626;color:#fff;border-radius:999px;padding:0 5px;font-size:10px;margin-left:2px}';
+    document.head.appendChild(st);
+  }
+  var kantoorTellers = null;
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   function boven(actief) {
@@ -75,12 +92,9 @@
     var actief = PAGINA[pad];
     var eigenBalk = pad === '/meer' || pad === '/locaties' || pad === '/meldingen'; // /locaties tekent zijn balken zelf (LO1); hij krijgt alleen de schil
     if (!actief && !eigenBalk) return;
-    // MOB1: niet ingelogd op een personeelspagina op gsm → /login?terug=. De rest van de pagina (die zelf naar / zou sturen) wordt niet meer gelezen.
+    // MOB1/TF3: niet ingelogd op een personeelspagina, op elke breedte → /login?terug=. De rest van de pagina wordt niet meer gelezen. De rol controleert tekenSchil met de sessie; de 403's blijven de echte grens.
     var tok0 = null; try { tok0 = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
-    if (!tok0 && isGsm()) { document.write('<plaintext style="display:none">'); naarLogin(); return; }
-    // MOB1: chauffeur/coördinator op een kantoorpagina op gsm → Vandaag (die pagina's sturen anders bij hun 403 naar de oude app). De 403's blijven de echte grens.
-    var rol0 = null; try { rol0 = root.localStorage.getItem('sporty-rol'); } catch (e) { /* geen opslag */ }
-    if (isGsm() && !magOpGsm(rol0, pad)) { document.write('<plaintext style="display:none">'); root.location.replace('/vandaag'); return; }
+    if (!tok0) { document.write('<plaintext style="display:none">'); naarLogin(); return; }
     if (pad === '/meldingen') { var lg = document.querySelector('.top .logo'); if (lg) lg.insertAdjacentHTML('afterend', boven('')); } // ME1: bovenbalk op desktop
     if (eigenBalk) { tekenSchil(pad, tok0); return; }
     var top = document.querySelector('.top');
@@ -94,18 +108,17 @@
       Array.prototype.filter.call(sb.children, function (e) { return e.tagName === 'A'; }).forEach(function (e) { e.remove(); });
       sb.insertAdjacentHTML('afterbegin', sub(actief, pad));
     }
-    tekenSchil(pad, tok0);
     // Tellers (kantoor): Vandaag = te beslissen, Transport = in te plannen, Voorraad = tellingen te keuren. Pagina's mogen dezelfde ids ook zelf zetten.
-    var tok = null; try { tok = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
-    if (tok && root.fetch) {
-      root.fetch('/api/vandaag', { headers: { 'x-auth-token': tok } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+    kantoorTellers = function () {
+      root.fetch('/api/vandaag', { headers: { 'x-auth-token': tok0 } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
         if (!v) return;
         var zet = function (id, n) { var b = document.getElementById(id); if (b) { b.textContent = n; b.hidden = !n; } };
         zet('b-vandaag', (v.beslissen || []).length); zet('b-transport', (v.inplannen || []).length);
         var tk = (v.nakijken || []).filter(function (x) { return /^\d+ telling/.test(x.titel); })[0];
         zet('b-nakijken', tk ? parseInt(tk.titel, 10) : 0);
       }).catch(function () { /* geen tellers */ });
-    }
+    };
+    tekenSchil(pad, tok0);
   }
   // AF1: gedeelde aanroep voor alle kantoorpagina's, met dezelfde herpoging als haal() in rit.js/kv.js (TF2 G3).
   // Bij 502/503/504 (de app wordt net bijgewerkt) na 2 s en 5 s opnieuw, één toast; GET ook bij een netwerkfout, POST/PUT/DELETE niet.
@@ -135,7 +148,7 @@
       await wacht(pauzes[i]);
     }
     herhaalMelding = false;
-    if (r.status === 401 && typeof document !== 'undefined' && isGsm() && document.querySelector('.app-tabs')) { // MOB1: verlopen sessie op gsm (rit- en KV-pagina hebben geen tabbalk)
+    if (r.status === 401 && typeof document !== 'undefined' && document.querySelector('.app-tabs')) { // MOB1/TF3: verlopen sessie op elke breedte (rit- en KV-pagina hebben geen tabbalk)
       try { root.localStorage.removeItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
       naarLogin(); return new Promise(function () {});
     }

@@ -14,3 +14,4 @@ button{font:inherit;cursor:pointer;border:0}
 .fout{text-align:center;min-height:20px;font-size:14px;font-weight:700;color:#fecaca;margin-bottom:8px}
 .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.pad button{height:64px;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;font-size:24px;font-weight:700}.pad button:disabled{opacity:.4}
 .voettekst{text-align:center;font-size:13px;opacity:.8;margin-top:auto;padding-top:14px}
+@media (min-width:768px){.scherm{min-height:100vh;justify-content:center}.lijst{flex:none;max-height:50vh;overflow-y:auto}.voettekst{margin-top:18px}}

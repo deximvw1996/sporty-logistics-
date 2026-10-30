@@ -110,7 +110,7 @@ module.exports = function(ctx){
 
     // ── Inplannen ──
     const inplannen=[];
-    const link=(label,hash,primair=true)=>({label,primair,soort:'link',url:'/#'+hash});
+    const link=(label,url,primair=true)=>({label,primair,soort:'link',url}); // TF3: geen /#-adressen meer
     all(`SELECT * FROM transport_taken WHERE (rit_id IS NULL OR rit_id=0) AND status='gepland'
       AND ((datum>=? AND datum<=?) OR ((datum IS NULL OR datum='') AND week=?)) ORDER BY datum,tijd,id`,[weekStart,weekEind,week??-1]).forEach(t=>{
       const n=get('SELECT COALESCE(SUM(qty),0) AS q,COUNT(*) AS c FROM transport_regels WHERE taak_id=?',[t.id]);
@@ -139,20 +139,20 @@ module.exports = function(ctx){
     });
 
     // ── Conflicten (bestaande detector) → capaciteit naar Inplannen, de rest naar Nakijken ──
-    const nakijken=[];
+    const nakijken=[];let teKeuren=0;
     const conflicten=(pid&&_roep('/api/conflicten',{periode_id:String(pid)},req))||[];
     conflicten.filter(c=>c.week==null||week==null||c.week===week).forEach((c,i)=>{
       if(c.type==='pool_tekort'){
-        inplannen.push({id:'conflict-'+i,ico:'🔥',kleur:'oranje',titel:c.bericht,sub:'capaciteitsconflict',acties:[link('Open conflict','overzicht?conflicten',false)]});
+        inplannen.push({id:'conflict-'+i,ico:'🔥',kleur:'oranje',titel:c.bericht,sub:'capaciteitsconflict',acties:[link('Open conflict','/rooster',false)]});
         return;
       }
       const planning=['geen_thema','geen_levering','geen_ophaling','locatieconfig_onvolledig','ontbrekend_transport'].includes(c.type);
-      nakijken.push({id:'conflict-'+i,ico:planning?'📋':'⚠',kleur:'blauw',titel:c.bericht,sub:planning?'planning':'conflict',acties:[link('Open','overzicht?conflicten',false)]});
+      nakijken.push({id:'conflict-'+i,ico:planning?'📋':'⚠',kleur:'blauw',titel:c.bericht,sub:planning?'planning':'conflict',acties:[link('Open',planning?'/kampmomenten':'/rooster',false)]});
     });
     const sessies=(pid&&_roep('/api/nakijk-tekorten',{periode_id:String(pid)},req))||[];
     let nOpen=0,nBesteld=0;
     sessies.forEach(s=>(s.tekorten||[]).forEach(r=>{nOpen++;if(r.tekort_status==='besteld')nBesteld++;}));
-    if(nOpen)nakijken.push({id:'tekorten',ico:'🧮',kleur:'blauw',titel:`${nOpen} tekort${nOpen===1?'':'en'} open uit vrijdagcontroles · ${nBesteld} besteld`,sub:'voorraad',acties:[link('Open','materiaal?tekorten',false)]});
+    if(nOpen)nakijken.push({id:'tekorten',ico:'🧮',kleur:'blauw',titel:`${nOpen} tekort${nOpen===1?'':'en'} open uit vrijdagcontroles · ${nBesteld} besteld`,sub:'voorraad',acties:[link('Open','/nakijken',false)]});
 
     // ── Ritten vandaag (en morgen: kantoor ziet op donderdag de leveringen van vrijdag) ──
     const rittenVan=(dag,enkelPersoon)=>all(`SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id`,[dag]).filter(r=>!enkelPersoon||(r.personeel_id&&String(r.personeel_id)===String(enkelPersoon))).map(r=>{
@@ -167,9 +167,11 @@ module.exports = function(ctx){
 
     // ── Nakijken: de telling van de KV's (VC1) staat ook op Vandaag ──
     if(pid){
-      const teKeuren=get(`SELECT COUNT(*) AS n FROM nakijk_sessies ns JOIN kampmomenten km ON km.id=ns.kampmoment_id WHERE ns.kv_status='ingediend'
-        AND COALESCE(ns.kantoor_status,'') NOT IN ('nagekeken','verwerkt') AND COALESCE(ns.kantoor_afgerond_op,'')='' AND km.periode_id=?`,[pid]).n;
-      if(teKeuren)nakijken.unshift({id:'tellingen-te-keuren',ico:'🧮',kleur:'blauw',titel:`${teKeuren} telling${teKeuren===1?'':'en'} te keuren`,sub:'ingediend door de KV, nog niet nagekeken',acties:[{label:'Open',primair:true,soort:'link',url:'/nakijken'}]});
+      // TF3: ook keuringen met een open melding uit de stockage, zonder weekvoorwaarde en inclusief losse meldingen (zonder kampmoment).
+      teKeuren=get(`SELECT COUNT(*) AS n FROM nakijk_sessies ns LEFT JOIN kampmomenten km ON km.id=ns.kampmoment_id WHERE (ns.kv_status='ingediend'
+        AND COALESCE(ns.kantoor_status,'') NOT IN ('nagekeken','verwerkt') AND COALESCE(ns.kantoor_afgerond_op,'')='' AND km.periode_id=?)
+        OR ns.id IN (SELECT sessie_id FROM nakijk_regels WHERE COALESCE(gemeld_soort,'')<>'' AND COALESCE(kantoor_actie,'')='')`,[pid]).n;
+      if(teKeuren)nakijken.unshift({id:'tellingen-te-keuren',ico:'🧮',kleur:'blauw',titel:`${teKeuren} telling${teKeuren===1?'':'en'} te keuren`,sub:'ingediend door de KV of gemeld vanuit de stockage',acties:[{label:'Open',primair:true,soort:'link',url:'/nakijken'}]});
       // Bakken van de afgelopen kampweek die niemand telde (ook bakken zonder sessie).
       const weken=all('SELECT DISTINCT week FROM kampmomenten WHERE periode_id=? AND week IS NOT NULL ORDER BY week',[pid]).map(r=>r.week)
         .filter(w=>plus(periode.start_datum,(w-1)*7+6)<datum);
@@ -216,7 +218,7 @@ module.exports = function(ctx){
       periode:periode?{id:periode.id,naam:periode.naam}:null,
       gebruiker:{naam:req.persoon?.naam||''},
       datum,datum_tekst:datumLang(datum),week,
-      beslissen,inplannen,nakijken,ritten_vandaag,ritten_morgen,deze_week,volgende_week,week_label,
+      beslissen,inplannen,nakijken,te_keuren:teKeuren,ritten_vandaag,ritten_morgen,deze_week,volgende_week,week_label,
       cijfers:{ritten_onderweg:ritten_vandaag.filter(r=>r.status==='onderweg').length,locaties_open:deze_week.length}
     };
   }
@@ -239,7 +241,7 @@ module.exports = function(ctx){
       const daarna=kies.daarna.concat(wk.length?[{soort:'week',ico:'🏫',tijd:'ma–vr',titel:`Deze week · ${wk.length} locatie${wk.length===1?'':'s'}`,sub:wk.slice(0,5).map(k=>k.locatie).join(', '),url:'/kampmomenten'}]:[]);
       const meldingen=ongelezen(req);
       return {nu:kies.nu,daarna,n_dingen:groepen.length,meldingen,beslissen:v.beslissen,periode:v.periode,
-        tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.nakijken.length,meldingen:meldingen.length}};
+        tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.nakijken.filter(x=>x.id!=='tellingen-te-keuren').length+v.te_keuren,meldingen:meldingen.length}};
     }
     const naam=req.persoon.naam;
     const meld=ongelezen(req);

@@ -54,8 +54,8 @@ if (up) {
   const H = { Authorization: BASIC, 'x-auth-token': lj.token || '', 'Content-Type': 'application/json' };
   check(!!lj.token, 'login als API-gebruiker');
   const api = async (m, u, b) => { const r = await fetch(BASE + '/api' + u, { method: m, headers: H, body: b ? JSON.stringify(b) : undefined }); return r.json().catch(() => ({})); };
-  const served = await (await fetch(BASE + '/', { headers: { Authorization: BASIC } })).text();
-  check(served.includes('function vraagModal('), 'server serveert index.html met vraagModal');
+  const served = await (await fetch(BASE + '/', { headers: { Authorization: BASIC } })).text(); // TF3: de oude app wordt niet meer geserveerd
+  check(!served.includes('function vraagModal('), 'TF3: / serveert de oude app niet meer');
   // Aanvraag: status blijft nieuw tot er echt een PUT komt
   const a = await api('POST', '/aanvragen', { soort: 'materiaal', tekst: 'Test 5 ballen', persoon_id: 10 });
   const lijst = await api('GET', '/aanvragen?status=nieuw');

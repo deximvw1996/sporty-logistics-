@@ -4,7 +4,7 @@
 // zodat de ene coördinator ze niet wegleest voor de andere. Alles gelogd (wijzigingen).
 'use strict';
 module.exports = function(ctx){
-  const {app,get,all,now,insMetLog,updateMetLog,alleenKantoor,logAct,path,ROOT_DIR} = ctx;
+  const {app,get,all,run,now,insMetLog,updateMetLog,alleenKantoor,logAct,path,ROOT_DIR,_genToken} = ctx;
   const ROLLEN=['kantoor','chauffeur','coordinator','monitor'];
   const isoNu=()=>new Date().toISOString();
 
@@ -23,18 +23,52 @@ module.exports = function(ctx){
     const l=all('SELECT id,naam FROM personeel WHERE COALESCE(actief,1)=1').filter(p=>String(p.naam||'').trim().toLowerCase()===n);
     return l.length===1?l[0]:null;
   }
-  // Voor de bestuurder als een rit wijzigt die al klaarstond (zelf wijzigen geeft geen melding).
-  function ritGewijzigd(req,ritVoor,wat){
-    if(!ritVoor||ritVoor.klaarzet_status!=='klaar')return;
-    const pid=ritVoor.personeel_id||(persoonOpNaam(ritVoor.chauffeur)||{}).id;
-    if(!pid||(req&&req.persoon&&req.persoon.persoon_id===pid))return;
-    melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst:`Rit #${ritVoor.id} is gewijzigd terwijl ze klaarstond: ${wat}`,link:ritVoor.rit_token?'/rit/'+ritVoor.rit_token:'/vandaag?tab=ritten'});
+  // ── TF3 punt 3: meldingen over een rit aan de bestuurder ──
+  const KORT=['zo','ma','di','wo','do','vr','za'],SAMEN_MS=2*60*1000;
+  const pidVan=r=>r.personeel_id||(persoonOpNaam(r.chauffeur)||{}).id||null;
+  function ritWanneer(r){ // "vr 30/10 om 10:15"
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(r.datum||''))return '';
+    const d=new Date(r.datum+'T12:00:00');let uur=r.vertrek||'';try{uur=ctx._ritPlanInfo(r).vertrek||uur;}catch(e){}
+    return `${KORT[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}${uur?' om '+String(uur).slice(0,5):''}`;
+  }
+  const ritKop=r=>{const w=ritWanneer(r);return `Rit #${r.id}${w?' ('+w+')':''}`;};
+  function ritLink(r){
+    let t=r.rit_token;if(!t&&_genToken){t=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[t,r.id]);r.rit_token=t;}
+    return t?'/rit/'+t:'/vandaag?tab=ritten';
+  }
+  const zelf=(req,pid)=>!pid||(req&&req.persoon&&req.persoon.persoon_id===pid);
+  // Tien snelle wijzigingen = één melding: de ongelezen melding van de laatste 2 minuten voor dezelfde rit en persoon wordt bijgewerkt.
+  function ritGewijzigd(req,ritOfId,wat){
+    const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritOfId&&ritOfId.id||ritOfId]);
+    if(!r||r.klaarzet_status!=='klaar'||['gedaan','geannuleerd'].includes(r.status))return;
+    const pid=pidVan(r);if(zelf(req,pid))return;
+    const prefix=`Rit #${r.id} `,recent=all('SELECT * FROM meldingen WHERE voor_persoon_id=? AND gelezen_op IS NULL ORDER BY id DESC LIMIT 20',[pid]).find(m=>m.tekst.startsWith(prefix)&&Date.now()-new Date(m.created_at).getTime()<SAMEN_MS);
+    const oud=recent&&recent.tekst.includes(' is gewijzigd: ')?recent.tekst.split(' is gewijzigd: ')[1].split(', '):[];
+    const tekst=`${ritKop(r)} is gewijzigd: ${[...new Set([...oud,wat])].join(', ')}`;
+    try{
+      if(recent)updateMetLog(req,'meldingen',recent.id,{tekst,created_at:isoNu()},'melding bijgewerkt');
+      else melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst,link:ritLink(r)});
+    }catch(e){console.error('Ritmelding mislukt:',e.message);}
+  }
+  function ritKlaar(req,ritId){
+    const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritId]);if(!r)return;
+    const pid=pidVan(r);if(zelf(req,pid))return;
+    melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst:`${ritKop(r)} staat voor je klaar`,link:ritLink(r)});
+  }
+  // Bestuurderswissel na klaarzetten: de oude én de nieuwe krijgen er één. Geeft true als er gewisseld is.
+  function ritBestuurder(req,voor,ritId){
+    const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritId]);if(!r)return false;
+    const oud=pidVan(voor),nw=pidVan(r);
+    if(oud===nw||r.klaarzet_status!=='klaar')return false;
+    if(!zelf(req,oud))melding(req,{voor_persoon_id:oud,van_naam:'Kantoor',tekst:`${ritKop(r)} rijd je niet meer: een andere bestuurder neemt ze over`,link:'/vandaag?tab=ritten'});
+    if(!zelf(req,nw))melding(req,{voor_persoon_id:nw,van_naam:'Kantoor',tekst:`${ritKop(r)} is aan jou toegewezen`,link:ritLink(r)});
+    return true;
   }
   const voorWhere="(voor_persoon_id=? OR (voor_persoon_id IS NULL AND voor_rol=?))";
   function vanPersoon(p,alleenOngelezen){
     const gel=new Set(all('SELECT melding_id FROM meldingen_gelezen WHERE persoon_id=?',[p.persoon_id]).map(r=>r.melding_id));
     return all(`SELECT * FROM meldingen WHERE ${voorWhere} ORDER BY id DESC LIMIT 200`,[p.persoon_id,p.rol])
-      .map(m=>({id:m.id,van_naam:m.van_naam||'',tekst:m.tekst,titel:(m.van_naam?m.van_naam+': ':'')+m.tekst,link:m.link||'',created_at:m.created_at,voor_rol:m.voor_rol||'',voor_persoon_id:m.voor_persoon_id,gelezen:!!(m.gelezen_op||gel.has(m.id))}))
+      .map(m=>({id:m.id,van_naam:m.van_naam||'',tekst:m.tekst,titel:(m.van_naam&&!m.tekst.includes(m.van_naam)?m.van_naam+': ':'')+m.tekst,link:m.link||'',created_at:m.created_at,voor_rol:m.voor_rol||'',voor_persoon_id:m.voor_persoon_id,gelezen:!!(m.gelezen_op||gel.has(m.id))}))
       .filter(m=>!alleenOngelezen||!m.gelezen);
   }
   function leesVoor(req,m){
@@ -42,7 +76,7 @@ module.exports = function(ctx){
     else if(!get('SELECT id FROM meldingen_gelezen WHERE melding_id=? AND persoon_id=?',[m.id,req.persoon.persoon_id]))
       insMetLog(req,'INSERT INTO meldingen_gelezen (melding_id,persoon_id,gelezen_op) VALUES (?,?,?)',[m.id,req.persoon.persoon_id,isoNu()],'melding gelezen');
   }
-  Object.assign(ctx,{melding,meldingenVan:vanPersoon,persoonOpNaam,meldRitGewijzigd:ritGewijzigd});
+  Object.assign(ctx,{melding,meldingenVan:vanPersoon,persoonOpNaam,meldRitGewijzigd:ritGewijzigd,meldRitKlaar:ritKlaar,meldRitBestuurder:ritBestuurder});
 
   app.get('/api/meldingen',(req,res)=>{const l=vanPersoon(req.persoon,false);res.json({meldingen:l,ongelezen:l.filter(m=>!m.gelezen).length});});
   app.get('/api/meldingen/ontvangers',alleenKantoor,(req,res)=>res.json({rollen:ROLLEN,personen:all("SELECT id,naam,rol FROM personeel WHERE COALESCE(actief,1)=1 AND rol<>'kv' ORDER BY naam")}));

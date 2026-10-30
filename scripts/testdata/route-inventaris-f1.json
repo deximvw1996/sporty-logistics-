@@ -36,7 +36,6 @@
  "DELETE /api/vaste-bakken/:id",
  "DELETE /api/vaste-bakken/:id/foto-slot/:slot",
  "DELETE /api/voertuig-types/:id",
- "GET *",
  "GET /api/aanvragen",
  "GET /api/alle-bakken",
  "GET /api/attributen",
