@@ -65,7 +65,79 @@ const GEBAREN=(function(){
   }
   return {maak,snap,mobielMaten,label,BEZIG,AS0,AS_MIN,min,hm,plusDag};
 })();
-if(typeof module!=='undefined'&&module.exports)module.exports={gebaren:GEBAREN};
+// ── MOB2: gsm-weergave (≤ 767 px) van de ritplanning (design/mockup-gsm-1.html, telefoon Transport › Ritplanning) ──
+// Pure HTML-bouwers op dezelfde GET /api/ritplanning-data (los van de browser, zodat node ze met echte data-JSON kan aanroepen).
+const RITGSM=(function(){
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const DG=['zo','ma','di','wo','do','vr','za'];
+  const d0=s=>new Date(s+'T12:00:00');
+  const kort=s=>{const x=d0(s);return `${DG[x.getDay()]} ${x.getDate()}/${x.getMonth()+1}`;};
+  const echteW=r=>r.waarschuwingen.filter(w=>!/^weekend/.test(w));
+  const over=r=>!!(r.voertuig.capaciteit&&r.bezetting>r.voertuig.capaciteit);
+  const bezTekst=r=>r.voertuig.capaciteit?`${r.bezetting} op ${r.voertuig.capaciteit}`:`${r.bezetting} bakken`;
+  const dag=(P,datum)=>P.dagen.find(d=>d.datum===datum);
+  const kopWeek=P=>{const a=d0(P.week.start),b=new Date(a);b.setDate(b.getDate()+4);return `Week ${P.week.nummer} · ${a.getDate()}–${b.getDate()}/${String(b.getMonth()+1).padStart(2,'0')}`;};
+  function dagen(P,datum){
+    const zichtbaar=P.dagen.filter((d,i)=>i<5||d.ritten.length||d.open.length);
+    return `<div class="wk"><button class="knop licht klein" data-g="week" data-n="-1" aria-label="Vorige week">‹</button><b>${esc(kopWeek(P))}</b><button class="knop licht klein" data-g="week" data-n="1" aria-label="Volgende week">›</button></div>
+      <div class="dagen">${zichtbaar.map(d=>`<a data-g="dag" data-d="${d.datum}" class="${d.datum===datum?'act':''}">${DG[d0(d.datum).getDay()]}<b>${d0(d.datum).getDate()}</b>${d.ritten.some(r=>echteW(r).length)?'<em></em>':''}</a>`).join('')}</div>`;
+  }
+  function ritKaart(r){
+    const w=echteW(r).length||over(r),route=r.stops.length?r.stops.map(s=>s.locatie).join(' → '):'nog geen stops';
+    return `<div class="bak ${w?'rood':'groen'}" data-g="rit" data-id="${r.id}" role="button" tabindex="0"><span class="code">${esc(r.vertrek||'—')}</span><div class="nm">Rit #${r.id} · ${r.stops.length} stop${r.stops.length===1?'':'s'}<b>${esc(route)} · ${esc(bezTekst(r))}${w?' ⚠':''}</b></div><span class="pijl">›</span></div>`;
+  }
+  // Lijstscherm: dagkiezer, open taken met "Op rit", dan per bestuurder + voertuig de ritten van die dag.
+  function lijst(P,datum){
+    const d=dag(P,datum)||P.dagen[0];
+    const nw=d.ritten.filter(r=>echteW(r).length).reduce((s,r)=>s+echteW(r).length,0);
+    const groepen=new Map();
+    d.ritten.forEach(r=>{const k=r.bestuurder.personeel_id?'p'+r.bestuurder.personeel_id:'n'+(r.bestuurder.naam||'');(groepen.get(k)||groepen.set(k,{naam:r.bestuurder.naam||'geen bestuurder',vts:[],ritten:[]}).get(k)).ritten.push(r);
+      const v=r.voertuig.naam||'';const g=groepen.get(k);if(v&&!g.vts.includes(v))g.vts.push(v);});
+    const open=d.open.length?`<div class="sec"><h3>Open taken <span style="color:#c2410c">${d.open.length} zonder rit</span></h3>${d.open.map(o=>`<div class="rij" style="min-height:48px"><div class="nm">${esc(o.naam)}<b>${esc([o.stuks?o.stuks+(o.stuks===1?' stuk':' stuks'):'',o.tijd?'liefst om '+o.tijd:'',o.route].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" data-g="oprit" data-taak="${o.taak_id}">Op rit</button></div>`).join('')}</div>`:'';
+    const ritten=[...groepen.values()].map(g=>`<h3 class="tus">${esc(g.naam)} · ${esc(g.vts.join(' / ')||'geen voertuig')}</h3>${g.ritten.map(ritKaart).join('')}`).join('')
+      ||'<div class="hint" style="text-align:center;padding:18px 0">Geen ritten op deze dag</div>';
+    return `<div class="kop2"><div style="flex:1"><b>Ritplanning</b><span>${esc(kort(d.datum))} · ${d.ritten.length} ritten · ${nw} waarschuwing${nw===1?'':'en'}</span></div></div>${dagen(P,d.datum)}
+      <div class="body">${open}${ritten}<button class="knop breed licht" data-g="nieuw">+ Nieuwe rit</button></div>`;
+  }
+  const voertuigOpties=(P,r)=>{
+    const GR={eigen:'Eigen voertuigen',huur:'Huur',prive:'Privé'},huidig=r.voertuig.id||'';
+    const vrij=!huidig&&r.voertuig.naam?`<option value="" selected>${esc(r.voertuig.naam)} (vrije naam)</option>`:'';
+    return vrij+['eigen','huur','prive'].map(s=>{const l=P.voertuigen.filter(v=>v.soort===s);return l.length?`<optgroup label="${GR[s]}">${l.map(v=>{
+      const o=((v.bezet_op_dag||{})[r.datum]||[]).find(x=>x.rit_id!==r.id);
+      return `<option value="${v.id}" ${v.id===huidig?'selected':''}>${esc(v.naam)}${v.plaatsen?' ('+v.plaatsen+' bakken)':''}${o?` (ook op rit #${o.rit_id})`:''}</option>`;}).join('')}</optgroup>`:'';}).join('')+'<option value="nieuw">Ander voertuig…</option>';
+  };
+  // Ritdetail als volgend scherm: waarschuwingen, bestuurder + voertuig, stops met ▲▼ (geen slepen op gsm), Goedkeuren.
+  function detail(P,r){
+    const w=r.waarschuwingen.filter(x=>!/^weekend · bevestigd/.test(x));
+    const ws=w.length?`<div class="sec" style="border-left:4px solid #dc2626"><h3>Waarschuwingen</h3>${w.map(x=>`<div class="rij" style="min-height:40px;color:#b91c1c;font-weight:600">⚠ ${esc(x)}</div>`).join('')}</div>`:'';
+    const wie=`<div class="sec"><h3>Wie en wat</h3><label class="vl">Bestuurder<select data-g="bsel" data-id="${r.id}">${P.alle_personeel.map(p=>`<option value="${p.personeel_id}" ${p.personeel_id===r.bestuurder.personeel_id?'selected':''}>${esc(p.naam)}${p.rol==='chauffeur'?'':' ('+esc(p.rol)+')'}</option>`).join('')}</select></label>
+      <label class="vl">Voertuig<select data-g="vsel" data-vsel="${r.id}">${voertuigOpties(P,r)}</select></label></div>`;
+    const stops=`<div class="sec"><h3>Stops <span>${esc(bezTekst(r))}</span></h3>${r.stops.length?r.stops.map((s,i)=>`<div class="it ${s.geladen?'groen':''}"><div class="stp"><button data-g="wissel" data-taak="${s.taak_id}" data-r="omhoog" aria-label="Omhoog" ${i===0?'disabled':''}>▲</button><button data-g="wissel" data-taak="${s.taak_id}" data-r="omlaag" aria-label="Omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><div class="nm">${esc(s.locatie)}<b>${esc([s.tijd,s.wat,s.status!=='gepland'?s.status:''].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" data-g="uit" data-taak="${s.taak_id}" aria-label="Van de rit halen">✕</button></div>`).join(''):'<div class="hint" style="padding:10px 0">Nog geen stops — zet een open taak op deze rit</div>'}</div>`;
+    return `<div class="kop2"><a data-g="terug">‹ Ritplanning</a><div style="flex:1"><b>Rit #${r.id} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(kort(r.datum))} · ${esc(r.bestuurder.naam||'geen bestuurder')} · ${esc(r.voertuig.naam||'geen voertuig')}</span></div></div>
+      <div class="body">${ws}${wie}${stops}</div><div class="voet"><button class="knop licht" data-g="link">Rit-link</button><button class="knop" data-g="klaar">${r.klaarzet_status==='klaar'?'Goedgekeurd ✓':'Goedkeuren'}</button></div>`;
+  }
+  // + Nieuwe rit: overlay van volle hoogte.
+  function nieuw(P,datum,opt={}){
+    const vast=P.personen.filter(p=>p.vast);
+    const bst=`<optgroup label="Vaste chauffeurs">${vast.map(p=>`<option value="${p.personeel_id}" ${String(p.personeel_id)===String(opt.personeel_id||'')?'selected':''}>${esc(p.naam)}</option>`).join('')}</optgroup><optgroup label="Iemand anders… (coördinator rijdt mee)">${P.alle_personeel.filter(p=>!vast.some(v=>v.personeel_id===p.personeel_id)).map(p=>`<option value="${p.personeel_id}">${esc(p.naam)} (${esc(p.rol)})</option>`).join('')}</optgroup>`;
+    const GR={eigen:'Eigen voertuigen',huur:'Huur',prive:'Privé'};
+    const vts=['eigen','huur','prive'].map(s=>{const l=P.voertuigen.filter(v=>v.soort===s);return l.length?`<optgroup label="${GR[s]}">${l.map(v=>`<option value="${v.id}">${esc(v.naam)}${v.plaatsen?' ('+v.plaatsen+' bakken)':''}</option>`).join('')}</optgroup>`:'';}).join('')+'<option value="">Ander voertuig…</option>';
+    return `<div class="kop2"><a data-g="annuleer">‹ Annuleren</a><div style="flex:1"><b>Nieuwe rit</b><span>${opt.taak_ids?'met taak #'+opt.taak_ids.join(', #'):'bestuurder = elke medewerker'}</span></div></div>
+      <form class="body" id="gnf" onsubmit="return false"><label class="vl">Datum<input type="date" name="datum" value="${esc(datum)}"></label><label class="vl">Vertrek<input type="time" name="vertrek" value="${esc(opt.vertrek||'08:00')}"></label>
+      <label class="vl">Bestuurder<select name="personeel_id">${bst}</select></label><label class="vl">Voertuig<select name="voertuig">${vts}</select></label>
+      <label class="vl" id="gnf-n" hidden>Naam van het voertuig<input name="vnaam" value="Eigen wagen"></label><label class="vl" id="gnf-c" hidden>Capaciteit (bakken)<input type="number" min="1" name="cap" value="6"></label></form>
+      <div class="voet"><button class="knop licht" data-g="annuleer">Annuleren</button><button class="knop" data-g="maak">Rit maken</button></div>`;
+  }
+  // Op rit: kies een bestaande rit van die dag of een nieuwe.
+  function opRit(P,datum,taakId){
+    const d=dag(P,datum),o=d.open.find(x=>x.taak_id===taakId);
+    return `<div class="kop2"><a data-g="annuleer">‹ Annuleren</a><div style="flex:1"><b>${esc(o?o.naam:'Taak')} → op rit</b><span>${esc(o?o.route:'')}</span></div></div>
+      <form class="body" id="gor" onsubmit="return false"><label class="vl">Rit<select name="rit">${d.ritten.map(r=>`<option value="${r.id}">#${r.id} · ${esc(r.vertrek||'?')} · ${esc(r.bestuurder.naam||'geen bestuurder')} · ${esc(r.voertuig.naam||'')}</option>`).join('')}<option value="nieuw">+ nieuwe rit…</option></select></label></form>
+      <div class="voet"><button class="knop licht" data-g="annuleer">Annuleren</button><button class="knop" data-g="oprit-ok" data-taak="${taakId}">Op deze rit zetten</button></div>`;
+  }
+  return {lijst,detail,nieuw,opRit,dagen,ritKaart,echteW};
+})();
+if(typeof module!=='undefined'&&module.exports)module.exports={gebaren:GEBAREN,gsm:RITGSM};
 if(typeof window!=='undefined')(function(){
   const TOKEN=localStorage.getItem('sporty-auth-token');
   if(!TOKEN){location.href='/';return;}
@@ -117,7 +189,7 @@ if(typeof window!=='undefined')(function(){
     P=r.json;P.dagen.forEach(d=>d.ritten.forEach(x=>{x.datum=d.datum;}));
     if(!DAG||!P.dagen.some(d=>d.datum===DAG))DAG=(P.dagen.find(d=>d.ritten.length)||P.dagen[0]).datum;
     if(RIT&&!alleRitten().some(x=>x.id===RIT))RIT=null;
-    teken();
+    teken();tekenGsm();
   }
   const alleRitten=()=>P.dagen.flatMap(d=>d.ritten);
   const dagVan=datum=>P.dagen.find(d=>d.datum===datum);
@@ -434,6 +506,68 @@ if(typeof window!=='undefined')(function(){
   $('dag-open').onclick=()=>{MODUS='open';RIT=null;tekenDetail();};
 
   // Bovenbalk: tellers zoals op Vandaag, periode-kiezer zoals de bestaande (activeer + herladen).
+  // ── MOB2: gsm-weergave (zelfde URL, zelfde API; boven 768 px blijft #gsm leeg en verborgen) ──
+  const MQ=window.matchMedia('(max-width:767px)');
+  let GS={scherm:'lijst',nieuw:null,oprit:null};
+  function tekenGsm(){
+    let e=$('gsm');if(!e){e=document.createElement('div');e.id='gsm';document.body.insertBefore(e,$('toasts'));}
+    if(!P||!MQ.matches){e.innerHTML='';return;}
+    let h;
+    if(GS.oprit)h=RITGSM.opRit(P,DAG,GS.oprit);
+    else if(GS.nieuw)h=RITGSM.nieuw(P,GS.nieuw.datum||DAG,GS.nieuw);
+    else if(GS.scherm==='detail'&&RIT&&ritVan(RIT))h=RITGSM.detail(P,ritVan(RIT));
+    else{GS.scherm='lijst';h=RITGSM.lijst(P,DAG);}
+    const y=(e.querySelector('.body')||{}).scrollTop||0;
+    e.innerHTML=h;const b=e.querySelector('.body');if(b&&y&&!GS.nieuw&&!GS.oprit)b.scrollTop=y;
+  }
+  if(MQ.addEventListener)MQ.addEventListener('change',tekenGsm);
+  document.addEventListener('change',e=>{
+    const t=e.target;if(!t.closest||!t.closest('#gsm'))return;
+    if(t.name==='voertuig'){const v=t.value==='';const n=$('gnf-n'),c=$('gnf-c');if(n)n.hidden=!v;if(c)c.hidden=!v;return;}
+    if(t.dataset.g==='bsel')api('PUT',`/api/ritten/${t.dataset.id}`,{personeel_id:parseInt(t.value)||null}).then(r=>{if(!r.ok)toast(r.json.error||'Bestuurder wisselen mislukt','error');else toast('Bestuurder gewijzigd','success');laad();});
+  });
+  document.addEventListener('click',async e=>{
+    const g=e.target.closest&&e.target.closest('#gsm [data-g]');if(!g)return;
+    const a=g.dataset.g;
+    if(a==='dag'){DAG=g.dataset.d;GS.scherm='lijst';return tekenGsm();}
+    if(a==='week'){WEEK=GEBAREN.plusDag(P.week.start,7*(+g.dataset.n));DAG=null;GS.scherm='lijst';return laad();}
+    if(a==='rit'){RIT=parseInt(g.dataset.id);GS.scherm='detail';tekenGsm();window.scrollTo(0,0);return;}
+    if(a==='terug'){GS.scherm='lijst';return tekenGsm();}
+    if(a==='nieuw'){GS.nieuw={datum:DAG};return tekenGsm();}
+    if(a==='annuleer'){GS.nieuw=null;GS.oprit=null;return tekenGsm();}
+    if(a==='oprit'){GS.oprit=parseInt(g.dataset.taak);return tekenGsm();}
+    if(a==='oprit-ok'){
+      const taakId=parseInt(g.dataset.taak),d=dagVan(DAG),o=d.open.find(x=>x.taak_id===taakId),keuze=document.querySelector('#gor [name=rit]').value;
+      if(keuze==='nieuw'){GS.oprit=null;GS.nieuw={datum:DAG,vertrek:(o&&o.tijd)||'08:00',taak_ids:[taakId]};return tekenGsm();}
+      if(d.weekend&&!await vraag({titel:'Weekendtaak inplannen?',tekst:'Dit is een weekendtaak: een uitzondering, geen verbod. Toch op een rit zetten?',ok:'Ja, inplannen'}))return;
+      const r=await api('PUT',`/api/transport-taken/${taakId}/rit`,{rit_id:parseInt(keuze)});
+      if(!r.ok)return toast(r.json.error||'Op rit zetten mislukt','error');
+      if(d.weekend){const wb=await api('POST',`/api/transport-taken/${taakId}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
+      toast(`Taak op rit #${keuze} gezet`,'success');GS.oprit=null;RIT=parseInt(keuze);GS.scherm='detail';return laad();
+    }
+    if(a==='maak'){
+      const f=$('gnf'),vid=parseInt(f.voertuig.value)||null,pid=parseInt(f.personeel_id.value)||null,datum=f.datum.value;
+      if(!datum)return toast('Kies een datum','warn');
+      const wk=[0,6].includes(d0(datum).getDay());
+      if(wk&&!await vraag({titel:'Rit in het weekend?',tekst:'Weekendritten zijn een uitzondering, geen verbod. Toch inplannen?',ok:'Ja, inplannen'}))return;
+      const taakIds=(GS.nieuw&&GS.nieuw.taak_ids)||[];
+      const body={datum,vertrek:f.vertrek.value,personeel_id:pid,taak_ids:taakIds};
+      if(vid)body.voertuig_id=vid;else{body.voertuig=f.vnaam.value.trim()||'Eigen wagen';body.voertuig_soort='eigen';body.voertuig_capaciteit=parseInt(f.cap.value)||null;}
+      const r=await api('POST','/api/ritten',body);if(!r.ok)return toast(r.json.error||'Rit maken mislukt','error');
+      if(wk)for(const tid of taakIds){const wb=await api('POST',`/api/transport-taken/${tid}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
+      toast(`Rit #${r.json.id} gemaakt`,'success');GS.nieuw=null;RIT=r.json.id;GS.scherm='detail';
+      if(datum<P.week.start||datum>P.week.eind)WEEK=datum;DAG=datum;return laad();
+    }
+    if(!RIT)return;
+    if(a==='wissel'){const r=await api('POST',`/api/ritten/${RIT}/taken/${g.dataset.taak}/wissel`,{richting:g.dataset.r});if(!r.ok)return toast(r.json.error||'Wisselen mislukt','error');return laad();}
+    if(a==='uit'){const r=await api('POST',`/api/ritten/${RIT}/taken/${g.dataset.taak}/ontkoppel`);if(!r.ok)return toast(r.json.error||'Van de rit halen mislukt','error');toast('Taak van de rit gehaald — staat weer bij "open"','success');return laad();}
+    if(a==='link'){const r=await api('POST',`/api/ritten/${RIT}/token`);if(!r.ok)return toast(r.json.error||'Rit-link maken mislukt','error');
+      const url=location.origin+r.json.url;try{await navigator.clipboard.writeText(url);toast('Rit-link gekopieerd: '+url,'success');}catch(x){toast('Rit-link: '+url,'info');}return;}
+    if(a==='klaar'){const rt=ritVan(RIT),ov=rt.voertuig.capaciteit&&rt.bezetting>rt.voertuig.capaciteit;
+      if(ov&&!await vraag({titel:'Rit boven capaciteit goedkeuren?',tekst:`${rt.bezetting} bakken op ${rt.voertuig.capaciteit} plaatsen. Dat mag (geen verbod), maar het wordt gelogd. Toch goedkeuren?`,ok:'Ja, goedkeuren'}))return;
+      const r=await api('POST',`/api/ritten/${RIT}/klaarzet`,ov?{bevestigd_over_capaciteit:true}:{});if(!r.ok)return toast(r.json.error||'Goedkeuren mislukt','error');toast('Rit goedgekeurd door '+r.json.klaarzet_door,'success');return laad();}
+  });
+
   async function kop(){
     const v=await api('GET','/api/vandaag');
     if(v.ok){const tel=(id,n)=>{const b=$(id);b.textContent=n;b.hidden=!n;};tel('b-vandaag',v.json.beslissen.length);tel('b-transport',v.json.inplannen.length);
@@ -446,7 +580,7 @@ if(typeof window!=='undefined')(function(){
   // ?taak=ID of ?rit=ID: open de juiste week en dag, selecteer de rit (of de lijst nog te plannen).
   (async()=>{
     const ritQ=parseInt(Q.get('rit')),taakQ=parseInt(Q.get('taak'));
-    if(ritQ){const g=await api('GET','/api/ritten/'+ritQ);if(g.ok&&g.json.datum){WEEK=g.json.datum;DAG=g.json.datum;RIT=ritQ;}}
+    if(ritQ){const g=await api('GET','/api/ritten/'+ritQ);if(g.ok&&g.json.datum){WEEK=g.json.datum;DAG=g.json.datum;RIT=ritQ;GS.scherm='detail';}}
     else if(taakQ){const g=await api('GET','/api/transport-taken');const t=g.ok?g.json.find(x=>x.id===taakQ):null;
       if(t&&t.datum){WEEK=t.datum;DAG=t.datum;if(t.rit_id)RIT=t.rit_id;else MODUS='open';}}
     await laad();kop();
