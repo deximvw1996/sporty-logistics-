@@ -113,6 +113,33 @@ try {
   const fmt = (await T.leesDb(srv.dbPad, 'SELECT substr(pincode,1,7) AS f FROM personeel WHERE id=?', [oudId]))[0].f;
   T.check(fmt === 'scrypt$', `oude sha256-hash is na de login scrypt (formaat ${fmt})`);
   T.check((await T.login(srv.base, oudId, '5931')).length > 10, 'en inloggen blijft werken');
+  // ── Aanvulling: tellers, verplaats, back-updatum ──
+  const stand = async () => { const k = (await A('GET', '/api/vandaag')).json, g = (await A('GET', '/api/vandaag?mijn=1')).json; return { n: k.te_keuren, tab: g.tellers.voorraad, rij: k.nakijken.some((x) => x.id === 'tellingen-te-keuren') }; };
+  const s0 = await stand();
+  const am = await A('POST', '/api/aanvullijst/melding', { item_naam: 'Tf3 losse hoepel', soort: 'weg', aantal: 1 });
+  const s1 = await stand();
+  T.check(am.status === 200 && s1.n === s0.n + 1 && s1.tab === s0.tab + 1 && s1.rij, `melding aanvuller zonder week: Vandaag ${s0.n}→${s1.n}, tabteller ${s0.tab}→${s1.tab}`);
+  const nk = (await A('GET', '/api/nakijken')).json, nkBak = (nk.bakken || nk.rijen || []).find((b) => b.bak && b.bak.soort === 'melding');
+  const det = (await A('GET', `/api/nakijken/sessie/${nkBak.sessie_id}`)).json, regel = det.items.find((x) => x.naam === 'Tf3 losse hoepel');
+  const rid = regel.regel_id;
+  const best = await A('PUT', `/api/nakijken/regel/${rid}`, { actie: 'aanvaarden', kantoor_actie: 'aanvaarden' });
+  const afr = await A('POST', `/api/nakijken/sessie/${nkBak.sessie_id}/afronden`);
+  const s2 = await stand();
+  T.check(best.status === 200 && afr.status === 200 && s2.n === s0.n && s2.tab === s0.tab, `na beslissen en afronden: Vandaag ${s1.n}→${s2.n}, tabteller ${s1.tab}→${s2.tab} (${best.status}/${afr.status})`);
+  const vr = (await A('POST', '/api/ritten', { datum: '2026-11-04', vertrek: '09:00' })).json;
+  const vt = (await A('GET', '/api/transport-taken')).json.find((t) => !t.rit_id && t.status === 'gepland');
+  await A('PUT', `/api/transport-taken/${vt.id}/rit`, { rit_id: vr.id });
+  await A('PUT', `/api/transport-taken/${vt.id}`, { ...vt, slot: undefined, regels: undefined, tijd: '11:00' });
+  const stopT = async () => { await new Promise((r) => setTimeout(r, 300)); return (await T.leesDb(srv.dbPad, 'SELECT tijd FROM transport_taken WHERE id=?', [vt.id]))[0].tijd; }, voorS = await stopT();
+  await A('PUT', `/api/ritten/${vr.id}/verplaats`, { datum: '2026-11-04', vertrek: '10:15' });
+  const naS = await stopT();
+  T.check(voorS === '11:00' && naS === '12:15', `verplaats 09:00 → 10:15: stop ${voorS} → ${naS}`);
+  const lokaal = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Brussels' }).format(new Date()), utc = new Date().toISOString().slice(0, 10);
+  await A('POST', '/api/locaties', { name: 'Tf3 back-up', type: 'kamp' });
+  await new Promise((r) => setTimeout(r, 400));
+  const bk = fs.readdirSync(path.join(srv.dataDir, 'backups')).filter((f) => /^sporty-\d{4}-\d{2}-\d{2}\.db$/.test(f));
+  T.check(bk.includes(`sporty-${lokaal}.db`) && (lokaal === utc || !bk.includes(`sporty-${utc}.db`)), `automatische back-up op de lokale datum, geen tweede (lokaal ${lokaal}, UTC ${utc}: ${bk.join()})`);
+  T.check(!/toISOString/.test(lees('lib/db.js').split('function backupDb')[1].split('\n').slice(0, 3).join()), 'backupDb gebruikt geen UTC meer');
 } catch (e) { T.fout('uitzondering: ' + e.message); console.log(srv.log().slice(-1500)); }
 try { fs.unlinkSync(bron); } catch {}
 await T.einde(srv);

@@ -2068,3 +2068,11 @@ Aangepaste tests: `ko1`, `f1-modules` + inventaris (`GET *` weg), `v3b-ui`, `vei
 6. Een al geïnstalleerde service worker (oude app registreerde `/sw.js`) blijft bestaan: netwerk eerst, dus geen oude app, maar offline toont hij gecachete pagina's.
 7. Monitor had de tab Stockage zonder recht: tab weggehaald voor die rol.
 8. Coördinator: `/api/alle-bakken` staat niet in de tabel (hoort bij kantoor-melden).
+
+## TF3 aanvulling (31/10)
+
+1. **Vandaag-teller.** `routes/vandaag.js`: te keuren telt nu ook keuringen met een open gemelde regel, zonder weekvoorwaarde en met losse meldingen. Nieuw veld `te_keuren`; tabteller Voorraad telt dat aantal plus de andere Nakijken-rijen. Bewijs: losse melding Vandaag 0→1, tabteller 4→5; na beslissen en afronden 1→0 en 5→4.
+2. **Verplaats: geen codewijziging nodig.** `PUT /api/ritten/:id/verplaats` schoof de stops al mee. Bewijs: rit 09:00 met stop 11:00, naar 10:15 → stop 12:15. De T2-waarneming "vertrek 10:15, stop 11:15" past bij een stop die op 10:00 stond; dat kon ik niet nagaan. De T2-rit "09:00 met stop 17:00" is niet door verplaatsen ontstaan in deze test en blijft dus onverklaard. Alleen de test is toegevoegd.
+3. **Back-updatum.** `lib/db.js` gebruikt de lokale datum. Bewezen in het echte venster: om 00:3x lokaal stond er één bestand `sporty-2026-10-31.db`, geen `2026-10-30`. De versoepeling in `me1` is teruggedraaid.
+
+Aanpassing: de GEVONDEN over de UTC-datum uit TF3 is hiermee opgelost.
