@@ -106,10 +106,10 @@ try {
   T.check(zk.artikels.length > 0 && zk.artikels.every((a) => /archery/i.test(a.naam)), `server-side zoeken: “archery” → ${zk.artikels.length} treffers`);
   T.check((await A('GET', '/api/catalogus-overzicht?chip=sport&limiet=500')).json.artikels.every((a) => a.sport), 'chip sport toont enkel sportartikels');
   // gezaaid dubbel paar + samenvoegen
-  const n1 = (await A('POST', '/api/item-types', { naam: 'Pijpenragers MA2', eenheid: 'stuk', categorie: 'materiaal' })).json;
-  const n2 = (await A('POST', '/api/item-types', { naam: 'Pijpenrager MA2', eenheid: 'stuk', categorie: 'materiaal' })).json;
+  const n1 = (await A('POST', '/api/item-types', { naam: 'MA2 Pijpenragers', eenheid: 'stuk', categorie: 'materiaal' })).json;
+  const n2 = (await A('POST', '/api/item-types', { naam: 'MA2 Pijpenrager', eenheid: 'stuk', categorie: 'materiaal' })).json;
   const thBak = (await A('POST', `/api/themas/${ijk.themas.alles_op_wieltjes}/bakken`, { label: 'Ma2 bak', code: 'MA2X' })).json;
-  const itemRes = await A('POST', `/api/bakken/${thBak.id}/items`, { naam: 'Pijpenrager MA2', qty: 4 });
+  const itemRes = await A('POST', `/api/bakken/${thBak.id}/items`, { naam: 'MA2 Pijpenrager', qty: 4 });
   const rozenwegId = (await A('GET', `/api/catalogus/${n1.id}/detail`)).json.voorraad.find((v) => v.naam === 'Rozenweg').locatie_id;
   const kantoorId = (await A('GET', `/api/catalogus/${n1.id}/detail`)).json.voorraad.find((v) => v.naam === 'Kantoor').locatie_id;
   await A('PUT', `/api/catalogus/${n1.id}/voorraad`, { locatie_id: rozenwegId, qty: 5, minimum: 8 });
@@ -117,15 +117,15 @@ try {
   await A('PUT', `/api/catalogus/${n2.id}/voorraad`, { locatie_id: kantoorId, qty: 40 });
   const cd = (await A('GET', '/api/catalogus-overzicht?chip=dubbel&limiet=500')).json;
   const dubbelNamen = cd.artikels.map((a) => a.naam);
-  T.check(dubbelNamen.includes('Pijpenragers MA2') && dubbelNamen.includes('Pijpenrager MA2') && cd.tellers.dubbel === cd.artikels.length, `dubbel-detectie vindt het gezaaide paar (${cd.tellers.dubbel} in de chip)`);
-  const rij1 = (await A('GET', '/api/catalogus-overzicht?zoek=Pijpenragers MA2')).json.artikels[0];
+  T.check(dubbelNamen.includes('MA2 Pijpenragers') && dubbelNamen.includes('MA2 Pijpenrager') && cd.tellers.dubbel === cd.artikels.length, `dubbel-detectie vindt het gezaaide paar (${cd.tellers.dubbel} in de chip)`);
+  const rij1 = (await A('GET', '/api/catalogus-overzicht?zoek=MA2 Pijpenragers')).json.artikels[0];
   T.check(rij1.status === 'onder_min' && rij1.minimum === 8 && rij1.voorraad_rozenweg === 5, 'artikel onder zijn minimum krijgt status onder_min (5 < 8)');
   await A('PUT', `/api/catalogus/${n1.id}/voorraad`, { locatie_id: rozenwegId, delta: 1 });
   T.check((await A('GET', `/api/catalogus/${n1.id}/detail`)).json.voorraad.find((v) => v.naam === 'Rozenweg').qty === 6, 'voorraad + (delta 1): 5 → 6');
   r = await A('PUT', `/api/catalogus/${n1.id}/voorraad`, { locatie_id: rozenwegId, delta: -99 });
   T.check(r.status === 400, 'voorraad onder nul → 400');
   const det2 = (await A('GET', `/api/catalogus/${n2.id}/detail`)).json;
-  T.check(det2.dubbel.some((d) => d.id === n1.id) && det2.gebruik.length >= 1 && det2.gebruik.some((g) => g.bak_id === thBak.id), 'detail “Pijpenrager MA2”: staat in onze bak en toont het dubbele artikel');
+  T.check(det2.dubbel.some((d) => d.id === n1.id) && det2.gebruik.length >= 1 && det2.gebruik.some((g) => g.bak_id === thBak.id), 'detail “MA2 Pijpenrager”: staat in onze bak en toont het dubbele artikel');
   r = await A('DELETE', `/api/catalogus-overzicht/${n2.id}`);
   T.check(r.status === 409, `verwijderen van een artikel in gebruik → 409 (“${(r.json.error || '').slice(0, 50)}…”)`);
   r = await A('POST', `/api/catalogus/${n2.id}/samenvoegen`, { naar_id: n1.id });
@@ -140,7 +140,7 @@ try {
   const leeg = (await A('POST', '/api/item-types', { naam: 'Ma2 ongebruikt artikel xyz', eenheid: 'stuk', categorie: 'materiaal' })).json;
   T.check((await A('DELETE', `/api/catalogus-overzicht/${leeg.id}`)).status === 200, 'verwijderen van een ongebruikt artikel → 200');
   T.check((await A('POST', '/api/catalogus-overzicht/samenvoegen', { ids: [1], naar_id: 1 })).status === 400, 'bulk samenvoegen met 1 artikel → 400');
-  r = await A('PUT', `/api/catalogus/${n1.id}`, { naam: 'Pijpenragers MA2', eenheid: 'doos', categorie: 'knutsel' });
+  r = await A('PUT', `/api/catalogus/${n1.id}`, { naam: 'MA2 Pijpenragers', eenheid: 'doos', categorie: 'knutsel' });
   T.check(r.status === 200 && (await A('GET', `/api/catalogus/${n1.id}/detail`)).json.artikel.eenheid === 'doos', 'bewerken: eenheid doos');
   // DOM
   const CA = require(T.ROOT + '/public/catalogus.js');
