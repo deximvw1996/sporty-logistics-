@@ -66,7 +66,7 @@ try {
   // kantoor krijgt één melding per nieuwe regel
   const mm = (await A('GET', '/api/meldingen')).json.meldingen;
   const kegelM = mm.filter((m) => /Av2 Kegel/.test(m.tekst)), ringM = mm.filter((m) => /Av2 Ring/.test(m.tekst));
-  T.check(kegelM.length === 1 && ringM.length === 1 && kegelM[0].link === '/nakijken', `kantoor krijgt één melding per gemelde regel (kegel ${kegelM.length}, ring ${ringM.length}) met link naar Nakijken`);
+  T.check(kegelM.length === 1 && ringM.length === 1 && kegelM[0].link === '/nakijken' && /(5×)/.test(kegelM[0].tekst), `kantoor krijgt één melding per gemelde regel (kegel ${kegelM.length}, ring ${ringM.length}) met link naar Nakijken`);
   const logTekst = JSON.stringify((await A('GET', '/api/logboek')).json);
   T.check(/Av2 Kegel: 2 kapot gemeld door/.test(logTekst) && /erbij op een bestaande melding/.test(logTekst) && /keuring heropend/.test(logTekst), 'de melding, de dubbele en het heropenen staan in het logboek');
 

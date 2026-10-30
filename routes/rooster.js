@@ -14,6 +14,9 @@ module.exports = function(ctx){
   const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   const periodeVan=id=>(id&&get('SELECT * FROM vakantieperiodes WHERE id=?',[id]))||get('SELECT * FROM vakantieperiodes WHERE actief=1')||get('SELECT * FROM vakantieperiodes ORDER BY id DESC LIMIT 1');
 
+  // TF4 G10: gesloten dagen (heel Sporty of die locatie) in een kampweek ma–vr: een melding, nooit een verbod.
+  const DGN=['zo','ma','di','wo','do','vr','za'];
+  const geslotenIn=(van,tot,locId)=>all('SELECT datum FROM gesloten_dagen WHERE datum>=? AND datum<=? AND (locatie_id IS NULL OR locatie_id=?) ORDER BY datum',[van,tot,locId]).map(g=>{const d=new Date(g.datum+'T12:00:00');return {datum:g.datum,tekst:DGN[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1)};});
   // Kampweek n van een periode: maandag = startdatum (naar maandag teruggezet) + 7·(n−1), vrijdag = +4.
   function weekInfo(per,nr){
     const s=d0(per.start_datum);s.setDate(s.getDate()-((s.getDay()+6)%7)+7*(nr-1));
@@ -120,16 +123,18 @@ module.exports = function(ctx){
   app.get('/api/rooster/week',alleenKantoor,(req,res)=>{
     const per=periodeVan(parseInt(req.query.periode_id));if(!per)return res.status(404).json({error:'Er is nog geen vakantieperiode.'});
     const A=analyse(per),w=weekNr(req.query.week,A);
+    const wk=weekInfo(per,w);
     const locaties=A.kms.filter(k=>k.week===w).map(k=>{
       const th=k.themas.map(themaUit);
-      return {kampmoment_id:k.id,locatie_id:k.locatie_id,naam:k.loc,kv:k.kv||'',themas:th,sport:sportVan(per,k.locatie_id,w),
-        meldingen_n:th.reduce((n,t)=>n+t.meldingen.length,0),zoek:[k.loc,k.kv,...th.map(t=>t.naam)].join(' ').toLowerCase()};
+      const gesloten=geslotenIn(wk.van,wk.tot,k.locatie_id);
+      return {kampmoment_id:k.id,locatie_id:k.locatie_id,naam:k.loc,kv:k.kv||'',themas:th,sport:sportVan(per,k.locatie_id,w),gesloten,
+        meldingen_n:th.reduce((n,t)=>n+t.meldingen.length,0)+(gesloten.length?1:0),zoek:[k.loc,k.kv,...th.map(t=>t.naam)].join(' ').toLowerCase()};
     });
     // tellers zoals de mockup: dubbel = thema's dubbel, herhaald = labels ↻, gedeeld = stukken te weinig (de chip filtert wel op locatie)
     const kw=A.kts.filter(t=>t.week===w);
     res.json({periode:{id:per.id,naam:per.naam},weken:A.aantal,week:weekInfo(per,w),
       tellers:{alle:locaties.length,dubbel:new Set(kw.filter(t=>t.meldingen.includes('dubbel')).map(t=>t.thema_id)).size,herhaald:kw.filter(t=>t.meldingen.includes('herhaald')).length,
-        gedeeld:Object.values(A.gedeeld[w]||{}).filter(x=>x.stand==='te_weinig').length,geen_kv:locaties.filter(l=>!l.kv).length},
+        gedeeld:Object.values(A.gedeeld[w]||{}).filter(x=>x.stand==='te_weinig').length,geen_kv:locaties.filter(l=>!l.kv).length,gesloten:locaties.filter(l=>l.gesloten.length).length},
       n_themas:locaties.reduce((n,l)=>n+l.themas.length,0),locaties});
   });
 
@@ -153,6 +158,8 @@ module.exports = function(ctx){
       .sort((a,b)=>{const o={KL:0,LS:1};return ((o[a.replace(/\d+$/,'')]??2)-(o[b.replace(/\d+$/,'')]??2))||a.localeCompare(b,'nl',{numeric:true});})
       .map(g=>{const c=km2=>{const t=km2&&km2.themas.find(x=>x.groep===g);return t?{naam:t.name,thema_id:t.thema_id,kt_id:t.id,meldingen:t.meldingen}:null;};return {groep:g,voor:c(voor),deze:c(k),na:c(na)};});
     const let_op=k.themas.flatMap(t=>letOpVan(A,t));
+    const wkI=weekInfo(per,w),gesl=geslotenIn(wkI.van,wkI.tot,k.locatie_id);
+    if(gesl.length)let_op.push({soort:'gesloten',kt_id:null,tekst:'⛔ Gesloten dag in deze week: '+gesl.map(g=>g.tekst).join(', '),uitleg:'Een melding, geen verbod: kijk of de levering en de ophaling nog kloppen.',knop:''});
     const taak=type=>{const x=get(`SELECT datum,rit_id FROM transport_taken WHERE kampmoment_id=? AND type=? AND status<>'geannuleerd' ORDER BY datum LIMIT 1`,[km.id,type]);return x?{datum:x.datum,rit_id:x.rit_id||null}:null;};
     const gedeeld=Object.keys(A.gedeeld[w]||{}).map(key=>stukUit(A,w,key)).filter(s=>s.waar.some(x=>x.kampmoment_id===km.id)||s.aanvaard.some(x=>x.kampmoment_id===km.id))
       .map(s=>({key:s.key,naam:s.naam,hier:s.waar.filter(x=>x.kampmoment_id===km.id).reduce((n,x)=>n+x.aantal,0),nodig:s.nodig,beschikbaar:s.beschikbaar,stand:s.stand,

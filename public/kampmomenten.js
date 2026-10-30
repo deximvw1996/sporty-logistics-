@@ -201,16 +201,19 @@
     var enkel = details.length === 1 ? details[0] : null;
     var themadag = enkel && enkel.type === 'themadag';
     var gemeen = details[0].themas_beschikbaar.filter(function (t) { return details.every(function (d) { return d.themas_beschikbaar.some(function (x) { return x.id === t.id; }); }); });
+    // TF4 G8: thema's die die week al elders staan blijven kiesbaar (onderaan, met waar ze staan): melden, niet verbieden
+    var bezetMap = {}; details.forEach(function (d) { (d.themas_bezet || []).forEach(function (t) { if (!gemeen.some(function (g) { return g.id === t.id; })) { (bezetMap[t.id] = bezetMap[t.id] || { id: t.id, naam: t.naam, bij: [] }).bij.push(t.bij); } }); });
+    var bezetLijst = Object.keys(bezetMap).map(function (k) { var t = bezetMap[k]; t.bij = t.bij.filter(function (x, i, a) { return a.indexOf(x) === i; }).join(', '); return t; });
     var perLg = {}; gemeen.forEach(function (t) { (perLg[t.leeftijdsgroep || 'overig'] = perLg[t.leeftijdsgroep || 'overig'] || []).push(t); });
     var html;
     if (themadag) {
-      var opties = '<option value="">— geen —</option>' + gemeen.map(function (t) { return '<option value="' + t.id + '">' + esc(t.naam) + '</option>'; }).join('');
+      var opties = '<option value="">— geen —</option>' + gemeen.map(function (t) { return '<option value="' + t.id + '">' + esc(t.naam) + '</option>'; }).join('') + bezetLijst.map(function (t) { return '<option value="' + t.id + '">' + esc(t.naam) + ' — staat al in ' + esc(t.bij) + '</option>'; }).join('');
       html = KOOK.map(function (d, i) { var huidig = enkel.themas.filter(function (t) { return t.dag === i; })[0]; return '<label>' + d + '<select name="dag' + i + '">' + opties.replace('value="' + (huidig ? huidig.id : '-') + '"', 'value="' + (huidig ? huidig.id : '-') + '" selected') + '</select></label>'; }).join('');
     } else {
       var huidigeIds = enkel ? enkel.themas.map(function (t) { return t.id; }) : [];
-      html = '<div class="thema-lijst" style="grid-column:1/-1">' + Object.keys(perLg).map(function (lg) { return '<b style="font-size:11px;text-transform:uppercase;color:#64748b;margin-top:6px">' + esc(lg) + '</b>' + perLg[lg].map(function (t) { return '<label class="chk"><input type="checkbox" name="thema" value="' + t.id + '"' + (huidigeIds.indexOf(t.id) >= 0 ? ' checked' : '') + '> ' + esc(t.naam) + '</label>'; }).join(''); }).join('') + (gemeen.length ? '' : '<div class="leeg">Geen thema vrij in deze week.</div>') + '</div>';
+      html = '<div class="thema-lijst" style="grid-column:1/-1">' + Object.keys(perLg).map(function (lg) { return '<b style="font-size:11px;text-transform:uppercase;color:#64748b;margin-top:6px">' + esc(lg) + '</b>' + perLg[lg].map(function (t) { return '<label class="chk"><input type="checkbox" name="thema" value="' + t.id + '"' + (huidigeIds.indexOf(t.id) >= 0 ? ' checked' : '') + '> ' + esc(t.naam) + '</label>'; }).join(''); }).join('') + (gemeen.length ? '' : '<div class="leeg">Geen thema vrij in deze week.</div>') + (bezetLijst.length ? '<b style="font-size:11px;text-transform:uppercase;color:#64748b;margin-top:10px">Staat die week al elders (kiezen mag, je krijgt dan een melding)</b>' + bezetLijst.map(function (t) { return '<label class="chk bezet"><input type="checkbox" name="thema" value="' + t.id + '"' + (huidigeIds.indexOf(t.id) >= 0 ? ' checked' : '') + '> ' + esc(t.naam) + ' <small>— staat al in ' + esc(t.bij) + '</small></label>'; }).join('') : '') + '</div>';
     }
-    var v = await vraag({ titel: enkel ? 'Thema kiezen — ' + enkel.locatie.naam + ' week ' + enkel.week : 'Thema toewijzen aan ' + details.length + ' kampmomenten', tekst: 'Alleen thema’s die in die week nergens anders gepland zijn.', ok: 'Opslaan', breed: true, html: html,
+    var v = await vraag({ titel: enkel ? 'Thema kiezen — ' + enkel.locatie.naam + ' week ' + enkel.week : 'Thema toewijzen aan ' + details.length + ' kampmomenten', tekst: 'Vrije thema’s staan bovenaan; wat die week al elders staat, staat onderaan en mag ook (je krijgt dan een melding).', ok: 'Opslaan', breed: true, html: html,
       lees: function (f) { return themadag ? { dagen: KOOK.map(function (d, i) { return f['dag' + i].value; }) } : { themas: Array.prototype.slice.call(f.querySelectorAll('input[name=thema]:checked')).map(function (c) { return +c.value; }) }; } });
     if (!v) return;
     var fouten = 0, gedaan = 0;

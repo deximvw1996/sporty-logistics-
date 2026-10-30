@@ -8,13 +8,15 @@
   var MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
   function dagLang(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); if (!m) return esc(iso || ''); var d = new Date(+m[1], +m[2] - 1, +m[3]); return DAGEN[d.getDay()].slice(0, 2) + ' ' + d.getDate() + ' ' + MAANDEN[d.getMonth()].slice(0, 3) + ' ' + d.getFullYear(); }
 
-  var FILTERS = [['te_keuren', 'Te keuren'], ['niet_geteld', 'Niet geteld'], ['nog_niet', 'Nog niet geteld'], ['met_tekort', 'Met tekort'], ['met_kapot', 'Met kapot'], ['nagekeken', 'Nagekeken']];
+  var FILTERS = [['gemeld', 'Gemeld'], ['te_keuren', 'Te keuren'], ['niet_geteld', 'Niet geteld'], ['nog_niet', 'Nog niet geteld'], ['met_tekort', 'Met tekort'], ['met_kapot', 'Met kapot'], ['nagekeken', 'Nagekeken']];
   var PIL = { te_keuren: ['oranje', 'te keuren'], niet_geteld: ['', 'niet geteld'], nog_niet: ['', 'nog niet geteld'], nagekeken: ['groen', 'nagekeken'] };
+  function meldDag(iso) { var n = new Date(), v = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0'); return !iso || iso === v ? 'vandaag' : dagLang(iso); }
   var sleutel = function (b) { return b.kampmoment_id + ':' + b.bak.soort + ':' + b.bak.id; };
 
   function passeert(b, st) {
     var f = st.filter;
     if (f === 'te_keuren' || f === 'niet_geteld' || f === 'nog_niet' || f === 'nagekeken') { if (b.status !== f) return false; }
+    else if (f === 'gemeld') { if (!(b.gemeld > 0)) return false; }
     else if (f === 'met_tekort') { if (!b.met_tekort) return false; }
     else if (f === 'met_kapot') { if (!b.met_kapot) return false; }
     var z = (st.zoek || '').trim().toLowerCase();
@@ -36,8 +38,8 @@
       var kan = !!b.sessie_id;
       var grijs = b.status === 'nog_niet';
       return '<div class="r l' + (st.open === sleutel(b) ? ' act' : '') + (grijs ? ' nog-niet' : '') + '"' + (grijs ? ' style="opacity:.55"' : '') + ' role="button" tabindex="0" data-act="open" data-a="' + esc(sleutel(b)) + '"><span><input type="checkbox" data-act="vink" data-a="' + (b.sessie_id || '') + '"' + (kan ? '' : ' disabled') + (kan && sel.has(b.sessie_id) ? ' checked' : '') + ' aria-label="Selecteer"></span>'
-        + '<span><b>' + esc(b.locatie) + '</b><br><small>wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(b.kv_naam) : '') + '</small></span>'
-        + '<span>' + esc(b.bak.code) + ' ' + esc(b.bak.naam) + '</span><span>' + b.geteld + '/' + b.totaal + (b.bak.soort === 'attribuut' ? '' : ' geteld') + '</span><span>' + esc(grijs && b.kv_naam ? b.uitslag_tekst + ' · ' + kvL(b.kv_naam) : b.uitslag_tekst) + '</span><span><span class="pil ' + p[0] + '">' + p[1] + '</span></span></div>';
+        + '<span><b>' + esc(b.locatie) + '</b><br><small>' + (b.bak.soort === 'melding' ? 'gemeld ' + esc(meldDag(b.gemeld_op)) : 'wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(b.kv_naam) : '')) + '</small></span>'
+        + '<span>' + esc(b.bak.code) + ' ' + esc(b.bak.naam) + '</span><span>' + (b.bak.soort === 'melding' ? b.totaal + ' gemeld' : b.geteld + '/' + b.totaal + (b.bak.soort === 'attribuut' ? '' : ' geteld')) + '</span><span>' + esc(grijs && b.kv_naam ? b.uitslag_tekst + ' · ' + kvL(b.kv_naam) : b.uitslag_tekst) + '</span><span><span class="pil ' + p[0] + '">' + p[1] + '</span></span></div>';
     }).join('') || '<div class="leeg">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
     return '<div class="filters"><input type="search" id="zoek" placeholder="🔍 Zoek locatie, bak, KV, stuk…" value="' + esc(st.zoek || '') + '" data-f="zoek">' + chips + '</div>'
       + '<div class="kopr l"><span><input type="checkbox" data-act="vink-alles"' + (alleSel ? ' checked' : '') + ' aria-label="Alles selecteren"></span><span>Locatie · KV</span><span>Bak</span><span>Geteld</span><span>Uitslag</span><span>Status</span></div>'
@@ -174,7 +176,7 @@
       return '<button type="button" class="knop breed' + (o.waarde === voorstel ? '' : ' licht') + '" style="height:56px" data-gk="kies" data-regel="' + r.regel_id + '" data-w="' + esc(o.waarde) + '" data-n="' + aant + '">' + esc(o.label) + (r.kantoor_actie === o.waarde ? ' ✓' : '') + '</button>';
     }).join('');
     var rest = regels.filter(function (x, j) { return j !== i && !x.kantoor_actie; });
-    return kop + '<div class="body"><div class="hint">Regel ' + (i + 1) + ' van ' + n + '. Beslis, en je gaat vanzelf naar de volgende.</div>'
+    return kop + '<div class="body"><div class="hint">Regel ' + (i + 1) + ' van ' + n + ' · ' + regels.filter(function (r) { return !r.kantoor_actie; }).length + ' nog open. Beslis, en je gaat vanzelf naar de volgende.</div>'
       + '<div class="sec" style="padding:14px"><div style="font-size:20px;font-weight:800">' + esc(r.naam) + '</div><div style="font-size:14px;color:#64748b;margin:2px 0 10px">Geteld ' + (r.aangetroffen == null ? '—' : r.aangetroffen) + ' van ' + r.verwacht + ' · <b style="color:#b91c1c">' + esc(wat) + '</b></div>'
       + kv2('KV zegt', r.notitie ? '"' + esc(r.notitie) + '"' : '—') + kv2('Voorraad', esc(r.voorraad_tekst || '—')) + kv2('Voorstel', esc(r.acties[0].label)) + (r.kantoor_actie ? kv2('Gekozen', esc((r.acties.filter(function (o) { return o.waarde === r.kantoor_actie; })[0] || { label: r.kantoor_actie }).label)) : '') + '</div>'
       + knoppen
@@ -210,11 +212,11 @@
 
   // Printpagina (/aanvullijst-print)
   if ($('print-blad')) {
-    if (!TOKEN) { root.location.href = '/'; return; }
+    if (!TOKEN) { root.location.href = '/login'; return; }
     var q = new URLSearchParams(root.location.search), datum = q.get('datum') || '';
     (async function () {
       var r = await aanroep('GET', '/api/aanvullijst' + (datum ? '?datum=' + encodeURIComponent(datum) : ''));
-      if (r.status === 401 || r.status === 403) { root.location.href = '/'; return; }
+      if (r.status === 401 || r.status === 403) { root.location.href = '/login'; return; }
       if (!r.ok) { $('print-blad').innerHTML = '<p>' + esc(r.json.error || 'De lijst kon niet geladen worden.') + '</p>'; return; }
       $('pk-sub').textContent = printSubtekst(r.json, r.json.afgedrukt_door); $('rijen').innerHTML = printRijenHtml(r.json);
       var kt = r.json.kantoor; if (kt && (kt.telefoon || kt.gsm)) { var pv = document.createElement('div'); pv.className = 'pv'; pv.id = 'kantoor-regel'; pv.textContent = 'Kantoor: ' + [kt.telefoon, kt.gsm && 'gsm ' + kt.gsm].filter(Boolean).join(' · '); $('print-blad').appendChild(pv); } // BH2
@@ -223,7 +225,7 @@
     return;
   }
   if (!$('nk-app')) return;
-  if (!TOKEN) { root.location.href = '/'; return; }
+  if (!TOKEN) { root.location.href = '/login'; return; }
 
   var DATA = null, DETAIL = null, ST = { gs: 'lijst', gi: 0, filter: 'te_keuren', zoek: '', geselecteerd: new Set(), open: null, tab: 'telling', week: new URLSearchParams(root.location.search).get('week') || '' };
   var verschuiving = 0;
@@ -246,7 +248,7 @@
   function tekenAlles() { tekenLijst(); tekenDetail(); }
   async function laadLijst() {
     var r = await aanroep('GET', '/api/nakijken' + (ST.week ? '?week=' + ST.week : ''));
-    if (r.status === 401 || r.status === 403) { root.location.href = '/'; return; }
+    if (r.status === 401 || r.status === 403) { root.location.href = '/login'; return; }
     if (!r.ok) { toast(r.json.error || 'Nakijken laden mislukt', 'error'); return; }
     DATA = r.json;
     if (!ST.weekGezet && DATA.week && DATA.week.maandag) { ST.week = DATA.week.maandag; }
@@ -269,11 +271,11 @@
     if (s.ok && Array.isArray(s.json)) {
       var open = 0, besteld = 0;
       s.json.forEach(function (x) { (x.tekorten || []).forEach(function (r) { open++; if (r.tekort_status === 'besteld') besteld++; }); });
-      $('s-tekorten').textContent = 'Tekorten ' + open; $('s-bestellingen').textContent = 'Bestellingen ' + besteld;
+      if ($('s-tekorten')) $('s-tekorten').textContent = 'Tekorten ' + open; if ($('s-bestellingen')) $('s-bestellingen').textContent = 'Bestellingen ' + besteld;
     }
     var p = await aanroep('GET', '/api/periodes');
-    if (p.ok && Array.isArray(p.json)) { var a = p.json.filter(function (x) { return x.actief; })[0] || p.json[0]; if (a) $('per-naam').textContent = a.naam; }
-    try { var u = JSON.parse(root.localStorage.getItem('sporty-auth-user') || '{}'); $('wie').textContent = (u.naam || '') + (u.rol ? ' · ' + u.rol : ''); } catch (e) { /* ignore */ }
+    if (p.ok && Array.isArray(p.json)) { var a = p.json.filter(function (x) { return x.actief; })[0] || p.json[0]; if (a && $('per-naam')) $('per-naam').textContent = a.naam; }
+    try { var u = JSON.parse(root.localStorage.getItem('sporty-auth-user') || '{}'); if ($('wie')) $('wie').textContent = (u.naam || '') + (u.rol ? ' · ' + u.rol : ''); } catch (e) { /* ignore */ }
   }
   async function ververs() { var open = ST.open; await laadLijst(); if (open) await laadDetail(open); laadBovenaan(); }
   var weekVan = function (n) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ST.week || ''); if (!m) return ''; var d = new Date(+m[1], +m[2] - 1, +m[3] + 7 * n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };

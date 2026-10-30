@@ -165,7 +165,7 @@ try {
   const kph = RB.kmPaneel((await A('GET', `/api/rooster/kampmoment/${K.l0w4}`)).json, 'week');
   T.check(/Thema's per groep · week ervoor en erna/.test(kph) && /Let op \(1\)/.test(kph) && /Sport en transport/.test(kph) && /Gedeeld materiaal/.test(kph) && /1 van 2/.test(kph) && /Open kampmoment/.test(kph), `kampmomentpaneel: ${t(kph).slice(0, 300)}`);
   const tph = RB.themaPaneel(TPd);
-  T.check(/hele zomer/.test(tph) && /Vrij in/.test(tph) && /Gedeeld materiaal/.test(tph) && /Naar weekbeeld/.test(tph), `themapaneel: ${t(tph).slice(0, 220)}`);
+  T.check(/hele periode/.test(tph) && /Vrij in/.test(tph) && /Gedeeld materiaal/.test(tph) && /Naar weekbeeld/.test(tph), `themapaneel: ${t(tph).slice(0, 220)}`);
   const go = await G(4);
   const gr = GB.rij(go.stukken.find((s) => s.vast_type === 'pl2_springdier'));
   T.check(/⚠ te weinig/.test(gr) && /class="get n">3/.test(gr) && /class="get z">2/.test(gr), `gedeeld-rij: ${t(gr)}`);

@@ -110,7 +110,7 @@ module.exports = function(ctx){
     if(gemeldOpen){kapot+=gemeld.filter(g=>g.gemeld_soort==='kapot').length;tekort+=gemeld.filter(g=>g.gemeld_soort==='weg').length;tekst=(geteld?tekst+' · ':'')+gemeld.length+' gemeld door stockage';}
     return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id,locatie:loc,week:km.week,kv_naam:kvNaam,
       bak:{id:bak.id,code:bak.code||'',naam:bak.naam||bak.label||'',soort:bak.soort},geteld,totaal,uitslag_tekst:tekst,
-      met_tekort:tekort>0,met_kapot:kapot>0,status,
+      met_tekort:tekort>0,met_kapot:kapot>0,status,gemeld:gemeldOpen?gemeld.length:0,gemeld_op:bak.soort==='melding'&&sessie?(sessie.datum||''):'',
       ingediend_op:sessie&&sessie.kv_status==='ingediend'?(sessie.kv_tijdstip||''):'',nagekeken_op:sessie&&_nagekeken(sessie)?(sessie.kantoor_afgerond_op||sessie.kantoor_tijdstip||''):''};
   }
 
@@ -129,8 +129,10 @@ module.exports = function(ctx){
       const rij=_rij({id:null,locatie_id:s.locatie_id,week:s.week,periode_id:null,kv_persoon_id:null},pseudo,s);
       rij.kampmoment_id=null;rij.locatie=_locNaam(s.locatie_id)||'stockage';rij.bak={id:s.id,code:'',naam:'Losse melding',soort:'melding'};bakken.push(rij);
     });
-    const tellers={te_keuren:0,niet_geteld:0,nog_niet:0,met_tekort:0,met_kapot:0,nagekeken:0};
+    bakken.sort((a,b)=>(b.gemeld>0)-(a.gemeld>0)); // TF4 G14: wat de aanvuller meldde staat bovenaan (stabiele volgorde verder)
+    const tellers={te_keuren:0,niet_geteld:0,nog_niet:0,met_tekort:0,met_kapot:0,nagekeken:0,gemeld:0};
     bakken.forEach(b=>{
+      if(b.gemeld>0)tellers.gemeld++;
       if(b.status==='te_keuren')tellers.te_keuren++;
       if(b.status==='niet_geteld')tellers.niet_geteld++;
       if(b.status==='nog_niet')tellers.nog_niet++;
@@ -236,7 +238,7 @@ module.exports = function(ctx){
     return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id,locatie:loc,week:km.week,maandag:_maandag(km),
       bak:rij.bak,geteld:rij.geteld,totaal:rij.totaal,uitslag_tekst:rij.uitslag_tekst,status:rij.status,
       kv_naam:kvNaam,ingediend_op:rij.ingediend_op,nagekeken_op:rij.nagekeken_op,
-      afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').length,te_veel:items.filter(i=>i.afwijking==='te_veel').length,kapot:items.filter(i=>i.kapot_aantal>0||i.afwijking==='kapot').length},
+      afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').reduce((n,i)=>n+(i.aantal_afwijking||0),0),te_veel:items.filter(i=>i.afwijking==='te_veel').reduce((n,i)=>n+(i.aantal_afwijking||0),0),kapot:items.reduce((n,i)=>n+(i.kapot_aantal||0),0)},
       items,foto_s:fotoUrls,vorige_tellingen:vorige,historiek:hist.map(({sorteer,...h})=>({...h,tijd:fmtDatumTijd(h.tijd)})),
       contact:{kv_naam:kvNaam,kv_telefoon:(kvP&&kvP.telefoon)||''}};
   }
@@ -303,10 +305,9 @@ module.exports = function(ctx){
         updateMetLog(req,'nakijk_regels',r.id,{kantoor_actie:actie,kantoor_aantal:aantal},'nakijken');
       }
       if(actie==='bestellen'||actie==='afschrijven_bestellen'){
-        // Bestaande tekorten/bestel-logica (routes/voorraad.js): tekort_status 'besteld' + besteld=1.
-        updateMetLog(req,'nakijk_regels',r.id,{besteld:1,tekort_status:'besteld'},'nakijken');bestel++;
+        // Bestaande tekorten/bestel-logica (routes/voorraad.js): tekort_status 'besteld' + besteld=1. TF4: alleen de nieuwe tellen mee.
+        if(!r.besteld){updateMetLog(req,'nakijk_regels',r.id,{besteld:1,tekort_status:r.tekort_status==='binnen'?'binnen':'besteld'},'nakijken');bestel++;if(actie==='afschrijven_bestellen')afschrijf++;}
       }
-      if(actie==='afschrijven_bestellen')afschrijf++;
     });
     updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'nagekeken',kantoor_afgerond_op:isoNu(),kantoor_door:wie(req),kantoor_wie:wie(req),kantoor_tijdstip:now()},'nakijken');
     logAct('nakijken','afgerond',`Keuring afgerond: ${(bak&&(bak.code||bak.naam))||'bak'} · ${km?_locNaam(km.locatie_id):''} (${bestel} bestelling${bestel===1?'':'en'}, ${afschrijf} afschrijving${afschrijf===1?'':'en'}) door ${wie(req)||'kantoor'}`,km?km.locatie_id:null,km?_locNaam(km.locatie_id):null);
@@ -380,18 +381,21 @@ module.exports = function(ctx){
         if(r.aangevuld&&!alles)return;
         if(r.tekort_status==='genegeerd')return; // TB2: genegeerd op Tekorten → niet meer op de aanvullijst
         const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
+        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
       }
-      if(!handelingen.length)return;
+      const inhoud=s.bak_type==='attribuut'||s.bak_type==='melding'?[]:[...new Set(items.map(i=>zonderHaakjes(i.naam||'')).filter(Boolean))];
+      const leegMeldbaar=!handelingen.length&&alles&&inhoud.length&&!!s.kantoor_afgerond_op; // TF4 G24: ook een bak zonder handelingen is meldbaar
+      if(!handelingen.length&&!leegMeldbaar)return;
       const vertrek=km?((get("SELECT MIN(datum) AS d FROM transport_taken WHERE kampmoment_id=? AND type='levering' AND COALESCE(status,'')<>'geannuleerd' AND datum<>''",[km.id])||{}).d||''):'';
-      groepen.push({vertrek,sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
+      groepen.push({inhoud,leeg:!handelingen.length,vertrek,sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
         plaats:s.bak_type==='melding'?{rek:'',plank:'',tekst:''}:_plaats(bak),afgerond_op:s.kantoor_afgerond_op||'',handelingen});
     });
-    const alle=groepen.flatMap(g=>g.handelingen);
-    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,gemeld:alle.filter(h=>h.wacht_op_kantoor).length,bakken:groepen.length},bakken:groepen};
+    const alle=groepen.flatMap(g=>g.handelingen).filter(h=>!h.wacht_op_kantoor); // TF4 G26: een melding die op kantoor wacht is nog geen handeling
+    const alleMeld=groepen.flatMap(g=>g.handelingen).filter(h=>h.wacht_op_kantoor);
+    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,gemeld:alleMeld.length,bakken:groepen.filter(g=>!g.leeg).length},bakken:groepen};
   }
   app.get('/api/aanvullijst',(req,res)=>{
     const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoLokaal(new Date());
@@ -456,7 +460,16 @@ module.exports = function(ctx){
     if(heropend)updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'open'},'aanvuller meldt: keuring heropend');
     const plaats=km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),wiem=p.naam||'de aanvuller';
     logAct('nakijken','gemeld',`${naam}: ${aantal} ${soort==='kapot'?'kapot':'weg'} gemeld door ${wiem} (stockage)${dubbel?' — erbij op een bestaande melding':''}${heropend?' — keuring heropend':''}${fp?' (foto '+fp+')':''}`,s.locatie_id||(km?km.locatie_id:null),plaats);
-    if(!dubbel&&ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:wiem,tekst:`${naam} (${aantal}×) is ${soort==='kapot'?'kapot':'weg'}, gemeld vanuit de stockage — beslis in Nakijken`,link:'/nakijken'});
+    const nm=bestaand?bestaand.item_naam:naam;
+    const meldTekst=n=>`${nm} (${n}×) is ${soort==='kapot'?'kapot':'weg'}, gemeld vanuit de stockage — beslis in Nakijken`;
+    if(!dubbel&&ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:wiem,tekst:meldTekst(aantal),link:'/nakijken'});
+    else if(dubbel&&ctx.melding){
+      // TF4 G22: de kantoormelding krijgt het nieuwe totaal (en staat weer ongelezen); is ze weg of al verwerkt, dan komt er een nieuwe
+      const nieuwN=(bestaand.kantoor_aantal||0)+aantal;
+      const oud=get("SELECT * FROM meldingen WHERE voor_rol='kantoor' AND tekst LIKE ? ORDER BY id DESC",[nm+' (%×) is '+(soort==='kapot'?'kapot':'weg')+', gemeld vanuit de stockage%']);
+      if(oud){updateMetLog(req,'meldingen',oud.id,{tekst:meldTekst(nieuwN),gelezen_op:null},'melding bijgewerkt (opgeteld)');run('DELETE FROM meldingen_gelezen WHERE melding_id=?',[oud.id]);}
+      else ctx.melding(req,{voor_rol:'kantoor',van_naam:wiem,tekst:meldTekst(nieuwN),link:'/nakijken'});
+    }
     res.json({ok:true,regel_id:regelId,sessie_id:s.id,dubbel,heropend,foto:fp?'/uploads/'+fp:null});
   });
   // G15: kantoor meldt dat de bestelling geleverd is; pas daarna kan de handeling "aangevuld" worden.
@@ -487,12 +500,14 @@ module.exports = function(ctx){
       if(gedaan<1)return res.status(400).json({error:'Vul in hoeveel je aangevuld hebt (minstens 1), of laat het vakje leeg.'});
       let fp='';
       if(heeftFoto){try{fp=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}}
-      if(['uit_pool','bestellen','afschrijven_bestellen'].includes(r.kantoor_actie)){
+      if(['uit_pool','bestellen','afschrijven_bestellen','naar_pool'].includes(r.kantoor_actie)){
         const bi=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
         const typeId=(bi&&bi.item_type_id)||((get('SELECT id FROM item_types WHERE lower(naam)=lower(?) ORDER BY id LIMIT 1',[zonderHaakjes(r.item_naam||'').trim()])||{}).id);
         const roz=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
         const st=typeId&&roz?get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[typeId,roz.id]):null;
-        if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)-gedaan)},'aanvullen (deels): '+zonderHaakjes(r.item_naam||''));
+        const dl=(r.kantoor_actie==='naar_pool'?1:-1)*gedaan;
+        if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)+dl)},'aanvullen (deels): '+zonderHaakjes(r.item_naam||''));
+        else if(typeId&&roz&&dl>0)insMetLog(req,'INSERT INTO item_type_stock (item_type_id,locatie_id,qty,minimum) VALUES (?,?,?,0)',[typeId,roz.id,dl],'aanvullen (deels)');
       }
       updateMetLog(req,'nakijk_regels',r.id,{kantoor_aantal:totaalN-gedaan,gedaan_aantal:(r.gedaan_aantal||0)+gedaan},'aanvullen (deels)');
       logAct('nakijken','aangevuld_deels',`${r.item_naam}: ${gedaan} van ${totaalN} aangevuld door ${wie(req)||'?'} — ${totaalN-gedaan} blijven open${fp?' (foto '+fp+')':''}`,s.locatie_id,_locNaam(s.locatie_id));
@@ -504,12 +519,14 @@ module.exports = function(ctx){
     }
     updateMetLog(req,'nakijk_regels',r.id,{aangevuld:aan,aangevuld_door:aan?wie(req):'',aangevuld_op:aan?isoNu():''},'aanvullen');
     // TB2: aanvullen uit de stockage verlaagt item_type_stock (Rozenweg) pas nu, bij het afvinken; terugzetten zet het terug.
-    if(['uit_pool','bestellen','afschrijven_bestellen'].includes(r.kantoor_actie)&&(r.kantoor_aantal||0)>0&&aan!==(r.aangevuld?1:0)){
+    if(['uit_pool','bestellen','afschrijven_bestellen','naar_pool'].includes(r.kantoor_actie)&&(r.kantoor_aantal||0)>0&&aan!==(r.aangevuld?1:0)){
       const bi=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
       const typeId=(bi&&bi.item_type_id)||((get('SELECT id FROM item_types WHERE lower(naam)=lower(?) ORDER BY id LIMIT 1',[zonderHaakjes(r.item_naam||'').trim()])||{}).id);
       const roz=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
       const st=typeId&&roz?get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[typeId,roz.id]):null;
-      if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)+(aan?-1:1)*r.kantoor_aantal)},'aanvullen: '+zonderHaakjes(r.item_naam||''));
+      const dl=(aan?1:-1)*(r.kantoor_actie==='naar_pool'?1:-1)*r.kantoor_aantal;
+      if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)+dl)},'aanvullen: '+zonderHaakjes(r.item_naam||''));
+      else if(typeId&&roz&&dl>0)insMetLog(req,'INSERT INTO item_type_stock (item_type_id,locatie_id,qty,minimum) VALUES (?,?,?,0)',[typeId,roz.id,dl],'aanvullen');
     }
     logAct('nakijken',aan?'aangevuld':'aangevuld_terug',`${r.item_naam}: ${aan?'aangevuld':'teruggezet naar open'} door ${wie(req)||'?'}${fotoPad?' (foto '+fotoPad+')':''}`,s.locatie_id,_locNaam(s.locatie_id));
     res.json({ok:true,regel_id:r.id,aangevuld:aan,foto:fotoPad?'/uploads/'+fotoPad:null});

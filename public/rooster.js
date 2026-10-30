@@ -17,22 +17,22 @@
     label,
     filtersWeek(O,f){
       const c=(k,t)=>`<span class="chip ${f===k?'act':''}" data-f="${k}">${t} ${O.tellers[k]}</span>`;
-      return `<span class="wis"><button class="knop licht klein" data-week="-1" aria-label="Vorige week"${O.week.nr<=1?' disabled':''}>‹</button><b>${esc(O.week.label)}</b><button class="knop licht klein" data-week="1" aria-label="Volgende week"${O.week.nr>=O.weken?' disabled':''}>›</button></span><span class="seg"><a class="act" data-zicht="week">Week</a><a data-zicht="seizoen">Seizoen</a></span>${c('alle','Alle')}${c('dubbel','⚠ Dubbel')}${c('herhaald','↻ Herhaald')}${c('gedeeld','◐ Gedeeld')}${c('geen_kv','Geen KV')}`;
+      return `<span class="wis"><button class="knop licht klein" data-week="-1" aria-label="Vorige week"${O.week.nr<=1?' disabled':''}>‹</button><b>${esc(O.week.label)}</b><button class="knop licht klein" data-week="1" aria-label="Volgende week"${O.week.nr>=O.weken?' disabled':''}>›</button></span><span class="seg"><a class="act" data-zicht="week">Week</a><a data-zicht="seizoen">Seizoen</a></span>${c('alle','Alle')}${c('dubbel','⚠ Dubbel')}${c('herhaald','↻ Herhaald')}${c('gedeeld','◐ Gedeeld')}${c('gesloten','⛔ Gesloten')}${c('geen_kv','Geen KV')}`;
     },
     filtersSeizoen(S,f,zoek){
       const c=(k,t)=>`<span class="chip ${f===k?'act':''}" data-f="${k}">${t} ${S.tellers[k]}</span>`;
       return `<span class="seg"><a data-zicht="week">Week</a><a class="act" data-zicht="seizoen">Seizoen</a></span><input id="zoek" placeholder="🔍 Zoek thema of locatie…" value="${esc(zoek||'')}">${c('alle','Alle')}${c('dubbel','⚠ Dubbel')}${c('herhaald','↻ Herhaald')}${c('niet_gebruikt','Niet gebruikt')}`;
     },
     weekRij(l,{act,sel}={}){
-      return `<div class="r ${act?'act':''}" data-km="${l.kampmoment_id}"><span><input type="checkbox" data-sel="${l.kampmoment_id}" ${sel?'checked':''} aria-label="Selecteer ${esc(l.naam)}"></span><span><b>${esc(l.naam)}</b></span><span class="tgs">${l.themas.map(label).join('')||'<span class="k">geen thema</span>'}</span><span>${l.kv?esc(l.kv):'<span style="color:#a16207;font-weight:600">geen KV</span>'}</span><span class="k">${l.sport.length?l.sport.map(esc).join(' · '):'—'}</span></div>`;
+      return `<div class="r ${act?'act':''}" data-km="${l.kampmoment_id}"><span><input type="checkbox" data-sel="${l.kampmoment_id}" ${sel?'checked':''} aria-label="Selecteer ${esc(l.naam)}"></span><span><b>${esc(l.naam)}</b></span><span class="tgs">${l.themas.map(label).join('')||'<span class="k">geen thema</span>'}${(l.gesloten||[]).length?`<span class="tg dub" title="gesloten dag">⛔ gesloten ${esc(l.gesloten.map(g=>g.tekst).join(', '))}</span>`:''}</span><span>${l.kv?esc(l.kv):'<span style="color:#a16207;font-weight:600">geen KV</span>'}</span><span class="k">${l.sport.length?l.sport.map(esc).join(' · '):'—'}</span></div>`;
     },
     // MOB2: gsm-weergave van de week (design/mockup-gsm-1.html, telefoon Planning › Rooster): weekkeuze, chips die horizontaal scrollen, elke locatie een kaart.
     filtersWeekGsm(O,f){
       const c=(k,t)=>`<span class="chip ${f===k?'act':''}" data-f="${k}" role="button">${t} ${O.tellers[k]}</span>`;
-      return `<div class="wk"><button class="knop licht klein" data-week="-1" aria-label="Vorige week"${O.week.nr<=1?' disabled':''}>‹</button><b>${esc(O.week.label)}</b><button class="knop licht klein" data-week="1" aria-label="Volgende week"${O.week.nr>=O.weken?' disabled':''}>›</button></div><div class="chipsS"><span class="seg"><a class="act" data-zicht="week">Week</a><a data-zicht="seizoen">Seizoen</a></span>${c('alle','Alle')}${c('dubbel','⚠ Dubbel')}${c('herhaald','↻ Herhaald')}${c('gedeeld','◐ Gedeeld')}${c('geen_kv','Geen KV')}</div>`;
+      return `<div class="wk"><button class="knop licht klein" data-week="-1" aria-label="Vorige week"${O.week.nr<=1?' disabled':''}>‹</button><b>${esc(O.week.label)}</b><button class="knop licht klein" data-week="1" aria-label="Volgende week"${O.week.nr>=O.weken?' disabled':''}>›</button></div><div class="chipsS"><span class="seg"><a class="act" data-zicht="week">Week</a><a data-zicht="seizoen">Seizoen</a></span>${c('alle','Alle')}${c('dubbel','⚠ Dubbel')}${c('herhaald','↻ Herhaald')}${c('gedeeld','◐ Gedeeld')}${c('gesloten','⛔ Gesloten')}${c('geen_kv','Geen KV')}</div>`;
     },
     weekKaart(l,{act}={}){
-      return `<div class="r gk ${act?'act':''}" data-km="${l.kampmoment_id}" role="button" tabindex="0"><div class="gkop"><b>${esc(l.naam)}</b>${l.kv?`<span>KV ${esc(l.kv)}</span>`:'<span class="geen">geen KV</span>'}</div><div class="tgs">${l.themas.map(label).join('')||'<span class="k">geen thema</span>'}</div>${l.meldingen_n?`<div class="gmeld">${l.meldingen_n} melding${l.meldingen_n===1?'':'en'} ›</div>`:''}</div>`;
+      return `<div class="r gk ${act?'act':''}" data-km="${l.kampmoment_id}" role="button" tabindex="0"><div class="gkop"><b>${esc(l.naam)}</b>${l.kv?`<span>KV ${esc(l.kv)}</span>`:'<span class="geen">geen KV</span>'}</div><div class="tgs">${l.themas.map(label).join('')||'<span class="k">geen thema</span>'}${(l.gesloten||[]).length?`<span class="tg dub">⛔ gesloten ${esc(l.gesloten.map(g=>g.tekst).join(', '))}</span>`:''}</div>${l.meldingen_n?`<div class="gmeld">${l.meldingen_n} melding${l.meldingen_n===1?'':'en'} ›</div>`:''}</div>`;
     },
     voetWeek(n,nTh){return `<span>${n} locatie${n===1?'':'s'} · ${nTh} thema's</span>${LEG_WEEK}`;},
     voetSeizoen(){return `<span>één rij per thema (elk thema bestaat 1×) · cel = waar het die week staat</span>${LEG_SEIZ}`;},
@@ -49,20 +49,20 @@
     },
     kmPaneel(D,tab){
       const k=D.kampmoment,w=D.week.nr,nMeld=D.let_op.length,nGroep=D.groepen.filter(g=>g.deze).length;
-      const cel=(x,nu)=>{if(!x)return `<span${nu?' class="nu"':''}>—</span>`;const kl=[nu?'nu':'',klasVan(x.meldingen)].filter(Boolean).join(' ');return `<span class="${kl}">${esc(x.naam)}${nu&&x.meldingen.length?' '+tekens(x.meldingen):''}</span>`;};
+      const cel=(x,nu)=>{if(!x)return `<span${nu?' class="nu"':''}>—</span>`;const kl=[nu?'nu':'',klasVan(x.meldingen)].filter(Boolean).join(' ');return `<span class="${kl}">${esc(x.naam)}${nu&&x.meldingen.length?' '+tekens(x.meldingen):''}${nu&&x.kt_id?` <button class="knop licht klein wis" data-wissel="${x.kt_id}" aria-label="Wissel ${esc(x.naam)}">Wissel</button>`:''}</span>`;};
       const tw=`<div class="blok vol"><h4>Thema's per groep · week ervoor en erna</h4><div class="tw"><span class="h">Groep</span><span class="h">${D.vorige_week?'wk '+D.vorige_week:'—'}</span><span class="h nu">wk ${w}</span><span class="h">${D.volgende_week?'wk '+D.volgende_week:'—'}</span>
         ${D.groepen.map(g=>`<span class="g">${esc(g.groep)}</span>${cel(g.voor)}${cel(g.deze,true)}${cel(g.na)}`).join('')}</div></div>`;
-      const kleur={dubbel:'#b91c1c',herhaald:'#c2410c',gedeeld:'#7c3aed'};
-      const letop=`<div class="blok"><h4>Let op (${nMeld})</h4>${D.let_op.map(l=>`<div class="rij"><div class="nm" style="color:${kleur[l.soort]}">${esc(l.tekst)}<b>${esc(l.uitleg)}</b></div><button class="knop licht klein" ${l.soort==='gedeeld'?`data-toon="${esc(l.key)}"`:`data-wissel="${l.kt_id}"`}>${esc(l.knop)}</button></div>`).join('')||'<div class="rij"><div class="nm">Geen meldingen</div></div>'}</div>`;
+      const kleur={dubbel:'#b91c1c',herhaald:'#c2410c',gedeeld:'#7c3aed',gesloten:'#b45309'};
+      const letop=`<div class="blok"><h4>Let op (${nMeld})</h4>${D.let_op.map(l=>`<div class="rij"><div class="nm" style="color:${kleur[l.soort]}">${esc(l.tekst)}<b>${esc(l.uitleg)}</b></div>${l.soort==='gesloten'?'':`<button class="knop licht klein" ${l.soort==='gedeeld'?`data-toon="${esc(l.key)}"`:`data-wissel="${l.kt_id}"`}>${esc(l.knop)}</button>`}</div>`).join('')||'<div class="rij"><div class="nm">Geen meldingen</div></div>'}</div>`;
       const rit=(t,x)=>x?`${dm(x.datum)}${x.rit_id?` · rit #${x.rit_id}`:' · nog geen rit'}`:'nog niet gepland';
       const st=`<div class="blok"><h4>Sport en transport</h4>${D.sport.map(s=>kv(esc(s),'deze week')).join('')||kv('Sport','—')}${kv('Brengen',esc(rit('b',D.transport.brengen)))}${kv('Halen',esc(rit('h',D.transport.halen)))}</div>`;
       const ged=`<div class="blok"><h4>Gedeeld materiaal <a href="/gedeeld?week=${w}&periode_id=${k.periode_id}">Gedeeld materiaal ›</a></h4>${D.gedeeld.map(s=>kv(esc(s.naam),`${s.hier} van ${s.beschikbaar}${s.nodig!==s.hier?` · deze week samen ${s.nodig}`:''}${s.stand==='te_weinig'?' ◐':''}${s.aanvaard.length?` · zonder: ${esc(s.aanvaard.join(', '))}`:''}`)).join('')||'<div class="rij"><div class="nm">Geen gedeeld materiaal deze week</div></div>'}</div>`;
-      const zomer=`<div class="blok vol"><h4>${esc(k.locatie)} · hele zomer</h4>${D.zomer.map(z=>`<div class="rij"><div class="nm">week ${z.week}${z.week===w?' (deze)':''}<b>${z.themas.map(t=>`${esc(t.groep)} ${esc(t.naam)}${t.meldingen.length?' '+tekens(t.meldingen):''}`).join(' · ')||'geen thema'}${z.kv?' · KV '+esc(z.kv):''}</b></div>${z.week!==w?`<button class="knop licht klein" data-naarweek="${z.week}">Toon</button>`:''}</div>`).join('')}</div>`;
+      const zomer=`<div class="blok vol"><h4>${esc(k.locatie)} · hele periode</h4>${D.zomer.map(z=>`<div class="rij"><div class="nm">week ${z.week}${z.week===w?' (deze)':''}<b>${z.themas.map(t=>`${esc(t.groep)} ${esc(t.naam)}${t.meldingen.length?' '+tekens(t.meldingen):''}`).join(' · ')||'geen thema'}${z.kv?' · KV '+esc(z.kv):''}</b></div>${z.week!==w?`<button class="knop licht klein" data-naarweek="${z.week}">Toon</button>`:''}</div>`).join('')}</div>`;
       const hist=`<div class="blok vol"><h4>Historiek (alles gelogd)</h4>${D.historiek.map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc(h.t)} · ${esc(h.wie)}</b></div></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>'}</div>`;
       const inhoud={week:tw+letop+st+ged,zomer,historiek:hist}[tab]||'';
       const sub=[D.week.kort,`${nGroep} groep${nGroep===1?'':'en'}`,k.kv?'KV '+k.kv:'geen KV',`${nMeld} melding${nMeld===1?'':'en'}`].map(esc).join(' · ');
       return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(k.locatie)} · week ${w}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" data-pweek="-1"${D.vorige_week?'':' disabled'}>‹ wk ${D.vorige_week||w-1}</button><button class="knop licht" data-pweek="1"${D.volgende_week?'':' disabled'}>wk ${D.volgende_week||w+1} ›</button><button class="knop" data-open="${k.id}">Open kampmoment</button></div></div>
-        <div class="dtabs">${[['week','Week'],['zomer','Hele zomer'],['historiek','Historiek']].map(([x,t])=>`<a class="${tab===x?'act':''}" data-tab="${x}">${t}</a>`).join('')}</div><div class="dgrid"${tab==='week'?'':' style="grid-template-columns:1fr"'}>${inhoud}</div>`;
+        <div class="dtabs">${[['week','Week'],['zomer','Hele periode'],['historiek','Historiek']].map(([x,t])=>`<a class="${tab===x?'act':''}" data-tab="${x}">${t}</a>`).join('')}</div><div class="dgrid"${tab==='week'?'':' style="grid-template-columns:1fr"'}>${inhoud}</div>`;
     },
     themaPaneel(D){
       const t=D.thema,lg=t.leeftijdsgroep?(/^k/i.test(t.leeftijdsgroep)?'KL':/^l/i.test(t.leeftijdsgroep)?'LS':t.leeftijdsgroep):'LS/KL';
@@ -72,7 +72,7 @@
       const vrij=`<div class="blok"><h4>Vrij in</h4>${kv('Weken',D.vrij.length?D.vrij.join(' · '):'geen')}${kv('Voorstel',D.voorstel?esc(D.voorstel.tekst):'—')}</div>`;
       const ged=`<div class="blok"><h4>Gedeeld materiaal</h4>${D.gedeeld.map(s=>kv(esc(s.naam),`${s.andere.length?'ook in '+esc(s.andere.join(', ')):'alleen in '+esc(t.naam)} · ${s.beschikbaar} ${esc(s.eenheid)}`)).join('')||'<div class="rij"><div class="nm">Geen gedeeld materiaal</div></div>'}</div>`;
       const n=new Set(D.plaatsen.map(p=>p.locatie)).size;
-      return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(t.naam)} · hele zomer</h2><span>Thema ${esc(lg)} · ${t.bakken} themabak${t.bakken===1?'':'ken'} · ${n} locatie${n===1?'':'s'} ingepland</span></div><div class="acts"><button class="knop licht" data-openthema="${t.id}">Open thema</button><button class="knop" data-naarweekbeeld="${D.plaatsen[0]?D.plaatsen[0].week:''}">Naar weekbeeld</button></div></div>
+      return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(t.naam)} · hele periode</h2><span>Thema ${esc(lg)} · ${t.bakken} themabak${t.bakken===1?'':'ken'} · ${n} locatie${n===1?'':'s'} ingepland</span></div><div class="acts"><button class="knop licht" data-openthema="${t.id}">Open thema</button><button class="knop" data-naarweekbeeld="${D.plaatsen[0]?D.plaatsen[0].week:''}">Naar weekbeeld</button></div></div>
         <div class="dgrid">${waar}${vrij}${ged}</div>`;
     }
   };
@@ -93,7 +93,7 @@
   let O=null,S=null,D=null,TH=null,SEL=new Set(),CEL=null;
   const pq=()=>PER?`periode_id=${PER}`:'';
   function bewaarUrl(){const u=new URLSearchParams();if(ZICHT==='seizoen')u.set('zicht','seizoen');if(WEEK)u.set('week',WEEK);if(PER)u.set('periode_id',PER);if(FILTER!=='alle')u.set('f',FILTER);history.replaceState(null,'','/rooster'+(u.toString()?'?'+u:''));}
-  const FW={alle:()=>true,dubbel:l=>l.themas.some(t=>t.meldingen.includes('dubbel')),herhaald:l=>l.themas.some(t=>t.meldingen.includes('herhaald')),gedeeld:l=>l.themas.some(t=>t.meldingen.includes('gedeeld')),geen_kv:l=>!l.kv};
+  const FW={alle:()=>true,dubbel:l=>l.themas.some(t=>t.meldingen.includes('dubbel')),herhaald:l=>l.themas.some(t=>t.meldingen.includes('herhaald')),gedeeld:l=>l.themas.some(t=>t.meldingen.includes('gedeeld')),geen_kv:l=>!l.kv,gesloten:l=>(l.gesloten||[]).length>0};
   const FS={alle:r=>r.n>0,dubbel:r=>r.dubbel,herhaald:r=>r.herhaald,niet_gebruikt:r=>r.n===0};
   const zichtbaarWeek=()=>O.locaties.filter(FW[FW[FILTER]?FILTER:'alle']);
   const zichtbaarSeizoen=()=>(FILTER==='niet_gebruikt'?S.niet_gebruikt:S.themas).filter(FS[FS[FILTER]?FILTER:'alle']).filter(r=>!ZOEK||r.naam.toLowerCase().includes(ZOEK)||r.weken.some(w=>w.locaties.some(l=>l.naam.toLowerCase().includes(ZOEK))));

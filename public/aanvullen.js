@@ -6,13 +6,13 @@
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const DG=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'],MND=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
   const dagTekst=iso=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');if(!m)return '';const d=new Date(+m[1],+m[2]-1,+m[3]);return `${DG[d.getDay()].slice(0,2)} ${d.getDate()} ${MND[d.getMonth()]}`;};
-  const PIL={uit_pool:['blauw','uit pool'],naar_pool:['','naar pool'],afschrijven:['oranje','afschrijven'],bestelling:['','bestelling'],nakijken:['groen','zelf tellen'],melding:['oranje','gemeld, wacht op kantoor']};
+  const PIL={herstellen:['oranje','herstellen'],uit_pool:['blauw','uit pool'],naar_pool:['','naar pool'],afschrijven:['oranje','afschrijven'],bestelling:['','bestelling'],nakijken:['groen','zelf tellen'],melding:['oranje','gemeld, wacht op kantoor']};
   const FILTERS=[['alles','Alles'],['uit_pool','Uit pool'],['bestelling','Bestelling'],['klaar','Klaar']];
   const klaarN=g=>g.handelingen.filter(h=>h.aangevuld).length;
   const bakKlaar=g=>g.handelingen.length>0&&klaarN(g)===g.handelingen.length;
   // Wat vandaag vertrekt bovenaan, dan op vertrekdatum, bakken zonder vertrek onderaan; afgeronde bakken helemaal onderaan.
   function sorteer(groepen,vandaag){
-    const rang=g=>bakKlaar(g)?3:g.vertrek&&g.vertrek<=vandaag?0:g.vertrek?1:2;
+    const rang=g=>g.leeg?4:bakKlaar(g)?3:g.vertrek&&g.vertrek<=vandaag?0:g.vertrek?1:2;
     return groepen.slice().sort((a,b)=>rang(a)-rang(b)||(a.vertrek||'9').localeCompare(b.vertrek||'9')||(a.bak.code||'').localeCompare(b.bak.code||''));
   }
   const passeert=(h,f)=>f==='alles'||(f==='klaar'?!!h.aangevuld:f==='uit_pool'?h.soort==='uit_pool':f==='bestelling'?h.soort==='bestelling':true);
@@ -25,16 +25,16 @@
       const chips=FILTERS.map(([k,n])=>`<span class="chip${filter===k?' act':''}" role="button" tabindex="0" data-av="filter" data-a="${k}">${n} <b>${k==='alles'?t.totaal||0:k==='klaar'?t.klaar||0:t[k]||0}</b></span>`).join('');
       const groepen=sorteer(data.bakken||[],vandaag||data.datum).filter(g=>filter==='alles'||g.handelingen.some(h=>passeert(h,filter)));
       const kaarten=groepen.map(g=>{
-        const n=g.handelingen.length,k=klaarN(g),vt=g.vertrek;
+        const n=g.handelingen.filter(h=>!h.wacht_op_kantoor).length,k=klaarN(g),vt=g.vertrek;
         const vandaagVt=vt&&vt<=(vandaag||data.datum);
-        return `<div class="bakK${bakKlaar(g)?' klaar':''}" role="button" tabindex="0" data-av="open" data-id="${g.sessie_id}"><span class="code">${esc(g.bak.code||'—')}</span><div class="nm">${esc(g.bak.naam)}<b>${esc([g.locatie,g.week?'wk '+g.week:'',plaatsTekst(g)].filter(Boolean).join(' · '))}</b></div><div class="rechts"><span class="pil ${bakKlaar(g)?'groen':k?'blauw':''}">${k} van ${n} klaar</span>${vt&&!bakKlaar(g)?`<small class="${vandaagVt?'vandaag':''}">${vandaagVt?'vertrekt vandaag':'vertrekt '+esc(dagTekst(vt))}</small>`:''}</div></div>`;
+        return `<div class="bakK${bakKlaar(g)?' klaar':''}" role="button" tabindex="0" data-av="open" data-id="${g.sessie_id}"><span class="code">${esc(g.bak.code||'—')}</span><div class="nm">${esc(g.bak.naam)}<b>${esc([g.locatie,g.week?'wk '+g.week:'',plaatsTekst(g)].filter(Boolean).join(' · '))}</b></div><div class="rechts"><span class="pil ${bakKlaar(g)?'groen':k?'blauw':''}">${g.leeg?'niets aan te vullen':k+' van '+n+' klaar'}</span>${vt&&!bakKlaar(g)?`<small class="${vandaagVt?'vandaag':''}">${vandaagVt?'vertrekt vandaag':'vertrekt '+esc(dagTekst(vt))}</small>`:''}</div></div>`;
       }).join('')||'<div class="leeg">Er is niets aan te vullen.</div>';
       return `<div class="kopB"><div><b>Aanvullen · Rozenweg</b><span>${esc(dagTekst(data.datum))} · ${t.totaal||0} handeling${t.totaal===1?'':'en'} in ${t.bakken||0} bak${t.bakken===1?'':'ken'}</span></div><a class="knop licht klein" href="/aanvullijst-print">🖨 Printlijst</a></div>
         <div class="gbody"><div class="filters2">${chips}</div>${kaarten}<button type="button" class="knop licht meldKnop" data-av="meld-open" data-los="1">+ Melding zonder bak</button><div class="hint">Kies een bak en vink af wat je gedaan hebt. Afschrijven vraagt een foto. Wat op een bestelling wacht, kan pas afgevinkt worden als die binnen is.</div></div>${st.meld?BOUW.meldOverlay(st.meld,null):''}`;
     },
     // Eén handeling: groot vinkvak, aantal, foto, uitleg.
     handeling(h,st={}){
-      const p=PIL[h.soort]||['',h.soort],foto=(st.fotos||{})[h.regel_id];
+      const p=(h.actie==='herstellen'?PIL.herstellen:PIL[h.soort])||['',h.soort],foto=(st.fotos||{})[h.regel_id];
       const gemeldWacht=!!h.wacht_op_kantoor;
       const wacht=!h.kan_afvinken&&!h.aangevuld&&!gemeldWacht;
       const kleur=h.aangevuld?'groen':wacht?'rood':'';
@@ -52,7 +52,7 @@
     },
     // AV2: overlay van volle hoogte om kapot of weg te melden. Een melding is geen beslissing: kantoor beslist in Nakijken.
     meldOverlay(m,g){
-      const namen=g?[...new Set(g.handelingen.map(h=>h.stuk))]:[];
+      const namen=g?[...new Set([...(g.inhoud||[]),...g.handelingen.map(h=>h.stuk)])]:[];
       const vrij=!g||m.stuk==='__vrij'||(m.stuk&&!namen.includes(m.stuk));
       const opties=namen.map(n=>`<option value="${esc(n)}"${m.stuk===n?' selected':''}>${esc(n)}</option>`).join('')+(g?`<option value="__vrij"${vrij?' selected':''}>Ander stuk (typ de naam)…</option>`:'');
       const kapot=m.soort==='kapot';
@@ -116,12 +116,12 @@
   document.addEventListener('click',async e=>{
     const el=e.target.closest('[data-av]');if(!el||el.disabled||el.tagName==='INPUT')return;
     const a=el.dataset.av;
-    if(a==='meld-open'){const g=el.dataset.los?null:groep();const namen=g?[...new Set(g.handelingen.map(h=>h.stuk))]:[];ST.meld={soort:'kapot',aantal:1,stuk:el.dataset.stuk||(namen[0]||'__vrij'),naam:'',waar:'',notitie:'',foto:''};return teken();}
+    if(a==='meld-open'){const g=el.dataset.los?null:groep();const namen=g?[...new Set([...(g.inhoud||[]),...g.handelingen.map(h=>h.stuk)])]:[];ST.meld={soort:'kapot',aantal:1,stuk:el.dataset.stuk||(namen[0]||'__vrij'),naam:'',waar:'',notitie:'',foto:''};return teken();}
     if(a==='meld-sluit'){ST.meld=null;return teken();}
     if(a==='meld-soort'){ST.meld.soort=el.dataset.a;return teken();}
     if(a==='meld-stuur'){
       const m=ST.meld,g=groep();if(!m)return;
-      const naam=(g&&m.stuk&&m.stuk!=='__vrij'&&g.handelingen.some(h=>h.stuk===m.stuk))?m.stuk:(m.naam||'').trim();
+      const naam=(g&&m.stuk&&m.stuk!=='__vrij'&&(g.inhoud||[]).concat(g.handelingen.map(h=>h.stuk)).includes(m.stuk))?m.stuk:(m.naam||'').trim();
       if(!naam)return toast('Vul in welk stuk het is.','warn');
       if(!(m.aantal>=1))return toast('Vul een aantal in (minstens 1).','warn');
       if(m.soort==='kapot'&&!m.foto)return toast('Kapot melden vraagt een foto: tik op 📷.','warn');

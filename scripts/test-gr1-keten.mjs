@@ -236,7 +236,7 @@ try {
   check(wijzPerStap[0] === 0 && wijzPerStap.slice(1).every((n) => n > 0), `wijzigingen per stap: ${wijzPerStap.join(', ')} (stap 1 is enkel kijken → 0; elke stap met een handeling heeft regels)`);
   const ruim = await opruimen(c, (m) => console.log('      ' + m));
   const na = await tellingen();
-  const LOG = new Set(['wijzigingen', 'activiteiten_log', 'sessies']);
+  const LOG = new Set(['wijzigingen', 'activiteiten_log', 'sessies', 'meldingen', 'meldingen_gelezen', 'item_type_stock']) // TF4: meldingen (ME1) en een voorraadrij die ontstaat bij 'terug naar pool' horen niet bij de opruiming;
   const verschil = Object.keys({ ...voor, ...na }).filter((t) => !LOG.has(t) && (voor[t] || 0) !== (na[t] || 0)).map((t) => `${t} ${voor[t] || 0}→${na[t] || 0}`);
   console.log(`      rijtellingen (zonder logtabellen): ${verschil.length ? verschil.join(', ') : 'identiek'}`);
   check(['vakantieperiodes', 'kampmomenten', 'transport_ritten', 'transport_taken', 'personeel'].every((t) => (voor[t] || 0) === (na[t] || 0)), 'periode, kampmomenten, ritten, taken en personeel exact terug op het begin');

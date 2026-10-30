@@ -32,7 +32,9 @@
     var r = data.rit, v = data.voortgang;
     var delen = [r.chauffeur, r.voertuig].filter(Boolean);
     delen.push(v.stops + ' ' + (v.stops === 1 ? 'stop' : 'stops'));
-    delen.push(v.geladen + ' van ' + v.stuks + ' stuks geladen');
+    var st = data.stops || [], tot = st.reduce(function (a, s) { return a + meeStuks(s); }, 0), gel = st.reduce(function (a, s) { return a + s.regels.filter(function (r) { return !isNietMee(r); }).reduce(function (b, r) { return b + eenheden(r); }, 0); }, 0);
+    if (!st.length) { tot = v.stuks; gel = v.geladen; }
+    delen.push(gel + ' van ' + tot + ' stuks geladen');
     return delen.join(' · ');
   }
   function pilRit(status) {
