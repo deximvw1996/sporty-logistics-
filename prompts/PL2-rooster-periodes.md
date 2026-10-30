@@ -1,0 +1,37 @@
+# PROMPT PL2 — PLANNING › ROOSTER (week + seizoen) en PERIODES (exacte kopie van design/mockup-planning-v3.html en het Periodes-scherm van design/mockup-planning-rest.html)
+**Chat C (Opus) · map `D:\Sporty\sporty-c` · branch `bouw-c` · poort 3303 · verslag `OVERLEG-c.md` · TIJDSLIMIET 3 uur**
+
+Lees eerst `CLAUDE.md`. Begin met `git fetch origin` en `git rebase origin/main` (TB2 en VT1 staan op main). Controleer de exitcode van de rebase zelf vóór je pusht. Lees dan volledig:
+1. `design/mockup-planning-v3.html` — goedgekeurd door Maxim 30/10. Schermen "Rooster · Week" en "Rooster · Seizoen" zijn bindend. (De twee Sport-schermen bouwt chat D in PL3; niet jouw werk.)
+2. `design/mockup-planning-rest.html`, scherm Periodes — standaardpatroon, weken, gesloten dagen, blok "Klaar voor de start?", knop "Kopieer naar nieuwe periode".
+3. Voorbeeld op het patroon: `public/voertuigen.*` + `routes/voertuigen.js` (weekkeuze ‹ › met `?week=`), `public/locaties.*` (LO1). Opbouw overnemen: data-API apart, `nav.js`, `window.sportyApi`.
+4. Bestaande data: `kampmomenten (locatie_id, week, periode_id, kv_persoon_id)`, `kampmoment_themas (kampmoment_id, thema_id, leeftijdsgroep, dag)`, `themas`, `thema_behoefte (thema_id, vast_type, aantal, bak_id)`, `routes/planning.js`, `routes/kampmomenten.js`, `routes/pool-overzicht.js` (hoe "nodig" per vast_type berekend wordt), `routes/conflicten.js`, `sport_planning` (alleen lezen voor de kolom Sport).
+
+Je raakt ALLEEN: `routes/rooster.js` (nieuw), `routes/periodes-overzicht.js` (nieuw), namen in de lijst van `server.js`, `public/rooster.html/.js/.css`, `public/periodes.html/.js/.css` (nieuw), `public/nav.js` (Planning-subbalk: Kampmomenten `/kampmomenten` · Rooster `/rooster` · Sportrooster `/sportrooster` · Periodes `/periodes`, ALLE VIER, ook die van D; PAGINA-tabel), `index.html` (alleen vervangstroken op oude tabs Rooster/Thema's per week/Periodes), `scripts/test-pl2-rooster.mjs`, `OVERLEG-c.md`. NIET: `lib/migraties.js`, `routes/sport*.js`, `public/sportrooster.*` (chat D). Heb je toch een migratie nodig: meld het in GEVONDEN en werk zonder.
+
+## Hoe de werking in elkaar zit (BINDEND, Maxim 30/10)
+- **Elk thema bestaat maar één keer.** Er is van geen enkel thema twee keer materiaal. Dus: hetzelfde thema in dezelfde week op twee locaties = **altijd een conflict** ("⚠ dubbel", rood).
+- **Herhaald:** hetzelfde thema op dezelfde locatie in twee opeenvolgende kampweken = melding "↻" (oranje): dezelfde kinderen zien twee weken hetzelfde thema.
+- **Gedeeld materiaal:** onderdelen van thema's (bv. springdieren) bestaan soms 2–3 keer en horen bij meerdere thema's. Tel per week per `vast_type` (uit `thema_behoefte`) wat de thema's van die week samen nodig hebben, en vergelijk met wat er is (zelfde bron als `pool-overzicht` gebruikt). Meer nodig dan er is = melding "◐" (paars) op alle betrokken thema's van die week.
+- Een locatie kan 1 tot 8 thema's per week hebben (uitzonderlijk). Groep = `leeftijdsgroep` van `kampmoment_themas` (KL/LS) + volgnummer binnen het kampmoment ("KL1", "KL2", "LS1"…).
+- Meldingen zijn uitleg, nooit een verbod (KERNREGEL). Niets blokkeren.
+
+## Punt 1 — API
+- `GET /api/rooster/week?periode_id=&week=`: `week {nr, van, tot, label}`, `tellers {alle, dubbel, herhaald, gedeeld, geen_kv}`, `locaties[] {kampmoment_id, locatie_id, naam, kv, themas[{groep, thema_id, naam, meldingen:[dubbel|herhaald|gedeeld]}], sport[] (namen uit sport_planning van die week), meldingen_n}`.
+- `GET /api/rooster/kampmoment/:id`: paneel rechts: thema's per groep met week ervoor/deze/erna (drie kolommen), `let_op[]` (tekst + uitleg + betrokken locaties), sport en transport (brengen/halen-rit uit `transport_ritten`).
+- `GET /api/rooster/seizoen?periode_id=`: één rij per thema (`themas` dat in de periode voorkomt; chip "Niet gebruikt" telt de rest), `weken[]` met per week `locaties[]` (meestal 0 of 1, bij dubbel 2+), vlaggen dubbel/herhaald; `tellers`.
+- `GET /api/rooster/thema/:id?periode_id=`: paneel "hele zomer": per week locatie + groep + KV, vrije weken, voorstel (een thema dat die week vrij is en nog niet eerder op die locatie stond), gedeeld materiaal van dat thema.
+- `POST /api/rooster/wissel {kampmoment_id, groep_thema_id (rij in kampmoment_themas), nieuw_thema_id}`: wisselt het thema van die groep, gelogd met oud/nieuw, geeft de nieuwe meldingen terug. (Wissel opent een keuzelijst met eerst de voorgestelde thema's.)
+
+## Punt 2 — Pagina `/rooster` (alleen kantoor)
+Exacte kopie van beide Rooster-schermen in v3: schakelaar Week / Seizoen (`?zicht=seizoen`), weekkeuze ‹ › (`?week=`), chips Alle · ⚠ Dubbel · ↻ Herhaald · ◐ Gedeeld · Geen KV (week) en Alle · ⚠ Dubbel · ↻ Herhaald · Niet gebruikt (seizoen, + zoekveld). Labels "KL2 Ridders ↻": alleen het teken in het label, uitleg in de legende onderaan en in het paneel. Seizoenscel = locatienaam; klik opent het themapaneel; klik op een rij in Week opent het kampmomentpaneel. Knoppen: Open kampmoment → `/kampmomenten?id=`, Wissel, Toon, Naar weekbeeld, ‹ wk / wk ›. Export (CSV van het getoonde beeld).
+
+## Punt 3 — Pagina `/periodes` (alleen kantoor)
+Exacte kopie van het Periodes-scherm in `mockup-planning-rest.html`: lijst van periodes, detail met weken (aantal kampmomenten per week), gesloten dagen, "Klaar voor de start?" (telt: kampmomenten zonder KV, zonder thema, dubbele thema's, sport te weinig sets (lees `GET /api/sportrooster/seizoen` als die bestaat, anders weglaten en melden), ritten ontbreken) met links naar het juiste scherm, knop "Kopieer naar nieuwe periode" (kampmomenten + thema's, zonder KV's en ritten; gelogd). Gebruik de bestaande periode-routes waar ze bestaan.
+
+## Punt 4 — Gsm (MOBIEL-REGEL)
+390 px: Week-beeld als lijst van locaties (labels lopen door), paneel als volgend scherm met ‹ terug; Seizoen horizontaal scrollbaar binnen het raster (niet de pagina), eerste kolom vast; knoppen ≥ 44 px. Meet en meld.
+
+## Bewijs
+- `scripts/test-pl2-rooster.mjs` (via `_testhulp` op `herfst-test.db`, eigen poort): zelfde thema twee locaties zelfde week → `dubbel` bij beide; zelfde thema zelfde locatie week n en n+1 → `herhaald` (week n+2 met een week ertussen: niet); drie thema's met hetzelfde `vast_type` en maar 2 beschikbaar → `gedeeld` bij alle drie, bij 2 thema's niet; groep-labels KL1/KL2/LS1 juist; seizoen geeft per thema de juiste locaties; wissel logt en haalt de melding weg; kopieer-periode maakt kampmomenten zonder KV; `GET /rooster` en `/periodes` 200 met subbalk (4 links), niet-kantoor 403; vervangstroken.
+- DOM-bouw-test met echte data-JSON + gsm-meting. Browsercontrole: NOOIT een adres met gebruikersnaam/wachtwoord openen (dat vraagt Maxims toestemming en blokkeert je); test via scripts met de inlog in de request-header. Lukt een browserstap niet zonder toestemming: overslaan, melden, verder. Volle run 2× groen. Commit per punt, push `origin HEAD:bouw-c`. NOOIT naar main, NOOIT deploy.bat. Verslag onderaan `OVERLEG-c.md` per punt + GEVONDEN. Laatste bericht eindigt met exact: **VOLLEDIG KLAAR MET DE PROMPT. NU IS HET TERUG AAN DE HOOFDCHAT.** Bij de tijdslimiet: stop, commit, "Stand bij tijdslimiet", push, **TIJDSLIMIET BEREIKT: GESTOPT MET EEN TUSSENSTAND. NU IS HET TERUG AAN DE HOOFDCHAT.** Volgorde bij tijdnood: 1, 2, 3, 4.

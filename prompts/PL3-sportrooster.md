@@ -1,0 +1,33 @@
+# PROMPT PL3 — PLANNING › SPORTROOSTER per dag en per soort sport (exacte kopie van design/mockup-planning-v3.html, schermen "Sport · Week" en "Sport · Seizoen")
+**Chat D (Sonnet) · map `D:\Sporty\sporty-d` · branch `bouw-d` · poort 3304 · verslag `OVERLEG-d.md` · TIJDSLIMIET 3 uur**
+
+Lees eerst `CLAUDE.md`. Begin met `git fetch origin` en `git rebase origin/main` (TB2 en VT1 staan op main). Controleer de exitcode van de rebase zelf vóór je pusht. Lees dan volledig:
+1. `design/mockup-planning-v3.html` — goedgekeurd door Maxim 30/10. Schermen "Sport · Week" en "Sport · Seizoen" zijn bindend. (Rooster en Periodes bouwt chat C in PL2.)
+2. Voorbeeld op het patroon: `public/voertuigen.*` + `routes/voertuigen.js` (VT1, jouw eigen werk: weekstrook en `?week=`).
+3. Bestaande sportdata: `sport_items` (112, `name` bv. "Archery tag A", "Hockey 3", `item_type_id`), `sport_sets (item_id, label, locatie_id)`, `sport_planning (set_id, locatie_id, week, periode_id, UNIQUE(set_id, week, periode_id))`, `routes/sport.js`, `routes/pool-overzicht.js` (sportpakketten in Pool, MA2), de generator die sets meeneemt op de levering (`routes/transport.js`, zoek `sport_planning`), `routes/conflicten.js` ("sport gepland zonder transport"), `routes/taken.js` (Transport › Taken).
+
+Je raakt ALLEEN: `lib/migraties.js` (één migratie onderaan, nummer na de hoogste), `routes/sportrooster.js` (nieuw; naam in de lijst van `server.js`), `routes/sport.js`, `routes/transport.js` en `routes/conflicten.js` (alleen: lezen per dag i.p.v. per week), `public/sportrooster.html/.js/.css` (nieuw), `scripts/test-pl3-sportrooster.mjs`, `OVERLEG-d.md`. NIET `public/nav.js` (chat C zet de link `/sportrooster` in de subbalk; tot dan bereik je de pagina via de URL), niet `index.html`, niet `routes/rooster.js`/`periodes*`.
+
+## Hoe de werking in elkaar zit (BINDEND, Maxim 30/10)
+- **Sportpakketten van dezelfde sport zijn uitwisselbaar.** Er zijn 112 pakketten in ±60 soorten (Hockey 4, Kinball 5, Archery tag 2 …). Kantoor plant **een soort sport** op een locatie ("1× hockey in Betekom"); het systeem kiest welke set. Soort = `sport_items.name` zonder de laatste letter/cijfer-aanduiding ("Archery tag A" → "Archery tag", "Hockey 3" → "Hockey"); neem de bestaande groepering uit MA2/Pool als die er is, anders deze regel in één helper. Sets die niet in die vorm passen ("Kinball Abdij") zijn een eigen soort.
+- **Sport kan midden in de week verhuizen**: bv. ma–wo in de sporthal, do–vr in de abdij. Planning gebeurt dus **per dag** (ma–vr) binnen een week.
+- **Een verhuis wordt gedaan door een chauffeur of coördinator.** Een verhuis midden in de week maakt een taak op Transport › Taken (bestaande taken-tabel), met wie (keuzelijst personeel met rol chauffeur of coordinator), wanneer (de avond vóór de eerste nieuwe dag), van → naar.
+- **Te weinig sets** (meer nodig op één dag dan er sets van die soort zijn) = rode melding met voorstel (een andere sport die die dagen vrij is). Uitleg, nooit een verbod (KERNREGEL).
+
+## Punt 1 — Data
+- Migratie: kolommen `sport_planning.dag_van` en `dag_tot` (1=ma … 5=vr; standaard 1 en 5) en `sport_planning.soort` (tekst). De UNIQUE wordt (set_id, week, periode_id, dag_van). Backfill: bestaande rijen krijgen 1–5 en hun soort. Bestaande lezers (generator, conflicten, pool "nodig") blijven werken: een set die op een dag ergens staat telt; de generator neemt hem mee op de levering naar de locatie waar hij op dag_van staat.
+- Toewijzen: `POST /api/sportrooster/plan {periode_id, week, soort, locatie_id, dag_van, dag_tot}` kiest zelf een set van die soort die op die dagen vrij is (eerst de set die de dag ervoor al op die locatie of in de buurt stond); geen vrije set → toch opslaan met `set_id` van de minst belaste set en melding `te_weinig`. `PUT …/:id {dag_van, dag_tot, locatie_id}` (Wijzig dagen), `DELETE …/:id`. Een wijziging die een set midden in de week laat verhuizen maakt of past de verhuistaak aan. Alles gelogd.
+
+## Punt 2 — API en pagina `/sportrooster` (alleen kantoor)
+- `GET /api/sportrooster/week?periode_id=&week=`: `tellers {ingepland, alle, te_weinig, verhuis}`, `sporten[] {soort, sets, dagen[5] {in_gebruik, te_weinig}}`. Chip Ingepland = alleen soorten met minstens één planning die week; Alle = alle soorten.
+- `GET /api/sportrooster/soort/:soort?week=`: paneel: raster locatie × ma–vr (● per dag, rood bij te weinig) + totaalrij, Let op met voorstel + Toepassen, Verhuis midden in de week (wanneer, van → naar, wie, taak-link), tabs Week / Hele zomer / Sets n.
+- `GET /api/sportrooster/seizoen?periode_id=`: per soort × week de drukste dag `in_gebruik/sets`, `te_weinig`; paneel per week de locaties.
+- Pagina = exacte kopie: schakelaar Week / Seizoen, ‹ week ›, vakjes met alleen "n/m" + balkje (licht = in gebruik, donkerder = alles weg, rood = te weinig), legende onderaan, + Inplannen (overlay: soort, locatie, dagen ma–vr als vijf knoppen), Wijzig dagen, Toepassen, Oplossen, Naar weekbeeld, Export.
+- Laat ook `GET /api/sportrooster/seizoen` een veld `te_weinig_totaal` geven (Periodes van chat C leest dat).
+
+## Punt 3 — Gsm (MOBIEL-REGEL)
+390 px: lijst van sporten met vijf vakjes (passen), paneel als volgend scherm met ‹ terug, seizoen horizontaal scrollbaar binnen het raster, knoppen ≥ 44 px, geen horizontale paginascroll. Meet en meld.
+
+## Bewijs
+- `scripts/test-pl3-sportrooster.mjs` (via `_testhulp` op `herfst-test.db`, eigen poort): migratie backfilt 1–5 en soort; plan "hockey Betekom ma–wo" + "hockey Sportschuur do–vr" kiest dezelfde set en maakt één verhuistaak (wo-avond); 5× hockey op do bij 4 sets → `te_weinig` op do; sets uitwisselbaar (twee plannen krijgen verschillende sets); generator neemt de set mee naar de locatie van dag_van; conflicten en pool "nodig" blijven kloppen; week- en seizoen-API juist; `GET /sportrooster` 200, niet-kantoor 403; bestaande tests (ma2, rp1, gr1-keten met GR1=1) groen.
+- DOM-bouw-test met echte data-JSON + gsm-meting. Browsercontrole: NOOIT een adres met gebruikersnaam/wachtwoord openen (dat vraagt Maxims toestemming en blokkeert je); test via scripts met de inlog in de request-header. Lukt een browserstap niet zonder toestemming: overslaan, melden, verder. Volle run 2× groen. Commit per punt, push `origin HEAD:bouw-d`. NOOIT naar main, NOOIT deploy.bat. Verslag onderaan `OVERLEG-d.md` per punt + GEVONDEN. Laatste bericht eindigt met exact: **VOLLEDIG KLAAR MET DE PROMPT. NU IS HET TERUG AAN DE HOOFDCHAT.** Bij de tijdslimiet: stop, commit, "Stand bij tijdslimiet", push, **TIJDSLIMIET BEREIKT: GESTOPT MET EEN TUSSENSTAND. NU IS HET TERUG AAN DE HOOFDCHAT.** Volgorde bij tijdnood: 1, 2, 3.
