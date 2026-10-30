@@ -446,3 +446,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-30 — AV2 aanvuller meldt kapot/weg (D) gekeurd en live: 48 ok; herkomstlabel ook op gsm-Nakijken toegevoegd.
 - 2026-10-30 — Prompt T2 (testchat): gerichte test van alle nieuwe schermen, lokaal, desktop en gsm.
 - 2026-10-30 — T2 afgerond (33 GEVONDEN, 4 blokkers). Prompts TF3 (C: rechten, login, oude app, ritmeldingen) en TF4 (D: Nakijken, keten, kleine fouten).
+- 2026-10-30 — Besluiten Maxim voor de ronde na TF3/TF4: goedgekeurde KV-aanvraag = aanvullijst bij voorraad, anders Tekorten, plus transporttaak naar de locatie (G7); bestelling deels binnen met aantal, rest blijft open (G13); mockup gsm voor Personeel, Kampmomenten, Bakken, bouwen na de blokkers (G18).
