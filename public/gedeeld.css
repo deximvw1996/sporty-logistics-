@@ -1,0 +1,5 @@
+/* public/gedeeld.css — PL2 punt 2b: Planning › Gedeeld materiaal (design/mockup-gedeeld-materiaal.html). Basis = rooster.css (zelfde stijlblad); hier de eigen kolommen. */
+#f1 .kopr,#f1 .r{grid-template-columns:36px 1.4fr 0.6fr 0.6fr 2.4fr 120px;align-items:center}#f1 .get{text-align:right;font-weight:700;padding-right:14px}
+#f1 .r{padding-top:0;padding-bottom:0}
+.sgrid .c.ok{background:#eef2ff}
+@media (max-width:767px){#f1 .r>span:nth-child(5){flex:1 1 100%;order:3}#f1 .r .get{text-align:left;padding-right:0}#f1 .r .get::before{color:#64748b;font-weight:500;margin-right:3px}#f1 .r .get.n::before{content:'nodig'}#f1 .r .get.z::before{content:'er zijn'}}
