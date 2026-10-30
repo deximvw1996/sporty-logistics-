@@ -441,3 +441,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-30 — Gsm-mockup ronde 1 goedgekeurd; prompts MOB1 (C) en MOB2 (D).
 - 2026-10-30 — MOB1 schil/login/Vandaag (C) + MOB2 gsm ritplanning/nakijken/rooster (D) gekeurd en live; 44/44.
 - 2026-10-30 — Prompts AV1 (D: aanvullijst gsm, punt 76) en ME1 (C: meldingen + restpunten).
+- 2026-10-30 — AV1 aanvullijst gsm (D) gekeurd en live; 45/45.
