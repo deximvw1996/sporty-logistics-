@@ -315,7 +315,7 @@ h1{font-size:22px;font-weight:800;color:#1e3a8a}.sub{font-size:13px;color:#64748
 .leeg{padding:30px 0;color:#64748b}@media print{.knoppen{display:none}body{padding:0}}</style></head><body>
 <h1>Bestellijst</h1><div class="sub">${esc(B.periode?B.periode.naam:'')} · ${esc(B.datum)} · ${B.artikels.length} artikel${B.artikels.length===1?'':'s'} · leveren aan Rozenweg</div>
 <div class="knoppen"><button onclick="print()">🖨 Afdrukken</button><a href="/tekorten">‹ Tekorten</a></div>
-${B.artikels.map(a=>`<div class="r"><span class="vak"></span><div class="nm">${esc(a.naam)}${a.stand==='besteld'?' <span class="pil">📦 besteld</span>':''}<b>${esc([a.waar_kopen?'bij '+a.waar_kopen:'',`tekort ${fmt(a.tekort)} · ${a.waar_tekst}`].filter(Boolean).join(' · '))}</b></div><div class="n">${fmt(a.aantal)}<small>${esc(a.eenheid||'stuk')}</small></div></div>`).join('')||'<div class="leeg">Niets te bestellen.</div>'}
+${B.artikels.map(a=>`<div class="r"><span class="vak"></span><div class="nm">${esc(a.naam)}${a.stand==='besteld'?' <span class="pil">📦 besteld</span>':''}<b>${esc([a.waar_kopen?'bij '+a.waar_kopen:'',a.tekort?`tekort ${fmt(a.tekort)} · ${a.waar_tekst}`:a.waar_tekst].filter(Boolean).join(' · '))}</b></div><div class="n">${fmt(a.aantal)}<small>${esc(a.eenheid||'stuk')}</small></div></div>`).join('')||'<div class="leeg">Niets te bestellen.</div>'}
 </body></html>`;
   }
   ctx._tekortenBestellijstHtml=bestellijstHtml;

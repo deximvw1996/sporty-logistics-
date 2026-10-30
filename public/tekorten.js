@@ -8,7 +8,7 @@
   const eenh=(n,e)=>fmt(n)+(e&&!/^stuk/.test(e)?' '+esc(e):'');
   const PIL={te_bestellen:['rood','te bestellen'],besteld:['blauw','📦 besteld'],binnen:['groen','binnen'],uit_voorraad:['paars','uit voorraad'],afgehandeld:['','afgehandeld']};
   const pil=s=>{const p=PIL[s]||['',s];return `<span class="pil ${p[0]}">${p[1]}</span>`;};
-  const CHIPS=[['open','Open'],['te_beslissen','Te beslissen'],['te_bestellen','Te bestellen'],['besteld','Besteld'],['binnen','Binnen'],['uit_voorraad','Uit voorraad'],['afgehandeld','Afgehandeld']];
+  const CHIPS=[['open','Open'],['te_beslissen','Te beslissen'],['te_bestellen','Te bestellen'],['besteld','Besteld'],['binnen','Binnen'],['afgehandeld','Afgehandeld']]; // "Uit voorraad" als 7e chip paste niet (gemeten: 11 px te breed op 1920)
   const BOUW={
     chips(tel,act){return CHIPS.map(([k,t])=>k==='te_beslissen'?`<a class="chip" href="/nakijken" title="Keuren gebeurt in Nakijken">${t} <b>${tel[k]||0}</b></a>`
       :`<span class="chip ${act===k?'act':''}" data-f="${k}">${t} <b>${tel[k]||0}</b></span>`).join('');},

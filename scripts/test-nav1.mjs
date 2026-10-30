@@ -14,7 +14,7 @@ try {
   T.check(NAV.BOVEN.map((o) => o.href).join() === HREFS.join() && NAV.BOVEN.map((o) => o.naam).join() === NAMEN.join(), 'mapping bovenbalk: Vandaag /vandaag · Planning /kampmomenten · Transport /ritplanning · Materiaal /bakken · Locaties /#locaties · Voorraad & controles /nakijken · Beheer /personeel');
   const SUBS = {
     planning: ['/kampmomenten', '/#kampplanner', '/#periodes', '/#themas'], transport: ['/ritplanning', '/taken', '/voertuigen'] /* VT1 */,
-    materiaal: ['/themas', '/bakken', '/pool', '/catalogus'] /* MA2 */, voorraad: ['/nakijken', '/#tekorten', '/#tekorten', '/#voorraad'], beheer: ['/personeel', '/logboek', '/#beheer', '/#beheer']
+    materiaal: ['/themas', '/bakken', '/pool', '/catalogus'] /* MA2 */, voorraad: ['/nakijken', '/tekorten', '/aanvullijst-print'] /* TB2 */, beheer: ['/personeel', '/logboek', '/#beheer', '/#beheer']
   };
   T.check(Object.entries(SUBS).every(([k, v]) => NAV.SUB[k].map((s) => s[1]).join() === v.join()), 'mapping subbalken (planning, transport, materiaal, voorraad, beheer) exact volgens de prompt');
   const PAGINAS = { '/vandaag': ['vandaag', 'vandaag.js'], '/kampmomenten': ['planning', 'kampmomenten.js'], '/ritplanning': ['transport', 'ritplanning.js'], '/taken': ['transport', 'taken.js'], '/bakken': ['materiaal', 'bakken.js'], '/nakijken': ['voorraad', 'nakijken.js'], '/personeel': ['beheer', 'personeel.js'], '/logboek': ['beheer', 'logboek.js'] };
@@ -33,7 +33,7 @@ try {
   const ix = fs.readFileSync(T.ROOT + '/index.html', 'utf8');
   T.check(/id="vervang-strook"/.test(ix) && /function toonVervangstrook/.test(ix) && /Dit scherm is vervangen door/.test(ix), 'index.html heeft de vervangstrook');
   const map = [['transport-plan', '/ritplanning'], ['transport-noden', '/taken'], ['transporten', '/ritplanning'], ['kampplanner', '/kampmomenten'], ['personeel', '/personeel'], ['overzicht', '/vandaag']];
-  T.check(map.every(([, h]) => ix.includes("'" + h + "'")) && /ms==='themabakken'.*links=\[\['Bakken','\/bakken'\]\]/.test(ix) && /ms==='nakijken'\)links=\[\['Voorraad & controles › Nakijken','\/nakijken'\]\]/.test(ix), 'de strook wijst: transport → Ritplanning/Taken, planning → Kampmomenten, bakken → Bakken, personeel → Personeel/Logboek, nakijken → Nakijken, overzicht → Vandaag');
+  T.check(map.every(([, h]) => ix.includes("'" + h + "'")) && /ms==='themabakken'.*links=\[\['Bakken','\/bakken'\]\]/.test(ix) && /ms==='nakijken'\)links=\[\['Voorraad & controles › Nakijken','\/nakijken'\]/.test(ix), 'de strook wijst: transport → Ritplanning/Taken, planning → Kampmomenten, bakken → Bakken, personeel → Personeel/Logboek, nakijken → Nakijken, overzicht → Vandaag');
   T.check(/toonVervangstrook\(id\);/.test(ix) && /matSubtab=tab;toonVervangstrook\(null,tab\);/.test(ix), 'goTo en setMatSubtab tekenen de strook');
   const SECS = (/const SECS=\[([^\]]*)\]/.exec(ix)[1]).replace(/'/g, '').split(',');
   const alias = /const ALIAS=\{([^}]*)\}/.exec(ix)[1];
