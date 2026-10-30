@@ -145,6 +145,7 @@ try {
     .replace('/api/kampmomenten/:id/detail', '/api/kampmomenten/1/detail') // PL1: onbekend kampmoment → 404 (geen 5xx)
     .replace('/api/personeel/week/:week', '/api/personeel/week/1')
     .replace('/api/tekorten/:artikel_id/detail', '/api/tekorten/999999/detail') // TB2: onbekend artikel → 404 (geen 5xx)
+    .replace('/api/periodes/:id/detail', '/api/periodes/999999/detail').replace('/api/rooster/kampmoment/:id', '/api/rooster/kampmoment/999999').replace('/api/rooster/thema/:id', '/api/rooster/thema/999999') // PL2: onbekend → 404 (geen 5xx)
     .replace('/api/kv/:token', `/api/kv/${ids.kvToken || 'geen-token'}`)
     .replace('/kv/:token', `/kv/${ids.kvToken || 'geen-token'}`)
     .replace('/tel/:token', '/tel/geen-token') // KV1: monitor-pagina (404 bij onbekend token)

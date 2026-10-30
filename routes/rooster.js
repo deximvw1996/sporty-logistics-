@@ -220,7 +220,7 @@ module.exports = function(ctx){
 
   // Keuzelijst voor Wissel: eerst de voorgestelde thema's.
   app.get('/api/rooster/wissel-opties',alleenKantoor,(req,res)=>{
-    const kt=get('SELECT kt.*,km.periode_id FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE kt.id=?',[req.query.kt_id]);
+    const kt=get('SELECT kt.*,km.periode_id FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE kt.id=?',[parseInt(req.query.kt_id)||0]);
     if(!kt)return res.status(404).json({error:'Groep niet gevonden'});
     const A=analyse(periodeVan(kt.periode_id));const t=A.kts.find(x=>x.id===kt.id);
     const v=voorstellen(A,t,req.query.zonder||null);const vs=new Set(v.map(x=>x.thema_id));
@@ -231,7 +231,7 @@ module.exports = function(ctx){
   // ── punt 1: wissel (optioneel ruil met een andere groep: "thema naar andere week") ──
   app.post('/api/rooster/wissel',alleenKantoor,(req,res)=>{
     const {kampmoment_id,groep_thema_id,nieuw_thema_id,ruil_met_kt_id}=req.body||{};
-    const kt=get('SELECT * FROM kampmoment_themas WHERE id=?',[groep_thema_id]);
+    const kt=get('SELECT * FROM kampmoment_themas WHERE id=?',[parseInt(groep_thema_id)||0]);
     if(!kt||(kampmoment_id&&kt.kampmoment_id!==Number(kampmoment_id)))return res.status(404).json({error:'Groep niet gevonden in dit kampmoment'});
     const oud=get('SELECT * FROM themas WHERE id=?',[kt.thema_id]),nieuw=get('SELECT * FROM themas WHERE id=?',[nieuw_thema_id]);
     if(!nieuw)return res.status(400).json({error:'Kies een thema'});
@@ -271,7 +271,7 @@ module.exports = function(ctx){
       tellers:{gebruikt:stukken.filter(s=>s.gebruikt).length,alle:stukken.length,te_weinig:stukken.filter(s=>s.te_weinig).length},stukken});
   });
   app.get('/api/rooster/gedeeld/stuk',alleenKantoor,(req,res)=>{
-    const per=periodeVan(parseInt(req.query.periode_id));const A=analyse(per);const key=String(req.query.key||'');
+    const per=periodeVan(parseInt(req.query.periode_id));if(!per)return res.status(404).json({error:'Er is nog geen vakantieperiode.'});const A=analyse(per);const key=String(req.query.key||'');
     const s=A.def[key];if(!s)return res.status(404).json({error:'Stuk niet gevonden'});
     const w=weekNr(req.query.week,A);const x=stukUit(A,w,key);
     const kort=ww=>{if(ww<1||ww>A.aantal)return null;const y=stukUit(A,ww,key);return {week:ww,nodig:y.nodig,beschikbaar:y.beschikbaar,locaties:[...new Set(y.waar.map(z=>z.locatie))],themas:[...new Set(y.waar.map(z=>z.thema))]};};
