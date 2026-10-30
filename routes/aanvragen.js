@@ -88,6 +88,7 @@ module.exports = function(ctx){
     const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
       [taak.kampmoment_id||null,rit.personeel_id||null,'probleem_chauffeur',volledig,f.url,f.pad,'nieuw',now()],'rit-link');
     logAct('aanvraag','aangemaakt',`⚠️ ${volledig}`,locId,loc?loc.name:null);
+    if(ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:rit.chauffeur||'Chauffeur',tekst:volledig,link:'/vandaag?tab=beslissen'}); // ME1
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
   app.put('/api/aanvragen/:id/status',(req,res)=>{
@@ -131,6 +132,8 @@ module.exports = function(ctx){
           if(!rest)updateMetLog(req,"UPDATE transport_ritten SET status='geannuleerd' WHERE id=?",[t.rit_id],'aanvraag afgewezen');}
       }
     }
+    // ME1: een beslissing op een aanvraag gaat naar de coördinatoren (de KV heeft geen account); niet voor chauffeursmeldingen.
+    if(ctx.melding&&(status==='goedgekeurd'||status==='afgewezen')&&a.status!==status&&a.soort!=='probleem_chauffeur')ctx.melding(req,{voor_rol:'coordinator',van_naam:behandeld_door||'Kantoor',tekst:`Aanvraag "${a.tekst}" ${status}`,link:'/vandaag'});
     updateMetLog(req,'UPDATE aanvragen SET status=?,reden=?,spoed_taak_id=?,behandeld_door=?,behandeld_op=? WHERE id=?',
       [status,reden||'',spoed_taak_id||null,behandeld_door,now(),req.params.id]);
     logAct('aanvraag',status,`Aanvraag #${a.id} → ${status}`+(reden?` (${reden})`:''),null,null);

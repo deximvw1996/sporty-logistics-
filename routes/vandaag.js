@@ -225,6 +225,8 @@ module.exports = function(ctx){
   const ritTitel=r=>`Rit #${r.id}${r.voertuig?' · '+r.voertuig:''}`;
   const ritSub=r=>r.stops.map(s=>s.naam+(s.slot==='vrij'?' (vrij)':' 🔒')).join(' → ')+(r.bezetting?` · ${r.bezetting.n}/${r.bezetting.max} bakken${r.bezetting.n>r.bezetting.max?' ⚠':''}`:'');
   const ritItem=r=>({soort:'rit',ico:'🚚',tijd:r.tijd,titel:ritTitel(r),sub:ritSub(r),url:'/rit/'+r.token,onderweg:r.status==='onderweg'});
+  // ME1: de ongelezen meldingen uit routes/meldingen.js, in de vorm die de gsm-weergave leest (titel, sub).
+  const ongelezen=req=>ctx.meldingenVan(req.persoon,true).map(m=>({...m,sub:m.link?'tik om te openen':'',acties:[]}));
   function gsmVandaag(req,b,datum){
     const rol=req.persoon.rol;
     if(rol==='kantoor'){
@@ -235,15 +237,12 @@ module.exports = function(ctx){
       const kies=kiesNuKantoor(groepen);
       const wk=v.deze_week;
       const daarna=kies.daarna.concat(wk.length?[{soort:'week',ico:'🏫',tijd:'ma–vr',titel:`Deze week · ${wk.length} locatie${wk.length===1?'':'s'}`,sub:wk.slice(0,5).map(k=>k.locatie).join(', '),url:'/kampmomenten'}]:[]);
-      const meldingen=v.beslissen.filter(x=>x.bron==='melding');
+      const meldingen=ongelezen(req);
       return {nu:kies.nu,daarna,n_dingen:groepen.length,meldingen,beslissen:v.beslissen,periode:v.periode,
         tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.nakijken.length,meldingen:meldingen.length}};
     }
     const naam=req.persoon.naam;
-    // Meldingen: de eigen meldingen; een coördinator ziet alle open meldingen van chauffeurs.
-    const meld=all(`SELECT id,tekst,created_at,persoon_id FROM aanvragen WHERE soort='probleem_chauffeur' AND status='nieuw' ORDER BY id DESC`)
-      .filter(a=>rol==='coordinator'||a.persoon_id===req.persoon.persoon_id||String(a.tekst||'').startsWith(`Chauffeur ${naam} bij `))
-      .map(a=>({id:a.id,titel:a.tekst,sub:'melding '+_wanneer(a.created_at,datum)}));
+    const meld=ongelezen(req);
     // Tellen bij ophaling (coördinator): ophalingen van vandaag; de telling loopt via de KV-link van dat kampmoment.
     const tellen=rol!=='coordinator'?[]:all(`SELECT t.*,r.chauffeur,r.personeel_id,r.id AS rid,km.kv_token FROM transport_taken t JOIN transport_ritten r ON r.id=t.rit_id LEFT JOIN kampmomenten km ON km.id=t.kampmoment_id
       WHERE r.datum=? AND t.type='ophaling' AND t.status NOT IN ('gedaan','geannuleerd') AND r.status<>'geannuleerd' ORDER BY COALESCE(t.tijd,''),t.id`,[datum]).map(t=>{
@@ -261,7 +260,8 @@ module.exports = function(ctx){
   app.get('/api/vandaag',(req,res,next)=>{
     if(req.query.mijn==='1'&&req.persoon&&req.persoon.rol!=='kv'){
       const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoDate(new Date());
-      const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' AND personeel_id=? ORDER BY id",[dag,req.persoon.persoon_id]).map(r=>{
+      // ME1: ook ritten met alleen een chauffeursnaam, als die naam bij precies één actieve persoon past en dat deze gebruiker is.
+      const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id",[dag]).filter(r=>r.personeel_id?r.personeel_id===req.persoon.persoon_id:((ctx.persoonOpNaam(r.chauffeur)||{}).id===req.persoon.persoon_id)).map(r=>{
         const taken=all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[r.id]);
         let token=r.rit_token||'';if(!token){token=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[token,r.id]);} // MOB1: de NU-kaart opent de rit-weergave
         let bez=null;try{const i=ctx._ritPlanInfo(r);if(r.voertuig_capaciteit)bez={n:i.bezetting,max:r.voertuig_capaciteit};}catch(e){}

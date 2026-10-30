@@ -24,8 +24,8 @@
   var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/aanvullen': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer', '/backup': 'beheer', '/instellingen': 'beheer' };
   // MOB1: gsm-schil (< 768 px). Tabbalk per rol (design/MOBIEL-DEFINITIEF.html); dezelfde URL's als op desktop.
   var TABS = {
-    kantoor: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['transport', '🚚', 'Transport', '/ritplanning'], ['voorraad', '🧮', 'Voorraad', '/nakijken'], ['meldingen', '🔔', 'Meldingen', '/vandaag?tab=meldingen'], ['meer', '☰', 'Meer', '/meer']],
-    ploeg: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['ritten', '🚚', 'Ritten', '/vandaag?tab=ritten'], ['stockage', '📦', 'Stockage', '/aanvullen'], ['meldingen', '🔔', 'Meldingen', '/vandaag?tab=meldingen'], ['meer', '☰', 'Meer', '/meer']]
+    kantoor: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['transport', '🚚', 'Transport', '/ritplanning'], ['voorraad', '🧮', 'Voorraad', '/nakijken'], ['meldingen', '🔔', 'Meldingen', '/meldingen'], ['meer', '☰', 'Meer', '/meer']],
+    ploeg: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['ritten', '🚚', 'Ritten', '/vandaag?tab=ritten'], ['stockage', '📦', 'Stockage', '/aanvullen'], ['meldingen', '🔔', 'Meldingen', '/meldingen'], ['meer', '☰', 'Meer', '/meer']]
   };
   var tabsVan = function (rol) { return rol === 'kantoor' ? TABS.kantoor : TABS.ploeg; };
   // Welke tab is actief: volgt de PAGINA-tabel; de onderdelen zonder eigen tab vallen onder Meer.
@@ -34,6 +34,7 @@
     if (pad === '/vandaag') return q && (q[1] === 'meldingen' || q[1] === 'ritten') ? q[1] : 'vandaag';
     if (pad === '/meer') return 'meer';
     if (pad === '/aanvullen') return rol === 'kantoor' || !rol ? 'voorraad' : 'stockage'; // AV1
+    if (pad === '/meldingen') return 'meldingen'; // ME1
     if (rol === 'kantoor' && (onderdeel === 'transport' || onderdeel === 'voorraad')) return onderdeel;
     return 'meer';
   }
@@ -44,7 +45,7 @@
       return '<a data-tab="' + t[0] + '"' + (t[0] === act ? ' class="act"' : '') + ' href="' + t[3] + '">' + t[1] + '<span>' + esc(t[2]) + (n ? ' <em>' + n + '</em>' : '') + '</span></a>';
     }).join('');
   }
-  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || pad === '/aanvullen' || (rol === 'coordinator' && pad === '/tekorten'); };
+  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || pad === '/aanvullen' || pad === '/meldingen' || (rol === 'coordinator' && pad === '/tekorten'); };
   var isGsm = function () { return !!(root.matchMedia && root.matchMedia('(max-width:767px)').matches); };
   var naarLogin = function () { root.location.replace('/login?terug=' + encodeURIComponent(root.location.pathname + root.location.search)); };
   function tekenSchil(pad, tok) {
@@ -72,7 +73,7 @@
     if (typeof document === 'undefined') return;
     pad = pad || root.location.pathname;
     var actief = PAGINA[pad];
-    var eigenBalk = pad === '/meer' || pad === '/locaties'; // /locaties tekent zijn balken zelf (LO1); hij krijgt alleen de schil
+    var eigenBalk = pad === '/meer' || pad === '/locaties' || pad === '/meldingen'; // /locaties tekent zijn balken zelf (LO1); hij krijgt alleen de schil
     if (!actief && !eigenBalk) return;
     // MOB1: niet ingelogd op een personeelspagina op gsm → /login?terug=. De rest van de pagina (die zelf naar / zou sturen) wordt niet meer gelezen.
     var tok0 = null; try { tok0 = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }

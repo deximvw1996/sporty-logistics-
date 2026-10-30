@@ -88,7 +88,7 @@ module.exports = function(ctx){
       if(!bij){bij=bestaand.find(t=>!gebruikt.has(t.id)&&t.categorie.startsWith(`${prefix}${g.van_id}:${g.naar_id}:`));if(bij)gebruikt.add(bij.id);}
       if(bij){if(bij.opmerking!==tekst||bij.categorie!==g.sleutel||bij.datum!==g.datum)updateMetLog(req,'transport_taken',bij.id,{opmerking:tekst,categorie:g.sleutel,datum:g.datum},'sportrooster');return;}
       insMetLog(req,'transport_taken',['type','datum','tijd','van_locatie_id','naar_locatie_id','opmerking','wie','status','created_at','categorie','week'],
-        ['levering',g.datum,'17:00',g.van_id,g.naar_id,tekst,'','gepland',new Date().toISOString(),g.sleutel,week],'sportrooster');nieuw++;
+        ['levering',g.datum,(get("SELECT waarde FROM app_vlaggen WHERE naam='tijd_verhuis_avond'")||{}).waarde||'17:00',g.van_id,g.naar_id,tekst,'','gepland',new Date().toISOString(),g.sleutel,week],'sportrooster');nieuw++;
     });
     bestaand.filter(t=>!gebruikt.has(t.id)&&!t.rit_id).forEach(t=>{delMetLog(req,'transport_taken',t.id,'sportrooster');weg++;});
     return {nieuw,weg};
@@ -272,6 +272,7 @@ module.exports = function(ctx){
     const p=get("SELECT id,naam,rol FROM personeel WHERE id=? AND rol IN ('chauffeur','coordinator','kv')",[req.body&&req.body.wie_id]);
     if(!p)return res.status(400).json({error:'Kies een chauffeur of coördinator'});
     updateMetLog(req,'transport_taken',t.id,{wie:p.naam},'sportrooster');
+    if(ctx.melding&&t.wie!==p.naam)ctx.melding(req,{voor_persoon_id:p.id,van_naam:req.persoon.naam,tekst:`Verhuistaak voor jou: ${t.opmerking}`,link:'/vandaag'}); // ME1
     res.json({ok:true,wie:p.naam});
   });
 

@@ -210,9 +210,11 @@ module.exports = function(ctx){
         updateMetLog(req,'tekort_bestellingen',best.id,{binnen_op:isoNu(),binnen_door:wie(req)},'tekorten');
         stockPlus(req,best.item_type_id,aantal,'tekorten: bestelling binnen',best.leveren_aan_id);
         logAct('tekorten','binnen',`${a.naam}: bestelling binnen (${fmt(aantal)} → voorraad ${locNaam(best.leveren_aan_id)||'Rozenweg'}) — ${wie(req)}`,null,null);
+        if(ctx.melding)ctx.melding(req,{voor_rol:'coordinator',van_naam:wie(req),tekst:`Bestelling binnen: ${fmt(aantal)} × ${a.naam}`,link:'/tekorten'}); // ME1
         return {ok:true};
       }
       zetBestelling(req,per,a,{stand_kantoor:'te_bestellen',aantal,besteld_op:(best&&best.besteld_op)||isoNu(),besteld_door:(best&&best.besteld_door)||wie(req),binnen_op:isoNu(),binnen_door:wie(req)},'tekorten');
+      if(ctx.melding)ctx.melding(req,{voor_rol:'coordinator',van_naam:wie(req),tekst:`Bestelling binnen: ${fmt(aantal)} × ${a.naam}`,link:'/tekorten'}); // ME1
       // Zelfde logica als POST /api/nakijken/regel/:id/binnen (G15): tekort_status 'binnen' → de aanvullijst-handeling wordt afvinkbaar.
       openRegels(regels,a).forEach(r=>{
         const v={tekort_status:'binnen'};if(!BESTEL_ACTIE(r.kantoor_actie))v.kantoor_actie='bestellen';

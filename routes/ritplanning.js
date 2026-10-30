@@ -57,7 +57,7 @@ module.exports = function(ctx){
         });
         return {id:r.id,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
           voertuig:{id:r.voertuig_id||null,naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},
-          bezetting:info.bezetting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:info.waarschuwingen,notitie:info.notitie||'',stops,
+          bezetting:info.bezetting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:!r.personeel_id&&naam&&!['gedaan','geannuleerd'].includes(r.status)&&ctx.persoonOpNaam&&!ctx.persoonOpNaam(naam)?[...info.waarschuwingen,'⚠ bestuurder niet gekoppeld']:info.waarschuwingen,notitie:info.notitie||'',stops,
           laatste_wijziging:ctx._laatsteRitWijziging?ctx._laatsteRitWijziging(r.id):null};
       }).sort((a,b)=>(a.vertrek||'99').localeCompare(b.vertrek||'99'));
       const open=all("SELECT * FROM transport_taken WHERE datum=? AND (rit_id IS NULL OR rit_id=0) AND status='gepland' ORDER BY tijd,id",[datum]).map(t=>{
@@ -80,7 +80,7 @@ module.exports = function(ctx){
     return {week:{start,eind,nummer,kampweek},dagen:dagObj,personen,voertuigen,
       alle_personeel:personeel.map(p=>({personeel_id:p.id,naam:p.naam,rol:p.rol,kleur:kleur(p.id,p.naam)}))};
   }
-  app.get('/api/ritplanning',alleenKantoor,(req,res)=>res.json(planning(req)));
+  app.get('/api/ritplanning',alleenKantoor,(req,res)=>res.json({...planning(req),standaard_vertrek:(get("SELECT waarde FROM app_vlaggen WHERE naam='tijd_vertrek_ritten'")||{}).waarde||''})); // ME1
 
   // ▲▼ door kantoor: wisselt volgorde én tijd van twee buurstops; geen slot-eis (kantoor beslist), wel log.
   app.post('/api/ritten/:id/taken/:taakId/wissel',alleenKantoor,(req,res)=>{

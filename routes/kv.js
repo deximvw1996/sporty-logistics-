@@ -227,6 +227,8 @@ module.exports = function(ctx){
         _ins(req,"INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,opmerking) VALUES (?,?,?,?,NULL,0,'niet geteld')",[s.id,it.naam,it.id,it.qty]);
       });
     });
+    const _kvLoc=(get('SELECT name FROM locaties WHERE id=?',[km.locatie_id])||{}).name||'';
+    if(ctx.melding&&get("SELECT id FROM nakijk_sessies WHERE kampmoment_id=? AND kv_status='bezig' LIMIT 1",[km.id]))ctx.melding(req,{voor_rol:'kantoor',van_naam:kvNaam||'KV',tekst:`Telling verstuurd · ${_kvLoc}`,link:'/nakijken'}); // ME1
     _upd(req,"UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE kampmoment_id=? AND kv_status='bezig'",
       [kvNaam,now(),km.id]);
     res.json({ok:true});
@@ -243,6 +245,7 @@ module.exports = function(ctx){
     const volledig=aantal&&aantal>0?aantal+' × '+tekst:tekst;
     const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
       [km.id,km.kv_persoon_id||null,'materiaal',volledig,f.url,f.pad,'nieuw',now()],'kv-link');
+    if(ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:_kvNaam(km)||'KV',tekst:`Aanvraag: ${volledig} · ${(get('SELECT name FROM locaties WHERE id=?',[km.locatie_id])||{}).name||''}`,link:'/vandaag?tab=beslissen'}); // ME1
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 
@@ -257,6 +260,7 @@ module.exports = function(ctx){
     const volledig=aantal&&aantal>0?aantal+' × '+tekst:tekst;
     const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
       [km.id,km.kv_persoon_id||null,'kapot',volledig,f.url,f.pad,'nieuw',now()],'kv-link');
+    if(ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:_kvNaam(km)||'KV',tekst:`Kapot: ${volledig} · ${(get('SELECT name FROM locaties WHERE id=?',[km.locatie_id])||{}).name||''}`,link:'/vandaag?tab=beslissen'}); // ME1
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
 
