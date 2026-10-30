@@ -1653,3 +1653,128 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 ### Buiten mijn gebied
 - `scripts/test-nav1.mjs` en `scripts/test-f1-modules.mjs`: zie hierboven.
 - `routes/nakijken.js` (in de lijst "alleen wat Punt 1 nodig heeft"): genegeerde regels uit de aanvullijst, en de voorraad daalt bij afvinken.
+
+## PL2 — Planning › Rooster (week + seizoen), Gedeeld materiaal en Periodes (chat C, 30/10)
+
+**Stand:** alles af en gepusht naar `bouw-c` (na `Successfully rebased` op origin/main c355ed0). Niets naar main, niets gedeployd.
+
+### Commits
+- punt 1: API `routes/rooster.js` + `routes/periodes-overzicht.js` (+ namen in `server.js`)
+- punt 2: pagina `/rooster` + Planning-subbalk (5 links) + vervangstroken
+- punt 2b: pagina `/gedeeld`
+- punt 3: pagina `/periodes`
+- test `scripts/test-pl2-rooster.mjs` + kleine fixes (voorstellen zonder themadagen, `dag` 0 = maandag)
+- punt 4: gsm-links ≥ 44 px, `f1-modules` kent de nieuwe routes, geen 500 zonder `kt_id`
+
+### Punt 1 — API (alleen kantoor)
+- **Werking (bindend, Maxim 30/10):**
+  - `dubbel` (⚠): hetzelfde thema in dezelfde week op twee of meer kampmomenten; staat bij álle betrokken thema's.
+  - `herhaald` (↻): hetzelfde thema op dezelfde locatie in week n−1 én n; het teken staat op de **tweede** week (zoals in de mockup: wk 2 "Betekom", wk 3 "Betekom ↻"). Met een week ertussen: geen melding.
+  - `gedeeld` (◐): per week per stuk de som van `thema_behoefte.aantal` van de thema's die week, vergeleken met wat er is. Meer nodig = melding op alle betrokken thema's van die week.
+  - Meldingen zijn uitleg, nooit een verbod: niets wordt geblokkeerd.
+- **Gedeeld stuk** = een `vast_type` (of een vaste `bak_id`) uit `thema_behoefte` dat bij **meer dan één thema** hoort.
+  - "Er zijn" volgt de bron van `pool-overzicht`: het aantal vaste bakken van dat `vast_type`, of `aantal` bij een bulk-bak.
+  - Stand: `te_weinig`, `precies_op`, `ok` of `niet_nodig`.
+- **Groep-label:** `leeftijdsgroep` (eerst die van `kampmoment_themas`, anders die van het thema; kleuters → KL, lagere school → LS) + volgnummer binnen het kampmoment, KL vóór LS (KL1, KL2, LS1 …).
+- **Routes:**
+  - `GET /api/rooster/week?periode_id=&week=`: week {nr, van, tot, label}, tellers, locaties[] (thema's met groep en meldingen, KV, sport uit `sport_planning`).
+    - Tellers zoals de mockup: dubbel = aantal dubbele thema's, herhaald = aantal ↻-labels, gedeeld = aantal stukken met te weinig.
+    - De chips filteren op locatie.
+  - `GET /api/rooster/kampmoment/:id`: thema's per groep met week ervoor/deze/erna, let_op[] (tekst + uitleg + locaties), sport, transport (brengen = levering, halen = ophaling, met rit #), blok gedeeld materiaal ("x van y"), hele zomer van die locatie, historiek uit `wijzigingen`.
+  - `GET /api/rooster/seizoen?periode_id=`: één rij per thema dat in de periode voorkomt, per week de locaties, vlaggen dubbel/herhaald, `niet_gebruikt[]`, tellers.
+  - `GET /api/rooster/thema/:id?periode_id=`: per week locatie + groep + KV (+ brengrit), vrije weken, voorstel, gedeeld materiaal met de andere thema's.
+    - Voorstel = een thema dat die week nergens staat en deze periode niet eerder op die locatie stond; zelfde leeftijdsgroep eerst; geen themadagen.
+  - `GET /api/rooster/wissel-opties?kt_id=`: de keuzelijst voor Wissel, met de voorstellen eerst.
+  - `POST /api/rooster/wissel {kampmoment_id, groep_thema_id, nieuw_thema_id, ruil_met_kt_id?}`:
+    - wisselt het thema van die groep en geeft de nieuwe meldingen terug;
+    - gelogd in `wijzigingen` (oud/nieuw `thema_id`, met naam) en in het activiteitenlog;
+    - 409 als het nieuwe thema al in hetzelfde kampmoment zit.
+    - Met `ruil_met_kt_id` ruilen twee groepen hun thema (het voorstel "thema naar week 4").
+
+### Punt 2 — `/rooster` (exacte kopie van "Rooster · Week" en "Rooster · Seizoen" in v3)
+- **Bediening:**
+  - Schakelaar Week/Seizoen (`?zicht=seizoen`), weekkeuze ‹ › (`?week=`).
+  - Chips Alle · ⚠ Dubbel · ↻ Herhaald · ◐ Gedeeld · Geen KV (week) en Alle · ⚠ Dubbel · ↻ Herhaald · Niet gebruikt + zoekveld (seizoen).
+  - Labels "KL2 Ridders ↻": in het label alleen het teken; de uitleg staat in de legende onderaan en in het paneel.
+- **Kampmomentpaneel** (tabs Week · Hele zomer · Historiek):
+  - knoppen ‹ wk / wk ›, Open kampmoment (→ `/kampmomenten?id=`), Wissel (keuzelijst met voorstellen eerst), Toon (→ `/gedeeld`);
+  - extra blok **Gedeeld materiaal**: "Springdieren 1 van 2 · deze week samen 3".
+- **Seizoen:** cel = locatienaam; een klik opent het themapaneel (Waar staat … · Vrij in · Gedeeld materiaal) met Open thema en Naar weekbeeld.
+- Export = CSV van het getoonde beeld (of van de selectie).
+- **Browser (1920×900, testserver 3303 met een gevulde zomer):** gelijk aan de mockup. Gecontroleerd: weekrooster, paneel Sporthal Heverlee (↻, ⚠ en ◐ in Let op), seizoensraster en themapaneel "1001 Ballen en Bellen".
+
+### Punt 2b — `/gedeeld` (exacte kopie van `mockup-gedeeld-materiaal.html`)
+- `GET /api/rooster/gedeeld?periode_id=&week=` (stukken[] met naam, vast_type, nodig, beschikbaar, stand, waar[{thema, locatie, kampmoment_id}]) en `GET /api/rooster/gedeeld/seizoen` (stuk × week).
+- Paneel `GET /api/rooster/gedeeld/stuk?key=&week=`:
+  - **Wie heeft het nodig:** per locatie met dagen; wie buiten het aantal valt, staat rood met "geen bak meer vrij".
+  - **Voorstel:**
+    - het thema ruilen met hetzelfde kampmoment een week ervoor of erna, als het stuk dan in beide weken past → **Toepassen** = `POST /api/rooster/wissel` met `ruil_met_kt_id`;
+    - of "zonder dit stuk" → **Aanvaarden** = `POST /api/rooster/gedeeld/aanvaard`. Dat is gelogd, de melding verdwijnt voor die week, en ↶ Terug kan.
+  - **Week ervoor en erna**, plus de tabs Hele zomer en Thema's.
+- **Browser:** springdieren wk 3 (3 nodig / 2) → Toepassen → precies op, en week 4 = 1 van 2.
+
+### Punt 3 — `/periodes` (exacte kopie van het Periodes-scherm)
+- **Lijst:** chips Alle/Komend/Voorbij + zoeken. Detail met de tabs Weken · Gesloten dagen · Historiek:
+  - Kampweken, met "+ N andere weken"; klik = rooster van die week;
+  - Gegevens;
+  - Gesloten dagen;
+  - **Klaar voor de start?** met links, rood als er iets ontbreekt:
+    - thema's;
+    - KV's;
+    - dubbel;
+    - gedeeld te weinig;
+    - transport (weken met leveringen en kampmomenten zonder brengrit).
+- **Bestaande routes gebruikt:** `/api/periodes` (nieuw/bewerken/activeren) en `/api/gesloten`.
+- **Kopieer naar nieuwe periode:** `POST /api/periodes/:id/kopieer`.
+  - Kopieert kampmomenten (locatie, week, type, notities) en thema's (thema, dag, leeftijdsgroep), **zonder KV's en ritten**.
+  - Elke rij staat in `wijzigingen` (context "periode kopiëren …") en er komt een regel in het activiteitenlog.
+  - Weken buiten de nieuwe periode worden niet gekopieerd; dat wordt gemeld.
+
+### Punt 4 — Gsm (gemeten in de browser, 390×844)
+| Scherm | Pagina breed | Knoppen < 44 px | Opmerking |
+|---|---|---|---|
+| /rooster week | 390 | 0 | lijst van locaties, labels lopen door op de volgende regel |
+| /rooster paneel | 390 | 0 | lijst verborgen, paneel als volgend scherm, "‹ terug" 44 px; raster "week ervoor/erna" past (310/310) |
+| /rooster seizoen | 390 | 0 | raster scrollt binnen zichzelf (326 zichtbaar / 938 breed), eerste kolom vast (0 px na scroll), cellen 44 px |
+| /gedeeld week, paneel, seizoen | 390 | 0 | raster 334 / 938, binnen zichzelf |
+| /periodes lijst + detail | 390 | 0 | eerst 5 tekstlinks van 17 px in "Klaar voor de start?" → nu 44 px (eigen commit) |
+
+### Bewijs
+- **`node scripts/test-pl2-rooster.mjs` (poort 3348, herfst-test.db): 47 ok, 0 fout, ALLES GROEN.** Gecontroleerd:
+  - **Meldingen:**
+    - dubbel bij beide;
+    - herhaald op week n+1 en niet op week n; week 5+7 (met een week ertussen) niet;
+    - 3 thema's met `pl2_springdier` bij 2 beschikbaar → `gedeeld` bij alle drie, bij 2 thema's niet (precies op).
+  - **Groep-labels:** KL1 · KL2 · LS1.
+  - **Seizoen:** per thema de juiste locaties.
+  - **Panelen:** let op, blok gedeeld "1 van 2", voorstel.
+  - **Wissel:** gelogd met oud/nieuw en naam; de melding verdwijnt bij beide; 409.
+  - **Gedeeld:** stuk × week, aanvaarden (gelogd) en terugdraaien.
+  - **Periodes:** detail met "klaar"; kopie maakt 12 kampmomenten zonder KV, 14 thema's, 0 ritten/taken, 27 rijen in `wijzigingen`.
+  - **Pagina's en rechten:** `GET /rooster`, `/gedeeld` en `/periodes` 200 met subbalk (5 links); chauffeur 403 op pagina's en API.
+  - **Vervangstroken.**
+  - **DOM-bouw met de echte data-JSON** (weekrij, chips, raster, beide panelen, gedeeld-rij/paneel, periodedetail) + de gsm-CSS-regels.
+- **Volle run na de rebase:** run 1 **37/39**, run 2 **37/39**. Alleen de bekende `v3c-fotos` en `veiligheid` (pincode-hash/429, buiten PL2) zijn rood. `pl2-rooster`, `nav1` en `f1-modules` zijn groen.
+- **Een eerdere volle run vóór de fix:** `f1-modules` 5 fout.
+  - De nieuwe `:id`-routes stonden nog niet in de invultabel.
+  - `wissel-opties` zonder `kt_id` gaf 500. Nu 404 (`parseInt`), en de tabel kent de nieuwe routes.
+
+### Aangepaste bestaande bestanden buiten de nieuwe
+- `public/nav.js`: Planning-subbalk = Kampmomenten · Rooster · Sportrooster · Gedeeld materiaal · Periodes (alle vijf, ook `/sportrooster` van D), plus PAGINA-tabel.
+- `index.html`: alleen de vervangstroken.
+  - Overzicht › Rooster → /rooster; Thema's per week → /rooster + /gedeeld; Periodes → /periodes.
+  - In de Kampplanner per modus: rooster/week/thema → /rooster, sport → /sportrooster, locatie → /kampmomenten.
+  - Het tabblad zet de strook via `_pl2Ov` / `_kampMode`.
+- `scripts/test-nav1.mjs` (verwachte Planning-subbalk) en `scripts/test-f1-modules.mjs` (invulwaarden voor de 3 nieuwe `:id`-routes) zijn buiten de lijst aangepast. Ze moesten mee omdat de subbalk en de routes nieuw zijn.
+
+### GEVONDEN
+1. **Geen migratie gebruikt.** "Zonder dit stuk aanvaarden" bewaart per periode/week/stuk/thema een rij in `app_vlaggen` (`pl2_gedeeld_aanvaard:<periode>:<week>:<stuk>:<thema>`, waarde = wie/wanneer).
+   - Dat werkt en wordt gelogd, maar een eigen tabel zou netter zijn.
+   - Wil de hoofdchat dat, dan is een kleine migratie nodig (bv. `gedeeld_aanvaard`).
+2. **Sport "te weinig sets"** in "Klaar voor de start?" ontbreekt: `GET /api/sportrooster/seizoen` bestaat nog niet (PL3, chat D). Weggelaten zoals gevraagd; de API meldt het in `sport_gemeld`. Na PL3 is het één regel om toe te voegen.
+3. **Gesloten dagen zijn globaal** (`gesloten_dagen` = datum + reden, `UNIQUE(datum)`). De mockup toont ook een gesloten dag per locatie ("vr 14 augustus · Sporthal Kessel-Lo"). Dat kan het schema niet; zo'n dag staat nu als reden-tekst bij een globale dag. Een kolom `locatie_id` is een migratie.
+4. **↻ staat op de tweede week**, zoals in de mockup. In het kampmomentpaneel kleurt de week ervoor ook oranje, zodat je beide ziet.
+5. **`kampmoment_themas` heeft `UNIQUE(kampmoment_id, thema_id)`.** Een wissel naar een thema dat al in hetzelfde kampmoment zit, geeft daarom 409 met uitleg. Dat is geen verbod op een melding, het kan technisch niet.
+6. **Voorstellen slaan themadagen over** (`categorie='themadag'`). In de herfstdata koos het voorstel anders "1001 ballen (themadag)" voor een kamp.
+7. **De weekdatum is gerekend als** periode-start (teruggezet naar maandag) + 7·(n−1), ma–vr. Dat is gelijk aan de seizoenskolommen van de oude app. Een periode die niet op maandag start, schuift zo naar de maandag ervoor.
+8. **Geen ↶-terugdraairoute voor een wissel** (zelfde als bij TB2/VT1). Alles staat wel in `wijzigingen`. Alleen "aanvaarden" heeft een ↶ Terug.
