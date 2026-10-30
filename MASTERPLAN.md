@@ -447,3 +447,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-30 — Prompt T2 (testchat): gerichte test van alle nieuwe schermen, lokaal, desktop en gsm.
 - 2026-10-30 — T2 afgerond (33 GEVONDEN, 4 blokkers). Prompts TF3 (C: rechten, login, oude app, ritmeldingen) en TF4 (D: Nakijken, keten, kleine fouten).
 - 2026-10-30 — Besluiten Maxim voor de ronde na TF3/TF4: goedgekeurde KV-aanvraag = aanvullijst bij voorraad, anders Tekorten, plus transporttaak naar de locatie (G7); bestelling deels binnen met aantal, rest blijft open (G13); mockup gsm voor Personeel, Kampmomenten, Bakken, bouwen na de blokkers (G18).
+- 2026-10-31 — TF4 (D) gekeurd: tf4 46 ok; volle run 46/48: bh2 los groen, me1 rood alleen tussen 00:00-01:00 (back-upnaam UTC naast lokaal, test telt er dan 15). Open voor C: Vandaag telt gemelde keuringen (G14), stoptijd volgt vertrek (T1-G6), back-upnaam lokale datum.
