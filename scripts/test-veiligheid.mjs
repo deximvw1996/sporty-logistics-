@@ -180,7 +180,7 @@ try {
   check(r.status === 200 && r.json?.rol === 'chauffeur', `login chauffeur-testpersoon → 200 (kreeg ${r.status})`);
   const ch = r.json?.token;
   r = await call('GET', '/api/locaties', { token: ch });
-  check(r.status === 200, `chauffeur leest /api/locaties → 200 (kreeg ${r.status})`);
+  check(r.status === 403, `TF3: chauffeur leest /api/locaties niet meer → 403 (kreeg ${r.status})`);
   r = await call('GET', '/api/backup-db', { token: ch });
   check(r.status === 403, `chauffeur op /api/backup-db → 403 (kreeg ${r.status})`);
   r = await call('POST', '/api/personeel', { token: ch, body: { naam: 'X', rol: 'kantoor' } });

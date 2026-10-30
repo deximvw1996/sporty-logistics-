@@ -48,7 +48,7 @@ const BASELINE = path.join(ROOT, 'scripts', 'testdata', 'route-inventaris-f1.jso
 const oud = new Set(JSON.parse(fs.readFileSync(BASELINE, 'utf8')));
 const ontbreekt = [...oud].filter((r) => !nieuw.has(r));
 const extra = [...nieuw].filter((r) => !oud.has(r));
-check(oud.size >= 220, `inventaris ijkpunt: ${oud.size} routes (verwacht >= 220)`);
+check(oud.size >= 219, `inventaris ijkpunt: ${oud.size} routes (verwacht >= 219: TF3 haalde de catch-all GET * eruit)`);
 check(!ontbreekt.length,
   `inventaris nieuw: ${nieuw.size} routes, alle ${oud.size} routes van het ijkpunt aanwezig` + (ontbreekt.length ? ` — ONTBREEKT: ${ontbreekt.join(', ')}` : '') + (extra.length ? ` (nieuw sinds F1: ${extra.length}: ${extra.join(', ')})` : ''));
 const wcServer = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8').split('\n').length;
