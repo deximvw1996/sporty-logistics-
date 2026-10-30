@@ -43,6 +43,7 @@
       return '<a data-tab="' + t[0] + '"' + (t[0] === act ? ' class="act"' : '') + ' href="' + t[3] + '">' + t[1] + '<span>' + esc(t[2]) + (n ? ' <em>' + n + '</em>' : '') + '</span></a>';
     }).join('');
   }
+  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || (rol === 'coordinator' && pad === '/tekorten'); };
   var isGsm = function () { return !!(root.matchMedia && root.matchMedia('(max-width:767px)').matches); };
   var naarLogin = function () { root.location.replace('/login?terug=' + encodeURIComponent(root.location.pathname + root.location.search)); };
   function tekenSchil(pad, tok) {
@@ -75,6 +76,9 @@
     // MOB1: niet ingelogd op een personeelspagina op gsm → /login?terug=. De rest van de pagina (die zelf naar / zou sturen) wordt niet meer gelezen.
     var tok0 = null; try { tok0 = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
     if (!tok0 && isGsm()) { document.write('<plaintext style="display:none">'); naarLogin(); return; }
+    // MOB1: chauffeur/coördinator op een kantoorpagina op gsm → Vandaag (die pagina's sturen anders bij hun 403 naar de oude app). De 403's blijven de echte grens.
+    var rol0 = null; try { rol0 = root.localStorage.getItem('sporty-rol'); } catch (e) { /* geen opslag */ }
+    if (isGsm() && !magOpGsm(rol0, pad)) { document.write('<plaintext style="display:none">'); root.location.replace('/vandaag'); return; }
     if (eigenBalk) { tekenSchil(pad, tok0); return; }
     var top = document.querySelector('.top');
     if (top) {
@@ -135,7 +139,7 @@
     var j = {}; try { j = await r.json(); } catch (e) { j = {}; }
     return { status: r.status, ok: r.ok, json: j };
   }
-  var api = { TABS: TABS, tabsVan: tabsVan, actieveTab: actieveTab, tabbalk: tabbalk, BOVEN: BOVEN, SUB: SUB, PAGINA: PAGINA, boven: boven, sub: sub, teken: teken, sportyApi: sportyApi };
+  var api = { magOpGsm: magOpGsm, TABS: TABS, tabsVan: tabsVan, actieveTab: actieveTab, tabbalk: tabbalk, BOVEN: BOVEN, SUB: SUB, PAGINA: PAGINA, boven: boven, sub: sub, teken: teken, sportyApi: sportyApi };
   root.sportyApi = sportyApi;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SportyNav = api;
