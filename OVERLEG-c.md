@@ -2016,3 +2016,55 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 5. **Na terugzetten** zijn de meldingen die van de teruggezette database (gewone data).
 6. **Begintijd en stops:** met `tijd_vertrek_ritten` krijgt een rit zonder vertrek die tijd en worden de stoptijden daarop gezet. Dat geldt ook voor scripts en oude schermen die `POST /api/ritten` zonder vertrek doen.
 7. **Instellingen tonen 08:00 en 18:00 als standaard** terwijl de echte terugval 08:00 (formulier) en 17:00 (verhuis) is. Opslaan op Instellingen slaat alles wat verandert op; het veld verhuis toont dus 18:00 zolang niets is bewaard, terwijl de taak 17:00 krijgt. Dat is een klein verschil in `routes/instellingen.js`, buiten mijn lijst.
+
+## TF3: blokkers T2 (rechten, inloggen, oude app, ritmeldingen, pincode), 30-31/10
+
+**Punt 1, rechten (G1).** Eén poort in `lib/auth.js`: elke `/api/*` alleen voor kantoor, tenzij de rol in `ROL_ROUTES` staat. Bestaande `vereisRol` blijft daarbovenop. Publiek blijft: login-routes, `/api/rit-token/*`, `/api/kv/*`.
+
+| Methode + pad | Rollen | Waarom |
+|---|---|---|
+| GET /api/wie-ben-ik | chauffeur, coördinator, monitor, kv | de pagina moet de rol weten |
+| POST /api/logout | chauffeur, coördinator, monitor, kv | uitloggen |
+| GET /api/vandaag | chauffeur, coördinator, monitor | eigen Vandaag; zonder mijn=1 weigert de route |
+| POST /api/personeel/:id/pincode | chauffeur, coördinator, monitor | eigen pincode; de route weigert andermans id |
+| GET /api/meldingen | chauffeur, coördinator, monitor | eigen meldingen |
+| POST /api/meldingen/alles-gelezen | chauffeur, coördinator, monitor | eigen meldingen op gelezen |
+| POST /api/meldingen/:id/gelezen | chauffeur, coördinator, monitor | idem, de route zoekt alleen in eigen meldingen |
+| GET /api/aanvullijst | chauffeur, coördinator | tab Stockage |
+| POST /api/aanvullijst/melding | chauffeur, coördinator | kapot of weg melden |
+| POST /api/aanvullijst/:id/aangevuld | chauffeur, coördinator | afvinken |
+| GET /api/tekorten-overzicht | coördinator | scherm Tekorten |
+| GET /api/tekorten/bestellijst | coördinator | bestellijst afdrukken |
+| GET /api/tekorten/:id/detail | coördinator | detail artikel |
+| PUT /api/tekorten/:id/stand | coördinator | stand zetten |
+| POST /api/tekorten/bulk/:actie | coördinator | selectie; de route kiest wie wat mag |
+| POST /api/tekorten/:id/:actie | coördinator | één artikel; melden blijft kantoor via de route |
+| POST /api/tekorten/bestelling | coördinator | + Bestelling |
+| GET /api/voorraad, /api/item-types | coördinator | artikelkeuze in + Bestelling |
+| GET /api/locaties | coördinator | stockagekeuze in + Bestelling |
+
+Bewijs: `test-tf3-rechten` 40 ok. Alle routes uit `app._router` geveegd: buiten de tabel 403 per rol, anoniem 343 × 401, nul schrijfacties (teller van de server). Flows per rol blijven werken; KV-link geeft eigen data.
+Extra lek gedicht: `/API/...` omzeilde de oude poort (die vergeleek hoofdlettergevoelig, Express niet).
+
+**Punt 2, inloggen en oude app.** `index.html` gecontroleerd: het grote inline-script geeft een syntaxfout. `/` is nu een kleine doorstuurpagina met vertaling van oude hashes; onbekende URL = echte 404 met link naar Vandaag; onbekende `/api/*` = JSON 404; `/index.html` 404. **Het bestand `index.html` blijft staan tot Maxim akkoord geeft.** Niet ingelogd of verlopen op elke breedte → `/login?terug=`. Rol komt uit de sessie. Ploeg op desktop: geen kantoorbalk, wel de eigen tabbalk en eigen Vandaag.
+Browser op localhost: uitgelogd `/ritplanning` → `/login?terug=%2Fritplanning`, kolom 430 px gecentreerd op 1920; chauffeur: geen `.top`-links, 5 tabs, `/personeel` → `/vandaag`; verkeerde `sporty-rol` wordt rechtgezet; `/#materiaal?tekorten` → `/tekorten`; Vandaag kantoor 17 links op 1920 en 18 op 375: geen `/` of `/#`. Gemeten op 375 (preset), niet op 390.
+Console: niet volledig leeg bij een verboden URL. Chauffeur op `/personeel` geeft 403-regels van de pagina vóór de doorsturing, en er stond één 401. De gewone paden heb ik niet apart met een lege console nagemeten.
+
+**Punt 3, ritmeldingen.** Stop toevoegen, ontkoppelen, wisselen, klaarzetten, bestuurderswissel (oud én nieuw), samenvoegen binnen 2 min, leesbare datum, geen dubbele naam. Bewijs in `test-tf3-login` (na correctie van een te zwakke check: zie punt 4).
+
+**Punt 4, pincode.** Tweemaal op het toetsenblok in login en Meer, geen `prompt()`. Geweigerd: gelijke cijfers, oplopend, aflopend, ABAB. Oude sha256 → scrypt bij login: werkt (getest op een eigen testpersoon, alleen het formaat gelezen). Meer in de browser gedaan: 1234 geweigerd, tweede invoer, gewijzigd. Eerste pincode in `/login` alleen via API en pure functies getest, niet doorgeklikt.
+
+**Tests.** Volle run op de eindcommit van de code: 47/49 meermaals; rood blijven `v3c-fotos` (bekend) en `veiligheid` (3 fout, zie GEVONDEN). In twee van de vijf runs braken ook `f1-schrijven` of `lk1-kaart` af; apart 4× groen. Vermoedelijk botste een andere chat op dezelfde poorten (poort 3399 was bezet), niet bewezen.
+Aangepaste tests: `ko1`, `f1-modules` + inventaris (`GET *` weg), `v3b-ui`, `veiligheid` (chauffeur leest locaties nu 403), `me1` (back-uptelling, zie GEVONDEN).
+
+**Buiten de lijst.** `public/vandaag.html` (de "alles ›"-links staan daar), `scripts/testdata/route-inventaris-f1.json`.
+
+**GEVONDEN**
+1. Kantoor mag via de API nog een zwakke code voor iemand anders zetten: heel wat tests gebruiken dat (4321). De weigering geldt alleen voor wie zelf kiest.
+2. `test-veiligheid` rood: "pincode als scrypt" leest vóór het wegschrijven of op andere data; de test zet ook het begin van een hash in zijn uitvoer (hoort niet). De twee Stijn-regels zijn de T2-melding: **die pincode moet echt gewijzigd worden**. Bij zijn eerstvolgende login gaat de hash over, maar de code zelf blijft dan even zwak.
+3. `/#`-links bij chat D: `public/nakijken.js:323` (`/#materiaal?bak=`), `public/tekorten.js:141` (`/#catalogus`). Ze werken via `/`, maar `/bakken?bak=` moet die parameter wel lezen: niet gecontroleerd.
+4. Stond alleen in de oude app (niet gebouwd, deels niet nagekeken): sectie Seizoensoverzicht (`sec-seizoensoverzicht`), route-oproep `/api/backup-db` vanuit `index.html`. Zie de telling hieronder in het eindbericht.
+5. `lib/db.js` backupDb gebruikt de UTC-datum, de nachtback-up de lokale: tussen middernacht en 01:00 ontstaan twee automatische bestanden en valt er één oude weg. Daardoor werd `me1` rood na middernacht; test versoepeld.
+6. Een al geïnstalleerde service worker (oude app registreerde `/sw.js`) blijft bestaan: netwerk eerst, dus geen oude app, maar offline toont hij gecachete pagina's.
+7. Monitor had de tab Stockage zonder recht: tab weggehaald voor die rol.
+8. Coördinator: `/api/alle-bakken` staat niet in de tabel (hoort bij kantoor-melden).

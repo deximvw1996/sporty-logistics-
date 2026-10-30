@@ -94,7 +94,7 @@ process.on('SIGTERM', () => afsluiten('SIGTERM'));
 process.on('SIGINT', () => afsluiten('SIGINT'));
 
 // TF3 punt 2: oude tabbladen → nieuw scherm. Onbekende hash → Vandaag.
-const OUDE_HASHES = { vandaag: '/vandaag', planning: '/kampmomenten', kampplanner: '/kampmomenten', locaties: '/locaties', overzicht: '/rooster', 'transport-noden': '/taken', 'transport-plan': '/ritplanning', transporten: '/ritplanning', materiaal: '/bakken', themas: '/themas', catalogus: '/catalogus', personeel: '/personeel' };
+const OUDE_HASHES = { vandaag: '/vandaag', kaart: '/locaties', seizoensoverzicht: '/rooster', planning: '/kampmomenten', kampplanner: '/kampmomenten', locaties: '/locaties', overzicht: '/rooster', 'transport-noden': '/taken', 'transport-plan': '/ritplanning', transporten: '/ritplanning', materiaal: '/bakken', themas: '/themas', catalogus: '/catalogus', personeel: '/personeel' };
 const START_HTML = `<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sporty logistiek</title></head><body><script>
 (function(){
   var H=${JSON.stringify(OUDE_HASHES)},h=location.hash.slice(1),t=h.split('?'),doel=H[t[0]]||'/vandaag',q=t[1]||'',m=/^bak=(\\d+)$/.exec(q);
