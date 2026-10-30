@@ -1997,7 +1997,8 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 - **`scripts/test-me1-meldingen.mjs` (poort 3369): 36 ok, 0 fout, ALLES GROEN.** Elke gebeurtenis één melding voor de juiste ontvanger, geen dubbels, gelezen uit de teller, 403 voor niet-kantoor, andermans melding 404, rit op naam, ⚠, 20 handmatige duwen geen automatische weg, max 30, herstel zonder voor-herstel, beide tijden met en zonder waarde, `GET /meldingen` 200.
 - **Grens:** de wijziging die de test op een klaargezette rit doet, is `PUT /api/ritten/:id`. De hooks op verplaats, tijden en volgorde zijn niet apart getest.
 - `mob1-schil`, `bh2-beheer`, `pl3-sportrooster`, `rp1-ritplanning` los groen.
-- **Volle run:** 43/45 en 43/45 (runs 3 en 4). Alleen de bekende `v3c-fotos` en `veiligheid` zijn rood. Runs 1 en 2 gaven 42/45 door `gf1-gaten` (zie de aangepaste tests).
+- **Rebase-conflict in `public/nav.js`** met AV1 (`/aanvullen`): versie van main + ME1 erbovenop; de push werd tegengehouden tot de rebase geslaagd was.
+- **Volle run na die rebase:** 44/46 en 44/46 (runs 5 en 6). Daarvoor 43/45 en 43/45 (runs 3 en 4). Alleen de bekende `v3c-fotos` en `veiligheid` zijn rood. Runs 1 en 2 gaven 42/45 door `gf1-gaten` (zie de aangepaste tests).
 
 ### Buiten mijn lijst (nodig voor wat de prompt vroeg)
 - `routes/aanvragen.js` en `routes/tekorten-overzicht.js`: daar gebeuren "chauffeur meldt", "aanvraag beslist" en "bestelling binnen" echt.
