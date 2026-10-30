@@ -49,3 +49,7 @@ input[name=wg]{position:absolute;opacity:0;pointer-events:none}
 #wgC:checked~.frame .it .acts .knop.licht{display:none}
 /* ── aanvullingen (geen nieuwe ontwerpelementen) ── */
 .leeg{font-size:13px;color:#94a3b8;padding:10px 4px}
+
+/* MOB1: gsm-weergave staat in #gsm (app-schil.css); de desktop-opbouw is dan verborgen */
+.tel[hidden]{display:none}
+@media (max-width:767px){body>.frame{display:none}#toasts{bottom:84px;left:12px;right:12px}}

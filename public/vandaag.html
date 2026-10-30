@@ -3,6 +3,7 @@
 <title>Vandaag — Sporty logistiek</title>
 <link rel="stylesheet" href="/public/patroon.css">
 <link rel="stylesheet" href="/public/vandaag.css">
+<link rel="stylesheet" href="/public/app-schil.css">
 </head><body>
 <input type="radio" name="wg" id="wgG" checked><input type="radio" name="wg" id="wgC">
 <div class="frame"><div class="top"><div class="logo">Sporty logistiek</div><div class="rechts"><span class="per">Periode: <b id="per-naam">…</b> ▾<select id="per-kies" aria-label="Periode kiezen"></select></span><span id="wie"></span></div></div>
@@ -12,6 +13,7 @@
 <div class="kols"><div class="kol"><h3>Beslissen <span class="pil rood" id="n-beslissen">0</span><i>kantoor beslist ja/nee</i><a href="/#transport-noden">alles ›</a></h3><div class="scroll" id="l-beslissen"></div></div><div class="kol"><h3>Inplannen <span class="pil oranje" id="n-inplannen">0</span><i>rit, chauffeur of voertuig kiezen</i><a href="/#transport-plan">alles ›</a></h3><div class="scroll" id="l-inplannen"></div></div><div class="kol"><h3>Nakijken <span class="pil " id="n-nakijken">0</span><i>controleren, geen haast</i><a href="/#overzicht?conflicten">alles ›</a></h3><div class="scroll" id="l-nakijken"></div></div></div></div>
 <div class="rechtsk"><div class="mini"><div class="cijfer blauw"><div class="n" id="c-onderweg">0</div><div class="l">ritten onderweg</div></div><div class="cijfer groen"><div class="n" id="c-open">0</div><div class="l">locaties open</div></div></div>
 <div class="kaart k1"><h3><span>Ritten vandaag <span class="pil blauw" id="n-ritten">0</span></span><span class="h3r"><a href="/#transporten">alles ›</a><button class="knop klein" id="rit-plannen">Rit plannen</button></span></h3><div class="scroll" id="l-ritten"></div></div><div class="kaart k2"><h3><span><span id="t-week">Deze week</span> <span class="pil groen" id="n-week">0 locaties</span></span><a href="/#kampplanner">alles ›</a></h3><div class="scroll" id="l-week"></div></div></div></div></div>
+<div class="tel" id="gsm" hidden></div>
 <div id="toasts"></div>
 <script src="/public/nav.js"></script>
 <script src="/public/vandaag.js"></script>

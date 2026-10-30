@@ -2,6 +2,37 @@
 // Vult de pagina uit GET /api/vandaag; na elke actie opnieuw laden. Groot/Compact per gebruiker onthouden.
 'use strict';
 (function(){
+  // MOB1: gsm-weergave (design/MOBIEL-DEFINITIEF.html, A2). Los van de browser, zodat de test ze met echte data-JSON kan aanroepen.
+  const escG=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const ROL={kantoor:'kantoor',chauffeur:'chauffeur',coordinator:'coördinator',monitor:'monitor'};
+  const GSM={
+    kop(v,titel){const d=v.datum_tekst,n=v.n_dingen||0;return `<div class="kopA"><div class="l">${escG(ROL[v.gebruiker.rol]||v.gebruiker.rol)} · ${escG(d)}</div><b>${escG(titel||'Hallo '+v.gebruiker.naam)}</b>${titel?'':`<span>${n===0?'niets meer vandaag':n===1?'1 ding vandaag':n+' dingen vandaag'}</span>`}</div>`;},
+    rij(x){return `<a class="rij" href="${escG(x.url)}"><div class="ico">${escG(x.ico)}</div><div class="nm">${x.tijd?`<i>${escG(x.tijd)}</i> `:''}${escG(x.titel)}<b>${escG(x.sub)}</b></div><span class="pijl">›</span></a>`;},
+    nu(n){return n?`<div class="nukaart"><div class="l">NU</div><div class="t">${escG(n.ico)} ${escG(n.titel)}</div><div class="s">${n.tijd?escG(n.tijd)+' · ':''}${escG(n.sub)}</div><a class="knop breed" href="${escG(n.url)}">${escG(n.knop)}</a></div>`:'<div class="nukaart"><div class="l">NU</div><div class="t">✓ Niets te doen</div><div class="s">Er staat nu niets op je lijst.</div></div>';},
+    vandaag(v){
+      const m=v.meldingen||[];
+      const meldRij=m.length?GSM.rij({ico:'🔔',tijd:'',titel:m.length===1?'1 melding':m.length+' meldingen',sub:m.slice(0,2).map(x=>x.titel).join(' · '),url:'/vandaag?tab=meldingen'}):'';
+      const rijen=(v.daarna||[]).map(GSM.rij).join('')+meldRij;
+      return GSM.kop(v)+`<div class="gbody">${GSM.nu(v.nu)}${rijen?`<div class="sec"><h3>Daarna</h3>${rijen}</div>`:''}</div>`;
+    },
+    ritten(v){
+      const rij=(r,dag)=>GSM.rij({ico:'🚚',tijd:(dag?dag+' ':'')+(r.tijd||''),titel:`Rit #${r.id}${r.voertuig?' · '+r.voertuig:''}${r.status==='gedaan'?' · gedaan':r.status==='onderweg'?' · onderweg':''}`,sub:r.stops.map(s=>s.naam+(s.slot==='vrij'?' (vrij)':' 🔒')).join(' → '),url:'/rit/'+r.token});
+      const a=v.ritten_vandaag||[],b=v.ritten_morgen||[];
+      return GSM.kop(v,'Ritten')+`<div class="gbody"><div class="sec"><h3>Vandaag</h3>${a.map(r=>rij(r)).join('')||'<div class="hint">Geen ritten vandaag</div>'}</div>${b.length?`<div class="sec"><h3>Morgen</h3>${b.map(r=>rij(r)).join('')}</div>`:''}</div>`;
+    },
+    // Kantoor: meldingen en beslissingen met de knoppen uit /api/vandaag; ploeg: alleen lezen.
+    lijst(v,lijst,titel,leeg,kol){
+      const it=(x,i)=>`<div class="rij" style="flex-wrap:wrap"><div class="ico">${escG(x.ico||'🔔')}</div><div class="nm">${escG(x.titel)}<b>${escG(x.sub)}</b></div></div>${(x.acties||[]).length?`<div class="acts">${x.acties.map((a,j)=>`<button class="knop klein ${a.primair?'':'licht'}" data-gk="${kol}" data-i="${i}" data-j="${j}">${escG(a.label)}</button>`).join('')}</div>`:''}`;
+      return GSM.kop(v,titel)+`<div class="gbody"><div class="sec">${lijst.map(it).join('')||`<div class="hint">${escG(leeg)}</div>`}</div></div>`;
+    },
+    scherm(v,tab){
+      if(tab==='ritten')return GSM.ritten(v);
+      if(tab==='meldingen')return GSM.lijst(v,v.meldingen||[],'Meldingen','Geen open meldingen','meldingen');
+      if(tab==='beslissen')return GSM.lijst(v,v.beslissen||[],'Beslissen','Niets te beslissen','beslissen');
+      return GSM.vandaag(v);
+    }
+  };
+  if(typeof module!=='undefined'&&module.exports){module.exports=GSM;return;}
   function kvL(n){return /^KV\s/i.test(n)?n:'KV '+n;}
   const TOKEN=localStorage.getItem('sporty-auth-token');
   const $=id=>document.getElementById(id);
@@ -17,6 +48,19 @@
     return window.sportyApi(methode,url,body,{toast:m=>toast(m,'info'),token:TOKEN||''});
   }
   if(!TOKEN){location.href='/';return;}
+  if(window.matchMedia('(max-width:767px)').matches){
+    const tab=new URLSearchParams(location.search).get('tab')||'';
+    let V=null;
+    const laadG=async()=>{const r=await api('GET','/api/vandaag?mijn=1');if(!r.ok)return toast(r.json.error||'Vandaag laden mislukt','error');V=r.json;$('gsm').hidden=false;$('gsm').innerHTML=GSM.scherm(V,tab);};
+    document.addEventListener('click',async e=>{
+      const b=e.target.closest('button[data-gk]');if(!b)return;
+      const a=V[b.dataset.gk][b.dataset.i].acties[b.dataset.j];
+      if(a.soort==='link'||a.soort==='tel'){location.href=a.url;return;}
+      b.disabled=true;const r=await api(a.methode,a.url,a.body);b.disabled=false;
+      if(!r.ok)return toast(r.json.error||'Actie mislukt','error');toast(a.label+': gelukt','success');laadG();
+    });
+    laadG();return;
+  }
 
   let DATA=null;
   const item=(x,i,kol)=>`<div class="it ${x.kleur}"><span class="ico">${esc(x.ico)}</span><span class="nm">${esc(x.titel)}<b>${esc(x.sub)}</b></span><span class="acts">${
