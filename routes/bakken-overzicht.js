@@ -71,9 +71,14 @@ module.exports = function(ctx){
     const tb=new Map(),ta=new Map();
     all('SELECT tb.bak_id,t.id,t.name FROM thema_bak tb JOIN themas t ON t.id=tb.thema_id ORDER BY t.name').forEach(r=>{if(!tb.has(r.bak_id))tb.set(r.bak_id,{id:r.id,naam:r.name});});
     all('SELECT ta.attribuut_id,t.id,t.name FROM thema_attribuut ta JOIN themas t ON t.id=ta.thema_id ORDER BY t.name').forEach(r=>{if(!ta.has(r.attribuut_id))ta.set(r.attribuut_id,{id:r.id,naam:r.name});});
+    // LK1: een bak/attribuut kan aan meer thema's hangen; thema_ids voedt het filter /bakken?thema=<id>.
+    const tbAlle=new Map(),taAlle=new Map();
+    all('SELECT bak_id,thema_id FROM thema_bak').forEach(r=>{(tbAlle.get(r.bak_id)||tbAlle.set(r.bak_id,[]).get(r.bak_id)).push(r.thema_id);});
+    all('SELECT attribuut_id,thema_id FROM thema_attribuut').forEach(r=>{(taAlle.get(r.attribuut_id)||taAlle.set(r.attribuut_id,[]).get(r.attribuut_id)).push(r.thema_id);});
     const bakken=[
       ...all('SELECT * FROM bakken ORDER BY soort,(COALESCE(LENGTH(code),0)=0),code,naam').map(b=>rij(b,b.soort==='thema'?'thema':b.is_bulk?'pool':'vast',L,tb)),
       ...all('SELECT * FROM attributen ORDER BY (COALESCE(LENGTH(code),0)=0),code,naam').map(a=>rij(a,'attribuut',L,ta))];
+    bakken.forEach(b=>{b.thema_ids=(b.soort==='attribuut'?taAlle:tbAlle).get(b.id)||[];});
     // TF2 G7: dubbele en lege codes (nooit automatisch hernummeren — kantoor beslist).
     const telCode=new Map();
     bakken.forEach(b=>{const c=String(b.code||'').trim().toUpperCase();if(c){const k=(b.soort==='attribuut'?'a:':'b:')+c;telCode.set(k,(telCode.get(k)||0)+1);}});
@@ -87,6 +92,7 @@ module.exports = function(ctx){
     bakken.forEach(b=>{const l=L.get(b.waar_nu.locatie_id);if(l&&l.type==='stockage')per_stockage[l.name]=(per_stockage[l.name]||0)+1;});
     return {tellers:{alle:bakken.length,thema:bakken.filter(b=>b.soort==='thema').length,vast:bakken.filter(b=>b.soort==='vast'||b.soort==='pool').length,
       attribuut:bakken.filter(b=>b.soort==='attribuut').length,onderweg:bakken.filter(b=>b.waar_nu.rit_id).length,incompleet:bakken.filter(b=>b.incompleet).length,code_dubbel:bakken.filter(b=>b.code_dubbel).length,code_leeg:bakken.filter(b=>b.code_leeg).length,per_stockage},
+      themas:all('SELECT id,name AS naam FROM themas ORDER BY name COLLATE NOCASE'),
       bakken:bakken.map(b=>({...b,zoek:[b.code,b.naam,b.thema?b.thema.naam:'',b.waar_nu_tekst].join(' ').toLowerCase()}))};
   }
   app.get('/api/bakken-overzicht',alleenKantoor,(req,res)=>res.json(lijst()));

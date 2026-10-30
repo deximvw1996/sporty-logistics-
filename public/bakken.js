@@ -33,12 +33,12 @@
   }
 
   const Q=new URLSearchParams(location.search);
-  let O=null,D=null,SEL=new Set(),FILTER='alle',ZOEK='',TAB='inhoud',LOCS=null,THEMAS=null;
+  let O=null,D=null,SEL=new Set(),FILTER='alle',ZOEK='',TAB='inhoud',LOCS=null,THEMAS=null,THEMA=parseInt(Q.get('thema'))||0;
   const sleutel=b=>(b.soort==='attribuut'?'a':'b')+b.id;
   const ROZ=()=>((LOCS||[]).find(l=>l.type==='stockage'&&/rozenweg/i.test(l.name))||{}).id;
   const FILTERS={alle:()=>true,thema:b=>b.soort==='thema',vast:b=>b.soort==='vast'||b.soort==='pool',attribuut:b=>b.soort==='attribuut',
     onderweg:b=>!!b.waar_nu.rit_id,incompleet:b=>b.incompleet,code_dubbel:b=>b.code_dubbel,code_leeg:b=>b.code_leeg,rozenweg:b=>b.waar_nu.locatie_id===ROZ()};
-  const zichtbaar=()=>O.bakken.filter(FILTERS[FILTER]).filter(b=>!ZOEK||b.zoek.includes(ZOEK));
+  const zichtbaar=()=>O.bakken.filter(FILTERS[FILTER]).filter(b=>!THEMA||(b.thema_ids||[]).includes(THEMA)).filter(b=>!ZOEK||b.zoek.includes(ZOEK));
   const basis=s=>s==='attribuut'?'/api/attributen/':'/api/bakken/';
 
   async function laad(){
@@ -53,6 +53,10 @@
   }
   function tekenLijst(){
     document.querySelectorAll('.chip').forEach(c=>{c.classList.toggle('act',c.dataset.f===FILTER);const b=c.querySelector('b');if(b)b.textContent=O.tellers[c.dataset.f==='alle'?'alle':c.dataset.f];});
+    // LK1: wisbare chip "Thema: <naam> ✕" (komt van /bakken?thema=<id>, bv. de knop "alles in Bakken ›" bij een thema)
+    let tc=document.getElementById('thema-chip');
+    if(THEMA){const t=(O.themas||[]).find(x=>x.id===THEMA);if(!tc){tc=document.createElement('span');tc.id='thema-chip';tc.className='chip act';tc.setAttribute('role','button');const z=$('zoek');z.parentNode.insertBefore(tc,z.nextSibling);}tc.dataset.wisthema='1';tc.innerHTML='Thema: '+esc(t?t.naam:'#'+THEMA)+' ✕';}
+    else if(tc)tc.remove();
     const lijst=zichtbaar();
     $('lijst').innerHTML=lijst.length?lijst.map(b=>`<div class="r ${D&&sleutel(D.bak)===sleutel(b)?'act':''}" data-k="${sleutel(b)}"><span><input type="checkbox" data-sel="${sleutel(b)}" ${SEL.has(sleutel(b))?'checked':''} aria-label="Selecteer ${esc(b.code||b.naam)}"></span><span>${b.code?`<b>${esc(b.code)}</b> `:''}${esc(b.naam)}</span><span>${esc(b.thema?b.thema.naam:'—')}</span><span>${esc(b.waar_nu_tekst)}</span><span>${esc(b.inhoud_tekst)}</span><span>${esc(b.stand_tekst)}</span><span><span class="pil ${b.status==='let'?'oranje':'groen'}">${b.status==='let'?'⚠':'ok'}</span></span></div>`).join('')
       :'<div class="leeg">Geen bakken voor deze filter</div>';
@@ -160,6 +164,7 @@
   document.addEventListener('click',async e=>{
     const t=e.target;
     if(t.matches('[data-sel]')){const k=t.dataset.sel;t.checked?SEL.add(k):SEL.delete(k);return tekenLijst();}
+    if(t.closest('[data-wisthema]')){THEMA=0;history.replaceState(null,'','/bakken');return tekenLijst();}
     const chip=t.closest('.chip');if(chip){FILTER=chip.dataset.f;return tekenLijst();}
     const rij=t.closest('.r[data-k]');if(rij){const k=rij.dataset.k;return laadDetail(k[0]==='a'?'attribuut':'b',+k.slice(1));}
     const tab=t.closest('[data-tab]');if(tab){TAB=tab.dataset.tab;return tekenDetail();}
