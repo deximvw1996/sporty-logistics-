@@ -76,7 +76,7 @@
   }
   function telTabel(det) {
     var rijen = det.items.map(function (it) {
-      return '<div class="r tel ' + (KLEUR[it.afwijking] || '') + '"><span><b>' + esc(it.naam) + '</b>' + (it.foto_url ? ' 📷' : '') + '</span><span>' + it.verwacht + '</span><span><b>' + (it.aangetroffen == null ? '—' : it.aangetroffen) + '</b></span><span>' + afwPil(it) + '</span><span class="not">' + (it.notitie ? esc(it.notitie) : '—') + '</span><span>' + actieCel(it) + '</span></div>';
+      return '<div class="r tel ' + (KLEUR[it.afwijking] || '') + '"><span><b>' + esc(it.naam) + '</b>' + (it.foto_url ? ' 📷' : '') + (it.herkomst ? '<br><small class="herkomst">' + esc(it.herkomst) + '</small>' : '') + '</span><span>' + it.verwacht + '</span><span><b>' + (it.aangetroffen == null ? '—' : it.aangetroffen) + '</b></span><span>' + afwPil(it) + '</span><span class="not">' + (it.notitie ? esc(it.notitie) : '—') + '</span><span>' + actieCel(it) + '</span></div>';
     }).join('') || '<div class="leeg">Deze bak heeft geen stukken.</div>';
     var afw = det.items.filter(function (i) { return i.afwijking !== 'klopt' && i.afwijking !== 'niet_geteld'; });
     var gekozen = function (i) { return i.kantoor_actie || (i.acties[0] && i.acties[0].waarde) || ''; };
