@@ -445,3 +445,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-30 — ME1 meldingen + restpunten (C) gekeurd en live: 36 ok, volle run 45/46, keten-ophaling los groen. Prompt AV2 (D): aanvuller meldt kapot/weg.
 - 2026-10-30 — AV2 aanvuller meldt kapot/weg (D) gekeurd en live: 48 ok; herkomstlabel ook op gsm-Nakijken toegevoegd.
 - 2026-10-30 — Prompt T2 (testchat): gerichte test van alle nieuwe schermen, lokaal, desktop en gsm.
+- 2026-10-30 — T2 afgerond (33 GEVONDEN, 4 blokkers). Prompts TF3 (C: rechten, login, oude app, ritmeldingen) en TF4 (D: Nakijken, keten, kleine fouten).
