@@ -38,6 +38,13 @@ module.exports = function(ctx){
       const buf = req.body;
       if (!buf || buf.length < 100 || buf.slice(0, 15).toString() !== 'SQLite format 3')
         return res.status(400).json({ error: 'Geen geldig SQLite-bestand' });
+      // BH2: alleen na het getypte woord TERUGZETTEN (header x-bevestig), en eerst een back-up van de huidige toestand (in de lijst op /backup).
+      if (String(req.headers['x-bevestig'] || '') !== 'TERUGZETTEN')
+        return res.status(400).json({ error: 'Typ TERUGZETTEN om te bevestigen' });
+      const wie = req.persoon ? req.persoon.naam : '?';
+      const voor = ctx.nachtbackup.handmatig('voor terugzetten · ' + wie);
+      logAct('beheer', 'terugzetten', `Back-up teruggezet (${buf.length} bytes) door ${wie}; vooraf bewaard als ${voor.naam}`, null, null);
+      saveDb();
       const backupDir = path.join(DATA_DIR, 'backups');
       if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
       const ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
@@ -102,6 +109,40 @@ module.exports = function(ctx){
     } catch(e) { res.status(500).json({ error: e.message }); }
   });
 
+
+  // ── BH2: back-ups (lijst, download, handmatig, inhoud) ──
+  const _mb = (n) => (n / 1048576).toFixed(1).replace('.', ',') + ' MB';
+  app.get('/api/backups', alleenKantoor, (req, res) => {
+    const nb = ctx.nachtbackup, l = nb.lijst();
+    const v = (n) => (get('SELECT waarde FROM app_vlaggen WHERE naam=?', [n]) || {}).waarde || '';
+    res.json({ backups: l.map((b) => ({ ...b, grootte_tekst: _mb(b.grootte) })), bewaard: 14, uur: nb.uurInstelling().map((x) => String(x).padStart(2, '0')).join(':'),
+      laatst_nacht: v('nachtbackup_laatst') || null, fout: v('nachtbackup_fout') || null, volgende: nb.volgende().toISOString() });
+  });
+  app.post('/api/backups/nu', alleenKantoor, (req, res) => {
+    try { const b = ctx.nachtbackup.handmatig(req.persoon ? req.persoon.naam : '?'); res.json({ ok: true, ...b, grootte_tekst: _mb(b.grootte) }); }
+    catch (e) { res.status(500).json({ error: 'Back-up mislukt: ' + e.message }); }
+  });
+  app.get('/api/backups/:naam', alleenKantoor, (req, res) => {
+    const naam = String(req.params.naam || '');
+    if (!ctx.nachtbackup.PATROON.test(naam) || naam.includes('..') || naam.includes('/') || naam.includes(String.fromCharCode(92))) return res.status(400).json({ error: 'Ongeldige naam' });
+    const p = path.join(ctx.nachtbackup.map(), naam);
+    if (!fs.existsSync(p)) return res.status(404).json({ error: 'Back-up niet gevonden' });
+    logAct('beheer', 'download', `Back-up gedownload: ${naam} (door ${req.persoon ? req.persoon.naam : '?'})`, null, null);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + naam + '"');
+    res.send(fs.readFileSync(p));
+  });
+  app.get('/api/backup-inhoud', alleenKantoor, (req, res) => {
+    const n = (sql) => { try { return get(sql).n; } catch (e) { return 0; } };
+    let grootte = 0, gewijzigd = null; try { const st = fs.statSync(DB_PATH); grootte = st.size; gewijzigd = st.mtime.toISOString(); } catch (e) {}
+    res.json({ locaties: n('SELECT COUNT(*) AS n FROM locaties'), themas: n('SELECT COUNT(*) AS n FROM themas'), bakken: n('SELECT COUNT(*) AS n FROM bakken'),
+      ritten: n('SELECT COUNT(*) AS n FROM transport_ritten'), personeel: n('SELECT COUNT(*) AS n FROM personeel'), wijzigingen: n('SELECT COUNT(*) AS n FROM wijzigingen'),
+      db_grootte: grootte, db_grootte_tekst: _mb(grootte), laatste_wijziging: gewijzigd, railway: !!process.env.RAILWAY_VOLUME_MOUNT_PATH,
+      laatste_import: (get("SELECT tijdstip FROM activiteiten_log WHERE type='import' OR actie LIKE 'import%' ORDER BY id DESC LIMIT 1") || {}).tijdstip || null,
+      laatste_terugzetten: (get("SELECT tijdstip FROM activiteiten_log WHERE actie='terugzetten' ORDER BY id DESC LIMIT 1") || {}).tijdstip || null });
+  });
+  const _paginaRol = (req, res, next) => { const tk = req.headers['x-auth-token'] || ''; if (!tk) return next(); req.persoon = checkSessie(tk); if (!req.persoon) return res.status(401).send('Niet ingelogd'); return alleenKantoor(req, res, next); };
+  app.get('/backup', _paginaRol, (req, res) => res.sendFile(path.join(ROOT_DIR, 'public', 'backup.html')));
 
   // ── ACTIVITEITENLOG ──
   app.get('/api/log',(req,res)=>{

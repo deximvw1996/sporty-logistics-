@@ -109,7 +109,7 @@ async function startServer() {
   Object.assign(ctx, require('./lib/gedeeld')(ctx));
 
   // ── Routegebieden, in de volgorde van de oorspronkelijke kopjes ──
-  for (const naam of ['locaties','kv','themas','planning','aanvragen','voorraad','transport','bakken','beheer','personeel','sport','conflicten','vandaag','ritplanning','taken','nakijken','kampmomenten','bakken-overzicht','personeel-overzicht','locaties-overzicht','themas-overzicht','pool-overzicht','catalogus-overzicht','voertuigen','sportrooster','tekorten-overzicht','rooster','periodes-overzicht'])
+  for (const naam of ['locaties','kv','themas','planning','aanvragen','voorraad','transport','bakken','beheer','personeel','sport','conflicten','vandaag','ritplanning','taken','nakijken','kampmomenten','bakken-overzicht','personeel-overzicht','locaties-overzicht','themas-overzicht','pool-overzicht','catalogus-overzicht','voertuigen','sportrooster','tekorten-overzicht','rooster','periodes-overzicht','instellingen'])
     require('./routes/' + naam)(ctx);
 
   // Testhaak (ALLEEN met env SPORTY_TESTHOOK=1, nooit in productie): laat een testscript de SIGTERM-handler
@@ -130,6 +130,7 @@ async function startServer() {
     res.status(500).json({ error: 'Er ging iets mis op de server. Probeer het opnieuw.' });
   });
 
+  (ctx.nachtbackup=require('./lib/nachtbackup')(ctx)).start(); // BH2: nachtback-up (03:00, 14 bewaard, bij opstart als > 24 u)
   app.listen(PORT,()=>console.log(`Sporty vzw logistiek draait op http://localhost:${PORT}`));
 }
 startServer().catch(err=>{console.error('Fatal startup error:',err);process.exit(1);});
