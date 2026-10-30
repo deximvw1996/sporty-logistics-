@@ -201,6 +201,10 @@ module.exports = function(ctx){
         zomer:`${s.sets.length} sets · ${ingepl} week${ingepl===1?'':'en'} ingepland${tekort?` · ${tekort} tekort`:''}`}});
   });
 
+  // Voor Periodes › Klaar voor de start (hoofdchat-reviewfix PL2/PL3)
+  ctx.sportTeWeinig=function(pid){const per=periodeVan(pid);if(!per)return null;const c=laad(per);const N=aantalWeken(per);let n=0;
+    for(const s of c.soorten.values())for(let w=1;w<=N;w++){if(dagenVan(c,s.soort,w).dagen.some(x=>x.te_weinig))n++;}return n;};
+
   // ── Seizoen: per soort × week de drukste dag ──
   app.get('/api/sportrooster/seizoen',alleenKantoor,(req,res)=>{
     const per=periodeVan(req.query.periode_id);if(!per)return res.status(404).json({error:'Geen periode'});

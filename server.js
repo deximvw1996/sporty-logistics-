@@ -109,7 +109,7 @@ async function startServer() {
   Object.assign(ctx, require('./lib/gedeeld')(ctx));
 
   // ── Routegebieden, in de volgorde van de oorspronkelijke kopjes ──
-  for (const naam of ['locaties','kv','themas','planning','aanvragen','voorraad','transport','bakken','beheer','personeel','sport','conflicten','vandaag','ritplanning','taken','nakijken','kampmomenten','bakken-overzicht','personeel-overzicht','locaties-overzicht','themas-overzicht','pool-overzicht','catalogus-overzicht','voertuigen','sportrooster','tekorten-overzicht'])
+  for (const naam of ['locaties','kv','themas','planning','aanvragen','voorraad','transport','bakken','beheer','personeel','sport','conflicten','vandaag','ritplanning','taken','nakijken','kampmomenten','bakken-overzicht','personeel-overzicht','locaties-overzicht','themas-overzicht','pool-overzicht','catalogus-overzicht','voertuigen','sportrooster','tekorten-overzicht','rooster','periodes-overzicht'])
     require('./routes/' + naam)(ctx);
 
   // Testhaak (ALLEEN met env SPORTY_TESTHOOK=1, nooit in productie): laat een testscript de SIGTERM-handler
