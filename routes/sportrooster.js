@@ -12,6 +12,7 @@ module.exports = function(ctx){
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const plusDagen=(s,n)=>{const d=d0(s);d.setDate(d.getDate()+n);return iso(d);};
   const kort=s=>{const d=d0(s);return `${d.getDate()}/${d.getMonth()+1}`;};
+  const kort2=s=>{const d=d0(s);return `${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}`;};
   // Soort = itemnaam zonder de laatste letter/cijfer-aanduiding ("Archery tag A" → "Archery tag", "Hockey 3" → "Hockey"); "Kinball Abdij" blijft een eigen soort.
   const soortVan=n=>String(n||'').replace(/ +([A-Za-z]|[0-9]+)$/,'').trim()||String(n||'');
   const dagTekst=(a,b)=>a===b?DAGEN[a-1]:`${DAGEN[a-1]}–${DAGEN[b-1]}`;
@@ -23,7 +24,7 @@ module.exports = function(ctx){
   const aantalWeken=per=>per.max_weken||9;
   const weekStart=(per,week)=>plusDagen(per.start_datum,(week-1)*7);
   const dagDatum=(per,week,dag)=>plusDagen(weekStart(per,week),dag-1);
-  const weekLabel=(per,week)=>`Week ${week} · ${d0(weekStart(per,week)).getDate()}–${kort(dagDatum(per,week,5))}`;
+  const weekLabel=(per,week)=>`Week ${week} · ${d0(weekStart(per,week)).getDate()}–${kort2(dagDatum(per,week,5))}`;
   // Zonder ?week= de week van vandaag als die in de periode valt, anders week 1.
   const weekVan=(per,q)=>{
     const w=parseInt(q);if(w>=1&&w<=aantalWeken(per))return w;

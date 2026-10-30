@@ -141,6 +141,7 @@ try {
     .replace('/api/nakijken/sessie/:id', '/api/nakijken/sessie/1') // VC1: onbekende sessie → 404 (geen 5xx)
     .replace('/api/catalogus/:id/detail', '/api/catalogus/1/detail') // MA2
     .replace('/api/voertuigen/:id/detail', '/api/voertuigen/1/detail') // VT1
+    .replace('/api/sportrooster/soort/:soort', '/api/sportrooster/soort/Kinball') // PL3
     .replace('/api/pool/:soort/:id/detail', '/api/pool/vast/1/detail') // MA2
     .replace('/api/kampmomenten/:id/detail', '/api/kampmomenten/1/detail') // PL1: onbekend kampmoment → 404 (geen 5xx)
     .replace('/api/personeel/week/:week', '/api/personeel/week/1')

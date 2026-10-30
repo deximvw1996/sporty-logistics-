@@ -42,7 +42,7 @@
         +l.voorstellen.map(v=>`<div class="rij"><div class="nm">${v.voorstel?'':'<span style="color:#b91c1c">'}voorstel: ${esc(v.tekst)}${v.voorstel?'':'</span>'}</div>${v.voorstel?`<button class="knop licht klein" data-toepassen="${v.rij_id}" data-alt="${esc(v.voorstel.soort)}">Toepassen</button>`:''}</div>`).join('')).join(''):'<div class="rij"><div class="nm">Geen tekort deze week</div></div>'}</div>`;
       const verhuis=`<div class="blok"><h4>Verhuis midden in de week</h4>${D.verhuis.length?D.verhuis.map(v=>`${kv(esc(v.wanneer),`${esc(v.van)} → ${esc(v.naar)}`)}${kv('Sets',esc(v.sets.join(', ')))}`
         +kv('Wie',`<select data-wie="${v.taak_id||''}" aria-label="Wie verhuist"><option value="">chauffeur of coördinator ▾</option>${(verhuizers||D.personeel).map(p=>`<option value="${p.id}" ${p.naam===v.wie?'selected':''}>${esc(p.naam)} · ${p.rol==='chauffeur'?'chauffeur':'coördinator'}</option>`).join('')}</select>`)
-        +kv('Taak',v.taak_id?`<a href="/taken?id=${v.taak_id}">staat op Transport › Taken #${v.taak_id}</a>`:'komt op Transport › Taken')).join('<hr style="border:0;border-top:1px solid #e2e8f0;margin:6px 0">')
+        +kv('Taak',v.taak_id?`<a href="/taken?taak=${v.taak_id}">staat op Transport › Taken #${v.taak_id}</a>`:'komt op Transport › Taken')).join('<hr style="border:0;border-top:1px solid #e2e8f0;margin:6px 0">')
         :'<div class="rij"><div class="nm">Geen verhuis: de sets blijven de hele week op dezelfde plek</div></div>'}</div>`;
       return {raster,letOp,verhuis,wk};
     },

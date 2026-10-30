@@ -107,3 +107,4 @@ input[type=checkbox]{width:20px;height:20px}
   .leg{margin-left:0;flex-wrap:wrap}.kv{flex-wrap:wrap}.kv span{width:100%}
   .kv select{min-height:44px;width:100%}
 }
+@media (max-width:767px){.top select,.per select{min-height:44px}}
