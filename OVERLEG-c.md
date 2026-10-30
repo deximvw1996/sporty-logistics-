@@ -1611,6 +1611,18 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
   - run 2: 33/36. `v3c-catalogus` (2) was éénmalig rood en in de runs erna groen.
   - runs 3 en 4: **34/36**. Alleen de bekende `v3c-fotos` (2) en `veiligheid` (3) zijn rood.
 
+### Rebase op MA2 (main veranderde tijdens het werk)
+- Bij de laatste `git rebase origin/main` stond MA2 (Thema's, Pool, Catalogus) net op main. Er waren conflicten in `server.js` (routelijst), `public/nav.js` (SUB/PAGINA), `index.html` (vervangstrook) en `scripts/test-nav1.mjs`.
+- Opgelost door telkens de versie van main te nemen en de TB2-wijziging erbovenop te zetten:
+  - `'tekorten-overzicht'` in de routelijst;
+  - de Voorraad-subbalk + `'/tekorten'` in PAGINA;
+  - in de strook de link Tekorten bij Nakijken, en voor de oude Voorraad-tab de `nota` "Voorraad staat nu in Materiaal › Catalogus …" met links naar /tekorten en /catalogus (nu live).
+- Er werd pas gepusht na `Successfully rebased`.
+- **Na de rebase:** `test-tb2-tekorten`, `nav1` en `f1-modules` zijn ALLES GROEN.
+- **Volle run na de rebase:**
+  - run 1: 34/37 (`bh1-personeel` AFGEBROKEN na 0,6 s bij het starten; los 37/37 groen);
+  - runs 2 en 3: **35/37**, alleen de bekende `v3c-fotos` en `veiligheid`.
+
 ### Aangepaste bestaande tests (buiten mijn lijst)
 - **`scripts/test-nav1.mjs`:**
   - de verwachte Voorraad-subbalk is nu `/nakijken, /tekorten, /aanvullijst-print`;
