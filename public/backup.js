@@ -15,7 +15,7 @@
     if(dd===0)return d.getHours()<7?`vannacht ${uur}`:`vandaag ${uur}`;if(dd===1)return `gisteren ${uur}`;
     return `${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')} ${uur}`;
   }
-  const bTijd=b=>{const [j,m,d]=b.datum.split('-').map(Number);const [u,mi]=(b.uur||'03:00').split(':').map(Number);return new Date(j,m-1,d,u,mi).toISOString();};
+  const bTijd=b=>{if(b.gewijzigd)return b.gewijzigd;const [j,m,d]=b.datum.split('-').map(Number);const [u,mi]=(b.uur||'03:00').split(':').map(Number);return new Date(j,m-1,d,u,mi).toISOString();}; // echt tijdstip van het bestand (ook bij een back-up bij opstart)
   const RIJEN=[
     {id:'volledig',soort:'backup',naam:'Volledige back-up',sub:'alle gegevens als één databasebestand (.db)'},
     {id:'nacht',soort:'backup',naam:'Automatische nachtback-up',sub:B=>`elke nacht om ${B.uur} · ${B.bewaard} bewaard`},
