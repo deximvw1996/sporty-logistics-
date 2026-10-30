@@ -80,28 +80,34 @@ module.exports = function(ctx){
     const veld=bak.soort==='thema'?'thema_bak_id':'vaste_bak_id';
     return get(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veld}=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend') ORDER BY id DESC`,[bak.soort,bak.id,km.id]);
   }
-  const _nagekeken=s=>!!s&&(['nagekeken','verwerkt'].includes(s.kantoor_status)||!!s.kantoor_afgerond_op);
+  const _nagekeken=s=>!!s&&(['nagekeken','verwerkt'].includes(s.kantoor_status)||(!!s.kantoor_afgerond_op&&s.kantoor_status!=='open')); // AV2: een heropende keuring (open) houdt haar afrondtijd, zodat de aanvullijst blijft werken
   const _locNaam=id=>id?((get('SELECT name FROM locaties WHERE id=?',[id])||{}).name||''):'';
 
   // Eén lijstrij (bak of attribuut) van een kampmoment.
-  function _rij(km,bak){
+  function _rij(km,bak,sessieVast){
     const loc=_locNaam(km.locatie_id),kvNaam=_kvNaam(km);
-    const sessie=_sessieVan(km,bak);
+    const sessie=sessieVast||_sessieVan(km,bak);
     let geteld=0,totaal=1,tekst='niet geteld',tekort=0,kapot=0;
     if(bak.soort==='attribuut'){
       const st=sessie?sessie.notities:'';
       if(st==='aanwezig'){geteld=1;tekst='✓ alles klopt';}
       else if(st==='beschadigd'){geteld=1;tekst='kapot';kapot=1;}
+    }else if(bak.soort==='melding'){
+      totaal=sessie?all("SELECT id FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort<>''",[sessie.id]).length:0;tekst='';
     }else{
       const items=_bakItems(bak),regels=sessie?all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessie.id]):[];
       const u=_uitslag(items,regels);geteld=u.geteld;totaal=items.length;tekst=u.tekst;tekort=u.tekort;kapot=u.kapot;
       if(sessie&&sessie.kv_status==='bezig'&&geteld>0)tekst='KV is bezig · '+geteld+'/'+totaal+' geteld';
     }
+    const gemeld=sessie?all("SELECT * FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort<>''",[sessie.id]):[];
+    const gemeldOpen=gemeld.length&&!_nagekeken(sessie);
     let status='niet_geteld';
     // KD1: de KV is nog niet aan deze bak begonnen (geen sessie) → eigen status, zodat kantoor het verschil ziet met "sessie zonder tellingen".
     if(!sessie){status='nog_niet';tekst='nog niet geteld';}
     else if(_nagekeken(sessie))status='nagekeken';
-    else if(sessie&&sessie.kv_status==='ingediend'&&geteld>0)status='te_keuren';
+    else if(sessie&&sessie.kv_status==='ingediend'&&(geteld>0||gemeldOpen))status='te_keuren';
+    if(bak.soort==='melding'&&!gemeldOpen)tekst='✓ afgehandeld';
+    if(gemeldOpen){kapot+=gemeld.filter(g=>g.gemeld_soort==='kapot').length;tekort+=gemeld.filter(g=>g.gemeld_soort==='weg').length;tekst=(geteld?tekst+' · ':'')+gemeld.length+' gemeld door stockage';}
     return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id,locatie:loc,week:km.week,kv_naam:kvNaam,
       bak:{id:bak.id,code:bak.code||'',naam:bak.naam||bak.label||'',soort:bak.soort},geteld,totaal,uitslag_tekst:tekst,
       met_tekort:tekort>0,met_kapot:kapot>0,status,
@@ -116,6 +122,12 @@ module.exports = function(ctx){
       const v=_kvVerwacht(km);
       v.bakken.forEach(b=>bakken.push(_rij(km,b)));
       v.attributen.forEach(a=>bakken.push(_rij(km,{...a,soort:'attribuut'})));
+    });
+    // AV2: losse meldingen van de aanvuller (zonder bak) staan ook als rij in de lijst
+    all("SELECT * FROM nakijk_sessies WHERE bak_type='melding' AND id IN (SELECT sessie_id FROM nakijk_regels WHERE gemeld_soort<>'')").forEach(s=>{
+      const pseudo={id:s.id,soort:'melding',naam:'Losse melding',code:''};
+      const rij=_rij({id:null,locatie_id:s.locatie_id,week:s.week,periode_id:null,kv_persoon_id:null},pseudo,s);
+      rij.kampmoment_id=null;rij.locatie=_locNaam(s.locatie_id)||'stockage';rij.bak={id:s.id,code:'',naam:'Losse melding',soort:'melding'};bakken.push(rij);
     });
     const tellers={te_keuren:0,niet_geteld:0,nog_niet:0,met_tekort:0,met_kapot:0,nagekeken:0};
     bakken.forEach(b=>{
@@ -134,7 +146,8 @@ module.exports = function(ctx){
   function _detail(km,bak,sessie){
     const loc=_locNaam(km.locatie_id),kvNaam=_kvNaam(km);
     const kvP=km.kv_persoon_id?get('SELECT telefoon FROM personeel WHERE id=?',[km.kv_persoon_id]):null;
-    const rij=_rij(km,bak);
+    const melding=bak.soort==='melding';
+    const rij=_rij(km,bak,melding?sessie:undefined);
     let items=[];
     if(bak.soort==='attribuut'){
       const st=sessie?sessie.notities:'';
@@ -146,7 +159,7 @@ module.exports = function(ctx){
         acties:st==='beschadigd'?ACTIES.kapot.map(([waarde,label])=>({waarde,label})):[]}];
     }else{
       const regels=sessie?all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessie.id]):[];
-      items=_bakItems(bak).map(it=>{
+      items=(melding?[]:_bakItems(bak)).map(it=>{
         const r=regels.find(x=>x.item_id===it.id);
         const afw=_afwijking(r,it.qty);
         const aantal=afw==='tekort'?it.qty-r.aangetroffen:afw==='te_veel'?r.aangetroffen-it.qty:afw==='kapot'?(r.kapot_aantal||0):0;
@@ -161,6 +174,16 @@ module.exports = function(ctx){
           acties:opties.map(([waarde,label])=>({waarde,label}))};
       });
     }
+    // AV2: wat de aanvuller zelf meldde (kapot of weg) staat als extra regel met herkomst; kantoor beslist hier.
+    if(sessie)all("SELECT * FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort<>'' ORDER BY id",[sessie.id]).forEach(r=>{
+      const kapot=r.gemeld_soort==='kapot',n=r.kantoor_aantal||0;
+      items.push({regel_id:r.id,naam:r.item_naam,verwacht:kapot?0:(r.gedaan_aantal||0)+n,aangetroffen:kapot?null:(r.gedaan_aantal||0),te_veel:0,kapot_aantal:kapot?(r.kapot_aantal||n):0,notitie:r.notitie||'',foto_url:r.foto_path?'/uploads/'+r.foto_path:null,
+        afwijking:kapot?'kapot':'tekort',kantoor_actie:r.kantoor_actie||'',kantoor_aantal:n,kantoor_notitie:r.kantoor_notitie||'',aangevuld:r.aangevuld||0,tekort_status:r.tekort_status||'',aantal_afwijking:n,
+        gemeld_door:r.gemeld_door||'',herkomst:'gemeld door '+(r.gemeld_door||'de aanvuller')+' · stockage',voorraad_tekst:'',
+        acties:(kapot?ACTIES.kapot:ACTIES.tekort).map(([waarde,label])=>({waarde,label}))});
+    });
+    if(melding)return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id||null,locatie:loc,week:km.week||null,maandag:null,bak:rij.bak,geteld:0,totaal:items.length,uitslag_tekst:rij.uitslag_tekst,status:rij.status,kv_naam:'',ingediend_op:'',nagekeken_op:rij.nagekeken_op,
+      afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').length,te_veel:0,kapot:items.filter(i=>i.afwijking==='kapot').length},items,foto_s:items.filter(i=>i.foto_url).map(i=>({url:i.foto_url,stuk:i.naam})),vorige_tellingen:[],historiek:[],contact:{kv_naam:'',kv_telefoon:''}};
     // Vorige tellingen van dezelfde bak in andere kampmomenten.
     const veld=bak.soort==='attribuut'?'attribuut_id':bak.soort==='thema'?'thema_bak_id':'vaste_bak_id';
     const andere=all(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veld}=? ${sessie?'AND id<>?':''} ORDER BY id DESC LIMIT 12`,sessie?[bak.soort,bak.id,sessie.id]:[bak.soort,bak.id]);
@@ -176,7 +199,7 @@ module.exports = function(ctx){
     if(sessie){
       const totaal=rij.totaal;
       if(sessie.kv_status==='ingediend')hist.push({tekst:`telling ingediend (${rij.geteld}/${totaal})`,wie:sessie.kv_wie?kvL(sessie.kv_wie):'KV',sorteer:_ts(sessie.kv_tijdstip),tijd:sessie.kv_tijdstip||''});
-      items.forEach(it=>{
+      items.filter(it=>!it.gemeld_door).forEach(it=>{
         if(it.kapot_aantal>0)hist.push({tekst:`${it.naam.toLowerCase()}: ${it.kapot_aantal} kapot${it.foto_url?' + foto':''}`,wie:sessie.kv_wie?kvL(sessie.kv_wie):'KV',sorteer:_ts(sessie.kv_tijdstip),tijd:sessie.kv_tijdstip||''});
       });
       const regelIds=items.map(i=>i.regel_id).filter(Boolean);
@@ -227,8 +250,9 @@ module.exports = function(ctx){
   app.get('/api/nakijken/sessie/:id',alleenKantoor,(req,res)=>{
     const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]);
     if(!s)return res.status(404).json({error:'Deze telling bestaat niet (meer).'});
-    const km=s.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[s.kampmoment_id]):null;
+    const km=s.bak_type==='melding'?{id:null,locatie_id:s.locatie_id,week:s.week,periode_id:null,kv_persoon_id:null}:s.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[s.kampmoment_id]):null;
     if(!km)return res.status(404).json({error:'Deze telling hoort niet bij een kampmoment.'});
+    if(s.bak_type==='melding')return res.json(_detail(km,{id:s.id,soort:'melding',naam:'Losse melding',code:''},s));
     let bak=null;
     if(s.bak_type==='attribuut'){const a=get('SELECT * FROM attributen WHERE id=?',[s.attribuut_id]);bak=a?{...a,soort:'attribuut'}:null;}
     else bak=get('SELECT * FROM bakken WHERE id=?',[s.bak_type==='thema'?s.thema_bak_id:s.vaste_bak_id]);
@@ -270,12 +294,12 @@ module.exports = function(ctx){
     let bestel=0,afschrijf=0;
     all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[s.id]).forEach(r=>{
       const it=items.find(x=>x.id===r.item_id);
-      const afw=_afwijking(r,it?it.qty:(r.verwacht||0));
+      const afw=r.gemeld_soort==='kapot'?'kapot':r.gemeld_soort==='weg'?'tekort':_afwijking(r,it?it.qty:(r.verwacht||0));
       let actie=r.kantoor_actie||'';
       let aantal=r.kantoor_aantal||0;
       if(!actie&&ACTIES[afw]){
         actie=ACTIES[afw][0][0];
-        aantal=afw==='tekort'?(r.verwacht||0)-r.aangetroffen:afw==='te_veel'?r.aangetroffen-(r.verwacht||0):(r.kapot_aantal||0);
+        aantal=r.gemeld_soort?(r.kantoor_aantal||0):afw==='tekort'?(r.verwacht||0)-r.aangetroffen:afw==='te_veel'?r.aangetroffen-(r.verwacht||0):(r.kapot_aantal||0);
         updateMetLog(req,'nakijk_regels',r.id,{kantoor_actie:actie,kantoor_aantal:aantal},'nakijken');
       }
       if(actie==='bestellen'||actie==='afschrijven_bestellen'){
@@ -329,27 +353,34 @@ module.exports = function(ctx){
     bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
   };
   function _aanvullijst(datum,alles){
-    const sessies=all("SELECT * FROM nakijk_sessies WHERE kantoor_afgerond_op<>'' AND kantoor_afgerond_op IS NOT NULL ORDER BY kantoor_afgerond_op,id");
+    const sessies=all("SELECT * FROM nakijk_sessies WHERE (kantoor_afgerond_op<>'' AND kantoor_afgerond_op IS NOT NULL) OR id IN (SELECT sessie_id FROM nakijk_regels WHERE gemeld_soort<>'' AND COALESCE(kantoor_actie,'')='') ORDER BY kantoor_afgerond_op,id");
     const groepen=[];
     sessies.forEach(s=>{
-      if(datum&&(s.kantoor_afgerond_op||'').slice(0,10)>datum)return;
+      if(datum&&s.kantoor_afgerond_op&&(s.kantoor_afgerond_op||'').slice(0,10)>datum)return;
       const km=s.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[s.kampmoment_id]):null;
       let bak=null;
       if(s.bak_type==='attribuut')bak=get('SELECT * FROM attributen WHERE id=?',[s.attribuut_id]);
+      else if(s.bak_type==='melding')bak={id:s.id,code:'',naam:'Losse melding'};
       else bak=get('SELECT * FROM bakken WHERE id=?',[s.bak_type==='thema'?s.thema_bak_id:s.vaste_bak_id]);
       if(!bak)return;
-      const items=s.bak_type==='attribuut'?[]:_bakItems(bak);
+      const items=s.bak_type==='attribuut'||s.bak_type==='melding'?[]:_bakItems(bak);
       const handelingen=[];
       all('SELECT * FROM nakijk_regels WHERE sessie_id=? ORDER BY id',[s.id]).forEach(r=>{
         const it=items.find(x=>x.id===r.item_id);
         let soort='',waar='',aantal=r.kantoor_aantal||0;
-        if(r.aangetroffen==null){soort='nakijken';waar='KV telde niet · zelf tellen';aantal=it?it.qty:(r.verwacht||0);}
+        const gedaanN=r.gedaan_aantal||0;
+        if(r.gemeld_soort&&(!r.kantoor_actie||!_nagekeken(s))){
+          // AV2: gemeld door de aanvuller, kantoor heeft nog niet beslist (of de keuring is nog niet afgerond): zichtbaar maar niet af te vinken.
+          handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort:'melding',waar_tekst:(r.gemeld_soort==='kapot'?'kapot':'weg')+' gemeld door '+(r.gemeld_door||'?')+' · wacht op kantoor',aangevuld:0,binnen:false,kan_afvinken:false,gemeld:1,wacht_op_kantoor:true,gemeld_soort:r.gemeld_soort,gemeld_door:r.gemeld_door||'',gedaan:gedaanN,totaal:gedaanN+aantal});
+          return;
+        }
+        if(r.aangetroffen==null&&!r.gemeld_soort){soort='nakijken';waar='KV telde niet · zelf tellen';aantal=it?it.qty:(r.verwacht||0);}
         else if(SOORT[r.kantoor_actie]){soort=SOORT[r.kantoor_actie];waar=WAAR[r.kantoor_actie](r);if(r.kantoor_notitie)waar=(waar?waar+' · ':'')+r.kantoor_notitie;}
         else return;
         if(r.aangevuld&&!alles)return;
         if(r.tekort_status==='genegeerd')return; // TB2: genegeerd op Tekorten → niet meer op de aanvullijst
         const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen});
+        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
@@ -357,14 +388,76 @@ module.exports = function(ctx){
       if(!handelingen.length)return;
       const vertrek=km?((get("SELECT MIN(datum) AS d FROM transport_taken WHERE kampmoment_id=? AND type='levering' AND COALESCE(status,'')<>'geannuleerd' AND datum<>''",[km.id])||{}).d||''):'';
       groepen.push({vertrek,sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
-        plaats:_plaats(bak),afgerond_op:s.kantoor_afgerond_op||'',handelingen});
+        plaats:s.bak_type==='melding'?{rek:'',plank:'',tekst:''}:_plaats(bak),afgerond_op:s.kantoor_afgerond_op||'',handelingen});
     });
     const alle=groepen.flatMap(g=>g.handelingen);
-    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,bakken:groepen.length},bakken:groepen};
+    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,gemeld:alle.filter(h=>h.wacht_op_kantoor).length,bakken:groepen.length},bakken:groepen};
   }
   app.get('/api/aanvullijst',(req,res)=>{
     const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoLokaal(new Date());
     res.json({..._aanvullijst(datum,req.query.alles==='1'),afgedrukt_door:wie(req),kantoor:ctx.kantoorContact?ctx.kantoorContact():null}); // BH2: kantoornummer onderaan de print
+  });
+  // AV2: de aanvuller meldt zelf dat iets kapot of weg is. Een melding is geen beslissing: ze wordt een nakijk-regel
+  // waar kantoor in Nakijken over beslist; de voorraad verandert pas via de gewone keten.
+  app.post('/api/aanvullijst/melding',(req,res)=>{
+    const p=req.persoon||{};
+    if(!['kantoor','coordinator','chauffeur'].includes(p.rol))return res.status(403).json({error:'Alleen kantoor, coördinator of chauffeur kan iets melden.'});
+    const b=req.body||{};
+    const naam=String(b.item_naam||'').trim().slice(0,80),soort=b.soort,aantal=parseFloat(b.aantal);
+    if(!naam)return res.status(400).json({error:'Vul in welk stuk het is.'});
+    if(soort!=='kapot'&&soort!=='weg')return res.status(400).json({error:'Kies kapot of weg.'});
+    if(!(aantal>=1))return res.status(400).json({error:'Het aantal moet minstens 1 zijn.'});
+    const heeftFoto=typeof b.foto_data==='string'&&!!b.foto_data;
+    if(soort==='kapot'&&!heeftFoto)return res.status(400).json({error:'Kapot melden vraagt een foto van het stuk.'});
+    const notitie=String(b.notitie||'').trim().slice(0,300);
+    // sessie zoeken: expliciet, via kampmoment+bak, de laatste van die bak, of een losse melding zonder bak
+    let s=null,km=null;
+    const bakSoort=['thema','vast','attribuut'].includes(b.bak_soort)?b.bak_soort:null,bakId=parseInt(b.bak_id)||0;
+    if(parseInt(b.sessie_id)){s=get('SELECT * FROM nakijk_sessies WHERE id=?',[parseInt(b.sessie_id)]);if(!s)return res.status(404).json({error:'Deze keuring bestaat niet (meer).'});}
+    else if(bakId){
+      const kmId=parseInt(b.kampmoment_id)||0;
+      if(kmId){
+        km=get('SELECT * FROM kampmomenten WHERE id=?',[kmId]);if(!km)return res.status(404).json({error:'Kampmoment niet gevonden'});
+        const bk=_bakUit(km,(bakSoort||'thema')+':'+bakId)||(!bakSoort&&_bakUit(km,'vast:'+bakId))||null;
+        if(!bk)return res.status(404).json({error:'Deze bak hoort niet bij dit kampmoment.'});
+        s=_sessieVan(km,bk);
+        if(!s){
+          const sid=insMetLog(req,'INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,attribuut_id,locatie_id,week,datum,kv_status,kampmoment_id,kantoor_status) VALUES (?,?,?,?,?,?,?,?,?,?)',
+            [bk.soort,bk.soort==='thema'?bk.id:null,bk.soort==='vast'?bk.id:null,bk.soort==='attribuut'?bk.id:null,km.locatie_id,km.week,isoLokaal(new Date()),'ingediend',km.id,'open'],'aanvuller meldt');
+          s=get('SELECT * FROM nakijk_sessies WHERE id=?',[sid]);
+        }
+      }else{
+        const w=bakSoort?"bak_type=? AND "+(bakSoort==='thema'?'thema_bak_id':bakSoort==='vast'?'vaste_bak_id':'attribuut_id')+"=?":"((bak_type='thema' AND thema_bak_id=?) OR (bak_type='vast' AND vaste_bak_id=?))";
+        s=get('SELECT * FROM nakijk_sessies WHERE '+w+' AND kampmoment_id IS NOT NULL ORDER BY id DESC',bakSoort?[bakSoort,bakId]:[bakId,bakId]);
+        if(!s)return res.status(404).json({error:'Voor deze bak is geen keuring gevonden. Geef een kampmoment mee of meld zonder bak.'});
+      }
+    }else{
+      const loc=parseInt(b.locatie_id)||null;
+      s=get("SELECT * FROM nakijk_sessies WHERE bak_type='melding' AND kantoor_status='open' AND COALESCE(locatie_id,0)=? ORDER BY id DESC",[loc||0]);
+      if(!s){
+        const sid=insMetLog(req,'INSERT INTO nakijk_sessies (bak_type,locatie_id,datum,kv_status,kantoor_status) VALUES (?,?,?,?,?)',['melding',loc,isoLokaal(new Date()),'ingediend','open'],'aanvuller meldt');
+        s=get('SELECT * FROM nakijk_sessies WHERE id=?',[sid]);
+      }
+    }
+    if(!km&&s.kampmoment_id)km=get('SELECT * FROM kampmomenten WHERE id=?',[s.kampmoment_id]);
+    let fp='';
+    if(heeftFoto){try{fp=fotos.bewaarFoto(b.foto_data,'nakijken');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}}
+    const heropend=_nagekeken(s)&&s.bak_type!=='melding';
+    const bestaand=get("SELECT * FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort=? AND lower(item_naam)=lower(?) AND COALESCE(kantoor_actie,'')='' ORDER BY id DESC",[s.id,soort,naam]);
+    let regelId,dubbel=false;
+    if(bestaand){
+      dubbel=true;regelId=bestaand.id;
+      updateMetLog(req,'nakijk_regels',bestaand.id,{kantoor_aantal:(bestaand.kantoor_aantal||0)+aantal,kapot_aantal:soort==='kapot'?(bestaand.kapot_aantal||0)+aantal:0,
+        notitie:[bestaand.notitie,notitie].filter(Boolean).join(' · ').slice(0,500),foto_path:bestaand.foto_path||fp},'aanvuller meldt (erbij)');
+    }else{
+      regelId=insMetLog(req,'INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,kapot_aantal,notitie,foto_path,kantoor_aantal,gemeld_soort,gemeld_door,tekort_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+        [s.id,naam,null,0,null,soort==='kapot'?aantal:0,notitie,fp,aantal,soort,p.naam||'','open'],'aanvuller meldt');
+    }
+    if(heropend)updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'open'},'aanvuller meldt: keuring heropend');
+    const plaats=km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),wiem=p.naam||'de aanvuller';
+    logAct('nakijken','gemeld',`${naam}: ${aantal} ${soort==='kapot'?'kapot':'weg'} gemeld door ${wiem} (stockage)${dubbel?' — erbij op een bestaande melding':''}${heropend?' — keuring heropend':''}${fp?' (foto '+fp+')':''}`,s.locatie_id||(km?km.locatie_id:null),plaats);
+    if(!dubbel&&ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:wiem,tekst:`${naam} (${aantal}×) is ${soort==='kapot'?'kapot':'weg'}, gemeld vanuit de stockage — beslis in Nakijken`,link:'/nakijken'});
+    res.json({ok:true,regel_id:regelId,sessie_id:s.id,dubbel,heropend,foto:fp?'/uploads/'+fp:null});
   });
   // G15: kantoor meldt dat de bestelling geleverd is; pas daarna kan de handeling "aangevuld" worden.
   app.post('/api/nakijken/regel/:id/binnen',alleenKantoor,(req,res)=>{
@@ -383,6 +476,7 @@ module.exports = function(ctx){
     const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[r.sessie_id]);
     if(!s||!s.kantoor_afgerond_op)return res.status(409).json({error:'Deze keuring is nog niet afgerond door kantoor.'});
     const aan=req.body?.aangevuld===false||req.body?.aangevuld===0||req.body?.aangevuld==='0'?0:1;
+    if(aan&&r.gemeld_soort&&!r.kantoor_actie)return res.status(409).json({error:'Dit is gemeld en wacht op kantoor — kantoor beslist eerst in Nakijken.'});
     if(aan&&SOORT[r.kantoor_actie]==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld)return res.status(409).json({error:'Deze bestelling is nog niet binnen — zet ze eerst op "Bestelling binnen".'});
     // AV1: afschrijven vraagt altijd een foto van het kapotte stuk (bewijs); zonder foto geen afvinken.
     const heeftFoto=typeof req.body?.foto_data==='string'&&!!req.body.foto_data;
@@ -400,7 +494,7 @@ module.exports = function(ctx){
         const st=typeId&&roz?get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[typeId,roz.id]):null;
         if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)-gedaan)},'aanvullen (deels): '+zonderHaakjes(r.item_naam||''));
       }
-      updateMetLog(req,'nakijk_regels',r.id,{kantoor_aantal:totaalN-gedaan},'aanvullen (deels)');
+      updateMetLog(req,'nakijk_regels',r.id,{kantoor_aantal:totaalN-gedaan,gedaan_aantal:(r.gedaan_aantal||0)+gedaan},'aanvullen (deels)');
       logAct('nakijken','aangevuld_deels',`${r.item_naam}: ${gedaan} van ${totaalN} aangevuld door ${wie(req)||'?'} — ${totaalN-gedaan} blijven open${fp?' (foto '+fp+')':''}`,s.locatie_id,_locNaam(s.locatie_id));
       return res.json({ok:true,regel_id:r.id,aangevuld:0,gedaan,open:totaalN-gedaan,foto:fp?'/uploads/'+fp:null});
     }
