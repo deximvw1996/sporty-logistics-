@@ -3,12 +3,13 @@
 'use strict';
 (function(){
   // MOB1: gsm-weergave (design/MOBIEL-DEFINITIEF.html, A2). Los van de browser, zodat de test ze met echte data-JSON kan aanroepen.
+  const aUrl=u=>u==='/aanvullijst-print'?'/aanvullen':u; // AV1: de NU-kaart Aanvullen opent het aanvullen-scherm
   const escG=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const ROL={kantoor:'kantoor',chauffeur:'chauffeur',coordinator:'coördinator',monitor:'monitor'};
   const GSM={
     kop(v,titel){const d=v.datum_tekst,n=v.n_dingen||0;return `<div class="kopA"><div class="l">${escG(ROL[v.gebruiker.rol]||v.gebruiker.rol)} · ${escG(d)}</div><b>${escG(titel||'Hallo '+v.gebruiker.naam)}</b>${titel?'':`<span>${n===0?'niets meer vandaag':n===1?'1 ding vandaag':n+' dingen vandaag'}</span>`}</div>`;},
-    rij(x){return `<a class="rij" href="${escG(x.url)}"><div class="ico">${escG(x.ico)}</div><div class="nm">${x.tijd?`<i>${escG(x.tijd)}</i> `:''}${escG(x.titel)}<b>${escG(x.sub)}</b></div><span class="pijl">›</span></a>`;},
-    nu(n){return n?`<div class="nukaart"><div class="l">NU</div><div class="t">${escG(n.ico)} ${escG(n.titel)}</div><div class="s">${n.tijd?escG(n.tijd)+' · ':''}${escG(n.sub)}</div><a class="knop breed" href="${escG(n.url)}">${escG(n.knop)}</a></div>`:'<div class="nukaart"><div class="l">NU</div><div class="t">✓ Niets te doen</div><div class="s">Er staat nu niets op je lijst.</div></div>';},
+    rij(x){return `<a class="rij" href="${escG(aUrl(x.url))}"><div class="ico">${escG(x.ico)}</div><div class="nm">${x.tijd?`<i>${escG(x.tijd)}</i> `:''}${escG(x.titel)}<b>${escG(x.sub)}</b></div><span class="pijl">›</span></a>`;},
+    nu(n){return n?`<div class="nukaart"><div class="l">NU</div><div class="t">${escG(n.ico)} ${escG(n.titel)}</div><div class="s">${n.tijd?escG(n.tijd)+' · ':''}${escG(n.sub)}</div><a class="knop breed" href="${escG(aUrl(n.url))}">${escG(n.knop)}</a></div>`:'<div class="nukaart"><div class="l">NU</div><div class="t">✓ Niets te doen</div><div class="s">Er staat nu niets op je lijst.</div></div>';},
     vandaag(v){
       const m=v.meldingen||[];
       const meldRij=m.length?GSM.rij({ico:'🔔',tijd:'',titel:m.length===1?'1 melding':m.length+' meldingen',sub:m.slice(0,2).map(x=>x.titel).join(' · '),url:'/vandaag?tab=meldingen'}):'';
@@ -55,7 +56,7 @@
     document.addEventListener('click',async e=>{
       const b=e.target.closest('button[data-gk]');if(!b)return;
       const a=V[b.dataset.gk][b.dataset.i].acties[b.dataset.j];
-      if(a.soort==='link'||a.soort==='tel'){location.href=a.url;return;}
+      if(a.soort==='link'||a.soort==='tel'){location.href=aUrl(a.url);return;}
       b.disabled=true;const r=await api(a.methode,a.url,a.body);b.disabled=false;
       if(!r.ok)return toast(r.json.error||'Actie mislukt','error');toast(a.label+': gelukt','success');laadG();
     });
@@ -105,7 +106,7 @@
     const b=e.target.closest('button[data-k]');if(!b)return;
     const it=DATA[b.dataset.k][b.dataset.i],a=it.acties[b.dataset.j];
     // PL1: kampmoment zonder thema / planningsmelding → Kampmomenten; VC1: tekorten → Nakijken
-    if(a.soort==='link'||a.soort==='tel'){location.href=a.url==='/#materiaal?tekorten'?'/nakijken':(a.url==='/#overzicht?conflicten'&&it.sub==='planning')?'/kampmomenten':a.url;return;} // VC1: tekorten/nakijken openen op de nieuwe Nakijken-pagina
+    if(a.soort==='link'||a.soort==='tel'){location.href=a.url==='/#materiaal?tekorten'?'/nakijken':(a.url==='/#overzicht?conflicten'&&it.sub==='planning')?'/kampmomenten':aUrl(a.url);return;} // VC1: tekorten/nakijken openen op de nieuwe Nakijken-pagina
     b.disabled=true;
     const r=await api(a.methode,a.url,a.body);
     b.disabled=false;

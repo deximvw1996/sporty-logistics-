@@ -17,15 +17,15 @@
     planning: [['Kampmomenten', '/kampmomenten'], ['Rooster', '/rooster'], ['Sportrooster', '/sportrooster'], ['Gedeeld materiaal', '/gedeeld'], ['Periodes', '/periodes']], // PL2/PL3
     transport: [['Ritplanning', '/ritplanning'], ['Taken', '/taken'], ['Voertuigen', '/voertuigen']],
     materiaal: [['Thema’s', '/themas'], ['Bakken', '/bakken'], ['Pool', '/pool'], ['Catalogus', '/catalogus']],
-    voorraad: [['Nakijken', '/nakijken'], ['Tekorten & bestellingen', '/tekorten'], ['Aanvullijst', '/aanvullijst-print']], // TB2: Voorraad gaat op in Materiaal › Catalogus
+    voorraad: [['Nakijken', '/nakijken'], ['Tekorten & bestellingen', '/tekorten'], ['Aanvullijst', '/aanvullen']], // TB2: Voorraad gaat op in Materiaal › Catalogus
     beheer: [['Personeel', '/personeel'], ['Logboek', '/logboek'], ['Back-up & export', '/backup'], ['Instellingen', '/instellingen']] // BH2
   };
   // Welke pagina hoort bij welk onderdeel (en welke subknop).
-  var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer', '/backup': 'beheer', '/instellingen': 'beheer' };
+  var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/aanvullen': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer', '/backup': 'beheer', '/instellingen': 'beheer' };
   // MOB1: gsm-schil (< 768 px). Tabbalk per rol (design/MOBIEL-DEFINITIEF.html); dezelfde URL's als op desktop.
   var TABS = {
     kantoor: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['transport', '🚚', 'Transport', '/ritplanning'], ['voorraad', '🧮', 'Voorraad', '/nakijken'], ['meldingen', '🔔', 'Meldingen', '/vandaag?tab=meldingen'], ['meer', '☰', 'Meer', '/meer']],
-    ploeg: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['ritten', '🚚', 'Ritten', '/vandaag?tab=ritten'], ['stockage', '📦', 'Stockage', '/aanvullijst-print'], ['meldingen', '🔔', 'Meldingen', '/vandaag?tab=meldingen'], ['meer', '☰', 'Meer', '/meer']]
+    ploeg: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['ritten', '🚚', 'Ritten', '/vandaag?tab=ritten'], ['stockage', '📦', 'Stockage', '/aanvullen'], ['meldingen', '🔔', 'Meldingen', '/vandaag?tab=meldingen'], ['meer', '☰', 'Meer', '/meer']]
   };
   var tabsVan = function (rol) { return rol === 'kantoor' ? TABS.kantoor : TABS.ploeg; };
   // Welke tab is actief: volgt de PAGINA-tabel; de onderdelen zonder eigen tab vallen onder Meer.
@@ -33,6 +33,7 @@
     var q = /[?&]tab=(\w+)/.exec(zoek || ''), onderdeel = PAGINA[pad];
     if (pad === '/vandaag') return q && (q[1] === 'meldingen' || q[1] === 'ritten') ? q[1] : 'vandaag';
     if (pad === '/meer') return 'meer';
+    if (pad === '/aanvullen') return rol === 'kantoor' || !rol ? 'voorraad' : 'stockage'; // AV1
     if (rol === 'kantoor' && (onderdeel === 'transport' || onderdeel === 'voorraad')) return onderdeel;
     return 'meer';
   }
@@ -43,7 +44,7 @@
       return '<a data-tab="' + t[0] + '"' + (t[0] === act ? ' class="act"' : '') + ' href="' + t[3] + '">' + t[1] + '<span>' + esc(t[2]) + (n ? ' <em>' + n + '</em>' : '') + '</span></a>';
     }).join('');
   }
-  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || (rol === 'coordinator' && pad === '/tekorten'); };
+  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || pad === '/aanvullen' || (rol === 'coordinator' && pad === '/tekorten'); };
   var isGsm = function () { return !!(root.matchMedia && root.matchMedia('(max-width:767px)').matches); };
   var naarLogin = function () { root.location.replace('/login?terug=' + encodeURIComponent(root.location.pathname + root.location.search)); };
   function tekenSchil(pad, tok) {

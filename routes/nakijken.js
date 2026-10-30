@@ -355,7 +355,8 @@ module.exports = function(ctx){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
       }
       if(!handelingen.length)return;
-      groepen.push({sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
+      const vertrek=km?((get("SELECT MIN(datum) AS d FROM transport_taken WHERE kampmoment_id=? AND type='levering' AND COALESCE(status,'')<>'geannuleerd' AND datum<>''",[km.id])||{}).d||''):'';
+      groepen.push({vertrek,sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
         plaats:_plaats(bak),afgerond_op:s.kantoor_afgerond_op||'',handelingen});
     });
     const alle=groepen.flatMap(g=>g.handelingen);
@@ -383,6 +384,26 @@ module.exports = function(ctx){
     if(!s||!s.kantoor_afgerond_op)return res.status(409).json({error:'Deze keuring is nog niet afgerond door kantoor.'});
     const aan=req.body?.aangevuld===false||req.body?.aangevuld===0||req.body?.aangevuld==='0'?0:1;
     if(aan&&SOORT[r.kantoor_actie]==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld)return res.status(409).json({error:'Deze bestelling is nog niet binnen — zet ze eerst op "Bestelling binnen".'});
+    // AV1: afschrijven vraagt altijd een foto van het kapotte stuk (bewijs); zonder foto geen afvinken.
+    const heeftFoto=typeof req.body?.foto_data==='string'&&!!req.body.foto_data;
+    if(aan&&!r.aangevuld&&r.kantoor_actie==='afschrijven_bestellen'&&!heeftFoto)return res.status(400).json({error:'Afschrijven vraagt een foto van het kapotte stuk.'});
+    // AV1: minder gevonden dan nodig → alleen dat aantal telt nu (voorraad daalt met dat aantal), de rest blijft open en wordt gelogd.
+    const gedaan=parseInt(req.body?.aantal),totaalN=r.kantoor_aantal||0;
+    if(aan&&!r.aangevuld&&gedaan>=0&&Number.isFinite(gedaan)&&totaalN>0&&gedaan<totaalN&&req.body&&req.body.aantal!==undefined){
+      if(gedaan<1)return res.status(400).json({error:'Vul in hoeveel je aangevuld hebt (minstens 1), of laat het vakje leeg.'});
+      let fp='';
+      if(heeftFoto){try{fp=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}}
+      if(['uit_pool','bestellen','afschrijven_bestellen'].includes(r.kantoor_actie)){
+        const bi=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
+        const typeId=(bi&&bi.item_type_id)||((get('SELECT id FROM item_types WHERE lower(naam)=lower(?) ORDER BY id LIMIT 1',[zonderHaakjes(r.item_naam||'').trim()])||{}).id);
+        const roz=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
+        const st=typeId&&roz?get('SELECT * FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[typeId,roz.id]):null;
+        if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)-gedaan)},'aanvullen (deels): '+zonderHaakjes(r.item_naam||''));
+      }
+      updateMetLog(req,'nakijk_regels',r.id,{kantoor_aantal:totaalN-gedaan},'aanvullen (deels)');
+      logAct('nakijken','aangevuld_deels',`${r.item_naam}: ${gedaan} van ${totaalN} aangevuld door ${wie(req)||'?'} — ${totaalN-gedaan} blijven open${fp?' (foto '+fp+')':''}`,s.locatie_id,_locNaam(s.locatie_id));
+      return res.json({ok:true,regel_id:r.id,aangevuld:0,gedaan,open:totaalN-gedaan,foto:fp?'/uploads/'+fp:null});
+    }
     let fotoPad='';
     if(aan&&typeof req.body?.foto_data==='string'&&req.body.foto_data){
       try{fotoPad=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}
@@ -402,5 +423,7 @@ module.exports = function(ctx){
 
   // ── Pagina's ──
   app.get('/nakijken',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','nakijken.html')));
+  // AV1: de aanvuller-pagina (gsm én desktop); de gegevens komen uit /api/aanvullijst
+  app.get('/aanvullen',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','aanvullen.html')));
   app.get('/aanvullijst-print',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','aanvullijst-print.html')));
 };
