@@ -1906,3 +1906,61 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 4. **Standaard tijden** `tijd_vertrek_ritten` en `tijd_verhuis_avond` worden bewaard, maar de ritplanning en de verhuistaak (PL3, chat D) lezen ze nog niet. Alleen het uur van de nachtback-up wordt al gebruikt.
 5. **Leeftijdsgroepen hebben geen eigen tabel:** de lijst = de waarden in `themas`/`kampmoment_themas` + toegevoegde in `app_vlaggen.leeftijdsgroepen`. Hernoemen past alle thema's en kampmomenten mee aan.
 6. **Een reeks gesloten dagen slaat weekends over;** een losse dag mag wel in een weekend.
+
+## MOB1 — Gsm-app: schil, inloggen, Vandaag (chat C, 30/10)
+
+**Stand:** af en gepusht naar `bouw-c`. Niets naar main, niets gedeployd. De login-bestanden zitten per ongeluk in de commit van punt 1.
+
+### Punt 1 — Schil
+- `public/nav.js` tekent op elke pagina met nav.js een tabbalk; `public/app-schil.css` toont die alleen onder 768 px (52 px hoog). De rij met tabs komt uit `TABS` per rol, de actieve tab uit de PAGINA-tabel. De bovenbalk is op gsm verborgen; de subbalk is een horizontaal scrollbare rij.
+- Tellers: `/api/vandaag?mijn=1` geeft `tellers` per rol. Kantoor: dezelfde lijsten als de badges (beslissen, inplannen, nakijken) + meldingen. Ploeg: open ritten + meldingen.
+- `/meer`: kantoor Planning, Materiaal, Locaties, Beheer, Snel, periode, profiel, weergave, uitloggen. Chauffeur alleen profiel en uitloggen; coördinator ook Tekorten.
+- Tabs Ritten en Meldingen zijn `/vandaag?tab=ritten` en `/vandaag?tab=meldingen`; Beslissen van kantoor is `/vandaag?tab=beslissen`, met de bestaande knoppen.
+- De ploeg op een kantoorpagina op gsm gaat naar /vandaag (anders stuurt de 403 van die pagina hen naar de oude app). De 403's op de API blijven de echte grens.
+- **Desktop gemeten (1920×900):** /vandaag: `.top` flex, 56 px, 7 links, tabbalk none, padding-bottom 0. /ritplanning: `.top` flex 56 px, `.sub` flex 48 px, overflow visible, tabbalk none. Dit zijn metingen na de wijziging, geen vergelijking met een meting ervoor; boven 767 px staat alleen `.app-tabs{display:none}` in de schil.
+
+**Alle pagina's op 390 px (als kantoor, in de browser):**
+| Pagina | Pagina breed | Elementen < 44 px | Actieve tab |
+|---|---|---|---|
+| /vandaag, /meer | 390 | 0 | vandaag, meer |
+| /kampmomenten, /taken, /bakken, /personeel | 390 | 0 (eerst 8-12; opgelost in de schil met min-height 44 px op `.knop`/`.chip`) | meer, transport, meer, meer |
+| /rooster, /sportrooster, /gedeeld, /periodes | 390 | 0 | meer |
+| /ritplanning, /voertuigen | 390 | 0 | transport |
+| /themas, /pool, /catalogus, /locaties | 390 | 0 | meer |
+| /tekorten | 390 | 0 | voorraad |
+| /logboek, /backup, /instellingen | 390 | 0 | meer |
+| **/nakijken** | **660** | **9** (chips) | voorraad |
+
+/nakijken scrolt dus nog horizontaal: dat bestand valt onder MOB2 (chat D). De meting telt alleen knoppen, chips en balklinks, en alleen de eerste weergave van elke pagina: open detailpanelen zijn hier niet gemeten.
+
+### Punt 2 — `/login`
+- Exacte kopie: naam kiezen (zoekbaar, laatste gebruiker bovenaan op dit toestel), toetsenblok, 4 stippen, verzenden bij het 4e cijfer, foutmelding met schudden, melding bij 429.
+- Wie nog geen pincode heeft, kiest er hier een via `/api/eerste-pincode` (alleen als kantoor uitnodigde).
+- Zonder token op gsm → `/login?terug=`: in de browser getest (`/rooster?week=2`). `terug` mag alleen een pad binnen de site zijn.
+- Sessie: ongewijzigd. `sessies` kent geen vervaldatum, dus je blijft ingelogd tot uitloggen. Niets verlengd.
+- Bij een verlopen sessie (401) op een pagina met tabbalk: token weg en naar /login.
+
+### Punt 3 — Vandaag op gsm
+- `/api/vandaag?mijn=1` is uitgebreid met `nu`, `daarna`, `n_dingen`, `meldingen`, `tellers` (kantoor ook `beslissen`). Bestaande velden blijven.
+- **NU-kaart:** chauffeur: rit onderweg, anders de eerste op tijd. Coördinator: rit onderweg, dan aanvullen, dan de eerste rit of telling op tijd. Kantoor: de eerste groep met iets erin (Beslissen → Inplannen → Nakijken → Ritten).
+- De knop opent `/rit/<token>`; ontbreekt het token, dan wordt het aangemaakt (niet via `updateMetLog`: technisch veld).
+- In de browser bekeken op 390 px: chauffeur Vandaag, kantoor Vandaag, Meer. Coördinator alleen via de test en de API, niet visueel.
+
+### Bewijs
+- **`scripts/test-mob1-schil.mjs` (poort 3368): 31 ok, 0 fout, ALLES GROEN.** Tabbalk per rol, actieve tab, login goed/fout/blokkering (401 ×5, dan 429), `terug`, `/rit` en `/kv` zonder nav.js, NU-kaart per rol, DOM-bouw.
+- **Beperking:** node heeft geen DOM. De redirect, computed style en de maten zijn in de browser gemeten, niet in het script; het script controleert daarvan alleen de CSS- en code-regels.
+- **Volle run:** runs 5 en 6 **41/43**. Alleen de bekende `v3c-fotos` en `veiligheid` zijn rood.
+- **Runs 1 t/m 4 waren niet schoon:** run 1 en 2 25/43, run 3 40/43, run 4 39/43, met wisselende rode en afgebroken tests. Alle tests die ik daarvan los draaide (pl2-rooster, ko1-vandaag, lo1-locaties, kd1, mob1-schil, f1-schrijven, keten-kv-periode) waren groen, en runs 5 en 6 zonder wijziging ook. Vermoedelijk botsen poorten met een andere chat die tegelijk draait; dat is niet bewezen.
+
+### Buiten mijn lijst
+- Niets. De twee routes `/login` en `/meer` staan in `routes/vandaag.js`.
+
+### GEVONDEN
+1. **Geen gsm-aanvullijst gebouwd (punt 76):** alleen `mockup-aanvullen-gsm.html` bestaat. Tab Stockage linkt naar `/aanvullijst-print`, een printpagina zonder tabbalk en zonder knop terug. Ook de NU-kaart "Aanvullen" gaat daarheen.
+2. **Ritten en meldingen van de ploeg:** ritten tellen alleen met `personeel_id`; een rit met alleen een chauffeursnaam verschijnt niet (bestaand gedrag van `mijn=1`).
+3. **Meldingen zijn smal ingevuld:** chauffeur: eigen open chauffeursmeldingen; coördinator: alle open chauffeursmeldingen. Mockup-voorbeelden als "Kantoor: conciërge gebeld" of "KV Zoë: tape goedgekeurd" hebben geen bron; die staan er dus niet.
+4. **"Tellen bij ophaling" is mijn invulling:** alle ophalingen van vandaag op een rit, voor elke coördinator, met link naar de KV-pagina van dat kampmoment. Er is geen koppeling coördinator ↔ telling. Graag nakijken.
+5. **Pincodes langer dan 4 tekens** kunnen niet op `/login` (de API staat "minstens 4 tekens" toe): verzenden gebeurt bij het 4e cijfer. Zulke personen moeten via de desktop-login of hun pincode wijzigen.
+6. **Start op `/`:** de PWA en de oude login starten op `/` (index.html, de oude app zonder schil). Die pagina stuurt gsm-gebruikers nog niet naar `/vandaag` of `/login`; dat bestand viel buiten deze prompt.
+7. **Pincode wijzigen in Meer** gebruikt voorlopig `prompt()`: geen ontworpen scherm in de mockup.
+8. **Rol in `localStorage`:** de tabbalk gebruikt eerst de bewaarde rol en corrigeert na `mijn=1`. Na een login via de oude overlay kan de tabbalk heel even de verkeerde rij tonen.
