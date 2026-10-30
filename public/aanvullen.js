@@ -39,7 +39,7 @@
       const kleur=h.aangevuld?'groen':wacht?'rood':'';
       const vink=wacht?`<button type="button" class="vink uit" disabled aria-label="Wacht op levering">⏳</button>`:`<button type="button" class="vink${h.aangevuld?' aan':''}" data-av="vink" data-regel="${h.regel_id}" aria-label="${h.aangevuld?'Terugzetten naar open':'Afvinken'}: ${esc(h.stuk)}">${h.aangevuld?'✓':''}</button>`;
       const aantal=h.aangevuld||wacht?'':`<label class="aantal">aantal<input type="number" inputmode="numeric" min="1" max="${h.aantal}" value="${(st.aantal||{})[h.regel_id]||h.aantal}" data-av="aantal" data-regel="${h.regel_id}" aria-label="Aantal aangevuld van ${esc(h.stuk)}"></label>`;
-      const fotoKnop=h.aangevuld?'':`<label class="knop ${foto?'':'licht'} klein cam" aria-label="Foto maken">📷${foto?' ✓':''}<input type="file" accept="image/*" capture="environment" data-av="foto" data-regel="${h.regel_id}" hidden></label>`;
+      const fotoKnop=h.aangevuld||wacht?'':`<label class="knop ${foto?'':'licht'} klein cam" aria-label="Foto maken">📷${foto?' ✓':''}<input type="file" accept="image/*" capture="environment" data-av="foto" data-regel="${h.regel_id}" hidden></label>`;
       return `<div class="it ${kleur}" data-regel="${h.regel_id}">${vink}<div class="nm">${esc(h.stuk)} <b class="x">× ${h.aantal}</b><span class="pil ${p[0]}">${wacht?'wacht op levering':p[1]}</span><b>${esc(h.waar_tekst||'')}${h.soort==='afschrijven'&&!h.aangevuld?' · foto verplicht':''}</b></div><div class="acties">${aantal}${fotoKnop}</div></div>`;
     },
     // Bakscherm: ‹ terug, per stuk afvinken, Bak klaar als alles af is.

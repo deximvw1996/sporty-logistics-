@@ -94,7 +94,6 @@ try {
   await A('POST', `/api/nakijken/regel/${hHoepel.regel_id}/binnen`);
   data = (await A('GET', '/api/aanvullijst?alles=1')).json;
   let g2 = data.bakken.find((b) => b.bak.code === 'AV01');
-  T.check(g2.handelingen.find((x) => x.stuk === 'Hoepel').kan_afvinken === true && !/class="vink uit"/.test(AV.bak(g2, {}).replace(/class="vink uit" disabled aria-label="Wacht[^>]*>⏳<\/button>/, 'x')) || true, 'bestelling binnen → knop wordt actief');
   T.check((await A('POST', `/api/aanvullijst/${hHoepel.regel_id}/aangevuld`, { aangevuld: true })).status === 200, 'binnen → afvinken lukt');
   data = (await A('GET', '/api/aanvullijst?alles=1')).json;
   g2 = data.bakken.find((b) => b.bak.code === 'AV01');
