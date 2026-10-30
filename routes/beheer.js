@@ -50,6 +50,7 @@ module.exports = function(ctx){
       const ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
       fs.writeFileSync(path.join(backupDir, 'voor-herstel-' + ts + '.db'), Buffer.from(db.export()));
       fs.writeFileSync(DB_PATH, buf);
+      ctx.nachtbackup.noteerNaHerstart(`Back-up teruggezet (${buf.length} bytes) door ${wie}; de toestand ervoor staat in ${voor.naam}`);
       res.json({ ok: true, bytes: buf.length, melding: 'Database vervangen — server herstart nu' });
       // Hoofdchat 29/10: exit 0 wordt door Railway (restart policy on-failure) NIET herstart → prod lag 10 min plat. Exit 1 wél.
       setTimeout(() => process.exit(1), 500);
