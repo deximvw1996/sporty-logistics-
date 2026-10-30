@@ -97,6 +97,7 @@ module.exports = function(ctx){
     const a=taken[i],b=taken[j];
     updateMetLog(req,'UPDATE transport_taken SET volgorde=?,tijd=? WHERE id=?',[b.volgorde,b.tijd,a.id],'ritplanning');
     updateMetLog(req,'UPDATE transport_taken SET volgorde=?,tijd=? WHERE id=?',[a.volgorde,a.tijd,b.id],'ritplanning');
+    if(ctx.meldRitGewijzigd)ctx.meldRitGewijzigd(req,rit.id,'volgorde van de stops aangepast'); // TF3
     logAct('transport','gewisseld',`Kantoor (${req.persoon?.naam||'?'}) wisselde stop ${locNaam(stopLoc(a))} en ${locNaam(stopLoc(b))} (rit #${rit.id})`,null,null);
     res.json({ok:true,taken:takenVanRit(rit.id).map(t=>({id:t.id,volgorde:t.volgorde,tijd:t.tijd,slot:t.slot}))});
   });
@@ -107,6 +108,7 @@ module.exports = function(ctx){
     if(!t)return res.status(404).json({error:'Deze stop hoort niet bij deze rit'});
     const o=ctx._ontkoppelTaak(req,t,'ritplanning'); // TB1: één ontkoppel-functie (transport.js)
     if(o.fout)return res.status(o.status).json({error:o.fout});
+    if(ctx.meldRitGewijzigd)ctx.meldRitGewijzigd(req,parseInt(req.params.id),'stop van de rit gehaald'); // TF3
     logAct('transport','van rit gehaald',`Taak #${t.id} (${locNaam(stopLoc(t))}) van rit #${req.params.id} gehaald`,null,null);
     res.json({ok:true});
   });
