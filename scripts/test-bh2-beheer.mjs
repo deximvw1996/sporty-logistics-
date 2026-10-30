@@ -28,7 +28,7 @@ try {
   const h = await A('POST', '/api/backups/nu');
   B = (await A('GET', '/api/backups')).json;
   const hb = B.backups.find((b) => b.naam === h.json.naam);
-  T.check(h.status === 200 && /^sporty-\d{4}-\d{2}-\d{2}-\d{4}\.db$/.test(h.json.naam) && hb && hb.soort === 'handmatig' && hb.wie === 'Claude (API)' && fs.existsSync(path.join(BK, h.json.naam)), `handmatige back-up ${h.json.naam} staat in de lijst (handmatig · ${hb && hb.wie})`);
+  T.check(h.status === 200 && /^sporty-hand-\d{4}-\d{2}-\d{2}-\d{6}(-\d+)?\.db$/.test(h.json.naam) && hb && hb.soort === 'handmatig' && hb.wie === 'Claude (API)' && fs.existsSync(path.join(BK, h.json.naam)), `handmatige back-up ${h.json.naam} staat in de lijst (handmatig · ${hb && hb.wie})`);
   // download
   const dl = await fetch(srv.base + '/api/backups/' + h.json.naam, { headers: { authorization: BASIC, 'x-auth-token': tok } });
   const buf = Buffer.from(await dl.arrayBuffer());
@@ -46,7 +46,7 @@ try {
   srv = await T.startServer({ poort: POORT, verseMap: false });
   tok = await T.login(srv.base); A = (m, p, b) => T.api(srv.base, tok, m, p, b);
   const na = fs.readdirSync(BK).filter((f) => /^sporty-.*\.db$/.test(f));
-  T.check(na.length === 14 && na.includes(`sporty-${vandaag}.db`) && na.includes(h.json.naam) && !na.includes('sporty-2026-01-01.db'), `16 oude + 2 nieuwe in de map → na opstart blijven er 14 (oudste weg, recente blijven)`);
+  T.check(na.length === 15 && na.includes(`sporty-${vandaag}.db`) && na.includes(h.json.naam) && !na.includes('sporty-2026-01-01.db'), `16 oude + 1 automatische + 1 handmatige → na opstart 14 automatische + de handmatige (oudste weg, ME1)`);
 
   // ── punt 3: gesloten dag per locatie ──
   const L1 = ijk.locaties.betekom, L2 = ijk.locaties.abdijschool, K1 = ijk.kampmomenten.betekom, K2 = ijk.kampmomenten.abdijschool;
@@ -113,7 +113,7 @@ try {
   B = (await A('GET', '/api/backups')).json;
   T.check(B.uur === '02:30' && new Date(B.volgende).getHours() === 2 && new Date(B.volgende).getMinutes() === 30, `uur nachtback-up 02:30 → volgende ${B.volgende}`);
   const AP = (await A('GET', '/api/instellingen/app')).json.data;
-  T.check(/^[0-9a-f]{7}$/.test(AP.versie) && AP.grootte > 0 && AP.backups === 14, `App & database: versie ${AP.versie}, ${AP.grootte_tekst}, ${AP.backups} back-ups`);
+  T.check(/^[0-9a-f]{7}$/.test(AP.versie) && AP.grootte > 0 && AP.backups === 15, `App & database: versie ${AP.versie}, ${AP.grootte_tekst}, ${AP.backups} back-ups`);
 
   // ── pagina's + rechten ──
   const NAV = require(T.ROOT + '/public/nav.js');
@@ -141,7 +141,7 @@ try {
   T.check(rs.length === 7 && /Alles 7/.test(BB.chips(rs, 'alles')) && /Back-up 3/.test(BB.chips(rs, 'alles')) && /Export 3/.test(BB.chips(rs, 'alles')) && /Import 1/.test(BB.chips(rs, 'alles')), `chips: ${t(BB.chips(rs, 'alles'))}`);
   T.check(/elke nacht om 02:30 · 14 bewaard/.test(BB.rij(rs[1])) && /pil groen">aan/.test(BB.rij(rs[1])) && /gevaarlijk/.test(BB.rij(rs[6])), `rijen: ${t(BB.rij(rs[1]))} / ${t(BB.rij(rs[6]))}`);
   const dv = BB.detail('volledig', B, IN, 'backup');
-  T.check(/Laatste back-ups/.test(dv) && /Wat zit erin/.test(dv) && /Download nu/.test(dv) && /Tip/.test(dv) && /Eerdere 14/.test(dv) && /handmatig/.test(dv), `detail Volledige back-up: ${t(dv).slice(0, 300)}`);
+  T.check(/Laatste back-ups/.test(dv) && /Wat zit erin/.test(dv) && /Download nu/.test(dv) && /Tip/.test(dv) && /Eerdere 15/.test(dv) && /handmatig/.test(BB.detail('volledig', B, IN, 'eerder')), `detail Volledige back-up: ${t(dv).slice(0, 300)}`);
   T.check(/TERUGZETTEN/.test(BB.detail('terugzetten', B, IN)) && /Ingebouwde planning/.test(BB.detail('import', B, IN)) && /database .* MB/.test(BB.voet(IN, B)), 'detail Terugzetten (woord), Importeren, voet met grootte');
   const I2 = (await A('GET', '/api/instellingen')).json;
   T.check(/Alles 7/.test(IB.chips(I2, 'alles', '')) && /⚠ Aandacht 0/.test(IB.chips(I2, 'alles', '')) && /Zoek instelling/.test(IB.chips(I2, 'alles', '')), 'instellingen-chips: zoekveld · Alles · ⚠ Aandacht');
@@ -158,8 +158,8 @@ try {
   T.check(zonder.status === 400 && /TERUGZETTEN/.test((await zonder.json()).error) && fs.readdirSync(BK).length === voorN, 'terugzetten zonder het woord → 400, geen wijziging');
   const met = await fetch(srv.base + '/api/herstel-db', { method: 'POST', headers: { authorization: BASIC, 'x-auth-token': tok, 'content-type': 'application/octet-stream', 'x-bevestig': 'TERUGZETTEN' }, body: dbBuf });
   const lijstNa = fs.readdirSync(BK);
-  const nieuw = lijstNa.filter((f) => /^sporty-\d{4}-\d{2}-\d{2}-\d{4}\.db$/.test(f));
-  T.check(met.status === 200 && nieuw.length >= 1, `terugzetten met TERUGZETTEN → 200, eerst een back-up van de huidige toestand (${nieuw.join(', ')})`);
+  const nieuw = lijstNa.filter((f) => /^sporty-hand-/.test(f));
+  T.check(met.status === 200 && nieuw.length === 2 && !lijstNa.some((f) => /^voor-herstel/.test(f)), `terugzetten met TERUGZETTEN → 200, eerst een back-up van de huidige toestand (${nieuw.join(', ')})`);
   await new Promise((r) => setTimeout(r, 1500));
   srv = await T.startServer({ poort: POORT, verseMap: false });
   tok = await T.login(srv.base);

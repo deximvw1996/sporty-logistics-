@@ -45,10 +45,6 @@ module.exports = function(ctx){
       const voor = ctx.nachtbackup.handmatig('voor terugzetten · ' + wie);
       logAct('beheer', 'terugzetten', `Back-up teruggezet (${buf.length} bytes) door ${wie}; vooraf bewaard als ${voor.naam}`, null, null);
       saveDb();
-      const backupDir = path.join(DATA_DIR, 'backups');
-      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-      const ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
-      fs.writeFileSync(path.join(backupDir, 'voor-herstel-' + ts + '.db'), Buffer.from(db.export()));
       fs.writeFileSync(DB_PATH, buf);
       ctx.nachtbackup.noteerNaHerstart(`Back-up teruggezet (${buf.length} bytes) door ${wie}; de toestand ervoor staat in ${voor.naam}`);
       res.json({ ok: true, bytes: buf.length, melding: 'Database vervangen — server herstart nu' });

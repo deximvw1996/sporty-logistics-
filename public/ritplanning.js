@@ -123,7 +123,7 @@ const RITGSM=(function(){
     const GR={eigen:'Eigen voertuigen',huur:'Huur',prive:'Privé'};
     const vts=['eigen','huur','prive'].map(s=>{const l=P.voertuigen.filter(v=>v.soort===s);return l.length?`<optgroup label="${GR[s]}">${l.map(v=>`<option value="${v.id}">${esc(v.naam)}${v.plaatsen?' ('+v.plaatsen+' bakken)':''}</option>`).join('')}</optgroup>`:'';}).join('')+'<option value="">Ander voertuig…</option>';
     return `<div class="kop2"><a data-g="annuleer">‹ Annuleren</a><div style="flex:1"><b>Nieuwe rit</b><span>${opt.taak_ids?'met taak #'+opt.taak_ids.join(', #'):'bestuurder = elke medewerker'}</span></div></div>
-      <form class="body" id="gnf" onsubmit="return false"><label class="vl">Datum<input type="date" name="datum" value="${esc(datum)}"></label><label class="vl">Vertrek<input type="time" name="vertrek" value="${esc(opt.vertrek||'08:00')}"></label>
+      <form class="body" id="gnf" onsubmit="return false"><label class="vl">Datum<input type="date" name="datum" value="${esc(datum)}"></label><label class="vl">Vertrek<input type="time" name="vertrek" value="${esc(opt.vertrek||(P&&P.standaard_vertrek)||'08:00')}"></label>
       <label class="vl">Bestuurder<select name="personeel_id">${bst}</select></label><label class="vl">Voertuig<select name="voertuig">${vts}</select></label>
       <label class="vl" id="gnf-n" hidden>Naam van het voertuig<input name="vnaam" value="Eigen wagen"></label><label class="vl" id="gnf-c" hidden>Capaciteit (bakken)<input type="number" min="1" name="cap" value="6"></label></form>
       <div class="voet"><button class="knop licht" data-g="annuleer">Annuleren</button><button class="knop" data-g="maak">Rit maken</button></div>`;
@@ -293,7 +293,7 @@ if(typeof window!=='undefined')(function(){
   function tekenNieuw(el){
     el.innerHTML=`<div class="ritkop"><div><b>Nieuwe rit</b><span>${NIEUW.taak_ids?'met taak #'+NIEUW.taak_ids.join(', #'):'bestuurder = elke medewerker · voertuig pool, eigen of huur'}</span></div></div><div class="scroll"><form class="form" id="nf" onsubmit="return false">
       <label>Datum<input type="date" name="datum" value="${esc(NIEUW.datum||DAG)}"></label>
-      <label>Vertrek<input type="time" name="vertrek" value="${esc(NIEUW.vertrek||'08:00')}"></label>
+      <label>Vertrek<input type="time" name="vertrek" value="${esc(NIEUW.vertrek||(P&&P.standaard_vertrek)||'08:00')}"></label>
       <label>Bestuurder<select name="personeel_id">${opties()}</select></label>
       <label>Voertuig<select name="voertuig"></select></label>
       <label id="nf-cap" style="display:none">Naam van het voertuig<input name="vnaam" value="Eigen wagen"></label>
