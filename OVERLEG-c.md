@@ -1485,3 +1485,148 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 ### Buiten mijn gebied
 - Geen. Er is geen migratie nodig (de groepering zit in `wijzigingen.context`; samengedrukt wordt berekend).
 - `ritplanning.css` kreeg naast de sleepklassen ook de gsm-media-query (punt 4).
+
+---
+
+## TB2 — Tekorten & bestellingen op het standaardpatroon (chat C, Opus) · 2026-10-30
+
+**Commits op `bouw-c`:**
+- punt 1: API + migratie 83
+- punt 2 + 3: pagina, nav, vervangstrook, gsm, test
+- de fixes uit de browsercontrole en de aangepaste tests
+- dit verslag
+
+**Mockup:** `design/mockup-tekorten.html` stond niet op main. Ik las hem uit `D:\Sporty\sporty-railway\design\` (alleen gelezen, daar niets aangeraakt).
+
+### Hoe de werking nu loopt
+1. **Een KV-telling met een tekort of kapot stuk is een melding.** Kantoor beslist per regel in **Nakijken** (bestaand, ongewijzigd).
+2. **Alleen regels met `kantoor_actie` uit_pool, bestellen of afschrijven_bestellen komen op /tekorten.**
+   - Aanvaarde en herstelde regels staan er niet op.
+   - Nog niet gekeurde meldingen tellen in de chip **"Te beslissen N"**. Die chip is een link naar `/nakijken`; er wordt niets gekeurd op deze pagina.
+3. **Per artikel stelt het systeem een stand voor:**
+   - "uit voorraad" als het tekort ≤ Rozenweg + Kantoor én de voorraad daarna nog ≥ het minimum blijft;
+   - anders "te bestellen", met `bestel_voorstel = ⌈tekort − voorraad + minimum⌉` (minstens het tekort min de voorraad, en minstens 1).
+   - Kantoor (of een coördinator) kan dat omdraaien: `stand_bron: kantoor`, gelogd. Kiest kantoor weer het voorstel, dan is de bron opnieuw "voorstel".
+4. **Een bestelling is altijd een keuze.** Er wordt nooit automatisch besteld.
+5. **Voorraad:**
+   - Afvinken op de aanvullijst verlaagt `item_type_stock.qty` (Rozenweg) met het aangevulde aantal. Dat gebeurt pas bij het afvinken, en terugzetten zet het terug (gelogd).
+   - "Binnen" verhoogt eerst de voorraad met het bestelde aantal; het aanvullen trekt het er daarna weer af, en de rest blijft voorraad.
+
+### Punt 1 — Data en API (`routes/tekorten-overzicht.js`, nieuw)
+- **Migratie 83 (`tekort_bestellingen`):** er was geen plek voor een bestelling per artikel, noch voor de keuze van kantoor die afwijkt van het voorstel.
+  - Kolommen: artikel_sleutel, periode_id, stand_kantoor, aantal, waar_kopen, leveren_aan_id, reden, besteld_op/door, binnen_op/door, `los` (bestelling zonder tekort), `extra` (aankoop bovenop een tekort dat uit voorraad wordt aangevuld).
+  - Gezet onder de vlag `migratie83_klaar`; nummer 83 = het eerste na 82.
+- **`GET /api/tekorten-overzicht?periode_id=&chip=`:**
+  - Eén rij per artikel: het `item_type` via het bak-item, anders op naam in de catalogus, anders `n:<naam>`.
+  - Velden: `{artikel_id, naam, eenheid, tekort, n_bakken, waar_tekst, voorraad{rozenweg,kantoor,minimum}, stand, stand_voorstel, bestel_voorstel, stand_bron, bestelling{…}|null}`.
+  - Tellers: `tellers{open, te_beslissen, te_bestellen, besteld, binnen, uit_voorraad, afgehandeld}`.
+- **`GET /api/tekorten/:artikel_id/detail`:**
+  - stand-tijdlijn: gemeld door KV → gekeurd → [uit voorraad | bestellen → besteld → binnen] → aangevuld;
+  - `regels[]` per bak (code, bak, locatie, week, KV, geteld/gewenst, notitie, actie, aantal, status);
+  - voorraad per stockage, met "na aanvullen" en "onder minimum";
+  - het voorstel als tekst ("bestel 90 (30 tekort + 60 tot minimum)");
+  - de bestelling, "na levering" (welke aanvullijst-handelingen afvinkbaar worden en wat naar de voorraad gaat), en de historiek met naam.
+- **Acties** (alle gelogd met naam, via `updateMetLog`/`insMetLog` en `logAct`):
+  - `PUT …/stand {stand}`: zet ook de `kantoor_actie` van de open regels op uit_pool of bestellen.
+  - `POST …/besteld {aantal, waar_kopen}`
+  - `POST …/binnen`: zelfde effect als `/regel/:id/binnen` (tekort_status binnen) + voorraad Rozenweg plus het bestelde aantal; een tweede keer geeft 409, zodat de voorraad niet dubbel stijgt.
+  - `POST …/negeren {reden}`: de regels krijgen tekort_status genegeerd. `_aanvullijst` (nakijken.js) slaat die over.
+  - Bulk: `POST /api/tekorten/bulk/{stand|besteld|binnen|negeren} {artikel_ids[]}`.
+- **`POST /api/tekorten/melden`** (+ Tekort melden, alleen kantoor): een eigen sessie die meteen nagekeken is, met één regel `uit_pool` op naam van kantoor. Met een bak komt die regel ook op de aanvullijst.
+- **Bestellijst:**
+  - `GET /api/tekorten/bestellijst`: te bestellen + besteld-nog-niet-binnen, inclusief extra en losse bestellingen.
+  - Printpagina `/tekorten/bestellijst`: A4, en ook op gsm leesbaar.
+
+### Aanvulling Maxim 30/10 (alles mogelijk, niets geblokkeerd)
+- **Bestellen werkt altijd.** Bij "uit voorraad" (of al afgehandeld) is het een **extra aankoop**:
+  - de regels blijven `uit_pool`, dus het aanvullen blijft meteen afvinkbaar;
+  - "binnen" verhoogt alleen de voorraad;
+  - de rij toont een 📦 naast de stand.
+- **"+ Bestelling"** (subbalk) bevat: artikel uit de catalogus, aantal, waar kopen, leveren aan (stockage), en reden.
+  - Het wordt een eigen rij `b:<id>` met tekort "—", stand besteld → binnen, en staat op de bestellijst.
+  - "Binnen" verhoogt alleen de voorraad van de stockage waaraan geleverd werd.
+- **Coördinator:**
+  - mag: de pagina, het overzicht, het detail, de stand, besteld, binnen, + Bestelling en de bestellijst;
+  - kantoor-only (403): negeren en + Tekort melden.
+  - De knoppen Negeren en + Tekort melden zijn verborgen voor een coördinator.
+- **Geen blokkades meer behalve één:** de enige 409 is een tweede keer "binnen", want dat zou de voorraad dubbel tellen.
+
+### Punt 2 — De pagina `/tekorten`
+- **Kopie van de mockup.** Wat afwijkt:
+  - geen demo-balk; het frame vult het venster;
+  - een extra knop **"+ Bestelling"** (aanvulling).
+- **Subbalk** (via `nav.js`): Nakijken · Tekorten & bestellingen · Aanvullijst, en rechts 🖨 Bestellijst · ⬇ Export · + Bestelling · + Tekort melden.
+- **Chips:** Open · Te beslissen (→ /nakijken) · Te bestellen · Besteld · Binnen · Afgehandeld.
+  - "Uit voorraad" als 7e chip **paste niet**: gemeten op 1920 is de filterbalk dan 839 px breed in 828 px ruimte. Daarom weggelaten (de prompt: "als het past").
+- **Kolommen:** artikel (+ "2 bakken · 2 locaties") · tekort · waar · Rozenweg (rood "/min" onder het minimum) · stand-pil.
+- **Detail:**
+  - knoppen Aanvullen uit voorraad / Negeren / Bestellen; de knop die het voorstel volgt is blauw;
+  - tab Tekort: Stand, Waar ontbreekt het, Voorraad, Bestelling (Besteld / Bestelling binnen), Na levering;
+  - tab Catalogus › → `/catalogus?id=` (MA2), en `/#catalogus` voor een artikel zonder catalogusnummer;
+  - tab Historiek.
+- **Bulk-voet:** Op bestellijst · Besteld · Bestelling binnen · Negeren. `?id=` opent dat artikel. Export = CSV met puntkomma.
+- **`nav.js`:** Voorraad-subbalk Nakijken `/nakijken` · Tekorten & bestellingen `/tekorten` · Aanvullijst `/aanvullijst-print`; `'/tekorten'` staat in de PAGINA-tabel.
+- **`index.html`:**
+  - de oude tab Materiaal › Voorraad (met de oude bestellijst) toont de strook "Voorraad staat nu in Materiaal › Catalogus. Tekorten en de bestellijst staan in Voorraad & controles › Tekorten & bestellingen", met links naar /tekorten en /#catalogus;
+  - de oude Nakijken-tab (met het oude tekortendashboard) linkt nu ook naar /tekorten.
+
+### Punt 3 — Gsm (gemeten in de browser, 390×844)
+- **Lijst:** `scrollWidth` 390, dus geen horizontale scroll. De chips scrollen horizontaal. Alle zichtbare knoppen, chips en rijen zijn ≥ 44 px.
+- **Detail:** een volgend scherm (de lijst verdwijnt) met "‹ terug" van 44 px. Knoppen ≥ 44 px, blokken onder elkaar.
+- **Bestellijst:** 390 breed zonder scroll; de naam is 16 px, het aantal 22 px, de knop 44 px. Eén regel per artikel met een vinkvak, leesbaar in de winkel.
+
+### Bewijs
+- **`node scripts/test-tb2-tekorten.mjs` (poort 3345): 34 ok, 0 fout, ALLES GROEN.** Gecontroleerd:
+  - **Keuring:**
+    - een ongekeurde melding telt in te_beslissen (5) maar staat niet in de lijst;
+    - een aanvaarde melding (Lijm) staat niet op de pagina.
+  - **Samenvoegen en voorstel:**
+    - twee regels in twee bakken → één rij met tekort 30;
+    - voorraad 100, minimum 20 → uit_voorraad, geen bestelling;
+    - voorraad 3, minimum 5, tekort 2 → te_bestellen met voorstel 4;
+    - geen voorraad → voorstel 1.
+  - **Omdraaien:** gelogd met naam en `stand_bron: kantoor`; terug naar het voorstel geeft weer bron voorstel.
+  - **Bestellen en voorraad:**
+    - besteld → nog niet afvinkbaar;
+    - binnen → voorraad 3 + 10 = 13 en `kan_afvinken`;
+    - een tweede keer binnen → 409;
+    - de detail-tijdlijn en de historiek kloppen.
+  - **Afvinken:** de voorraad is 100 vóór het afvinken, 80 erna, en weer 100 na terugzetten.
+  - **Negeren:** de handeling verdwijnt van de aanvullijst en de stand wordt afgehandeld.
+  - **Aanvulling 30/10:**
+    - bestellen bij genoeg voorraad → 200, de stand blijft uit_voorraad, het aanvullen blijft afvinkbaar, binnen → 150;
+    - een bestelling zonder tekort → op de bestellijst, en binnen → voorraad +12;
+    - coördinator: 200 op overzicht en bestellen, 403 op negeren en melden, en de bestelling staat gelogd op zijn naam.
+  - **Lijsten en pagina's:**
+    - de bestellijst bevat alleen te bestellen/besteld;
+    - `/tekorten/bestellijst` geeft 200;
+    - + Tekort melden telt mee in het tekort (30 → 35);
+    - `GET /tekorten` geeft 200 met subbalk; een chauffeur krijgt 403 op de pagina en op de API.
+  - **Bestanden en HTML:**
+    - vervangstrook in `index.html`; `nav.js`-subbalk;
+    - DOM-bouw (rij, detail, chips) met de echte data-JSON.
+- **In de browser:** 1920×900 is gelijk aan de mockup; gsm-metingen zie Punt 3.
+- **Volle run:**
+  - run 1: 32/36. De rode `nav1` (3) en `f1-modules` (1) eisten de oude subbalk en kenden de nieuwe padparameter niet; aangepast, zie hieronder. Daarnaast de bekende `v3c-fotos` en `veiligheid`.
+  - run 2: 33/36. `v3c-catalogus` (2) was éénmalig rood en in de runs erna groen.
+  - runs 3 en 4: **34/36**. Alleen de bekende `v3c-fotos` (2) en `veiligheid` (3) zijn rood.
+
+### Aangepaste bestaande tests (buiten mijn lijst)
+- **`scripts/test-nav1.mjs`:**
+  - de verwachte Voorraad-subbalk is nu `/nakijken, /tekorten, /aanvullijst-print`;
+  - het aantal subbalk-links volgt de tabel;
+  - de strook-regex voor Nakijken aanvaardt een tweede link.
+- **`scripts/test-f1-modules.mjs`:** de nieuwe padparameter `/api/tekorten/:artikel_id/detail` wordt ingevuld (een onbekend artikel geeft 404, geen 5xx).
+
+### GEVONDEN
+1. **`design/mockup-tekorten.html` staat niet op main**, alleen in de map van de hoofdchat.
+2. **De mockup toont een rij "te beslissen" (Croquetbal) in de lijst**, maar de bindende werking zegt "niet in de lijst, alleen de chip". Ik volgde de werking.
+3. **Keuring in Nakijken met "bestellen" zet al `tekort_status='besteld'` (`_afronden`, bestaand).** Op /tekorten telt een artikel pas als "besteld" zodra kantoor de bestelling bewaart (aantal, waar kopen). Daarvoor staat het op "te bestellen". De vlag van `_afronden` betekent hier dus "op de bestellijst".
+4. **"Uit voorraad" telt Rozenweg + Kantoor (zoals de prompt), maar afvinken trekt alles van Rozenweg af.** De aanvullijst weet niet uit welke stockage het kwam.
+5. **Eén bestelling per artikel per periode.** Komen er na "binnen" nieuwe tekorten van hetzelfde artikel bij, dan hangen die aan dezelfde rij (stand binnen); "+ Bestelling" werkt los daarvan.
+6. **De historiek-knop "↶ Terug" is er niet:** er bestaat geen generieke terugdraai-route (TR1 #1). Alles is wel gelogd met oud/nieuw.
+7. **Migratie 83:** als een andere chat ook een 83 toevoegt, moet de hoofdchat bij de merge hernummeren.
+
+### Buiten mijn gebied
+- `scripts/test-nav1.mjs` en `scripts/test-f1-modules.mjs`: zie hierboven.
+- `routes/nakijken.js` (in de lijst "alleen wat Punt 1 nodig heeft"): genegeerde regels uit de aanvullijst, en de voorraad daalt bij afvinken.
