@@ -8,7 +8,7 @@ module.exports = function(ctx){
   const zetVlag=(n,w)=>run('INSERT OR REPLACE INTO app_vlaggen (naam,waarde) VALUES (?,?)',[n,w]);
   const wie=req=>req.persoon?req.persoon.naam:'?';
   const log=(req,groep,tekst)=>logAct('instellingen',groep,`${tekst} (door ${wie(req)})`,null,null);
-  const TIJDEN={tijd_vertrek_ritten:['Vertrek ritten','08:00'],tijd_verhuis_avond:['Verhuis-avond','18:00'],tijd_nachtbackup:['Nachtback-up','03:00']};
+  const TIJDEN={tijd_vertrek_ritten:['Vertrek ritten','08:00'],tijd_verhuis_avond:['Verhuis-avond','17:00'],tijd_nachtbackup:['Nachtback-up','03:00']};
   const GROEPEN=[['kantoor','Kantoor & contact'],['gesloten','Gesloten dagen'],['stockage','Stockagelocaties'],['leeftijd','Leeftijdsgroepen'],['categorie','Thema-categorieën'],['tijden','Standaard tijden'],['app','App & database']];
   const mb=n=>(n/1048576).toFixed(1).replace('.',',')+' MB';
 

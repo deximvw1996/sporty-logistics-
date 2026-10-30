@@ -12,7 +12,7 @@
     nu(n){return n?`<div class="nukaart"><div class="l">NU</div><div class="t">${escG(n.ico)} ${escG(n.titel)}</div><div class="s">${n.tijd?escG(n.tijd)+' · ':''}${escG(n.sub)}</div><a class="knop breed" href="${escG(aUrl(n.url))}">${escG(n.knop)}</a></div>`:'<div class="nukaart"><div class="l">NU</div><div class="t">✓ Niets te doen</div><div class="s">Er staat nu niets op je lijst.</div></div>';},
     vandaag(v){
       const m=v.meldingen||[];
-      const meldRij=m.length?GSM.rij({ico:'🔔',tijd:'',titel:m.length===1?'1 melding':m.length+' meldingen',sub:m.slice(0,2).map(x=>x.titel).join(' · '),url:'/vandaag?tab=meldingen'}):'';
+      const meldRij=m.length?GSM.rij({ico:'🔔',tijd:'',titel:m.length===1?'1 melding':m.length+' meldingen',sub:m.slice(0,2).map(x=>x.titel).join(' · '),url:'/meldingen'}):'';
       const rijen=(v.daarna||[]).map(GSM.rij).join('')+meldRij;
       return GSM.kop(v)+`<div class="gbody">${GSM.nu(v.nu)}${rijen?`<div class="sec"><h3>Daarna</h3>${rijen}</div>`:''}</div>`;
     },
