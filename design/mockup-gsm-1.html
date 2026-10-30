@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><title>Gsm-schermen ronde 1</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
+.keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
+.keuze label{height:28px;line-height:28px;padding:0 12px;border-radius:6px;background:#333;color:#fff;cursor:pointer;user-select:none}
+.keuze span{color:#aaa;margin-left:8px}
+input[name=kz]{position:absolute;opacity:0;pointer-events:none}
+#rA:checked~.keuze label[for=rA],#rB:checked~.keuze label[for=rB],#rC:checked~.keuze label[for=rC]{background:#2563eb}
+#rA:checked~#fA,#rB:checked~#fB,#rC:checked~#fC{display:block}
+.frame{display:none;width:1920px;height:860px;margin:40px auto 0;overflow:hidden;position:relative;padding:4px 0 0}
+.uitleg{position:absolute;left:50%;top:300px;width:300px;margin-left:-690px;font-size:13px;color:#334155;line-height:1.5}.uitleg b{display:block;font-size:16px;margin-bottom:6px}
+.telefoons{display:flex;justify-content:center;gap:60px;margin-top:0}
+.phone{width:390px;height:844px;background:#fff;border-radius:28px;box-shadow:0 10px 40px rgba(0,0,0,.25);overflow:hidden;position:relative;border:3px solid #111;box-sizing:content-box}
+.phone .lbl{position:absolute;top:8px;right:-230px;width:220px;font-size:12px;color:#64748b;font-weight:700}
+.tel{height:100%;display:flex;flex-direction:column;background:#f5f5f5;font-size:15px}
+button{font:inherit;cursor:pointer;border:0}
+.knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
+.knop.licht{background:#e8eefc;color:#1e3a8a}.knop.klein{height:44px;padding:0 14px;font-size:14px}.knop.breed{width:100%;margin-top:8px}
+.pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}
+.pil.groen{background:#dcfce7;color:#15803d}.pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
+.body{flex:1;overflow-y:auto;min-height:0;padding:12px 14px 20px}
+.body::-webkit-scrollbar{width:0}
+.rij{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 0;border-top:1px solid #eef2f7}
+.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.bak{display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.bak.groen{border-left-color:#16a34a}.bak.rood{border-left-color:#dc2626}
+.bak .code{font-weight:800;width:44px}.bak .nm{flex:1;font-weight:600;font-size:14px;line-height:1.3}.bak .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.twee{display:flex;gap:8px;margin-top:8px}.twee .knop{flex:1}
+.hint{font-size:13px;color:#64748b;margin-bottom:8px}
+.it{display:flex;align-items:center;gap:10px;min-height:60px;padding:6px 10px;margin:6px 0;background:#fff;border-radius:12px;border-left:4px solid #cbd5e1}
+.it.groen{border-left-color:#16a34a}.it.rood{border-left-color:#dc2626;background:#fff5f5}
+.it .nm{flex:1;font-weight:600;line-height:1.3}.it .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stp{display:flex;align-items:center;gap:4px}.stp button{width:44px;height:44px;border-radius:10px;background:#e8eefc;color:#1e3a8a;font-size:20px;font-weight:800}.stp span{width:36px;text-align:center;font-weight:800;font-size:18px}
+.ja{display:flex;gap:4px}.ja button{height:44px;padding:0 12px;border-radius:10px;background:#f1f5f9;color:#334155;font-weight:700;min-width:60px}.ja button.act{background:#2563eb;color:#fff}.it.rood .ja button.act{background:#dc2626}
+.it input{width:64px;height:44px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;font-weight:800;text-align:center;font-size:18px}
+.it .kapot{width:44px;height:44px;border-radius:10px;background:#fee2e2}
+.kop2{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-bottom:1px solid #e2e8f0;min-height:64px}
+.kop2 a{color:#2563eb;font-weight:700;font-size:15px;height:44px;display:flex;align-items:center}.kop2 b{display:block;font-size:16px}.kop2 span{font-size:12px;color:#64748b}
+.voet{display:flex;gap:8px;padding:10px 14px 16px;background:#fff;border-top:1px solid #e2e8f0}.voet .knop{flex:1}
+/* A */
+.kopA{background:#1e3a8a;color:#fff;padding:14px 14px 12px}.kopA .l{font-size:12px;opacity:.8}.kopA b{display:block;font-size:18px;margin-top:2px}.kopA span{font-size:13px;opacity:.9}
+.sec{background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.sec h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;justify-content:space-between}
+.sec .bak{margin:4px 0;padding:6px 8px;background:#f8fafc}
+/* B */
+.kopB{background:#fff;padding:14px 14px 10px;border-bottom:1px solid #e2e8f0}.kopB b{display:block;font-size:18px}.kopB span{font-size:13px;color:#64748b}
+.kaartB{background:#fff;border-radius:14px;padding:14px 44px 14px 14px;margin-bottom:10px;border-left:5px solid #cbd5e1;position:relative;min-height:64px}
+.kaartB.groen{border-left-color:#16a34a}.kaartB.blauw{border-left-color:#2563eb}.kaartB.oranje{border-left-color:#f59e0b}
+.kaartB .t{font-weight:800;font-size:16px}.kaartB .s{font-size:13px;color:#64748b;margin-top:3px;line-height:1.35}
+.kaartB .pijl{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:24px;color:#94a3b8}
+.tabs{display:flex;background:#fff;border-top:1px solid #e2e8f0;padding:6px 4px 14px}
+.tabs a{flex:1;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:700;color:#64748b;border-radius:10px}
+.tabs a.act{color:#1d4ed8;background:#eff6ff}
+/* C */
+.kopC{background:#fff;padding:14px;border-bottom:1px solid #e2e8f0}.kopC .l{font-size:12px;color:#64748b}.kopC b{display:block;font-size:18px}.kopC span{font-size:13px;color:#64748b}
+.stap{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:12px;margin-bottom:10px;min-height:72px;border:2px solid transparent}
+.stap.nu{border-color:#2563eb;background:#f5f9ff}.stap.klaar{opacity:.75}
+.stap .n{width:36px;height:36px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
+.stap.nu .n{background:#2563eb;color:#fff}.stap.klaar .n{background:#16a34a;color:#fff}
+.stap .nm{flex:1;font-weight:700;line-height:1.3;font-size:15px}.stap .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.stap .sub{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}.stap .sub span{font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px;background:#e2e8f0}.stap .sub span.groen{background:#dcfce7;color:#15803d}.stap .sub span.rood{background:#fee2e2;color:#b91c1c}
+.stap .knop{height:44px}
+.info{font-size:12px;color:#64748b;text-align:center;padding:6px;display:flex;flex-direction:column;gap:8px;align-items:center}
+
+#r1:checked~.keuze label[for=r1],#r2:checked~.keuze label[for=r2],#r3:checked~.keuze label[for=r3]{background:#2563eb}
+#r1:checked~#f1,#r2:checked~#f2,#r3:checked~#f3{display:block}
+.tabs a span em{font-style:normal;background:#dc2626;color:#fff;border-radius:999px;padding:0 5px;font-size:10px;margin-left:2px}
+.tabs.wit{background:#fff}.tabs.pil a.act{background:#1e3a8a;color:#fff}.tabs.pil a.act span em{background:#fff;color:#1e3a8a}
+.tabs.donker{background:#1e3a8a;border-top:0}.tabs.donker a{color:#c7d2fe}.tabs.donker a.act{background:rgba(255,255,255,.15);color:#fff}
+.stap .n{font-size:16px}
+.nukaart{background:#1e3a8a;color:#fff;border-radius:16px;padding:16px;margin-bottom:12px}.nukaart .l{font-size:11px;letter-spacing:.1em;opacity:.8}.nukaart .t{font-size:20px;font-weight:800;margin:4px 0}.nukaart .s{font-size:13px;opacity:.9;margin-bottom:12px}.nukaart .knop{background:#fff;color:#1e3a8a;width:100%}
+.rij .ico{font-size:20px;width:30px;text-align:center}.rij .nm i{font-style:normal;color:#64748b;font-weight:500}.rij .pijl{color:#94a3b8;font-size:20px;width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.body.tl{padding-left:10px}
+.pt{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;position:relative}
+.pt .tijd{width:44px;font-weight:700;font-size:13px;padding-top:12px;color:#334155;text-align:right}
+.pt .bol{width:24px;text-align:center;padding-top:10px;color:#94a3b8;font-size:14px;position:relative}.pt.nu .bol{color:#2563eb;font-size:18px;padding-top:8px}
+.pt .bol:after{content:"";position:absolute;left:11px;top:30px;bottom:-14px;width:2px;background:#e2e8f0}.pt:last-child .bol:after{display:none}
+.kaartT{flex:1;background:#fff;border-radius:12px;padding:10px 12px;border-left:4px solid #cbd5e1}.pt.nu .kaartT{border-left-color:#2563eb;background:#f5f9ff;box-shadow:0 0 0 2px #bfdbfe}
+.kaartT .t{font-weight:700;font-size:15px}.kaartT .s{font-size:12px;color:#64748b;margin-top:2px;line-height:1.35}.kaartT .knop{margin-top:8px}
+
+.bol{position:absolute;top:2px;right:14px;background:#dc2626;color:#fff;font-style:normal;font-size:10px;min-width:16px;height:16px;line-height:16px;border-radius:8px;text-align:center}
+.wie{background:rgba(255,255,255,.14);border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;min-height:56px}.wie b{font-size:17px}.wie span{font-size:13px;opacity:.85}
+.dots{display:flex;justify-content:center;gap:16px;margin-bottom:18px}.dots i{width:16px;height:16px;border-radius:50%;border:2px solid #fff}.dots i.v{background:#fff}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.pad button{height:64px;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;font-size:24px;font-weight:700}
+.dagen{display:flex;background:#fff;border-bottom:1px solid #e2e8f0}.dagen a{flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;color:#64748b;position:relative}.dagen a b{font-size:16px;color:#1a1a1a}.dagen a.act{background:#eff6ff}.dagen a.act b{color:#1d4ed8}.dagen em{position:absolute;bottom:5px;width:5px;height:5px;background:#dc2626;border-radius:50%}
+.tus{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin:12px 0 2px}
+.kv2{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid #eef2f7;font-size:14px}.kv2 span{color:#64748b}
+.wk{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;padding:8px 14px}.wk b{font-size:15px}
+.chipsS{display:flex;gap:6px;overflow-x:auto;background:#fff;padding:0 14px 10px;border-bottom:1px solid #e2e8f0}.chipsS::-webkit-scrollbar{height:0}.chip{flex:none;height:44px;line-height:44px;padding:0 14px;border-radius:22px;background:#f1f5f9;font-size:13px;font-weight:600;color:#334155}.chip.act{background:#1e3a8a;color:#fff}
+.tgs{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}.tg{background:#eef2ff;color:#3730a3;border-radius:7px;padding:5px 8px;font-size:13px;font-weight:600}.tg i{font-style:normal;color:#64748b;font-size:11px;font-weight:700;margin-right:4px}.tg.dub{background:#fee2e2;color:#b91c1c}.tg.her{background:#ffedd5;color:#c2410c}.tg.ged{background:#ede9fe;color:#6d28d9}
+#f1{display:block;height:auto;width:auto;margin-top:50px;padding-bottom:30px}.telefoons{gap:24px;flex-wrap:nowrap}.phone .lbl{position:static;display:none}
+.kol{display:flex;flex-direction:column;align-items:center;gap:8px}.kol>b{font-size:14px;color:#334155}
+</style></head><body>
+<div class="keuze"><b>Gsm-schermen · ronde 1</b><span>390×844 · zelfde stijl als MOBIEL-DEFINITIEF</span></div>
+<div class="frame" id="f1"><div class="telefoons">
+<div class="kol"><b>Inloggen</b><div class="phone"><div class="tel"><div class="body" style="padding:28px 20px;background:#1e3a8a;color:#fff;display:flex;flex-direction:column">
+ <div style="font-size:22px;font-weight:800;margin-bottom:4px">Sporty logistiek</div><div style="opacity:.8;font-size:14px;margin-bottom:22px">Wie ben je?</div>
+ <div class="wie"><b>Lotte</b><span>coördinator</span></div>
+ <div style="text-align:center;margin:20px 0 10px;font-size:14px;opacity:.9">Geef je pincode</div>
+ <div class="dots"><i class="v"></i><i class="v"></i><i></i><i></i></div>
+ <div class="pad"><button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button><button>7</button><button>8</button><button>9</button><span></span><button>0</button><button>⌫</button></div>
+ <div style="text-align:center;font-size:13px;opacity:.8;margin-top:auto;padding-top:14px">Je blijft ingelogd op deze gsm · Pincode vergeten? Vraag het kantoor</div></div></div><div class="lbl"></div></div></div>
+<div class="kol"><b>Transport › Ritplanning</b><div class="phone"><div class="tel"><div class="kop2"><div style="flex:1"><b>Ritplanning</b><span>vr 6/11 · 4 ritten · 2 waarschuwingen</span></div></div>
+<div class="dagen"><a class="">ma<b>2</b></a><a class="">di<b>3</b></a><a class="">wo<b>4</b></a><a class="">do<b>5</b></a><a class="act">vr<b>6</b><em></em></a></div>
+<div class="body"><div class="sec"><h3>Open taken <span style="color:#c2410c">3 zonder rit</span></h3><div class="rij" style="min-height:48px"><div class="nm">Levering Rotselaar<b>12 stuks · liefst vóór 9:00</b></div><button class="knop licht klein">Op rit</button></div></div>
+<h3 class="tus">Jeroen · Camionette 1</h3><div class="bak rood"><span class="code" style="width:52px;font-size:13px">8:30</span><div class="nm">Rit #35 · 3 stops<b>Rozenweg → Betekom → De Kraal · 69 op 20 ⚠</b></div><span style="color:#94a3b8;font-size:22px">›</span></div><div class="bak groen"><span class="code" style="width:52px;font-size:13px">13:00</span><div class="nm">Rit #37 · 2 stops<b>Abdijschool → Rozenweg · 18 op 20</b></div><span style="color:#94a3b8;font-size:22px">›</span></div>
+<h3 class="tus">Jesse · Camion</h3><div class="bak groen"><span class="code" style="width:52px;font-size:13px">9:00</span><div class="nm">Rit #36 · 4 stops<b>Rozenweg → Herent → Haacht → Rozenweg</b></div><span style="color:#94a3b8;font-size:22px">›</span></div>
+<h3 class="tus">Lotte · eigen wagen</h3><div class="bak groen"><span class="code" style="width:52px;font-size:13px">16:30</span><div class="nm">Verhuis hockey<b>Betekom → Sportschuur · 1 set</b></div><span style="color:#94a3b8;font-size:22px">›</span></div>
+<button class="knop breed licht">+ Nieuwe rit</button></div><div class="tabs"><a class="" style="position:relative"><span style="font-size:18px">🏠</span>Vandaag</a><a class="act" style="position:relative"><span style="font-size:18px">🚚</span>Transport<em class="bol">2</em></a><a class="" style="position:relative"><span style="font-size:18px">🧮</span>Voorraad<em class="bol">5</em></a><a class="" style="position:relative"><span style="font-size:18px">🔔</span>Meldingen</a><a class="" style="position:relative"><span style="font-size:18px">☰</span>Meer</a></div></div><div class="lbl"></div></div></div>
+<div class="kol"><b>Voorraad › Nakijken</b><div class="phone"><div class="tel"><div class="kop2"><a>‹ Nakijken</a><div style="flex:1"><b>C12 Knutselbak kleuters</b><span>Abdijschool · wk 1 · KV Evy · geteld 28/30</span></div></div>
+<div class="body"><div class="hint">Regel 1 van 3. Beslis, en je gaat vanzelf naar de volgende.</div>
+<div class="sec" style="padding:14px"><div style="font-size:20px;font-weight:800">Ballonnen</div><div style="font-size:14px;color:#64748b;margin:2px 0 10px">Geteld 10 van 30 · <b style="color:#b91c1c">20 tekort</b></div>
+<div class="kv2"><span>KV zegt</span><b>"zak gescheurd"</b></div><div class="kv2"><span>Rozenweg</span><b>40 · minimum 100</b></div><div class="kv2"><span>Voorstel</span><b>bestellen</b></div></div>
+<button class="knop breed" style="height:56px">Bestellen</button><button class="knop breed licht" style="height:56px">Aanvullen uit voorraad</button><button class="knop breed licht" style="height:56px">Aanvaarden (niet aanvullen)</button>
+<div class="sec" style="margin-top:12px"><h3>Nog in deze bak</h3><div class="rij" style="min-height:44px"><div class="nm">Lijmstift<b>4 tekort</b></div></div><div class="rij" style="min-height:44px"><div class="nm">Kinderschaar<b>1 kapot · foto</b></div></div></div></div>
+<div class="voet"><button class="knop licht">‹ Vorige</button><button class="knop licht">Overslaan ›</button></div><div class="tabs"><a class="" style="position:relative"><span style="font-size:18px">🏠</span>Vandaag</a><a class="" style="position:relative"><span style="font-size:18px">🚚</span>Transport<em class="bol">2</em></a><a class="act" style="position:relative"><span style="font-size:18px">🧮</span>Voorraad<em class="bol">5</em></a><a class="" style="position:relative"><span style="font-size:18px">🔔</span>Meldingen</a><a class="" style="position:relative"><span style="font-size:18px">☰</span>Meer</a></div></div><div class="lbl"></div></div></div>
+<div class="kol"><b>Planning › Rooster</b><div class="phone"><div class="tel"><div class="kop2"><a>‹ Meer</a><div style="flex:1"><b>Rooster</b><span>Herfst 2026</span></div></div>
+<div class="wk"><button class="knop licht klein">‹</button><b>Week 3 · 13–17/07</b><button class="knop licht klein">›</button></div>
+<div class="chipsS"><span class="chip act">Alle 16</span><span class="chip">⚠ Dubbel 1</span><span class="chip">↻ Herhaald 2</span><span class="chip">◐ Gedeeld 1</span><span class="chip">Geen KV 1</span></div>
+<div class="body"><div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;min-height:32px"><b style="font-size:15px">Betekom</b><span style="font-size:12px;color:#64748b;font-weight:600">KV Evy</span></div><div class="tgs"><span class="tg "><i>KL1</i>Piraten</span><span class="tg her"><i>KL2</i>Ridders ↻</span><span class="tg "><i>LS1</i>Superhelden</span><span class="tg ged"><i>LS2</i>Dino's ◐</span></div><div style="font-size:12px;margin-top:6px;color:#c2410c;font-weight:600">2 meldingen ›</div></div><div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;min-height:32px"><b style="font-size:15px">Abdijschool Vlierbeek</b><span style="font-size:12px;color:#64748b;font-weight:600">KV Seppe</span></div><div class="tgs"><span class="tg "><i>KL1</i>Ruimte</span><span class="tg "><i>KL2</i>Circus</span><span class="tg dub"><i>KL3</i>Jungle ⚠</span><span class="tg "><i>LS1</i>Zee</span><span class="tg "><i>LS2</i>Sprookjes</span><span class="tg "><i>LS3</i>Detectives</span><span class="tg "><i>LS4</i>Olympisch</span></div><div style="font-size:12px;margin-top:6px;color:#c2410c;font-weight:600">1 melding ›</div></div><div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;min-height:32px"><b style="font-size:15px">De Kraal</b><span style="font-size:12px;color:#64748b;font-weight:600">KV Jeroen</span></div><div class="tgs"><span class="tg dub"><i>KL1</i>Jungle ⚠</span><span class="tg "><i>LS1</i>Indianen</span></div><div style="font-size:12px;margin-top:6px;color:#c2410c;font-weight:600">1 melding ›</div></div><div class="sec"><div style="display:flex;justify-content:space-between;align-items:center;min-height:32px"><b style="font-size:15px">Boutersem</b><span style="font-size:12px;color:#a16207;font-weight:600">geen KV</span></div><div class="tgs"><span class="tg "><i>KL1</i>Heksen</span><span class="tg "><i>LS1</i>Robots</span></div></div></div><div class="tabs"><a class="" style="position:relative"><span style="font-size:18px">🏠</span>Vandaag</a><a class="" style="position:relative"><span style="font-size:18px">🚚</span>Transport<em class="bol">2</em></a><a class="" style="position:relative"><span style="font-size:18px">🧮</span>Voorraad<em class="bol">5</em></a><a class="" style="position:relative"><span style="font-size:18px">🔔</span>Meldingen</a><a class="act" style="position:relative"><span style="font-size:18px">☰</span>Meer</a></div></div><div class="lbl"></div></div></div>
+</div></div></body></html>
