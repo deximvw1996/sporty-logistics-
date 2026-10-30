@@ -81,6 +81,7 @@
     // MOB1: chauffeur/coördinator op een kantoorpagina op gsm → Vandaag (die pagina's sturen anders bij hun 403 naar de oude app). De 403's blijven de echte grens.
     var rol0 = null; try { rol0 = root.localStorage.getItem('sporty-rol'); } catch (e) { /* geen opslag */ }
     if (isGsm() && !magOpGsm(rol0, pad)) { document.write('<plaintext style="display:none">'); root.location.replace('/vandaag'); return; }
+    if (pad === '/meldingen') { var lg = document.querySelector('.top .logo'); if (lg) lg.insertAdjacentHTML('afterend', boven('')); } // ME1: bovenbalk op desktop
     if (eigenBalk) { tekenSchil(pad, tok0); return; }
     var top = document.querySelector('.top');
     if (top) {
