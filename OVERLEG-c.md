@@ -1778,3 +1778,128 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 6. **Voorstellen slaan themadagen over** (`categorie='themadag'`). In de herfstdata koos het voorstel anders "1001 ballen (themadag)" voor een kamp.
 7. **De weekdatum is gerekend als** periode-start (teruggezet naar maandag) + 7·(n−1), ma–vr. Dat is gelijk aan de seizoenskolommen van de oude app. Een periode die niet op maandag start, schuift zo naar de maandag ervoor.
 8. **Geen ↶-terugdraairoute voor een wissel** (zelfde als bij TB2/VT1). Alles staat wel in `wijzigingen`. Alleen "aanvaarden" heeft een ↶ Terug.
+
+## BH2 — Beheer › Back-up & export en Instellingen, nachtback-up, gesloten dagen per locatie (chat C, 30/10)
+
+**Stand:** alles af en gepusht naar `bouw-c` (na `Successfully rebased` op origin/main). Niets naar main, niets gedeployd.
+
+### Punt 1 — Nachtback-up (`lib/nachtbackup.js`, gestart met één regel in `server.js`)
+- **Elke nacht** om het uur uit `app_vlaggen.tijd_nachtbackup` (standaard 03:00; TZ Europe/Brussels) maakt de app `DATA_DIR/backups/sporty-JJJJ-MM-DD.db`.
+  - Eerst `saveDb()`, dan `db.export()` naar `.tmp` en hernoemen: dezelfde veilige weg als `backupDb`.
+  - De laatste **14** blijven bewaard; oudere worden verwijderd.
+  - Na een wijziging van het uur in Instellingen wordt de nachtback-up meteen opnieuw ingepland.
+- **Bij opstart:** is `nachtbackup_laatst` ouder dan 24 u (of ontbreekt hij), dan wordt er meteen een back-up gemaakt.
+- **Logboek:** "Nachtback-up gemaakt (…): naam · grootte".
+- **Als het mislukt:** een logregel + vlag `nachtbackup_fout`, rood op /backup en in Instellingen › App & database. Alles staat in try/catch, de server crasht nooit.
+- **Handmatige back-up** (`POST /api/backups/nu`, knop "Download nu"):
+  - bewaart ook `sporty-JJJJ-MM-DD-UUMM.db` in dezelfde map, met wie in `app_vlaggen` ("handmatig · naam");
+  - downloadt daarna dat bestand.
+- **Routes:**
+  - `GET /api/backups`: naam, datum, grootte, automatisch/handmatig, wie, uur, volgende, fout.
+  - `GET /api/backups/:naam`: naam strikt tegen het patroon, geen `..`, `/` of `\`; anders 400.
+  - `GET /api/backup-inhoud`: tellingen + databasegrootte + laatste wijziging.
+- **Terugzetten** (`/api/herstel-db`):
+  - eist nu de header `x-bevestig: TERUGZETTEN` (anders 400);
+  - maakt eerst een back-up van de huidige toestand (`handmatig · voor terugzetten · naam`);
+  - schrijft een logregel die de herstart overleeft (via `backups/na-herstart.json`, ingelezen bij opstart). Zo staat "Back-up teruggezet … door X; de toestand ervoor staat in …" ook in de nieuwe database.
+
+### Punt 2 — `/backup` (exacte kopie van "Back-up & export")
+- **Chips:** Alles 7 · Back-up 3 · Export 3 · Import 1.
+- **Rijen:** Volledige back-up, Automatische nachtback-up, Planning exporteren, Materiaal exporteren, Thema's exporteren, Planning importeren, Back-up terugzetten.
+- **Detail per rij volgens de mockup:**
+  - laatste back-ups met Download;
+  - Wat zit erin;
+  - Tip;
+  - tab "Eerdere N".
+- **Exports:**
+  - Planning en Materiaal = Excel-CSV (puntkomma, UTF-8 BOM) uit `/api/export`;
+  - Thema's = JSON in hetzelfde formaat als de oude knop, dus terug te importeren.
+- **Importeren** = dezelfde routes als het oude blok (`/api/import-themas/preview`, `/api/import-themas`, `/api/import-themas/data`).
+- **Terugzetten:** bestand kiezen → venster waarin je TERUGZETTEN moet typen (de knop blijft grijs tot het woord klopt) → `/api/herstel-db`.
+- Voet: databasegrootte · laatste wijziging (· Railway).
+- **Browser (1920×900):** gelijk aan de mockup.
+  - Fout gevonden en hersteld: een automatische back-up die bij opstart om 18:04 gemaakt was, stond als "vannacht 03:00". Nu telt het echte tijdstip van het bestand.
+
+### Punt 3 — Gesloten dagen per locatie + Instellingen
+- **Migratie 86** (`migratie86_klaar`):
+  - `gesloten_dagen` is herbouwd met `locatie_id` (NULL = heel Sporty) en `UNIQUE(datum, locatie_id)`;
+  - bestaande rijen blijven NULL, het aantal rijen wordt gecontroleerd.
+  - Omdat SQLite NULL niet als gelijk ziet, controleert de code zelf of (datum, NULL) al bestaat.
+- **Lezers:**
+  - `routes/planning.js`: open dagen van een kampmoment, nieuw kampmoment, en de werkdagen van de kalender (alleen NULL);
+  - `routes/transport.js`: de generator (`isGesloten(datum, locatie)`);
+  - `routes/kampmomenten.js` (`_dagen`);
+  - `routes/periodes-overzicht.js` en `public/periodes.js` ("alleen <locatie>" of "alle locaties dicht").
+  - `/api/gesloten` (POST) neemt `locatie_id` aan.
+- **`routes/instellingen.js`** + pagina `/instellingen` (exacte kopie):
+  - zoekveld, chips Alles · ⚠ Aandacht;
+  - Kantoor & contact staat oranje met "nummer ontbreekt" zolang `kantoor_telefoon` leeg is;
+  - detail met velden + Annuleren/Opslaan, tab Historiek (uit het activiteitenlog, met naam).
+- **Groepen:**
+  - Kantoor & contact (telefoon/gsm/e-mail, met controle);
+  - Gesloten dagen (één dag of een reeks werkdagen, heel Sporty of één locatie, ✕);
+  - Stockagelocaties (met aantal bakken, link Locaties);
+  - Leeftijdsgroepen en Thema-categorieën (toevoegen, hernoemen overal mee, verwijderen alleen als ongebruikt, anders **409** met uitleg);
+  - Standaard tijden (vertrek ritten, verhuis-avond, nachtback-up; in `app_vlaggen`);
+  - App & database (versie = git-commit, grootte, pad, aantal back-ups).
+- **Kantoornummer zichtbaar:**
+  - KV-pagina: had al een blok, wordt nu gevoed;
+  - rit-pagina: `/api/rit-token/:token/data` geeft `kantoor` mee, en `public/rit.js` toont "📞 Bel kantoor · nummer" (44 px), alleen als het nummer er is;
+  - aanvullijst: `/api/aanvullijst` geeft `kantoor` mee, en de printpagina zet onderaan "Kantoor: …".
+- `public/nav.js`: Beheer-subbalk Personeel · Logboek · Back-up & export · Instellingen, plus PAGINA-tabel.
+- `index.html`: vervangstrook op het oude Beheer-blok (Materiaal › Thema's) met links naar /themas en /backup.
+
+### Punt 4 — Gsm (gemeten in de browser, 390×844)
+| Scherm | Pagina breed | Elementen < 44 px | Opmerking |
+|---|---|---|---|
+| /backup lijst | 390 | 0 | |
+| /backup detail (volledig, nacht, planning, import, terugzetten) | 390 | 0 | lijst verborgen, detail als volgend scherm met ‹ terug |
+| /instellingen lijst | 390 | 0 | |
+| /instellingen detail (kantoor, gesloten, leeftijd, tijden, app) | 390 | 0 | velden volle breedte (310 px), 44 px hoog |
+
+### Bewijs
+- **`node scripts/test-bh2-beheer.mjs` (poort 3367, herfst-test.db, eigen DATA_DIR): 47 ok, 0 fout, ALLES GROEN.** Gecontroleerd:
+  - **Nachtback-up bij opstart:** bestand + logregel.
+  - **Max 14:** 16 oude + 2 nieuwe bestanden, na een herstart blijven er 14 (de oudste zijn weg).
+  - **Handmatig:** staat in de lijst met wie; download geeft een geldige SQLite.
+  - **Download weigert** 6 slechte namen (400).
+  - **Gesloten dagen:**
+    - een dag voor één locatie sluit alleen die locatie (planning); dezelfde dag dezelfde locatie → 400, andere locatie → 200;
+    - een week dicht voor Betekom → geen generatorvoorstel voor Betekom, wel voor Abdijschool;
+    - NULL sluit alles.
+  - **Kantoornummer:** opslaan → op de KV-pagina, de rit-pagina en de aanvullijst; aandacht weg; gelogd met naam.
+  - **Lijsten:**
+    - gebruikte leeftijdsgroep → 409;
+    - 12+ toevoegen, dubbel → 409, verwijderen → 200;
+    - categorie hernoemen; gebruikte categorie → 409.
+  - **Tijden en versie:** uur 02:30 verandert de volgende back-up; versie = commit.
+  - **Pagina's en rechten:** `GET /backup` en `/instellingen` 200 met subbalk (4 links); chauffeur 403 op pagina's en API.
+  - **Vervangstrook.**
+  - **DOM-bouw met de echte data-JSON** + de gsm-CSS-regels.
+  - **Terugzetten:**
+    - zonder het woord → 400, niets gewijzigd;
+    - met het woord → 200, eerst een back-up;
+    - na de herstart staat het terugzetten in het Logboek van de nieuwe database.
+- **Volle run:** run 5 **39/41**, run 6 **39/41**. Alleen de bekende `v3c-fotos` en `veiligheid` (pincode-hash/429) zijn rood.
+- **Eerdere runs, ter info:**
+  - run 1 `f1-modules` 2 fout (nieuwe `:naam`/`:groep`-routes nog niet in de invultabel; nu toegevoegd);
+  - run 3 `bh2-beheer` AFGEBROKEN: mijn test gebruikte poort 3351, ook in gebruik door `v3c-catalogus` en `kd1` van D. Nu staat hij op 3367;
+  - run 4 `tf2-afwerking`/`tr1-taken` wisselvallig, los groen.
+
+### Buiten mijn lijst
+- `routes/nakijken.js` + `public/nakijken.js` (aanvullijst), `public/rit.js` (Bel kantoor): telkens één regel, omdat de prompt vroeg om het kantoornummer op de rit-pagina en de aanvullijst te tonen.
+- `scripts/test-nav1.mjs` (verwachte Beheer-subbalk) en `scripts/test-f1-modules.mjs` (invulwaarden).
+- Er is geen apart `instellingen.css`: beide pagina's gebruiken `backup.css`, omdat de mockup één stijlblad heeft.
+
+### GEVONDEN
+1. **⚠ BEVEILIGING (buiten BH2, niet aangepast):** `server.js` doet `app.use(express.static(FRONTEND_PATH))`. Zonder `../frontend`-map (Railway flat deploy, en ook lokaal) is `FRONTEND_PATH = __dirname`.
+   - Elke ingelogde Basic-auth-gebruiker kan dan de hele projectmap downloaden: `GET /server.js` → 200 (aangetoond in de test, zie "GEVONDEN (buiten BH2)").
+   - Dat geldt ook voor `/lib/*.js`, `/routes/*.js`, `CLAUDE.md`, `MASTERPLAN.md`.
+   - Voorstel: alleen `public/` + `index.html` statisch serveren. Eén kleine wijziging in `server.js`, maar die ligt buiten mijn lijst.
+2. **Twee back-upmechanismen:** `lib/db.js backupDb` maakt bij de eerste flush van elke (UTC-)dag al `sporty-JJJJ-MM-DD.db` en ruimt alles met `sporty-*` op tot 14. Dat valt nu samen met de nachtback-up: dezelfde map, dezelfde naam, dezelfde 14.
+   - De handmatige back-ups tellen mee in die 14, dus veel handmatige back-ups duwen oude nachtback-ups weg.
+   - Wil je ze apart bewaren, dan moet `backupDb` (lib/db.js, buiten mijn lijst) een ander patroon gebruiken.
+3. **De oude `voor-herstel-*.db`** van `/api/herstel-db` wordt nog steeds geschreven (naast mijn back-up "voor terugzetten"). Hij valt niet onder het patroon, dus staat niet in de lijst en wordt niet opgeruimd.
+4. **Standaard tijden** `tijd_vertrek_ritten` en `tijd_verhuis_avond` worden bewaard, maar de ritplanning en de verhuistaak (PL3, chat D) lezen ze nog niet. Alleen het uur van de nachtback-up wordt al gebruikt.
+5. **Leeftijdsgroepen hebben geen eigen tabel:** de lijst = de waarden in `themas`/`kampmoment_themas` + toegevoegde in `app_vlaggen.leeftijdsgroepen`. Hernoemen past alle thema's en kampmomenten mee aan.
+6. **Een reeks gesloten dagen slaat weekends over;** een losse dag mag wel in een weekend.
