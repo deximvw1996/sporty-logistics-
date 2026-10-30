@@ -1880,11 +1880,14 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
     - zonder het woord → 400, niets gewijzigd;
     - met het woord → 200, eerst een back-up;
     - na de herstart staat het terugzetten in het Logboek van de nieuwe database.
-- **Volle run:** run 5 **39/41**, run 6 **39/41**. Alleen de bekende `v3c-fotos` en `veiligheid` (pincode-hash/429) zijn rood.
+- **Volle run na de laatste rebase (LK1 van D op main):** **40/42** en **40/42** (runs 9 en 11). Alleen de bekende `v3c-fotos` en `veiligheid` (pincode-hash/429) zijn rood.
 - **Eerdere runs, ter info:**
   - run 1 `f1-modules` 2 fout (nieuwe `:naam`/`:groep`-routes nog niet in de invultabel; nu toegevoegd);
   - run 3 `bh2-beheer` AFGEBROKEN: mijn test gebruikte poort 3351, ook in gebruik door `v3c-catalogus` en `kd1` van D. Nu staat hij op 3367;
   - run 4 `tf2-afwerking`/`tr1-taken` wisselvallig, los groen.
+  - run 7 en 8 `bh2-beheer` 1 fout: de gsm-CSS-controle in mijn test verwachtte LF, na de rebase staat het bestand op CRLF. De test is aangepast;
+  - run 10 `rp2-interactief` AFGEBROKEN na 0,6 s bij het starten, los ALLES GROEN.
+- **Rebase-conflict in `index.html`** (Kaart-strook van D, zelfde regel): main-versie genomen, BH2-strook erbovenop. De rebase-controle hield de push tegen tot de rebase geslaagd was.
 
 ### Buiten mijn lijst
 - `routes/nakijken.js` + `public/nakijken.js` (aanvullijst), `public/rit.js` (Bel kantoor): telkens één regel, omdat de prompt vroeg om het kantoornummer op de rit-pagina en de aanvullijst te tonen.
