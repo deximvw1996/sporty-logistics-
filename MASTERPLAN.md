@@ -438,3 +438,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-30 — Beheer-mockup goedgekeurd (+ nachtback-up); Kaart in Locaties. Prompts BH2 (C) en LK1 (D).
 - 2026-10-30 — LK1 Kaart in Locaties + 3 restpunten (D) gekeurd en live; 41/41.
 - 2026-10-30 — BH2 Beheer (C) gekeurd en live; 42/42. Reviewfix: statische map beperkt tot public/ (broncode was downloadbaar na inlog).
+- 2026-10-30 — Gsm-mockup ronde 1 goedgekeurd; prompts MOB1 (C) en MOB2 (D).
