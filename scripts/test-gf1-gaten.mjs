@@ -145,7 +145,7 @@ try {
   await A('DELETE', `/api/ritten/${rx}`);
   r = await A('POST', `/api/kampmomenten/${kx.id}/volledig-verwijderen`);
   const na = await tellingen();
-  const LOG = new Set(['wijzigingen', 'activiteiten_log', 'sessies']);
+  const LOG = new Set(['wijzigingen', 'activiteiten_log', 'sessies', 'meldingen', 'meldingen_gelezen']); // ME1: meldingen zijn berichten, ze blijven bestaan
   const verschil = Object.keys({ ...voorBak, ...na }).filter((t) => !LOG.has(t) && (voorBak[t] || 0) !== (na[t] || 0)).map((t) => `${t} ${voorBak[t] || 0}→${na[t] || 0}`);
   T.check(r.status === 200 && r.json.verwijderd.taken === 1 && verschil.length === 0, `volledig verwijderen: alle rijtellingen gelijk aan vóór het kampmoment${verschil.length ? ' — VERSCHIL ' + verschil.join(', ') : ''} (${JSON.stringify(r.json.verwijderd)})`);
   T.check((await C('POST', `/api/kampmomenten/${kx.id}/volledig-verwijderen`)).status === 403 && (await A('POST', `/api/kampmomenten/${kx.id}/volledig-verwijderen`)).status === 404, 'enkel kantoor (403) en een tweede keer → 404');
