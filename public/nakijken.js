@@ -176,7 +176,7 @@
       return '<button type="button" class="knop breed' + (o.waarde === voorstel ? '' : ' licht') + '" style="height:56px" data-gk="kies" data-regel="' + r.regel_id + '" data-w="' + esc(o.waarde) + '" data-n="' + aant + '">' + esc(o.label) + (r.kantoor_actie === o.waarde ? ' ✓' : '') + '</button>';
     }).join('');
     var rest = regels.filter(function (x, j) { return j !== i && !x.kantoor_actie; });
-    return kop + '<div class="body"><div class="hint">Regel ' + (i + 1) + ' van ' + n + '. Beslis, en je gaat vanzelf naar de volgende.</div>'
+    return kop + '<div class="body"><div class="hint">Regel ' + (i + 1) + ' van ' + n + ' · ' + regels.filter(function (r) { return !r.kantoor_actie; }).length + ' nog open. Beslis, en je gaat vanzelf naar de volgende.</div>'
       + '<div class="sec" style="padding:14px"><div style="font-size:20px;font-weight:800">' + esc(r.naam) + '</div><div style="font-size:14px;color:#64748b;margin:2px 0 10px">Geteld ' + (r.aangetroffen == null ? '—' : r.aangetroffen) + ' van ' + r.verwacht + ' · <b style="color:#b91c1c">' + esc(wat) + '</b></div>'
       + kv2('KV zegt', r.notitie ? '"' + esc(r.notitie) + '"' : '—') + kv2('Voorraad', esc(r.voorraad_tekst || '—')) + kv2('Voorstel', esc(r.acties[0].label)) + (r.kantoor_actie ? kv2('Gekozen', esc((r.acties.filter(function (o) { return o.waarde === r.kantoor_actie; })[0] || { label: r.kantoor_actie }).label)) : '') + '</div>'
       + knoppen

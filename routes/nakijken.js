@@ -238,7 +238,7 @@ module.exports = function(ctx){
     return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id,locatie:loc,week:km.week,maandag:_maandag(km),
       bak:rij.bak,geteld:rij.geteld,totaal:rij.totaal,uitslag_tekst:rij.uitslag_tekst,status:rij.status,
       kv_naam:kvNaam,ingediend_op:rij.ingediend_op,nagekeken_op:rij.nagekeken_op,
-      afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').length,te_veel:items.filter(i=>i.afwijking==='te_veel').length,kapot:items.filter(i=>i.kapot_aantal>0||i.afwijking==='kapot').length},
+      afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').reduce((n,i)=>n+(i.aantal_afwijking||0),0),te_veel:items.filter(i=>i.afwijking==='te_veel').reduce((n,i)=>n+(i.aantal_afwijking||0),0),kapot:items.reduce((n,i)=>n+(i.kapot_aantal||0),0)},
       items,foto_s:fotoUrls,vorige_tellingen:vorige,historiek:hist.map(({sorteer,...h})=>({...h,tijd:fmtDatumTijd(h.tijd)})),
       contact:{kv_naam:kvNaam,kv_telefoon:(kvP&&kvP.telefoon)||''}};
   }
@@ -305,10 +305,9 @@ module.exports = function(ctx){
         updateMetLog(req,'nakijk_regels',r.id,{kantoor_actie:actie,kantoor_aantal:aantal},'nakijken');
       }
       if(actie==='bestellen'||actie==='afschrijven_bestellen'){
-        // Bestaande tekorten/bestel-logica (routes/voorraad.js): tekort_status 'besteld' + besteld=1.
-        updateMetLog(req,'nakijk_regels',r.id,{besteld:1,tekort_status:'besteld'},'nakijken');bestel++;
+        // Bestaande tekorten/bestel-logica (routes/voorraad.js): tekort_status 'besteld' + besteld=1. TF4: alleen de nieuwe tellen mee.
+        if(!r.besteld){updateMetLog(req,'nakijk_regels',r.id,{besteld:1,tekort_status:r.tekort_status==='binnen'?'binnen':'besteld'},'nakijken');bestel++;if(actie==='afschrijven_bestellen')afschrijf++;}
       }
-      if(actie==='afschrijven_bestellen')afschrijf++;
     });
     updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'nagekeken',kantoor_afgerond_op:isoNu(),kantoor_door:wie(req),kantoor_wie:wie(req),kantoor_tijdstip:now()},'nakijken');
     logAct('nakijken','afgerond',`Keuring afgerond: ${(bak&&(bak.code||bak.naam))||'bak'} · ${km?_locNaam(km.locatie_id):''} (${bestel} bestelling${bestel===1?'':'en'}, ${afschrijf} afschrijving${afschrijf===1?'':'en'}) door ${wie(req)||'kantoor'}`,km?km.locatie_id:null,km?_locNaam(km.locatie_id):null);

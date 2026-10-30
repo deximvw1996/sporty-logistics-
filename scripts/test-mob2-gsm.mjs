@@ -57,7 +57,7 @@ try {
   T.check(w2.status === 409, 'laatste stop ▼ → 409 (knop is uitgeschakeld in de weergave)');
   // detail
   const dt = RP.detail(pl, pl.dagen.flatMap((d) => d.ritten).find((r) => r.id === rA.id));
-  T.check(dt.includes('‹ Ritplanning') && (dt.match(/data-g="wissel"/g) || []).length === 4 && dt.includes('disabled') && dt.includes('data-g="bsel"') && dt.includes('data-vsel="') && dt.includes('Ander voertuig…') && dt.includes('Waarschuwingen') && dt.includes('>Goedkeuren<') && dt.includes('data-g="uit"'), 'ritdetail: ‹ terug, stops met ▲▼, bestuurder en voertuig wijzigen, waarschuwingen, Goedkeuren');
+  T.check(dt.includes('‹ Ritplanning') && (dt.match(/data-g="wissel"/g) || []).length === 4 && dt.includes('disabled') && dt.includes('data-g="bsel"') && dt.includes('data-vsel="') && dt.includes('Ander voertuig…') && dt.includes('Waarschuwingen') && dt.includes('>Klaarzetten<') && dt.includes('data-g="uit"'), 'ritdetail: ‹ terug, stops met ▲▼, bestuurder en voertuig wijzigen, waarschuwingen, Goedkeuren');
   const g = await A('POST', `/api/ritten/${rA.id}/klaarzet`, { bevestigd_over_capaciteit: true });
   T.check(g.status === 200, 'Goedkeuren = bestaande klaarzet-route');
   const bs = await A('PUT', `/api/ritten/${rA.id}`, { personeel_id: 3 });
