@@ -140,7 +140,48 @@
     return dagLang(lijst.datum) + (uit ? ' · uit Nakijken ' + uit : '') + ' · afgedrukt ' + uur + (naam ? ' door ' + naam : '') + ' · ' + (lijst.tellers ? lijst.tellers.totaal : 0) + ' handelingen';
   }
 
-  var api = { binnenCel: binnenCel, esc: esc, lijstHtml: lijstHtml, detailHtml: detailHtml, telTabel: telTabel, fotoOverlayHtml: fotoOverlayHtml, notitieOverlayHtml: notitieOverlayHtml, printRijenHtml: printRijenHtml, printSubtekst: printSubtekst, zichtbaar: zichtbaar, sleutel: sleutel };
+
+  // ── MOB2: gsm-weergave (≤ 767 px; design/mockup-gsm-1.html, telefoon Voorraad › Nakijken) ──
+  // Lijst van bakken met tellers en chips; een bak openen = één regel per scherm met grote knoppen (de ACTIES van die regel).
+  var gsmRegels = function (det) { return (det.items || []).filter(function (i) { return i.regel_id && i.acties && i.acties.length && i.afwijking !== 'klopt' && i.afwijking !== 'niet_geteld'; }); };
+  var AFWTEKST = { tekort: function (i) { return i.aantal_afwijking + ' tekort'; }, kapot: function (i) { return i.kapot_aantal + ' kapot'; }, te_veel: function (i) { return i.aantal_afwijking + ' te veel'; } };
+  function gsmLijstHtml(data, st) {
+    var t = data.tellers || {}, rijen = zichtbaar(data, st), w = data.week || {};
+    var chips = FILTERS.map(function (f) { return '<span class="chip' + (st.filter === f[0] ? ' act' : '') + '" role="button" tabindex="0" data-gk="filter" data-a="' + f[0] + '">' + f[1] + ' ' + (t[f[0]] || 0) + '</span>'; }).join('');
+    var kaarten = rijen.map(function (b) {
+      var p = PIL[b.status] || PIL.niet_geteld, kls = b.met_tekort || b.met_kapot ? 'rood' : b.status === 'nagekeken' ? 'groen' : '';
+      return '<div class="bak ' + kls + '" role="button" tabindex="0" data-gk="open" data-a="' + esc(sleutel(b)) + '"><span class="code">' + esc(b.bak.code || '—') + '</span><div class="nm">' + esc(b.bak.naam) + '<b>' + esc(b.locatie) + ' · wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(kvL(b.kv_naam)) : '') + ' · ' + b.geteld + '/' + b.totaal + ' geteld' + (b.uitslag_tekst ? ' · ' + esc(b.uitslag_tekst) : '') + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
+    }).join('') || '<div class="hint" style="text-align:center;padding:18px 0">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
+    return '<div class="kop2"><div style="flex:1"><b>Nakijken</b><span>' + rijen.length + ' bak' + (rijen.length === 1 ? '' : 'ken') + ' · ' + (t.te_keuren || 0) + ' te keuren</span></div></div>'
+      + '<div class="wk"><button type="button" class="knop licht klein" data-gk="week" data-a="-1" aria-label="Vorige week">‹</button><b>Week ' + esc(w.weeknummer != null ? w.weeknummer : '—') + '</b><button type="button" class="knop licht klein" data-gk="week" data-a="1" aria-label="Volgende week">›</button></div>'
+      + '<div class="chipsS">' + chips + '</div><div class="body">' + kaarten + '</div>';
+  }
+  function gsmRegelHtml(det, st) {
+    var regels = gsmRegels(det), n = regels.length, i = Math.max(0, Math.min(st.gi || 0, n));
+    var kop = '<div class="kop2"><a role="button" tabindex="0" data-gk="terug">‹ Nakijken</a><div style="flex:1"><b>' + esc((det.bak.code ? det.bak.code + ' ' : '') + det.bak.naam) + '</b><span>' + esc(det.locatie) + ' · wk ' + esc(det.week) + (det.kv_naam ? ' · ' + esc(kvL(det.kv_naam)) : '') + ' · geteld ' + det.geteld + '/' + det.totaal + '</span></div></div>';
+    var kanAfronden = det.sessie_id && det.status === 'te_keuren';
+    if (!n || i >= n) {
+      var gedaan = regels.filter(function (r) { return r.kantoor_actie; }).length;
+      return kop + '<div class="body"><div class="sec" style="padding:14px"><div style="font-size:20px;font-weight:800">' + (n ? 'Alle regels bekeken' : 'Geen afwijkingen') + '</div><div style="font-size:14px;color:#64748b;margin:4px 0 0">' + (n ? gedaan + ' van ' + n + ' regels hebben een keuze. Rond de keuring af als alles klopt.' : 'Deze bak klopt, er valt niets te beslissen.') + '</div></div>'
+        + (det.status === 'nog_niet' ? '<div class="hint">De KV heeft deze bak nog niet geteld.</div>' : '<button type="button" class="knop breed" style="height:56px" data-gk="afronden"' + (kanAfronden ? '' : ' disabled') + '>Keuring afronden ✓</button>') + '</div>'
+        + '<div class="voet"><button type="button" class="knop licht" data-gk="vorige"' + (n ? '' : ' disabled') + '>‹ Vorige</button><button type="button" class="knop licht" data-gk="terug">Naar de lijst</button></div>';
+    }
+    var r = regels[i], voorstel = r.acties[0].waarde, aant = r.aantal_afwijking || r.kantoor_aantal || 0;
+    var wat = (AFWTEKST[r.afwijking] ? AFWTEKST[r.afwijking](r) : '');
+    var kv2 = function (k, v) { return '<div class="kv2"><span>' + k + '</span><b>' + v + '</b></div>'; };
+    var knoppen = r.acties.map(function (o) {
+      return '<button type="button" class="knop breed' + (o.waarde === voorstel ? '' : ' licht') + '" style="height:56px" data-gk="kies" data-regel="' + r.regel_id + '" data-w="' + esc(o.waarde) + '" data-n="' + aant + '">' + esc(o.label) + (r.kantoor_actie === o.waarde ? ' ✓' : '') + '</button>';
+    }).join('');
+    var rest = regels.filter(function (x, j) { return j !== i && !x.kantoor_actie; });
+    return kop + '<div class="body"><div class="hint">Regel ' + (i + 1) + ' van ' + n + '. Beslis, en je gaat vanzelf naar de volgende.</div>'
+      + '<div class="sec" style="padding:14px"><div style="font-size:20px;font-weight:800">' + esc(r.naam) + '</div><div style="font-size:14px;color:#64748b;margin:2px 0 10px">Geteld ' + (r.aangetroffen == null ? '—' : r.aangetroffen) + ' van ' + r.verwacht + ' · <b style="color:#b91c1c">' + esc(wat) + '</b></div>'
+      + kv2('KV zegt', r.notitie ? '"' + esc(r.notitie) + '"' : '—') + kv2('Voorraad', esc(r.voorraad_tekst || '—')) + kv2('Voorstel', esc(r.acties[0].label)) + (r.kantoor_actie ? kv2('Gekozen', esc((r.acties.filter(function (o) { return o.waarde === r.kantoor_actie; })[0] || { label: r.kantoor_actie }).label)) : '') + '</div>'
+      + knoppen
+      + (rest.length ? '<div class="sec" style="margin-top:12px"><h3>Nog in deze bak</h3>' + rest.map(function (x) { return '<div class="rij" style="min-height:44px"><div class="nm">' + esc(x.naam) + '<b>' + esc(AFWTEKST[x.afwijking] ? AFWTEKST[x.afwijking](x) : '') + (x.foto_url ? ' · foto' : '') + '</b></div></div>'; }).join('') + '</div>' : '') + '</div>'
+      + '<div class="voet"><button type="button" class="knop licht" data-gk="vorige"' + (i === 0 ? ' disabled' : '') + '>‹ Vorige</button><button type="button" class="knop licht" data-gk="overslaan">Overslaan ›</button></div>';
+  }
+
+  var api = { gsmLijstHtml: gsmLijstHtml, gsmRegelHtml: gsmRegelHtml, gsmRegels: gsmRegels, binnenCel: binnenCel, esc: esc, lijstHtml: lijstHtml, detailHtml: detailHtml, telTabel: telTabel, fotoOverlayHtml: fotoOverlayHtml, notitieOverlayHtml: notitieOverlayHtml, printRijenHtml: printRijenHtml, printSubtekst: printSubtekst, zichtbaar: zichtbaar, sleutel: sleutel };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NakijkenPagina = api;
 
@@ -183,15 +224,24 @@
   if (!$('nk-app')) return;
   if (!TOKEN) { root.location.href = '/'; return; }
 
-  var DATA = null, DETAIL = null, ST = { filter: 'te_keuren', zoek: '', geselecteerd: new Set(), open: null, tab: 'telling', week: new URLSearchParams(root.location.search).get('week') || '' };
+  var DATA = null, DETAIL = null, ST = { gs: 'lijst', gi: 0, filter: 'te_keuren', zoek: '', geselecteerd: new Set(), open: null, tab: 'telling', week: new URLSearchParams(root.location.search).get('week') || '' };
   var verschuiving = 0;
   function tekenLijst() {
     var zoekEl = document.activeElement && document.activeElement.id === 'zoek' ? document.activeElement : null;
     var pos = zoekEl ? zoekEl.selectionStart : 0;
     $('lijst').innerHTML = lijstHtml(DATA, ST);
+    tekenGsm();
     if (zoekEl) { var z = $('zoek'); z.focus(); z.setSelectionRange(pos, pos); }
   }
-  function tekenDetail() { $('detail').innerHTML = detailHtml(DETAIL, ST); }
+  function tekenDetail() { $('detail').innerHTML = detailHtml(DETAIL, ST); tekenGsm(); }
+  var MQ = root.matchMedia ? root.matchMedia('(max-width:767px)') : { matches: false };
+  function tekenGsm() {
+    var e = $('gsm'); if (!e) { e = document.createElement('div'); e.id = 'gsm'; document.body.insertBefore(e, $('overlay')); }
+    if (!DATA || !MQ.matches) { e.innerHTML = ''; return; }
+    e.innerHTML = ST.gs === 'regel' && DETAIL ? gsmRegelHtml(DETAIL, ST) : gsmLijstHtml(DATA, ST);
+    if (root.scrollTo) root.scrollTo(0, 0);
+  }
+  if (MQ.addEventListener) MQ.addEventListener('change', tekenGsm);
   function tekenAlles() { tekenLijst(); tekenDetail(); }
   async function laadLijst() {
     var r = await aanroep('GET', '/api/nakijken' + (ST.week ? '?week=' + ST.week : ''));
@@ -228,6 +278,27 @@
   var weekVan = function (n) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ST.week || ''); if (!m) return ''; var d = new Date(+m[1], +m[2] - 1, +m[3] + 7 * n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
   document.addEventListener('click', async function (e) {
+    var gk = e.target.closest('#gsm [data-gk]');
+    if (gk && !gk.disabled) {
+      var ga = gk.getAttribute('data-gk'), gv = gk.getAttribute('data-a');
+      if (ga === 'filter') { ST.filter = ST.filter === gv ? '' : gv; tekenGsm(); return; }
+      if (ga === 'week') { var nw0 = weekVan(+gv); if (!nw0) return; ST.week = nw0; ST.weekGezet = true; ST.geselecteerd = new Set(); ST.open = null; DETAIL = null; await laadLijst(); return; }
+      if (ga === 'open') { ST.gs = 'regel'; ST.gi = 0; await laadDetail(gv); return; }
+      if (ga === 'terug') { ST.gs = 'lijst'; tekenGsm(); return; }
+      if (ga === 'vorige') { ST.gi = Math.max(0, (ST.gi || 0) - 1); tekenGsm(); return; }
+      if (ga === 'overslaan') { ST.gi = (ST.gi || 0) + 1; tekenGsm(); return; }
+      if (ga === 'kies') {
+        var rk = await aanroep('PUT', '/api/nakijken/regel/' + gk.getAttribute('data-regel'), { kantoor_actie: gk.getAttribute('data-w'), kantoor_aantal: +gk.getAttribute('data-n') || 0 });
+        if (!rk.ok) { toast(rk.json.error || 'Opslaan mislukt', 'error'); return; }
+        toast('✓ Opgeslagen', 'success'); ST.gi = (ST.gi || 0) + 1; await laadDetail(ST.open); return;
+      }
+      if (ga === 'afronden') {
+        var r4 = await aanroep('POST', '/api/nakijken/sessie/' + DETAIL.sessie_id + '/afronden');
+        if (!r4.ok) { toast(r4.json.error || 'Afronden mislukt', 'error'); return; }
+        toast('✓ Keuring afgerond' + (r4.json.bestellingen ? ' · ' + r4.json.bestellingen + ' bestelling(en)' : ''), 'success'); ST.gs = 'lijst'; await ververs(); return;
+      }
+      return;
+    }
     var el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
     var act = el.getAttribute('data-act'), a = el.getAttribute('data-a');
     if (act === 'vink') { var id = +a; if (!id) return; if (el.checked) ST.geselecteerd.add(id); else ST.geselecteerd.delete(id); tekenLijst(); e.stopPropagation(); return; }

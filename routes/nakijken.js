@@ -151,7 +151,10 @@ module.exports = function(ctx){
         const afw=_afwijking(r,it.qty);
         const aantal=afw==='tekort'?it.qty-r.aangetroffen:afw==='te_veel'?r.aangetroffen-it.qty:afw==='kapot'?(r.kapot_aantal||0):0;
         const opties=ACTIES[afw]||[];
-        return {regel_id:r?r.id:null,naam:it.naam,verwacht:it.qty,aangetroffen:r&&r.aangetroffen!=null?r.aangetroffen:null,te_veel:r&&r.aangetroffen>it.qty?r.aangetroffen-it.qty:0,
+        // MOB2: voorraad van dit artikel (gsm toont "Rozenweg 40 · minimum 100" bij de regel)
+        const vrd=it.item_type_id?all('SELECT l.name,s.qty,s.minimum FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? AND (s.qty>0 OR s.minimum>0) ORDER BY l.name',[it.item_type_id]):[];
+        const voorraad_tekst=vrd.map(x=>`${x.name} ${Math.round(x.qty*100)/100}${x.minimum>0?' · minimum '+x.minimum:''}`).join(' · ');
+        return {voorraad_tekst,regel_id:r?r.id:null,naam:it.naam,verwacht:it.qty,aangetroffen:r&&r.aangetroffen!=null?r.aangetroffen:null,te_veel:r&&r.aangetroffen>it.qty?r.aangetroffen-it.qty:0,
           kapot_aantal:r?(r.kapot_aantal||0):0,notitie:r?(r.notitie||''):'',foto_url:r&&r.foto_path?'/uploads/'+r.foto_path:null,afwijking:afw,
           kantoor_actie:r?(r.kantoor_actie||''):'',kantoor_aantal:r&&r.kantoor_aantal?r.kantoor_aantal:aantal,kantoor_notitie:r?(r.kantoor_notitie||''):'',
           aangevuld:r?(r.aangevuld||0):0,tekort_status:r?(r.tekort_status||''):'',aantal_afwijking:aantal,
