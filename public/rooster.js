@@ -26,6 +26,14 @@
     weekRij(l,{act,sel}={}){
       return `<div class="r ${act?'act':''}" data-km="${l.kampmoment_id}"><span><input type="checkbox" data-sel="${l.kampmoment_id}" ${sel?'checked':''} aria-label="Selecteer ${esc(l.naam)}"></span><span><b>${esc(l.naam)}</b></span><span class="tgs">${l.themas.map(label).join('')||'<span class="k">geen thema</span>'}</span><span>${l.kv?esc(l.kv):'<span style="color:#a16207;font-weight:600">geen KV</span>'}</span><span class="k">${l.sport.length?l.sport.map(esc).join(' · '):'—'}</span></div>`;
     },
+    // MOB2: gsm-weergave van de week (design/mockup-gsm-1.html, telefoon Planning › Rooster): weekkeuze, chips die horizontaal scrollen, elke locatie een kaart.
+    filtersWeekGsm(O,f){
+      const c=(k,t)=>`<span class="chip ${f===k?'act':''}" data-f="${k}" role="button">${t} ${O.tellers[k]}</span>`;
+      return `<div class="wk"><button class="knop licht klein" data-week="-1" aria-label="Vorige week"${O.week.nr<=1?' disabled':''}>‹</button><b>${esc(O.week.label)}</b><button class="knop licht klein" data-week="1" aria-label="Volgende week"${O.week.nr>=O.weken?' disabled':''}>›</button></div><div class="chipsS"><span class="seg"><a class="act" data-zicht="week">Week</a><a data-zicht="seizoen">Seizoen</a></span>${c('alle','Alle')}${c('dubbel','⚠ Dubbel')}${c('herhaald','↻ Herhaald')}${c('gedeeld','◐ Gedeeld')}${c('geen_kv','Geen KV')}</div>`;
+    },
+    weekKaart(l,{act}={}){
+      return `<div class="r gk ${act?'act':''}" data-km="${l.kampmoment_id}" role="button" tabindex="0"><div class="gkop"><b>${esc(l.naam)}</b>${l.kv?`<span>KV ${esc(l.kv)}</span>`:'<span class="geen">geen KV</span>'}</div><div class="tgs">${l.themas.map(label).join('')||'<span class="k">geen thema</span>'}</div>${l.meldingen_n?`<div class="gmeld">${l.meldingen_n} melding${l.meldingen_n===1?'':'en'} ›</div>`:''}</div>`;
+    },
     voetWeek(n,nTh){return `<span>${n} locatie${n===1?'':'s'} · ${nTh} thema's</span>${LEG_WEEK}`;},
     voetSeizoen(){return `<span>één rij per thema (elk thema bestaat 1×) · cel = waar het die week staat</span>${LEG_SEIZ}`;},
     raster(S,rijen,sel){
@@ -110,13 +118,14 @@
     const week=ZICHT==='week';
     $('kopr').style.display=week?'':'none';$('lijst').classList.toggle('raster',!week);
     if(week){
-      $('filters').innerHTML=BOUW.filtersWeek(O,FILTER);
+      const gsm=window.matchMedia&&window.matchMedia('(max-width:767px)').matches;
+      $('filters').innerHTML=gsm?BOUW.filtersWeekGsm(O,FILTER):BOUW.filtersWeek(O,FILTER);$('filters').classList.toggle('gs',!!gsm);
       const l=zichtbaarWeek();
-      $('lijst').innerHTML=l.length?l.map(x=>BOUW.weekRij(x,{act:D&&D.kampmoment.id===x.kampmoment_id,sel:SEL.has(x.kampmoment_id)})).join(''):'<div class="leeg">Geen locaties voor deze filter</div>';
+      $('lijst').innerHTML=l.length?l.map(x=>(gsm?BOUW.weekKaart:BOUW.weekRij)(x,{act:D&&D.kampmoment.id===x.kampmoment_id,sel:SEL.has(x.kampmoment_id)})).join(''):'<div class="leeg">Geen locaties voor deze filter</div>';
       $('voet').innerHTML=BOUW.voetWeek(l.length,l.reduce((n,x)=>n+x.themas.length,0));
       $('alles').checked=l.length>0&&l.every(x=>SEL.has(x.kampmoment_id));
     }else{
-      $('filters').innerHTML=BOUW.filtersSeizoen(S,FILTER,ZOEK);
+      $('filters').innerHTML=BOUW.filtersSeizoen(S,FILTER,ZOEK);$('filters').classList.remove('gs');
       $('lijst').innerHTML=BOUW.raster(S,zichtbaarSeizoen(),CEL);
       $('voet').innerHTML=BOUW.voetSeizoen();
       const z=$('zoek');z.oninput=e=>{ZOEK=e.target.value.trim().toLowerCase();const p=z.selectionStart;teken();const n=$('zoek');n.focus();n.setSelectionRange(p,p);};

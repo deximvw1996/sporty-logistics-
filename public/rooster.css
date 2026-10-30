@@ -111,3 +111,17 @@ input[type=checkbox]{width:20px;height:20px}
   .voet .leg{margin-left:0;flex-wrap:wrap}
   .kv b a,.blok h4 a,.dkop span a{display:inline-flex;align-items:center;min-height:44px}
 }
+
+/* ── MOB2: gsm-weergave van de week (design/mockup-gsm-1.html); boven 768 px verandert er niets ── */
+@media (max-width:767px){
+  body{padding-bottom:76px}
+  #filters.gs{display:block;overflow:visible;padding:0;margin:0 -4px 6px}
+  #filters.gs .wk{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 4px 8px}#filters.gs .wk b{font-size:15px}
+  #filters.gs .chipsS{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:0 4px 8px}#filters.gs .chipsS::-webkit-scrollbar{height:0}#filters.gs .chipsS>*{flex:none}
+  #filters.gs .chip{height:44px;line-height:44px;padding:0 14px;border-radius:22px;display:inline-block;white-space:nowrap}
+  .r.gk{display:block !important;background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px;border:0;cursor:pointer}.r.gk.act{outline:2px solid #bfdbfe}
+  .r.gk .gkop{display:flex;justify-content:space-between;align-items:center;min-height:32px;gap:8px}.r.gk .gkop b{font-size:15px}.r.gk .gkop span{font-size:12px;color:#64748b;font-weight:600;white-space:nowrap}.r.gk .gkop span.geen{color:#a16207}
+  .r.gk .tgs{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}.r.gk .tg{padding:5px 8px;font-size:13px;border-radius:7px;white-space:normal}
+  .r.gk .gmeld{font-size:12px;margin-top:6px;color:#c2410c;font-weight:600;min-height:20px}
+  .r.gk>*{font-size:inherit}.r.gk>span,.r.gk>div{flex:none}
+}
