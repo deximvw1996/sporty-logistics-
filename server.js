@@ -71,7 +71,8 @@ if (!fs.existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
   FRONTEND_PATH = __dirname;
 }
 console.log('Frontend pad:', FRONTEND_PATH);
-app.use(express.static(FRONTEND_PATH));
+// Alleen public/ statisch: nooit de projectmap zelf (server.js, lib/, routes/, *.md, *.db). index.html loopt via de catch-all onderaan.
+app.use('/public', express.static(path.join(FRONTEND_PATH, 'public')));
 
 const dbx = require('./lib/db')(DATA_DIR, DB_PATH);
 const { saveDb, flush, backupDb, run, get, all, ins, now, isoDate, _genToken, resolveItemTypeId, logAct } = dbx;

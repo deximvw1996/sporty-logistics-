@@ -36,7 +36,7 @@ try {
   const slecht = [];
   for (const n of ['..%2Fsporty.db', '..%2F..%2Fbackups%2Fsporty.db', 'sporty.db', 'sporty-2026-10-30.db.tmp', '%2E%2E%2Fsporty-2026-10-30.db', 'sporty-2026-10-30.db%00x']) { const r = await A('GET', '/api/backups/' + n); slecht.push({ s: r.status, t: r.text || '' }); }
   T.check(slecht.every((x) => x.s === 400 || x.s === 404 || (x.s === 200 && /^<!DOCTYPE html>/i.test(x.t))) && slecht[0].s === 400 && !slecht.some((x) => /^SQLite format 3/.test(x.t) || x.t === fs.readFileSync(T.ROOT + '/server.js', 'utf8')), `download weigert ../ en andere namen: ${slecht.map((x) => x.s + (x.s === 200 ? ' (app-pagina, geen bestand)' : '')).join(',')}`);
-  { const st = await fetch(srv.base + '/server.js', { headers: { authorization: BASIC } }); T.info(`GEVONDEN (buiten BH2): GET /server.js → ${st.status} (express.static op de projectmap)`); }
+  { const st = await fetch(srv.base + '/server.js', { headers: { authorization: BASIC } }); const tx = await st.text(); T.check(!tx.includes('express.static'), 'projectbestanden niet downloadbaar: /server.js geeft de broncode niet'); }
   const inh = (await A('GET', '/api/backup-inhoud')).json;
   T.check(inh.locaties > 0 && inh.themas > 0 && inh.bakken > 0 && inh.personeel > 0 && typeof inh.wijzigingen === 'number' && inh.db_grootte > 0, `wat zit erin: ${inh.locaties} locaties, ${inh.themas} thema's, ${inh.bakken} bakken, ${inh.ritten} ritten, ${inh.personeel} personeel, ${inh.wijzigingen} wijzigingen · ${inh.db_grootte_tekst}`);
 
