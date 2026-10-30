@@ -69,7 +69,10 @@ module.exports = function(ctx){
       run('DELETE FROM sport_planning WHERE set_id=? AND week=? AND periode_id=?', [req.params.id, week, pid]);
       if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" — week ${week}: locatie vrijgemaakt`,null,null);
     } else {
-      run('INSERT OR REPLACE INTO sport_planning (set_id,locatie_id,week,periode_id) VALUES (?,?,?,?)', [req.params.id, locatie_id, week, pid]);
+      // PL3: weekplanning vervangt alle dagrijen van die set in die week; hele week = ma–vr.
+      run('DELETE FROM sport_planning WHERE set_id=? AND week=? AND periode_id=?', [req.params.id, week, pid]);
+      const _soort=String((setInfo&&setInfo.item_naam)||'').replace(/ +([A-Za-z]|[0-9]+)$/,'').trim();
+      run('INSERT INTO sport_planning (set_id,locatie_id,week,periode_id,dag_van,dag_tot,soort) VALUES (?,?,?,?,1,5,?)', [req.params.id, locatie_id, week, pid, _soort]);
       const loc=get('SELECT name FROM locaties WHERE id=?',[locatie_id]);
       if(setInfo) logAct('sport','verplaatst',`${setInfo.item_naam||'Set'} "${setInfo.label}" → ${loc?.name||'?'} (week ${week})`,locatie_id,loc?.name);
     }

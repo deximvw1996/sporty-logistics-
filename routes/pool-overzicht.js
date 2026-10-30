@@ -70,7 +70,7 @@ module.exports = function(ctx){
       const w={};ss.forEach(s=>{const n=locNaam(s.locatie_id);w[n]=(w[n]||0)+1;});
       let nodig=null;
       if(per){
-        const pl=all(`SELECT sp.week,COUNT(*) AS n FROM sport_planning sp JOIN sport_sets s ON s.id=sp.set_id WHERE s.item_id=? AND sp.periode_id=? GROUP BY sp.week`,[it.id,per.id]);
+        const pl=all(`SELECT sp.week,COUNT(DISTINCT sp.set_id) AS n FROM sport_planning sp JOIN sport_sets s ON s.id=sp.set_id WHERE s.item_id=? AND sp.periode_id=? GROUP BY sp.week`,[it.id,per.id]);
         nodig=pl.length?Math.max(...pl.map(r=>r.n)):0;
       }
       const p=maak('sport',it.id,it.name,'sportpakket','sport',ss.length,teksten(w),false,null);

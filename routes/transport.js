@@ -449,7 +449,8 @@ module.exports = function(ctx){
     // ── SPORT SETS TRANSPORT ──
     // Gebruik per-item stockage_locatie_id; fallback naar sportStockageId
     const allSportSets=all('SELECT ss.*,si.name as item_naam,si.stockage_locatie_id as item_stockage_id FROM sport_sets ss LEFT JOIN sport_items si ON si.id=ss.item_id');
-    const allSportPlanning=all('SELECT * FROM sport_planning ORDER BY set_id,week');
+    // PL3: sport_planning staat per dag; per (set, periode, week) telt de locatie waar de set op dag_van staat (start van de week), en daarna de locatie op de laatste dag (einde van de week). Verhuizen binnen de week = eigen taak (routes/sportrooster.js).
+    const allSportPlanning=(()=>{const g=new Map();all('SELECT * FROM sport_planning ORDER BY set_id,week,COALESCE(dag_van,1),id').forEach(p=>{const k=p.set_id+'|'+(p.periode_id||0)+'|'+p.week;const x=g.get(k);if(!x)g.set(k,{...p,eind_locatie_id:p.locatie_id});else x.eind_locatie_id=p.locatie_id;});return [...g.values()];})();
 
     const kmVan=p=>kms.find(km=>km.locatie_id===p.locatie_id&&km.week===p.week&&km.periode_id===p.periode_id);
     const sportPerSetPeriode=[];
@@ -472,7 +473,7 @@ module.exports = function(ctx){
 
       // Transities tussen opeenvolgende geplande weken
       for(let i=0;i<setPlanning.length-1;i++){
-        const pA=setPlanning[i],pB=setPlanning[i+1];
+        const pA={...setPlanning[i],locatie_id:setPlanning[i].eind_locatie_id||setPlanning[i].locatie_id},pB=setPlanning[i+1];
         if(pA.locatie_id===pB.locatie_id)continue; // zelfde locatie → geen transport
         const kmA=kmVan(pA);
         if(!kmA)continue;
@@ -493,7 +494,7 @@ module.exports = function(ctx){
       }
 
       // Ophaling naar home-stockage na laatste geplande week
-      const lp=setPlanning[setPlanning.length-1];
+      const lp0=setPlanning[setPlanning.length-1],lp={...lp0,locatie_id:lp0.eind_locatie_id||lp0.locatie_id};
       const lKm=kmVan(lp);
       if(lKm){const lo=getOpenDagen(lKm);if(lo.length){const lLoc=locs.find(l=>l.id===lp.locatie_id);voorstellen.push({type:'ophaling',locatie:lLoc?.name||'?',locatie_id:lp.locatie_id,naar_locatie_id:homeStockageId,datum:nextWorkday(lo[lo.length-1]),tijd:'17:00',materiaal:[{naam:setNaam,qty:1,soort:'sport'}],opmerking:'Sport ophaling (einde): '+setNaam+' ← '+(lLoc?.name||'?')});}}
     });
