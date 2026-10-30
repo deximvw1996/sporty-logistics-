@@ -1491,7 +1491,7 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 ## TB2 — Tekorten & bestellingen op het standaardpatroon (chat C, Opus) · 2026-10-30
 
 **Commits op `bouw-c`:**
-- punt 1: API + migratie 83
+- punt 1: API + migratie 84 (eerst 83; hernummerd na de rebase op VT1, zie onder)
 - punt 2 + 3: pagina, nav, vervangstrook, gsm, test
 - de fixes uit de browsercontrole en de aangepaste tests
 - dit verslag
@@ -1513,9 +1513,9 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
    - "Binnen" verhoogt eerst de voorraad met het bestelde aantal; het aanvullen trekt het er daarna weer af, en de rest blijft voorraad.
 
 ### Punt 1 — Data en API (`routes/tekorten-overzicht.js`, nieuw)
-- **Migratie 83 (`tekort_bestellingen`):** er was geen plek voor een bestelling per artikel, noch voor de keuze van kantoor die afwijkt van het voorstel.
+- **Migratie 84 (`tekort_bestellingen`):** er was geen plek voor een bestelling per artikel, noch voor de keuze van kantoor die afwijkt van het voorstel.
   - Kolommen: artikel_sleutel, periode_id, stand_kantoor, aantal, waar_kopen, leveren_aan_id, reden, besteld_op/door, binnen_op/door, `los` (bestelling zonder tekort), `extra` (aankoop bovenop een tekort dat uit voorraad wordt aangevuld).
-  - Gezet onder de vlag `migratie83_klaar`; nummer 83 = het eerste na 82.
+  - Gezet onder de vlag `migratie84_klaar`. Migratie 83 is van VT1 (voertuigen, op main gekomen tijdens dit werk).
 - **`GET /api/tekorten-overzicht?periode_id=&chip=`:**
   - Eén rij per artikel: het `item_type` via het bak-item, anders op naam in de catalogus, anders `n:<naam>`.
   - Velden: `{artikel_id, naam, eenheid, tekort, n_bakken, waar_tekst, voorraad{rozenweg,kantoor,minimum}, stand, stand_voorstel, bestel_voorstel, stand_bron, bestelling{…}|null}`.
@@ -1623,6 +1623,17 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
   - run 1: 34/37 (`bh1-personeel` AFGEBROKEN na 0,6 s bij het starten; los 37/37 groen);
   - runs 2 en 3: **35/37**, alleen de bekende `v3c-fotos` en `veiligheid`.
 
+### Tweede rebase (VT1) en een push-incident
+- **Wat er gebeurde:** bij de tweede `git rebase origin/main` stond VT1 (Transport › Voertuigen) net op main. Dat gaf conflicten in `lib/migraties.js` (beide migratie 83), `server.js`, `public/nav.js`, `index.html` en `scripts/test-nav1.mjs`.
+- **Mijn fout:** de controle in mijn commando keek niet naar de exitcode van de rebase (`| tail`), dus "REBASE-OK" werd ten onrechte getoond en er werd gepusht **tijdens** het conflict.
+  - Daardoor stond `origin/bouw-c` even op c94453b. Dat is gewoon main met VT1, een fast-forward: er ging niets verloren en er werd niets naar main gepusht.
+  - Daarna heb ik alle conflicten opgelost (telkens de versie van main + de TB2-wijziging erbovenop, migratie TB2 → 84). Pas na `Successfully rebased` werd opnieuw gepusht.
+  - Dit is dezelfde les als bij BH1; voortaan pas pushen na een rebase-check op de exitcode zelf.
+- **Na de tweede rebase:** `tb2-tekorten`, `nav1`, `f1-modules` en `vt1-voertuigen` zijn ALLES GROEN.
+- **Volle run na de tweede rebase:**
+  - run 1: 34/38 (`f1-wijzigingen` en `keten-kv-periode` AFGEBROKEN bij het starten);
+  - runs 2 en 3: **36/38**, alleen de bekende `v3c-fotos` en `veiligheid`.
+
 ### Aangepaste bestaande tests (buiten mijn lijst)
 - **`scripts/test-nav1.mjs`:**
   - de verwachte Voorraad-subbalk is nu `/nakijken, /tekorten, /aanvullijst-print`;
@@ -1637,7 +1648,7 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 4. **"Uit voorraad" telt Rozenweg + Kantoor (zoals de prompt), maar afvinken trekt alles van Rozenweg af.** De aanvullijst weet niet uit welke stockage het kwam.
 5. **Eén bestelling per artikel per periode.** Komen er na "binnen" nieuwe tekorten van hetzelfde artikel bij, dan hangen die aan dezelfde rij (stand binnen); "+ Bestelling" werkt los daarvan.
 6. **De historiek-knop "↶ Terug" is er niet:** er bestaat geen generieke terugdraai-route (TR1 #1). Alles is wel gelogd met oud/nieuw.
-7. **Migratie 83:** als een andere chat ook een 83 toevoegt, moet de hoofdchat bij de merge hernummeren.
+7. **Migratie 83 botste met VT1, en dat is opgelost.** VT1 kwam tijdens dit werk op main met zijn eigen migratie 83 (voertuigen). VT1 houdt 83; TB2 werd **84** (`migratie84_klaar`) en staat er direct na. Er is geen backfill, dus het hernummeren heeft geen gevolgen.
 
 ### Buiten mijn gebied
 - `scripts/test-nav1.mjs` en `scripts/test-f1-modules.mjs`: zie hierboven.
