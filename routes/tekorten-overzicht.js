@@ -209,6 +209,8 @@ module.exports = function(ctx){
       if(best&&(best.los||best.extra)){
         updateMetLog(req,'tekort_bestellingen',best.id,{binnen_op:isoNu(),binnen_door:wie(req)},'tekorten');
         stockPlus(req,best.item_type_id,aantal,'tekorten: bestelling binnen',best.leveren_aan_id);
+        // TF4 G4: een extra bestelling (artikel stond op "uit voorraad") zet de nakijk-regels met actie bestellen ook op binnen, anders blijft Bak klaar eeuwig op "wacht op levering".
+        if(best.extra)openRegels(regels,a).filter(r=>BESTEL_ACTIE(r.kantoor_actie)&&r.tekort_status!=='binnen').forEach(r=>updateMetLog(req,'nakijk_regels',r.id,{tekort_status:'binnen'},'tekorten'));
         logAct('tekorten','binnen',`${a.naam}: bestelling binnen (${fmt(aantal)} → voorraad ${locNaam(best.leveren_aan_id)||'Rozenweg'}) — ${wie(req)}`,null,null);
         if(ctx.melding)ctx.melding(req,{voor_rol:'coordinator',van_naam:wie(req),tekst:`Bestelling binnen: ${fmt(aantal)} × ${a.naam}`,link:'/tekorten'}); // ME1
         return {ok:true};
