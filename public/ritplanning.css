@@ -102,7 +102,7 @@ body.sleept{cursor:grabbing;user-select:none}
   body>.frame{display:none}
   #gsm{display:flex;flex-direction:column;min-height:100vh;background:#f5f5f5;font-size:15px;padding-bottom:76px;box-sizing:border-box}
   #gsm .knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
-  #gsm .knop.licht{background:#e8eefc;color:#1e3a8a}#gsm .knop.klein{height:44px;min-width:44px;padding:0 14px;font-size:14px}#gsm .knop.breed{width:100%;margin-top:8px}
+  #gsm .licht.knop{background:#e8eefc;color:#1e3a8a}#gsm .knop.klein{height:44px;min-width:44px;padding:0 14px;font-size:14px}#gsm .knop.breed{width:100%;margin-top:8px}
   #gsm .kop2{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-bottom:1px solid #e2e8f0;min-height:64px}
   #gsm .kop2 a{color:#2563eb;font-weight:700;font-size:15px;min-height:44px;display:flex;align-items:center;cursor:pointer}#gsm .kop2 b{display:block;font-size:16px}#gsm .kop2 span{font-size:12px;color:#64748b}
   #gsm .wk{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;padding:8px 14px}#gsm .wk b{font-size:15px}
