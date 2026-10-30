@@ -149,7 +149,7 @@ try {
   T.check(/Telefoon kantoor/.test(kd) && /GSM permanentie/.test(kd) && /Waar je het ziet/.test(kd) && /Annuleren/.test(kd) && /Opslaan/.test(kd) && /Historiek 1/.test(kd), `detail Kantoor & contact: ${t(kd).slice(0, 260)}`);
   T.check(/heel Sporty/.test(IB.detail((await A('GET', '/api/instellingen/gesloten')).json, 'gegevens')) && /niet gebruikt|gebruikt \d+×/.test(IB.detail((await A('GET', '/api/instellingen/leeftijd')).json, 'gegevens')), 'detail Gesloten dagen (heel Sporty/locatie) en Leeftijdsgroepen (gebruikt n×)');
   const css = fs.readFileSync(T.ROOT + '/public/backup.css', 'utf8') + fs.readFileSync(T.ROOT + '/public/rooster.css', 'utf8');
-  T.check(/@media \(max-width:767px\)\{\n  \.veld input,\.veld select\{height:44px;width:100%\}/.test(css) && /\.body\.toon-detail>\.kaart\.lijstkaart\{display:none\}/.test(css), 'gsm-CSS: velden volle breedte en 44 px, detail als volgend scherm');
+  T.check(/@media \(max-width:767px\)\{\r?\n  \.veld input,\.veld select\{height:44px;width:100%\}/.test(css) && /\.body\.toon-detail>\.kaart\.lijstkaart\{display:none\}/.test(css), 'gsm-CSS: velden volle breedte en 44 px, detail als volgend scherm');
 
   // ── terugzetten (laatst: de server herstart daarna) ──
   const dbBuf = fs.readFileSync(path.join(BK, h.json.naam));
