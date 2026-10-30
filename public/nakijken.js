@@ -168,6 +168,7 @@
     }
     var r = regels[i], voorstel = r.acties[0].waarde, aant = r.aantal_afwijking || r.kantoor_aantal || 0;
     var wat = (AFWTEKST[r.afwijking] ? AFWTEKST[r.afwijking](r) : '');
+    if (r.herkomst) wat = r.herkomst + (wat ? ' · ' + wat : '');
     var kv2 = function (k, v) { return '<div class="kv2"><span>' + k + '</span><b>' + v + '</b></div>'; };
     var knoppen = r.acties.map(function (o) {
       return '<button type="button" class="knop breed' + (o.waarde === voorstel ? '' : ' licht') + '" style="height:56px" data-gk="kies" data-regel="' + r.regel_id + '" data-w="' + esc(o.waarde) + '" data-n="' + aant + '">' + esc(o.label) + (r.kantoor_actie === o.waarde ? ' ✓' : '') + '</button>';
