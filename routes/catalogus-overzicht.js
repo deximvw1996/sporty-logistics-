@@ -16,11 +16,18 @@ module.exports = function(ctx){
   const tijdTekst=s=>{const d=alsDatum(s);return d&&!isNaN(d)?`${DAG[d.getDay()]} ${d.getDate()} ${MND[d.getMonth()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`:(s||'');};
   const periodeVan=id=>(id&&get('SELECT * FROM vakantieperiodes WHERE id=?',[id]))||get('SELECT * FROM vakantieperiodes WHERE actief=1')||get('SELECT * FROM vakantieperiodes ORDER BY id DESC LIMIT 1');
 
-  // "Mogelijk dubbel": zelfde naam na normaliseren (kleine letters, accenten weg, meervoud -s/-en weg).
-  function norm(n){
-    let s=String(n||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
-    s=s.split(' ').map(w=>w.length>4&&/en$/.test(w)?w.slice(0,-2):w.length>3&&/s$/.test(w)?w.slice(0,-1):w).join(' ');
-    return s;
+  // "Mogelijk dubbel" (LK1, strenger): de genormaliseerde naam (kleine letters, accenten weg, leestekens en dubbele spaties weg) is gelijk, óf de namen
+  // verschillen alleen in een meervoud-uitgang (-s/-en) van het LAATSTE woord, beide zijn minstens 5 tekens en het artikel heeft dezelfde eenheid en categorie.
+  function norm(n){return String(n||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();}
+  function stam(n){
+    const w=norm(n).split(' ');let l=w.pop()||'';
+    if(l.length>4&&/en$/.test(l)){l=l.slice(0,-2);if(l.length>1&&l[l.length-1]===l[l.length-2])l=l.slice(0,-1);}else if(l.length>3&&/s$/.test(l))l=l.slice(0,-1);
+    return [...w,l].join(' ');
+  }
+  function isDubbel(x,y){
+    if(x.id===y.id)return false;
+    if(norm(x.naam)===norm(y.naam))return true;
+    return norm(x.naam).length>=5&&norm(y.naam).length>=5&&stam(x.naam)===stam(y.naam)&&(x.eenheid||'stuk')===(y.eenheid||'stuk')&&(x.categorie||'')===(y.categorie||'');
   }
   const stockLoc=naam=>(get("SELECT id FROM locaties WHERE name=? AND type='stockage' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1",[naam])||{}).id||null;
   const fmtN=n=>n==null?null:Math.round(n*100)/100;
@@ -36,11 +43,11 @@ module.exports = function(ctx){
     });
     const items=all('SELECT * FROM item_types ORDER BY naam COLLATE NOCASE');
     const groepen={};
-    items.forEach(i=>{const k=norm(i.naam);(groepen[k]=groepen[k]||[]).push(i.id);});
+    items.forEach(i=>{const k=stam(i.naam);(groepen[k]=groepen[k]||[]).push(i);});
     return items.map(i=>{
       const st=stock[i.id]||{},rw=st[rozenweg],kt=st[kantoor];
       const totaal=Object.values(st).reduce((s,r)=>s+(r.qty||0),0);
-      const dubbel=(groepen[norm(i.naam)]||[]).length>1;
+      const dubbel=(groepen[stam(i.naam)]||[]).some(x=>isDubbel(i,x));
       const onderMin=!!minTekort[i.id];
       const ongebruikt=!(nBak[i.id]||0)&&!(nThemaMat[i.id]||0)&&totaal<=0;
       const status=onderMin?'onder_min':dubbel?'dubbel':ongebruikt?'ongebruikt':'ok';
@@ -81,7 +88,7 @@ module.exports = function(ctx){
     }
     const tekorten=get(`SELECT COUNT(*) AS n FROM nakijk_regels WHERE item_naam=? AND COALESCE(tekort_status,'open') NOT IN ('aangevuld','genegeerd') AND aangetroffen<verwacht`,[a.naam]).n;
     const k=norm(a.naam);
-    const dubbel=all('SELECT * FROM item_types WHERE id<>?',[a.id]).filter(x=>norm(x.naam)===k).map(x=>{
+    const dubbel=all('SELECT * FROM item_types WHERE id<>?',[a.id]).filter(x=>isDubbel(a,x)).map(x=>{
       const nb=get('SELECT COUNT(DISTINCT bak_id) AS n FROM bak_items WHERE item_type_id=?',[x.id]).n;
       const st=all('SELECT l.name,s.qty FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? AND s.qty>0',[x.id]).map(s=>`${s.name} ${fmtN(s.qty)}`);
       return {id:x.id,naam:x.naam,n_bakken:nb,voorraad_tekst:st.join(' · ')};
