@@ -1964,3 +1964,54 @@ Elk gebaar logt al zijn wijzigingen (via `updateMetLog`/`insMetLog`) onder één
 6. **Start op `/`:** de PWA en de oude login starten op `/` (index.html, de oude app zonder schil). Die pagina stuurt gsm-gebruikers nog niet naar `/vandaag` of `/login`; dat bestand viel buiten deze prompt.
 7. **Pincode wijzigen in Meer** gebruikt voorlopig `prompt()`: geen ontworpen scherm in de mockup.
 8. **Rol in `localStorage`:** de tabbalk gebruikt eerst de bewaarde rol en corrigeert na `mijn=1`. Na een login via de oude overlay kan de tabbalk heel even de verkeerde rij tonen.
+
+## ME1 — Meldingen op gsm + restpunten (chat C, 30/10)
+
+**Stand:** af en gepusht naar `bouw-c`. Niets naar main, niets gedeployd.
+
+### Punt 1 — Meldingen
+- **Migratie 87:** `meldingen` volgens de prompt, plus `meldingen_gelezen` (zie GEVONDEN 1).
+- **`routes/meldingen.js`:** `GET /api/meldingen`, `POST /:id/gelezen`, `POST /alles-gelezen`, `POST /api/meldingen` (kantoor), `GET /api/meldingen/ontvangers` (kantoor), `GET /meldingen`. Elke melding staat in `wijzigingen`; een bericht ook in het activiteitenlog.
+- **Automatisch:**
+  - chauffeur meldt iets → kantoor;
+  - KV-telling verstuurd, KV-aanvraag of KV-kapot → kantoor;
+  - aanvraag goedgekeurd/afgewezen → coördinatoren;
+  - rit gewijzigd die klaarstond (`klaarzet_status='klaar'`) → bestuurder, niet als die het zelf wijzigt;
+  - verhuistaak toegewezen → die persoon;
+  - bestelling binnen → coördinatoren.
+- **Geen dubbels:** dezelfde ongelezen tekst voor dezelfde ontvanger wordt niet opnieuw gemaakt.
+- **Pagina `/meldingen`:** per dag, ongelezen vet met blauw randje, tik = gelezen en naar de link, Alles gelezen, + Bericht (kantoor). Tab Meldingen gaat hierheen, de teller = ongelezen. `mijn=1` geeft de ongelezen meldingen in `meldingen` (met `titel` en `sub`, die `public/vandaag.js` leest).
+- **Gemeten:** 390 px chauffeur en kantoor: scrollWidth 390, 0 knoppen < 44 px, ook in het venster + Bericht. 1920 px: kolom 640 px. De bovenbalk miste daar eerst zijn links; dat is hersteld (`public/nav.js`), maar ik heb dat herstel niet opnieuw in de browser bekeken.
+
+### Punt 2 — Rit op naam
+- `mijn=1` neemt ook ritten zonder `personeel_id` mee als de naam (hoofdletterongevoelig, exact) bij precies één actieve persoon past en dat de gebruiker is. Niets wordt overschreven.
+- `/api/ritplanning`: waarschuwing "⚠ bestuurder niet gekoppeld" als de naam bij niemand of bij meerdere personen past.
+
+### Punt 3 — Restpunten Beheer
+- **Handmatige back-ups:** `sporty-hand-JJJJ-MM-DD-UUMMSS(-n).db`, maximaal 30. `backupDb` en de nachtback-up ruimen alleen automatische op (14). Bestaande `sporty-JJJJ-MM-DD-UUMM.db` blijven en tellen bij de handmatige.
+- **Herstel:** `voor-herstel-*.db` wordt niet meer geschreven; alleen de back-up "voor terugzetten" in de lijst.
+- **`tijd_vertrek_ritten`:** begintijd in het formulier Nieuwe rit (`standaard_vertrek` in `/api/ritplanning`) en bij `POST /api/ritten` zonder vertrek. Zonder waarde: het oude gedrag.
+- **`tijd_verhuis_avond`:** uur van nieuwe verhuistaken; zonder waarde 17:00. Bestaande taken veranderen niet.
+
+### Bewijs
+- **`scripts/test-me1-meldingen.mjs` (poort 3369): 36 ok, 0 fout, ALLES GROEN.** Elke gebeurtenis één melding voor de juiste ontvanger, geen dubbels, gelezen uit de teller, 403 voor niet-kantoor, andermans melding 404, rit op naam, ⚠, 20 handmatige duwen geen automatische weg, max 30, herstel zonder voor-herstel, beide tijden met en zonder waarde, `GET /meldingen` 200.
+- **Grens:** de wijziging die de test op een klaargezette rit doet, is `PUT /api/ritten/:id`. De hooks op verplaats, tijden en volgorde zijn niet apart getest.
+- `mob1-schil`, `bh2-beheer`, `pl3-sportrooster`, `rp1-ritplanning` los groen.
+- **Volle run:** 43/45 en 43/45 (runs 3 en 4). Alleen de bekende `v3c-fotos` en `veiligheid` zijn rood. Runs 1 en 2 gaven 42/45 door `gf1-gaten` (zie de aangepaste tests).
+
+### Buiten mijn lijst (nodig voor wat de prompt vroeg)
+- `routes/aanvragen.js` en `routes/tekorten-overzicht.js`: daar gebeuren "chauffeur meldt", "aanvraag beslist" en "bestelling binnen" echt.
+- `routes/sportrooster.js` (verhuistaak toegewezen) en `routes/ritplanning.js` (⚠) stonden alleen voor Punt 3 in de lijst; `routes/transport.js` kreeg ook de begintijd.
+- `public/ritplanning.js`: twee keer `'08:00'` → eerst de standaard. Het formulier vult anders altijd 08:00 in en de instelling zou nooit gelden.
+- **Bestaande tests aangepast:**
+  - `test-bh2-beheer` (nieuw naampatroon, 14 + handmatig);
+  - `test-gf1-gaten`: `meldingen` en `meldingen_gelezen` tellen als log. Een melding blijft bestaan als een kampmoment volledig verwijderd wordt.
+
+### GEVONDEN
+1. **Eén `gelezen_op` kan niet voor een rol:** dan zou de eerste coördinator ze voor iedereen weglezen. Daarom de extra tabel `meldingen_gelezen` per persoon bij rol-meldingen.
+2. **Andere ritwijzigingen geven geen melding:** stop toevoegen, ontkoppelen en wisselen lopen via andere routes (o.a. `routes/ritplanning.js`, `/api/transport-taken/:id/rit`). Alleen verplaatsen, tijden, volgorde en `PUT /api/ritten/:id` melden.
+3. **Oude gsm-weergave:** de rij "n meldingen" op Vandaag linkt nog naar `/vandaag?tab=meldingen` (`public/vandaag.js` is van D); dat scherm toont de ongelezen meldingen, zonder "gelezen". Beter wijst die rij naar `/meldingen`.
+4. **Kantoor op gsm:** de NU-kaart Beslissen blijft de bron voor beslissen; Meldingen zijn nu berichten. Een chauffeursmelding staat dus op beide plaatsen.
+5. **Na terugzetten** zijn de meldingen die van de teruggezette database (gewone data).
+6. **Begintijd en stops:** met `tijd_vertrek_ritten` krijgt een rit zonder vertrek die tijd en worden de stoptijden daarop gezet. Dat geldt ook voor scripts en oude schermen die `POST /api/ritten` zonder vertrek doen.
+7. **Instellingen tonen 08:00 en 18:00 als standaard** terwijl de echte terugval 08:00 (formulier) en 17:00 (verhuis) is. Opslaan op Instellingen slaat alles wat verandert op; het veld verhuis toont dus 18:00 zolang niets is bewaard, terwijl de taak 17:00 krijgt. Dat is een klein verschil in `routes/instellingen.js`, buiten mijn lijst.
