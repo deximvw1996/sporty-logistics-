@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="nl"><head><meta charset="utf-8"><title>Mockup — Beheer › Personeel</title><style>
+<html lang="nl"><head><meta charset="utf-8"><title>Beheer — Back-up &amp; Instellingen</title><style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde3;color:#1a1a1a}
 .keuze{position:fixed;top:0;left:0;right:0;height:40px;background:#1b1b1f;color:#fff;display:flex;align-items:center;gap:8px;padding:0 14px;z-index:9;font-size:13px}
@@ -9,7 +9,7 @@ input[name=kz]{position:absolute;opacity:0;pointer-events:none}
 #r1:checked~#f1,#r2:checked~#f2,#r3:checked~#f3{display:block}
 .frame{display:none;width:1920px;height:900px;margin:40px auto 0;background:#f5f5f5;overflow:hidden;position:relative}
 button{font:inherit;cursor:pointer;border:0}
-.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.pil.groen{background:#dcfce7;color:#15803d}.pil.oranje{background:#ffedd5;color:#c2410c}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.pil.groen{background:#dcfce7;color:#15803d}.pil.oranje{background:#ffedd5;color:#c2410c}.pil.rood{background:#fee2e2;color:#b91c1c}
 .kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;display:flex;flex-direction:column;min-height:0}
 .knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
 .top{height:56px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:6px}
@@ -19,48 +19,72 @@ button{font:inherit;cursor:pointer;border:0}
 .sub{height:48px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;padding:0 28px;gap:4px}
 .sub a{height:36px;padding:0 12px;border-radius:8px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#64748b;cursor:pointer}.sub a.act{color:#1d4ed8;background:#eff6ff}.sub .r{margin-left:auto;display:flex;gap:6px}
 .scroll{overflow-y:auto;min-height:0;flex:1}.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
-.filters{display:flex;gap:6px;align-items:center;margin-bottom:10px}.filters input{height:38px;border:1px solid #e2e8f0;border-radius:8px;padding:0 12px;font:inherit;flex:1;max-width:360px}
-.chip{height:36px;padding:0 12px;border-radius:999px;background:#f1f5f9;font-size:13px;font-weight:600;display:inline-flex;align-items:center;cursor:pointer}.chip.act{background:#1e3a8a;color:#fff}
+.filters{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:nowrap}.filters input{height:38px;border:1px solid #e2e8f0;border-radius:8px;padding:0 12px;font:inherit;flex:1;max-width:300px;min-width:150px}
+.chip{height:36px;padding:0 12px;border-radius:999px;background:#f1f5f9;font-size:13px;font-weight:600;display:inline-flex;align-items:center;cursor:pointer;white-space:nowrap}.chip.act{background:#1e3a8a;color:#fff}
 .kopr,.r{display:grid;align-items:center;gap:8px;padding:0 10px;font-size:13px}
 .kopr{height:36px;color:#64748b;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em;border-bottom:1px solid #e2e8f0}
 .r{min-height:46px;border-bottom:1px solid #f1f5f9;cursor:pointer;border-radius:8px}.r.act{background:#eff6ff}.r:hover{background:#f8fafc}
+.r .k{color:#64748b;font-size:12px}
 .voet{height:40px;display:flex;align-items:center;gap:8px;font-size:12px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:6px}
 .detail{display:flex;flex-direction:column;min-height:0;flex:1}
-.dkop{display:flex;align-items:flex-start;gap:16px;margin-bottom:10px}.dkop h2{font-size:22px;font-weight:800}.dkop span{font-size:13px;color:#64748b}.dkop .acts{margin-left:auto;display:flex;gap:6px}
+.dkop{display:flex;align-items:flex-start;gap:16px;margin-bottom:10px}.dkop h2{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px}.dkop span{font-size:13px;color:#64748b}.dkop .acts{margin-left:auto;display:flex;gap:6px}
 .dtabs{display:flex;gap:4px;border-bottom:1px solid #e2e8f0;margin-bottom:12px}.dtabs a{height:40px;padding:0 14px;display:flex;align-items:center;font-size:13px;font-weight:700;color:#64748b;cursor:pointer;border-bottom:2px solid transparent}.dtabs a.act{color:#1d4ed8;border-bottom-color:#1d4ed8}
-.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;overflow-y:auto}
-.blok{background:#f8fafc;border-radius:10px;padding:12px}.blok h4{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
-.kv{display:flex;gap:10px;font-size:13px;padding:5px 0}.kv span{width:90px;color:#64748b;flex:none}.kv b{font-weight:600}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;overflow-y:auto;align-content:start}
+.blok{background:#f8fafc;border-radius:10px;padding:12px}.blok h4{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center}.blok h4 a{margin-left:auto;color:#2563eb;text-transform:none;letter-spacing:0;font-size:12px}
+.kv{display:flex;gap:10px;font-size:13px;padding:5px 0}.kv span{width:110px;color:#64748b;flex:none}.kv b{font-weight:600}
 .fotos{display:flex;gap:8px}.f{width:110px;height:80px;border-radius:8px;background:#cbd5e1;display:flex;align-items:flex-end;padding:6px;font-size:11px;font-weight:700;color:#334155}.f.plus{background:#eff6ff;color:#1d4ed8;align-items:center;justify-content:center;cursor:pointer}
 .rij{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 0;border-top:1px solid #eef2f7;font-size:13px}.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
-
-.frame{display:block}
+.rij .code{font-family:ui-monospace,Consolas,monospace;font-size:12px;font-weight:700;background:#e2e8f0;border-radius:6px;padding:2px 6px}
+.rij .getal{width:70px;text-align:right;font-weight:700}
+.stap{display:inline-flex;align-items:center;gap:4px}.stap button{width:36px;height:36px;border-radius:8px;background:#f1f5f9;color:#1e3a8a;font-weight:800}
+.kleur{width:14px;height:14px;border-radius:4px;display:inline-block;flex:none}
+.balk{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden;flex:1}.balk i{display:block;height:100%;background:#2563eb}.balk.op i{background:#ea580c}
+.vol{grid-column:1/-1}
 .body{display:grid;grid-template-columns:860px 1fr;gap:16px;padding:16px 28px;height:796px}
-.kopr,.r{grid-template-columns:36px 1.6fr 1.1fr 1.1fr 1.2fr 120px}
 input[type=checkbox]{width:20px;height:20px}
-.voet{justify-content:flex-start}.voet .bulk{display:none;gap:6px;margin-left:8px}.voet.sel .bulk{display:flex}.voet .n{font-weight:700;color:#1e3a8a}
-.leeg{padding:40px;text-align:center;color:#64748b;font-size:14px}
+.voet .bulk{display:none;gap:6px;margin-left:8px}.voet.sel .bulk{display:flex}.voet .n{font-weight:700;color:#1e3a8a}
 
-.r small{font-size:11px;color:#64748b}
-.dgrid.een{grid-template-columns:1.6fr 1fr}
-.kopr.tel,.r.tel{grid-template-columns:1.4fr 60px 70px 90px 1.6fr 1.5fr;padding:0 6px}
-.r.tel{cursor:default;border-left:3px solid #cbd5e1;border-radius:6px;margin:3px 0;background:#fff}
-.r.tel.rood{border-left-color:#dc2626}.r.tel.blauw{border-left-color:#2563eb}.r.tel.oranje{border-left-color:#ea580c}.r.tel.groen{border-left-color:#16a34a}
-.r.tel .not{font-size:12px;color:#475569}
-.r.tel select{height:36px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;font-size:12px;padding:0 6px;width:100%;background:#fff}
-.onder{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#64748b;padding-top:8px;border-top:1px solid #e2e8f0;margin-top:8px}
-
-.r small{font-size:11px;color:#64748b}.dgrid.een{grid-template-columns:1.3fr 1fr}
-.kv b .pil{margin-left:4px}
-.fotos{display:flex;gap:8px;flex-wrap:wrap}.f{width:96px;height:72px;border-radius:8px;background:#cbd5e1;display:flex;align-items:flex-end;padding:6px;font-size:11px;font-weight:700;color:#334155}.f.plus{background:#eff6ff;color:#1d4ed8;align-items:center;justify-content:center;cursor:pointer}
-.dagen{display:flex;gap:4px}.dagen span{width:44px;height:36px;border-radius:8px;background:#e2e8f0;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}.dagen span.act{background:#1e3a8a;color:#fff}
+.keuze label{background:#334155;padding:4px 10px;border-radius:6px;cursor:pointer}
+#f1 .kopr,#f1 .r{grid-template-columns:20px 2.6fr 1fr 120px}
+#f2 .kopr,#f2 .r{grid-template-columns:20px 3fr 150px}
+.veld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.veld label{font-size:12px;font-weight:600;color:#475569}.veld input{height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 10px;font-size:14px}
 </style></head><body>
-<div class="keuze"><b>Mockup op het patroon: Beheer › Personeel</b><span>personeel met rol, telefoon, laatst actief, pincode-stand · bulk uitnodiging / rol / deactiveren · detail: gegevens en rechten per rol, inzet deze periode (KV, ritten, aanvullen), logboek op naam · subbalk Personeel · Logboek · Export & back-up · Instellingen · 1920×900</span></div>
-<div class="frame"><div class="top"><div class="logo">Sporty logistiek</div><a class="">🏠 Vandaag <span class="b">2</span></a><a class="">📅 Planning</a><a class="">🚚 Transport</a><a class="">📦 Materiaal</a><a class="">📍 Locaties</a><a class="">🧮 Voorraad &amp; controles</a><a class="act">⚙️ Beheer</a><div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div><div class="sub"><a class="act">Personeel</a><a>Logboek</a><a>Export &amp; back-up</a><a>Instellingen</a><span class="r"><button class="knop licht klein">⬇ Export</button><button class="knop klein">+ Persoon</button></span></div><div class="body"><div class="kaart lijst"><div class="filters"><input placeholder="🔍 Zoek naam, rol, telefoon…"><span class="chip act">Alle 23</span><span class="chip">Kantoor 3</span><span class="chip">Chauffeur 3</span><span class="chip">Coördinator 12</span><span class="chip">Monitor 5</span><span class="chip">⚠ Zonder pincode 2</span></div><div class="kopr"><span><input type="checkbox"></span><span>Naam</span><span>Rol</span><span>Telefoon</span><span>Laatst actief</span><span>Stand</span></div><div class="scroll"><div class="r "><span><input type="checkbox" ></span><span><b>Maxim</b></span><span>kantoor</span><span>0470 …</span><span>vandaag 09:12</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Steffi</b></span><span>kantoor</span><span>0471 …</span><span>gisteren</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Jan</b></span><span>chauffeur</span><span>0472 …</span><span>vandaag 07:28</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Piet</b></span><span>chauffeur</span><span>0473 …</span><span>gisteren</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Sam</b></span><span>chauffeur</span><span>0474 …</span><span>ma</span><span><span class="pil groen">actief</span></span></div><div class="r act"><span><input type="checkbox" ></span><span><b>Lotte</b></span><span>coördinator</span><span>0475 …</span><span>vandaag 07:31</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Bram</b></span><span>coördinator</span><span>0476 …</span><span>vr</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Noor</b></span><span>coördinator</span><span>0477 …</span><span>ma</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" checked></span><span><b>Eva</b></span><span>coördinator</span><span>0478 …</span><span>—</span><span><span class="pil oranje">geen pincode</span></span></div><div class="r "><span><input type="checkbox" checked></span><span><b>Fien</b></span><span>coördinator</span><span>—</span><span>—</span><span><span class="pil oranje">geen pincode</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Jonas</b></span><span>coördinator</span><span>0479 …</span><span>wo</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Milan</b></span><span>coördinator</span><span>0480 …</span><span>wo</span><span><span class="pil groen">actief</span></span></div><div class="r "><span><input type="checkbox" ></span><span><b>Tess</b></span><span>monitor</span><span>—</span><span>—</span><span><span class="pil groen">actief</span></span></div></div><div class="voet sel"><span>23 personen · <span class="n">2 geselecteerd</span></span><span class="bulk"><button class="knop klein">Pincode-uitnodiging sturen</button><button class="knop licht klein">Rol wijzigen</button><button class="knop licht klein">Deactiveren</button></span></div></div><div class="kaart"><div class="detail">
-   <div class="dkop"><div><h2>Lotte Peeters</h2><span>coördinator · 0475 12 34 56 · lotte@… · ingelogd vandaag 07:31 (gsm)</span></div><div class="acts"><button class="knop licht">Bewerken</button><button class="knop licht">Pincode resetten</button><button class="knop licht">Deactiveren</button><button class="knop">Rol wijzigen</button></div></div>
-   <div class="dtabs"><a class="act">Gegevens</a><a>Inzet 7</a><a>Wat deed ze 24</a></div>
-   <div class="dgrid een">
-    <div class="blok"><h4>Gegevens &amp; rechten</h4><div class="kv"><span>Rol</span><b>coördinator <span class="pil">mag: ritten rijden · stockage · tellen · meldingen</span></b></div><div class="kv"><span>Telefoon</span><b>0475 12 34 56</b></div><div class="kv"><span>Pincode</span><b>gezet (scrypt) · laatste wijziging 12 okt</b></div><div class="kv"><span>Rijbewijs</span><b>B · eigen wagen (6 bakken)</b></div><div class="kv"><span>Meldingen</span><b>app-meldingen aan</b></div>
-     <h4 style="margin-top:14px">Inzet deze periode</h4><div class="rij"><div class="nm">KV Abdijschool Vlierbeek · wk 1<b>Alles op wieltjes · telling ingediend ma</b></div><button class="knop licht klein">Open</button></div><div class="rij"><div class="nm">Rit #49 · vr 24 jul · eigen wagen<b>coördinator rijdt mee · Kantoor → Herent</b></div><button class="knop licht klein">Open</button></div><div class="rij"><div class="nm">Aanvullen Rozenweg · di 3 nov<b>8 handelingen · 1 afgevinkt</b></div><button class="knop licht klein">Open</button></div></div>
-    <div class="blok"><h4>Wat deed ze (logboek op naam)</h4><div class="rij"><div class="nm">telling N09 ingediend (8/8)<b>vandaag 09:12</b></div></div><div class="rij"><div class="nm">pion: 2 kapot + foto<b>vandaag 09:10</b></div></div><div class="rij"><div class="nm">ingelogd (gsm)<b>vandaag 07:31</b></div></div><div class="rij"><div class="nm">aanvraag: 3 rollen tape<b>ma 2 nov 08:12</b></div></div><div class="rij"><div class="nm">levering ontvangen bevestigd<b>vr 30 okt 14:20</b></div></div><div class="rij"><div class="nm">KV-link geopend<b>wo 28 okt</b></div></div><button class="knop licht klein" style="margin-top:6px">Volledig logboek ›</button></div>
-   </div></div></div></div></div></body></html>
+<input type="radio" name="kz" id="r1" checked hidden><input type="radio" name="kz" id="r2" hidden>
+<div class="keuze"><b>Beheer</b><label for="r1">Back-up &amp; export</label><label for="r2">Instellingen</label></div>
+<div class="frame" id="f1"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">2</span></a><a>📅 Planning</a><a>🚚 Transport</a><a>📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a class="act">⚙️ Beheer</a><div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div><div class="sub"><a>Personeel</a><a>Logboek</a><a class="act">Back-up & export</a><a>Instellingen</a><span class="r"></span></div>
+<div class="body"><div class="kaart lijst"><div class="filters"><span class="chip act">Alles 7</span><span class="chip">Back-up 3</span><span class="chip">Export 3</span><span class="chip">Import 1</span></div>
+<div class="kopr"><span></span><span>Wat</span><span>Laatst</span><span>Stand</span></div>
+<div class="scroll"><div class="r act"><span></span><span><b>Volledige back-up</b><span class="k" style="display:block">alle gegevens als één databasebestand (.db)</span></span><span class="k">2 dagen geleden</span><span><span class="pil groen">ok</span></span></div><div class="r"><span></span><span><b>Automatische nachtback-up</b><span class="k" style="display:block">elke nacht om 03:00 · 14 bewaard</span></span><span class="k">vannacht 03:00</span><span><span class="pil groen">aan</span></span></div><div class="r"><span></span><span><b>Planning exporteren</b><span class="k" style="display:block">kampmomenten, thema's, KV's · Excel</span></span><span class="k">—</span><span></span></div><div class="r"><span></span><span><b>Materiaal exporteren</b><span class="k" style="display:block">catalogus, bakken, pool, voorraad · Excel</span></span><span class="k">—</span><span></span></div><div class="r"><span></span><span><b>Thema's exporteren</b><span class="k" style="display:block">thema's + materiaal · JSON (om terug te importeren)</span></span><span class="k">—</span><span></span></div><div class="r"><span></span><span><b>Planning importeren</b><span class="k" style="display:block">ingebouwde zomerplanning of eigen JSON-bestand</span></span><span class="k">12/06</span><span></span></div><div class="r"><span></span><span><b>Back-up terugzetten</b><span class="k" style="display:block">oude toestand herstellen uit een .db-bestand</span></span><span class="k">nooit</span><span><span class="pil rood">gevaarlijk</span></span></div></div>
+<div class="voet"><span>database 4,2 MB · laatste wijziging vandaag 16:42 · Railway</span></div></div>
+<div class="kaart"><div class="detail">
+ <div class="dkop"><div><h2>Volledige back-up</h2><span>Alle locaties, thema's, materiaal, planning, ritten, personeel en historiek in één bestand</span></div><div class="acts"><button class="knop">💾 Download nu</button></div></div>
+ <div class="dtabs"><a class="act">Back-up</a><a>Eerdere 14</a></div>
+ <div class="dgrid">
+  <div class="blok"><h4>Laatste back-ups</h4>
+   <div class="rij"><div class="nm">vannacht 03:00 · automatisch<b>sporty-2026-10-30.db · 4,2 MB</b></div><button class="knop licht klein">Download</button></div>
+   <div class="rij"><div class="nm">gisteren 03:00 · automatisch<b>sporty-2026-10-29.db · 4,1 MB</b></div><button class="knop licht klein">Download</button></div>
+   <div class="rij"><div class="nm">28/10 14:10 · Maxim (handmatig)<b>sporty-2026-10-28-1410.db · 4,1 MB</b></div><button class="knop licht klein">Download</button></div>
+  </div>
+  <div class="blok"><h4>Wat zit erin</h4><div class="kv"><span>Locaties</span><b>23</b></div><div class="kv"><span>Thema's</span><b>64</b></div><div class="kv"><span>Bakken</span><b>412</b></div><div class="kv"><span>Ritten</span><b>36</b></div><div class="kv"><span>Personeel</span><b>58</b></div><div class="kv"><span>Historiek</span><b>3.218 wijzigingen</b></div></div>
+  <div class="blok vol"><h4>Tip</h4><div class="kv"><span>Bewaren</span><b>download minstens één keer per week een back-up naar je eigen computer of Drive</b></div></div>
+ </div></div></div></div></div><div class="frame" id="f2"><div class="top"><div class="logo">Sporty logistiek</div><a>🏠 Vandaag <span class="b">2</span></a><a>📅 Planning</a><a>🚚 Transport</a><a>📦 Materiaal</a><a>📍 Locaties</a><a>🧮 Voorraad &amp; controles</a><a class="act">⚙️ Beheer</a><div class="rechts"><span>Periode: <b>Herfst 2026</b> ▾</span><span>Maxim · kantoor</span></div></div><div class="sub"><a>Personeel</a><a>Logboek</a><a>Back-up & export</a><a class="act">Instellingen</a><span class="r"></span></div>
+<div class="body"><div class="kaart lijst"><div class="filters"><input placeholder="🔍 Zoek instelling…"><span class="chip act">Alles 7</span><span class="chip">⚠ Aandacht 1</span></div>
+<div class="kopr"><span></span><span>Instelling</span><span>Stand</span></div>
+<div class="scroll"><div class="r act"><span></span><span><b>Kantoor & contact</b><span class="k" style="display:block">telefoon, e-mail · op de KV-pagina</span></span><span><span class="pil oranje">nummer ontbreekt</span></span></div><div class="r"><span></span><span><b>Gesloten dagen</b><span class="k" style="display:block">feestdagen en sluitingen · 6 dit jaar</span></span><span><span class="pil groen">ok</span></span></div><div class="r"><span></span><span><b>Stockagelocaties</b><span class="k" style="display:block">Rozenweg, Kantoor · wat ligt waar</span></span><span>2</span></div><div class="r"><span></span><span><b>Leeftijdsgroepen</b><span class="k" style="display:block">KL, LS, 10+, 12+</span></span><span>4</span></div><div class="r"><span></span><span><b>Thema-categorieën</b><span class="k" style="display:block">kamp, themadag, …</span></span><span>7</span></div><div class="r"><span></span><span><b>Standaard tijden</b><span class="k" style="display:block">vertrek ritten, verhuis-avond, nachtback-up</span></span><span></span></div><div class="r"><span></span><span><b>App & database</b><span class="k" style="display:block">versie, opslag, Railway</span></span><span></span></div></div>
+<div class="voet"><span>alleen kantoor kan instellingen wijzigen · elke wijziging komt in het Logboek</span></div></div>
+<div class="kaart"><div class="detail">
+ <div class="dkop"><div><h2>Kantoor &amp; contact</h2><span>Zo kunnen KV's, chauffeurs en coördinatoren het kantoor bereiken</span></div><div class="acts"><button class="knop licht">Annuleren</button><button class="knop">Opslaan</button></div></div>
+ <div class="dtabs"><a class="act">Gegevens</a><a>Historiek 2</a></div>
+ <div class="dgrid">
+  <div class="blok"><h4>Contact</h4>
+   <div class="veld"><label>Telefoon kantoor</label><input placeholder="bv. 016 12 34 56" style="border-color:#f59e0b"></div>
+   <div class="veld"><label>GSM permanentie</label><input value="0470 12 34 56"></div>
+   <div class="veld"><label>E-mail</label><input value="logistiek@sporty.be"></div>
+  </div>
+  <div class="blok"><h4>Waar je het ziet</h4>
+   <div class="rij"><div class="nm" style="color:#c2410c">KV-pagina · blok "Kantoor"<b>nu verborgen: telefoon kantoor ontbreekt</b></div></div>
+   <div class="rij"><div class="nm">Rit-pagina chauffeur<b>knop "Bel kantoor"</b></div></div>
+   <div class="rij"><div class="nm">Aanvullijst (print)<b>onderaan</b></div></div>
+  </div>
+ </div></div></div></div></div>
+</body></html>
