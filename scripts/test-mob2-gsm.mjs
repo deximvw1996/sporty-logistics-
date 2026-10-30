@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 const lees = (p) => fs.readFileSync(T.ROOT + '/' + p, 'utf8');
 const ijk = JSON.parse(fs.readFileSync(T.IJK_JSON, 'utf8'));
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-const srv = await T.startServer({ poort: 3357 });
+const srv = await T.startServer({ poort: Number(process.env.TEST_POORT) || 3357 });
 // bovenste niveau van een CSS-tekst (zonder de inhoud van de blokken en zonder commentaar)
 const bovenste = (css) => { let d = 0, uit = ''; for (const ch of css) { if (ch === '{') { if (!d) uit += '{'; d++; continue; } if (ch === '}') { d--; if (!d) uit += '}'; continue; } if (!d) uit += ch; } return uit.replace(/\/\*[^*]*\*\//g, '').replace(/\s+/g, ''); };
 try {
