@@ -1,0 +1,14 @@
+/* public/backup.css — BH2: Beheer › Back-up & export en Instellingen (design/mockup-beheer.html). Basis = rooster.css (zelfde stijlblad). */
+#f1 .kopr,#f1 .r{grid-template-columns:20px 2.6fr 1fr 120px;align-items:center}
+#f2 .kopr,#f2 .r{grid-template-columns:20px 3fr 150px;align-items:center}
+#f1 .r,#f2 .r{padding-top:0;padding-bottom:0}
+.veld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.veld label{font-size:12px;font-weight:600;color:#475569}.veld input,.veld select{height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 10px;font-size:14px;font:inherit;background:#fff}
+.veld input.let{border-color:#f59e0b}
+.rij .knop{flex:none}.voet .rood{color:#b91c1c;font-weight:700}
+.rij input{height:36px;border:1px solid #cbd5e1;border-radius:8px;padding:0 8px;font:inherit;min-width:0}
+.naast{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end}.naast .veld{flex:1;min-width:120px}
+@media (max-width:767px){
+  .veld input,.veld select{height:44px;width:100%}.rij input{height:44px}
+  #f1 .r>span:nth-child(3),#f1 .r>span:nth-child(4),#f2 .r>span:nth-child(3){font-size:12px}
+  .naast .veld{flex:1 1 100%}
+}

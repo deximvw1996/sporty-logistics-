@@ -18,10 +18,10 @@
     transport: [['Ritplanning', '/ritplanning'], ['Taken', '/taken'], ['Voertuigen', '/voertuigen']],
     materiaal: [['Thema’s', '/themas'], ['Bakken', '/bakken'], ['Pool', '/pool'], ['Catalogus', '/catalogus']],
     voorraad: [['Nakijken', '/nakijken'], ['Tekorten & bestellingen', '/tekorten'], ['Aanvullijst', '/aanvullijst-print']], // TB2: Voorraad gaat op in Materiaal › Catalogus
-    beheer: [['Personeel', '/personeel'], ['Logboek', '/logboek'], ['Export & back-up', '/#beheer'], ['Instellingen', '/#beheer']]
+    beheer: [['Personeel', '/personeel'], ['Logboek', '/logboek'], ['Back-up & export', '/backup'], ['Instellingen', '/instellingen']] // BH2
   };
   // Welke pagina hoort bij welk onderdeel (en welke subknop).
-  var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer' };
+  var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer', '/backup': 'beheer', '/instellingen': 'beheer' };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   function boven(actief) {
