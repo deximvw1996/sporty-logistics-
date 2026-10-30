@@ -22,6 +22,40 @@
   };
   // Welke pagina hoort bij welk onderdeel (en welke subknop).
   var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer', '/backup': 'beheer', '/instellingen': 'beheer' };
+  // MOB1: gsm-schil (< 768 px). Tabbalk per rol (design/MOBIEL-DEFINITIEF.html); dezelfde URL's als op desktop.
+  var TABS = {
+    kantoor: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['transport', '🚚', 'Transport', '/ritplanning'], ['voorraad', '🧮', 'Voorraad', '/nakijken'], ['meldingen', '🔔', 'Meldingen', '/vandaag?tab=meldingen'], ['meer', '☰', 'Meer', '/meer']],
+    ploeg: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['ritten', '🚚', 'Ritten', '/vandaag?tab=ritten'], ['stockage', '📦', 'Stockage', '/aanvullijst-print'], ['meldingen', '🔔', 'Meldingen', '/vandaag?tab=meldingen'], ['meer', '☰', 'Meer', '/meer']]
+  };
+  var tabsVan = function (rol) { return rol === 'kantoor' ? TABS.kantoor : TABS.ploeg; };
+  // Welke tab is actief: volgt de PAGINA-tabel; de onderdelen zonder eigen tab vallen onder Meer.
+  function actieveTab(rol, pad, zoek) {
+    var q = /[?&]tab=(\w+)/.exec(zoek || ''), onderdeel = PAGINA[pad];
+    if (pad === '/vandaag') return q && (q[1] === 'meldingen' || q[1] === 'ritten') ? q[1] : 'vandaag';
+    if (pad === '/meer') return 'meer';
+    if (rol === 'kantoor' && (onderdeel === 'transport' || onderdeel === 'voorraad')) return onderdeel;
+    return 'meer';
+  }
+  function tabbalk(rol, pad, zoek, tellers) {
+    var act = actieveTab(rol, pad, zoek); tellers = tellers || {};
+    return tabsVan(rol).map(function (t) {
+      var n = tellers[t[0]];
+      return '<a data-tab="' + t[0] + '"' + (t[0] === act ? ' class="act"' : '') + ' href="' + t[3] + '">' + t[1] + '<span>' + esc(t[2]) + (n ? ' <em>' + n + '</em>' : '') + '</span></a>';
+    }).join('');
+  }
+  var isGsm = function () { return !!(root.matchMedia && root.matchMedia('(max-width:767px)').matches); };
+  var naarLogin = function () { root.location.replace('/login?terug=' + encodeURIComponent(root.location.pathname + root.location.search)); };
+  function tekenSchil(pad, tok) {
+    var rol = null; try { rol = root.localStorage.getItem('sporty-rol'); } catch (e) { /* geen opslag */ }
+    if (!document.querySelector('link[href="/public/app-schil.css"]')) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/public/app-schil.css'; document.head.appendChild(l); }
+    var balk = document.createElement('nav'); balk.className = 'app-tabs'; balk.setAttribute('aria-label', 'Hoofdmenu');
+    var zet = function (t) { balk.innerHTML = tabbalk(rol, pad, root.location.search, t); };
+    zet(); document.body.classList.add('heeft-tabs'); document.body.appendChild(balk);
+    if (tok && isGsm() && root.fetch) root.fetch('/api/vandaag?mijn=1', { headers: { 'x-auth-token': tok } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+      if (!v) return; rol = v.gebruiker.rol; try { root.localStorage.setItem('sporty-rol', rol); } catch (e) { /* geen opslag */ }
+      zet(v.tellers);
+    }).catch(function () { /* geen tellers */ });
+  }
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   function boven(actief) {
@@ -36,7 +70,12 @@
     if (typeof document === 'undefined') return;
     pad = pad || root.location.pathname;
     var actief = PAGINA[pad];
-    if (!actief) return;
+    var eigenBalk = pad === '/meer' || pad === '/locaties'; // /locaties tekent zijn balken zelf (LO1); hij krijgt alleen de schil
+    if (!actief && !eigenBalk) return;
+    // MOB1: niet ingelogd op een personeelspagina op gsm → /login?terug=. De rest van de pagina (die zelf naar / zou sturen) wordt niet meer gelezen.
+    var tok0 = null; try { tok0 = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
+    if (!tok0 && isGsm()) { document.write('<plaintext style="display:none">'); naarLogin(); return; }
+    if (eigenBalk) { tekenSchil(pad, tok0); return; }
     var top = document.querySelector('.top');
     if (top) {
       Array.prototype.filter.call(top.children, function (e) { return e.tagName === 'A'; }).forEach(function (e) { e.remove(); });
@@ -48,6 +87,7 @@
       Array.prototype.filter.call(sb.children, function (e) { return e.tagName === 'A'; }).forEach(function (e) { e.remove(); });
       sb.insertAdjacentHTML('afterbegin', sub(actief, pad));
     }
+    tekenSchil(pad, tok0);
     // Tellers (kantoor): Vandaag = te beslissen, Transport = in te plannen, Voorraad = tellingen te keuren. Pagina's mogen dezelfde ids ook zelf zetten.
     var tok = null; try { tok = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
     if (tok && root.fetch) {
@@ -88,10 +128,14 @@
       await wacht(pauzes[i]);
     }
     herhaalMelding = false;
+    if (r.status === 401 && typeof document !== 'undefined' && isGsm() && document.querySelector('.app-tabs')) { // MOB1: verlopen sessie op gsm (rit- en KV-pagina hebben geen tabbalk)
+      try { root.localStorage.removeItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
+      naarLogin(); return new Promise(function () {});
+    }
     var j = {}; try { j = await r.json(); } catch (e) { j = {}; }
     return { status: r.status, ok: r.ok, json: j };
   }
-  var api = { BOVEN: BOVEN, SUB: SUB, PAGINA: PAGINA, boven: boven, sub: sub, teken: teken, sportyApi: sportyApi };
+  var api = { TABS: TABS, tabsVan: tabsVan, actieveTab: actieveTab, tabbalk: tabbalk, BOVEN: BOVEN, SUB: SUB, PAGINA: PAGINA, boven: boven, sub: sub, teken: teken, sportyApi: sportyApi };
   root.sportyApi = sportyApi;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.SportyNav = api;

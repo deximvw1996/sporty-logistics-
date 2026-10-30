@@ -1,0 +1,35 @@
+/* public/app-schil.css — MOB1: gsm-schil (design/MOBIEL-DEFINITIEF.html, uitvoering A2). Geladen door nav.js en door /meer en /vandaag.
+   Boven 767 px staat alleen de regel die de tabbalk verbergt: de desktop verandert niet. Schermstijlen zijn beperkt tot .tel. */
+.app-tabs{display:none}
+@media (max-width:767px){
+  body.heeft-tabs{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  body.heeft-tabs .top{display:none!important}
+  body.heeft-tabs .sub{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto;height:auto;min-height:52px;padding:4px 12px!important;position:sticky;top:0;z-index:50;scrollbar-width:none}
+  body.heeft-tabs .sub::-webkit-scrollbar{display:none}
+  body.heeft-tabs .sub a{flex:none;white-space:nowrap;min-height:44px}
+  body.heeft-tabs .sub .r{flex:none;margin-left:12px}
+  .app-tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1000;background:#fff;border-top:1px solid #e2e8f0;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .app-tabs a{flex:1;min-width:0;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:700;color:#64748b;border-radius:10px;text-decoration:none;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+  .app-tabs a.act{background:#1e3a8a;color:#fff}
+  .app-tabs a span{white-space:nowrap}
+  .app-tabs em{font-style:normal;background:#dc2626;color:#fff;border-radius:999px;padding:0 5px;font-size:10px;margin-left:2px}
+  .app-tabs a.act em{background:#fff;color:#1e3a8a}
+}
+/* schermen (letterlijk uit de mockup) */
+.tel{display:flex;flex-direction:column;min-height:100vh;background:#f5f5f5;font-size:15px;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1a1a1a}
+.tel button{font:inherit;cursor:pointer;border:0}
+.tel .knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.tel .knop.licht{background:#e8eefc;color:#1e3a8a}.tel .knop.klein{height:44px;padding:0 14px;font-size:14px}.tel .knop.breed{width:100%;margin-top:8px}
+.tel .gbody{flex:1;padding:12px 14px 20px}
+.tel .kopA{background:#1e3a8a;color:#fff;padding:14px 14px 12px}.tel .kopA .l{font-size:12px;opacity:.8}.tel .kopA b{display:block;font-size:18px;margin-top:2px}.tel .kopA span{font-size:13px;opacity:.9}
+.tel .sec{background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px}
+.tel .sec h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;justify-content:space-between}
+.tel .rij{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 0;border-top:1px solid #eef2f7;color:inherit;text-decoration:none}
+.tel .rij:first-of-type{border-top:0}.tel .rij .nm{flex:1;min-width:0;font-weight:600;line-height:1.3;overflow-wrap:anywhere}.tel .rij .nm b{display:block;font-size:12px;color:#64748b;font-weight:500}
+.tel .rij .ico{font-size:20px;width:30px;text-align:center}.tel .rij .nm i{font-style:normal;color:#64748b;font-weight:500}.tel .rij .pijl{color:#94a3b8;font-size:20px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none}
+.tel .twee{display:flex;gap:8px;margin-top:8px}.tel .twee .knop{flex:1;min-width:0;padding:0 6px}
+.tel .hint{font-size:13px;color:#64748b;margin-bottom:8px}
+.tel .nukaart{background:#1e3a8a;color:#fff;border-radius:16px;padding:16px;margin-bottom:12px}.tel .nukaart .l{font-size:11px;letter-spacing:.1em;opacity:.8}.tel .nukaart .t{font-size:20px;font-weight:800;margin:4px 0}.tel .nukaart .s{font-size:13px;opacity:.9;margin-bottom:12px}.tel .nukaart .knop{background:#fff;color:#1e3a8a;width:100%}
+.tel .acts{display:flex;gap:6px;flex-wrap:wrap;padding:0 0 8px}
+.tel .pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.tel .pil.blauw{background:#dbeafe;color:#1d4ed8}.tel .pil.groen{background:#dcfce7;color:#15803d}
+.tel select{height:44px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;background:#fff;max-width:100%}

@@ -1,0 +1,16 @@
+/* public/login.css — MOB1: Inloggen (design/mockup-gsm-1.html, telefoon Inloggen). */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#1e3a8a;color:#fff}
+button{font:inherit;cursor:pointer;border:0}
+.scherm{min-height:100%;max-width:430px;margin:0 auto;padding:28px 20px;display:flex;flex-direction:column}
+.logo{font-size:22px;font-weight:800;margin-bottom:4px}.vraag{opacity:.8;font-size:14px;margin-bottom:22px}
+.wie{background:rgba(255,255,255,.14);border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;min-height:56px;width:100%;color:#fff;text-align:left;margin-bottom:8px}.wie b{font-size:17px}.wie span{font-size:13px;opacity:.85}
+.zoek{height:48px;width:100%;border:0;border-radius:12px;padding:0 14px;font:inherit;margin-bottom:12px}
+.lijst{flex:1}
+.pinvraag{text-align:center;margin:20px 0 10px;font-size:14px;opacity:.9}
+.dots{display:flex;justify-content:center;gap:16px;margin-bottom:18px}.dots i{width:16px;height:16px;border-radius:50%;border:2px solid #fff}.dots i.v{background:#fff}
+.dots.schud{animation:schud .4s}@keyframes schud{20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+.fout{text-align:center;min-height:20px;font-size:14px;font-weight:700;color:#fecaca;margin-bottom:8px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.pad button{height:64px;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;font-size:24px;font-weight:700}.pad button:disabled{opacity:.4}
+.voettekst{text-align:center;font-size:13px;opacity:.8;margin-top:auto;padding-top:14px}
