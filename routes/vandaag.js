@@ -3,9 +3,19 @@
 // Alles komt uit bestaande tabellen; conflicten en tekorten via de bestaande route-handlers zelf
 // (geen tweede kopie van die logica).
 'use strict';
+// MOB1: wat staat op de NU-kaart. Een rit die onderweg is gaat altijd voor; dan aanvullen, dan de eerstvolgende rit of telling op tijd.
+function kiesNu(ritten,aanvullen,tellen){
+  const opTijd=(a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99'));
+  const taken=[...ritten,...tellen].sort(opTijd);
+  const onderweg=taken.find(t=>t.onderweg);
+  const nu=onderweg||aanvullen||taken[0]||null;
+  const rest=(aanvullen&&aanvullen!==nu?[aanvullen]:[]).concat(taken.filter(t=>t!==nu));
+  return {nu:nu?{...nu,knop:nu.onderweg?'Verder ›':'Start ›'}:null,daarna:rest};
+}
+function kiesNuKantoor(groepen){return {nu:groepen[0]?{...groepen[0],knop:'Start ›'}:null,daarna:groepen.slice(1)};}
 module.exports = function(ctx){
   const {kvL}=require('../lib/tijd');
-  const {app,get,all,run,alleenKantoor,path,ROOT_DIR,_kvVerwacht,_bakItems} = ctx;
+  const {app,get,all,run,alleenKantoor,path,ROOT_DIR,_kvVerwacht,_bakItems,_genToken} = ctx;
   // Lokale datum (niet UTC): kort na middernacht mag 'vandaag' niet nog gisteren zijn.
   const isoDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
@@ -211,17 +221,56 @@ module.exports = function(ctx){
     };
   }
 
+  // ── MOB1: de gsm-weergave van Vandaag (design/MOBIEL-DEFINITIEF.html): NU-kaart, Daarna, meldingen, tellers van de tabbalk ──
+  const ritTitel=r=>`Rit #${r.id}${r.voertuig?' · '+r.voertuig:''}`;
+  const ritSub=r=>r.stops.map(s=>s.naam+(s.slot==='vrij'?' (vrij)':' 🔒')).join(' → ')+(r.bezetting?` · ${r.bezetting.n}/${r.bezetting.max} bakken${r.bezetting.n>r.bezetting.max?' ⚠':''}`:'');
+  const ritItem=r=>({soort:'rit',ico:'🚚',tijd:r.tijd,titel:ritTitel(r),sub:ritSub(r),url:'/rit/'+r.token,onderweg:r.status==='onderweg'});
+  function gsmVandaag(req,b,datum){
+    const rol=req.persoon.rol;
+    if(rol==='kantoor'){
+      const v=vandaagData(req);
+      const rij=(ico,naam,lijst,url)=>({soort:naam.toLowerCase(),ico,tijd:'',titel:`${naam} · ${lijst.length}`,sub:lijst.slice(0,3).map(x=>x.titel).join(' · '),url});
+      const groepen=[v.beslissen.length&&rij('📩','Beslissen',v.beslissen,'/vandaag?tab=beslissen'),v.inplannen.length&&rij('🚚','Inplannen',v.inplannen,'/ritplanning'),v.nakijken.length&&rij('⚠','Nakijken',v.nakijken,'/nakijken'),
+        v.ritten_vandaag.length&&{soort:'ritten',ico:'🚐',tijd:v.ritten_vandaag[0].tijd,titel:`Ritten vandaag · ${v.ritten_vandaag.length}`,sub:v.ritten_vandaag.slice(0,4).map(r=>`${r.chauffeur||'geen chauffeur'} ${r.status==='onderweg'?`onderweg (stop ${r.stop_huidig}/${r.stops_totaal})`:r.status}`).join(' · '),url:'/ritplanning'}].filter(Boolean);
+      const kies=kiesNuKantoor(groepen);
+      const wk=v.deze_week;
+      const daarna=kies.daarna.concat(wk.length?[{soort:'week',ico:'🏫',tijd:'ma–vr',titel:`Deze week · ${wk.length} locatie${wk.length===1?'':'s'}`,sub:wk.slice(0,5).map(k=>k.locatie).join(', '),url:'/kampmomenten'}]:[]);
+      const meldingen=v.beslissen.filter(x=>x.bron==='melding');
+      return {nu:kies.nu,daarna,n_dingen:groepen.length,meldingen,beslissen:v.beslissen,periode:v.periode,
+        tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.nakijken.length,meldingen:meldingen.length}};
+    }
+    const naam=req.persoon.naam;
+    // Meldingen: de eigen meldingen; een coördinator ziet alle open meldingen van chauffeurs.
+    const meld=all(`SELECT id,tekst,created_at,persoon_id FROM aanvragen WHERE soort='probleem_chauffeur' AND status='nieuw' ORDER BY id DESC`)
+      .filter(a=>rol==='coordinator'||a.persoon_id===req.persoon.persoon_id||String(a.tekst||'').startsWith(`Chauffeur ${naam} bij `))
+      .map(a=>({id:a.id,titel:a.tekst,sub:'melding '+_wanneer(a.created_at,datum)}));
+    // Tellen bij ophaling (coördinator): ophalingen van vandaag; de telling loopt via de KV-link van dat kampmoment.
+    const tellen=rol!=='coordinator'?[]:all(`SELECT t.*,r.chauffeur,r.personeel_id,r.id AS rid,km.kv_token FROM transport_taken t JOIN transport_ritten r ON r.id=t.rit_id LEFT JOIN kampmomenten km ON km.id=t.kampmoment_id
+      WHERE r.datum=? AND t.type='ophaling' AND t.status NOT IN ('gedaan','geannuleerd') AND r.status<>'geannuleerd' ORDER BY COALESCE(t.tijd,''),t.id`,[datum]).map(t=>{
+        const n=get('SELECT COUNT(*) AS n FROM transport_regels WHERE taak_id=?',[t.id]).n,ch=t.chauffeur||_persNaam(t.personeel_id);
+        return {soort:'tellen',ico:'📋',tijd:t.tijd||'',titel:`Tellen bij ophaling · ${_locNaam(_stopLoc(t))}`,sub:[`${n} stuks`,ch?`samen met ${ch} (rit #${t.rid})`:`rit #${t.rid}`].join(' · '),url:t.kv_token?'/kv/'+t.kv_token:'/vandaag?tab=ritten'};
+      });
+    const open=b.ritten_vandaag.filter(r=>r.status!=='gedaan');
+    const aanvul=rol==='coordinator'&&b.aanvullen.open?{soort:'aanvullen',ico:'🧮',tijd:'',titel:'Aanvullen in de Rozenweg',sub:`${b.aanvullen.bakken} bak${b.aanvullen.bakken===1?'':'ken'} · ${b.aanvullen.open} handeling${b.aanvullen.open===1?'':'en'}`,url:'/aanvullijst-print'}:null;
+    const kies=kiesNu(open.map(ritItem),aanvul,tellen);
+    const volgend=kies.nu||!b.ritten_morgen.length?[]:b.ritten_morgen.map(r=>({...ritItem(r),tijd:'morgen '+r.tijd}));
+    return {nu:kies.nu,daarna:kies.daarna.concat(volgend),n_dingen:(kies.nu?1:0)+kies.daarna.length,meldingen:meld,tellers:{ritten:open.length,meldingen:meld.length}};
+  }
+
   // GF1: een coördinator (of chauffeur) ziet met ?mijn=1 enkel zijn eigen ritten en aanvul-handelingen; zonder mijn=1 blijft Vandaag kantoor.
   app.get('/api/vandaag',(req,res,next)=>{
     if(req.query.mijn==='1'&&req.persoon&&req.persoon.rol!=='kv'){
       const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoDate(new Date());
       const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' AND personeel_id=? ORDER BY id",[dag,req.persoon.persoon_id]).map(r=>{
         const taken=all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[r.id]);
-        return {id:r.id,tijd:r.vertrek||taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',voertuig:r.voertuig||'',status:r.status,stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast'})),token:r.rit_token||''};
+        let token=r.rit_token||'';if(!token){token=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[token,r.id]);} // MOB1: de NU-kaart opent de rit-weergave
+        let bez=null;try{const i=ctx._ritPlanInfo(r);if(r.voertuig_capaciteit)bez={n:i.bezetting,max:r.voertuig_capaciteit};}catch(e){}
+        return {id:r.id,tijd:r.vertrek||taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',voertuig:r.voertuig||'',status:r.status,stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast',type:t.type,gedaan:t.status==='gedaan'})),token,bezetting:bez};
       });
       const lijst=_roep('/api/aanvullijst',{datum},req);
-      return res.json({mijn:true,gebruiker:{naam:req.persoon.naam,rol:req.persoon.rol},datum,datum_tekst:datumLang(datum),
-        ritten_vandaag:rit(datum),ritten_morgen:rit(plus(datum,1)),aanvullen:{open:lijst&&lijst.tellers?lijst.tellers.totaal:0,bakken:lijst&&lijst.tellers?lijst.tellers.bakken:0}});
+      const basis={mijn:true,gebruiker:{naam:req.persoon.naam,rol:req.persoon.rol},datum,datum_tekst:datumLang(datum),
+        ritten_vandaag:rit(datum),ritten_morgen:rit(plus(datum,1)),aanvullen:{open:lijst&&lijst.tellers?lijst.tellers.totaal:0,bakken:lijst&&lijst.tellers?lijst.tellers.bakken:0}};
+      return res.json({...basis,...gsmVandaag(req,basis,datum)});
     }
     return alleenKantoor(req,res,()=>res.json(vandaagData(req)));
   });
@@ -242,4 +291,7 @@ module.exports = function(ctx){
   // De pagina zelf: login gebeurt client-side (token in localStorage), de pagina vraagt /api/vandaag
   // en stuurt niet-kantoor terug naar /.
   app.get('/vandaag',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','vandaag.html')));
+  app.get('/login',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','login.html'))); // MOB1
+  app.get('/meer',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','meer.html'))); // MOB1
 };
+module.exports.kiesNu=kiesNu;module.exports.kiesNuKantoor=kiesNuKantoor;
