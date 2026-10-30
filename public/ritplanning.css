@@ -108,7 +108,7 @@ body.sleept{cursor:grabbing;user-select:none}
   #gsm .wk{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff;padding:8px 14px}#gsm .wk b{font-size:15px}
   #gsm .dagen{display:flex;background:#fff;border-bottom:1px solid #e2e8f0}#gsm .dagen a{flex:1;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;color:#64748b;position:relative;cursor:pointer}
   #gsm .dagen a b{font-size:16px;color:#1a1a1a}#gsm .dagen a.act{background:#eff6ff}#gsm .dagen a.act b{color:#1d4ed8}#gsm .dagen em{position:absolute;bottom:5px;width:5px;height:5px;background:#dc2626;border-radius:50%}
-  #gsm .body{flex:1;padding:12px 14px 20px}
+  #gsm .body{display:block;grid-template-columns:none;height:auto;flex:1;padding:12px 14px 20px}
   #gsm .sec{background:#fff;border-radius:14px;padding:10px 12px;margin-bottom:10px}
   #gsm .sec h3{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:flex;justify-content:space-between}
   #gsm h3.tus{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin:12px 0 2px}
