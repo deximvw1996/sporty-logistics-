@@ -435,3 +435,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-30 — TB2 Tekorten & bestellingen (C) gekeurd en live: 34 ok, volle run groen. Planning-mockup v2 na Maxims feedback.
 - 2026-10-30 — Planning-mockup v3 goedgekeurd; prompts PL2 (C) en PL3 (D).
 - 2026-10-30 — PL2 Rooster/Gedeeld/Periodes (C) + PL3 Sportrooster per dag (D) gekeurd en live; 40/40. Reviewfix: Periodes toont sport te weinig sets.
+- 2026-10-30 — Beheer-mockup goedgekeurd (+ nachtback-up); Kaart in Locaties. Prompts BH2 (C) en LK1 (D).
