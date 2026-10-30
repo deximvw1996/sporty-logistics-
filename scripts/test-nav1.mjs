@@ -13,7 +13,7 @@ try {
   const NAMEN = ['Vandaag', 'Planning', 'Transport', 'Materiaal', 'Locaties', 'Voorraad & controles', 'Beheer'];
   T.check(NAV.BOVEN.map((o) => o.href).join() === HREFS.join() && NAV.BOVEN.map((o) => o.naam).join() === NAMEN.join(), 'mapping bovenbalk: Vandaag /vandaag · Planning /kampmomenten · Transport /ritplanning · Materiaal /bakken · Locaties /#locaties · Voorraad & controles /nakijken · Beheer /personeel');
   const SUBS = {
-    planning: ['/kampmomenten', '/#kampplanner', '/#periodes', '/#themas'], transport: ['/ritplanning', '/taken', '/voertuigen'] /* VT1 */,
+    planning: ['/kampmomenten', '/rooster', '/sportrooster', '/gedeeld', '/periodes'] /* PL2 */, transport: ['/ritplanning', '/taken', '/voertuigen'] /* VT1 */,
     materiaal: ['/themas', '/bakken', '/pool', '/catalogus'] /* MA2 */, voorraad: ['/nakijken', '/tekorten', '/aanvullijst-print'] /* TB2 */, beheer: ['/personeel', '/logboek', '/#beheer', '/#beheer']
   };
   T.check(Object.entries(SUBS).every(([k, v]) => NAV.SUB[k].map((s) => s[1]).join() === v.join()), 'mapping subbalken (planning, transport, materiaal, voorraad, beheer) exact volgens de prompt');

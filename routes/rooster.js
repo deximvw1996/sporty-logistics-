@@ -9,7 +9,6 @@
 module.exports = function(ctx){
   const {app,get,all,run,updateMetLog,alleenKantoor,logAct,path,ROOT_DIR} = ctx;
 
-  const DAG=['zo','ma','di','wo','do','vr','za'];
   const pad=n=>String(n).padStart(2,'0');
   const d0=s=>new Date(s+'T12:00:00');
   const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -34,7 +33,7 @@ module.exports = function(ctx){
   }
   const lgCode=s=>{const x=String(s||'').trim().toLowerCase();if(!x)return 'G';if(x==='kl'||x.startsWith('kleut'))return 'KL';if(x==='ls'||x.startsWith('lager'))return 'LS';return x.slice(0,2).toUpperCase();};
   const typeNaam=t=>String(t||'').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
-  const dagTekst=d=>d==null||d===''?'ma–vr':(DAG[((+d)%7+7)%7]||`dag ${d}`);
+  const dagTekst=d=>d==null||d===''?'ma–vr':(['ma','di','wo','do','vr'][+d]||`dag ${d}`); // kampmoment_themas.dag: 0 = maandag … 4 = vrijdag
   const aanvKey=(pid,w,key,tid)=>`pl2_gedeeld_aanvaard:${pid}:${w}:${key}:${tid}`;
 
   // ── gedeeld materiaal: welke stukken, hoeveel er zijn ──
@@ -126,9 +125,11 @@ module.exports = function(ctx){
       return {kampmoment_id:k.id,locatie_id:k.locatie_id,naam:k.loc,kv:k.kv||'',themas:th,sport:sportVan(per,k.locatie_id,w),
         meldingen_n:th.reduce((n,t)=>n+t.meldingen.length,0),zoek:[k.loc,k.kv,...th.map(t=>t.naam)].join(' ').toLowerCase()};
     });
-    const heeft=m=>locaties.filter(l=>l.themas.some(t=>t.meldingen.includes(m))).length;
+    // tellers zoals de mockup: dubbel = thema's dubbel, herhaald = labels ↻, gedeeld = stukken te weinig (de chip filtert wel op locatie)
+    const kw=A.kts.filter(t=>t.week===w);
     res.json({periode:{id:per.id,naam:per.naam},weken:A.aantal,week:weekInfo(per,w),
-      tellers:{alle:locaties.length,dubbel:heeft('dubbel'),herhaald:heeft('herhaald'),gedeeld:heeft('gedeeld'),geen_kv:locaties.filter(l=>!l.kv).length},
+      tellers:{alle:locaties.length,dubbel:new Set(kw.filter(t=>t.meldingen.includes('dubbel')).map(t=>t.thema_id)).size,herhaald:kw.filter(t=>t.meldingen.includes('herhaald')).length,
+        gedeeld:Object.values(A.gedeeld[w]||{}).filter(x=>x.stand==='te_weinig').length,geen_kv:locaties.filter(l=>!l.kv).length},
       n_themas:locaties.reduce((n,l)=>n+l.themas.length,0),locaties});
   });
 
@@ -183,7 +184,7 @@ module.exports = function(ctx){
     const gebruikt=new Set(rijen.map(r=>r.thema_id));
     const ongebruikt=all('SELECT id,name FROM themas ORDER BY name COLLATE NOCASE').filter(t=>!gebruikt.has(t.id)).map(t=>({thema_id:t.id,naam:t.name,weken:Array.from({length:n},(_,i)=>({week:i+1,locaties:[],dubbel:false,herhaald:false})),dubbel:false,herhaald:false,n:0}));
     return {periode:{id:per.id,naam:per.naam},weken:Array.from({length:n},(_,i)=>weekInfo(per,i+1)),huidige_week:huidigeWeek(per),
-      tellers:{alle:rijen.length,dubbel:rijen.filter(r=>r.dubbel).length,herhaald:rijen.filter(r=>r.herhaald).length,niet_gebruikt:ongebruikt.length},themas:rijen,niet_gebruikt:ongebruikt};
+      tellers:{alle:rijen.length,dubbel:rijen.reduce((n,r)=>n+r.weken.filter(x=>x.dubbel).length,0),herhaald:rijen.reduce((n,r)=>n+r.weken.filter(x=>x.herhaald).length,0),niet_gebruikt:ongebruikt.length},themas:rijen,niet_gebruikt:ongebruikt};
   }
   app.get('/api/rooster/seizoen',alleenKantoor,(req,res)=>{
     const per=periodeVan(parseInt(req.query.periode_id));if(!per)return res.status(404).json({error:'Er is nog geen vakantieperiode.'});
@@ -194,7 +195,7 @@ module.exports = function(ctx){
   function voorstellen(A,t,zonderKey){
     const bezet=new Set(A.kts.filter(x=>x.week===t.week).map(x=>x.thema_id));
     const eerder=new Set(A.kts.filter(x=>x.locatie_id===t.locatie_id&&x.week<=t.week+1).map(x=>x.thema_id));
-    return all('SELECT id,name,leeftijdsgroep FROM themas ORDER BY name COLLATE NOCASE')
+    return all("SELECT id,name,leeftijdsgroep FROM themas WHERE COALESCE(categorie,'')<>'themadag' ORDER BY name COLLATE NOCASE")
       .filter(x=>!bezet.has(x.id)&&!eerder.has(x.id)&&!(zonderKey&&A.def[zonderKey]&&A.def[zonderKey].themas[x.id]))
       .map(x=>({thema_id:x.id,naam:x.name,zelfde_groep:lgCode(x.leeftijdsgroep)===t.lg}))
       .sort((a,b)=>(b.zelfde_groep-a.zelfde_groep));
