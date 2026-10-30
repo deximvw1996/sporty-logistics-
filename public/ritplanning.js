@@ -184,11 +184,34 @@ if(typeof window!=='undefined')(function(){
     }
     const r=ritVan(RIT),dt=d0(DAG),wv=echteW(r);
     const over=r.voertuig.capaciteit&&r.bezetting>r.voertuig.capaciteit;
-    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(r.bestuurder.naam||'geen bestuurder')}${coord(r)?' (coördinator rijdt mee)':''} · ${esc(r.voertuig.naam||'geen voertuig')} · <i class="${over&&r.status!=='gedaan'?'over':''}">${bez(r)} bakken</i>${r.notitie?' · '+esc(r.notitie):''}</span></div>${
+    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(r.bestuurder.naam||'geen bestuurder')}${coord(r)?' (coördinator rijdt mee)':''} · ${voertuigKeuze(r)} · <i class="${over&&r.status!=='gedaan'?'over':''}">${bez(r)} bakken</i>${r.notitie?' · '+esc(r.notitie):''}</span></div>${
       wv.length?`<div class="waarsch">⚠ ${esc(wv.join(' · '))}</div>`:r.waarschuwingen.includes('weekend')?(()=>{const b=r.waarschuwingen.find(w=>/^weekend · /.test(w));return '<div class="waarsch">'+(b&&/bevestigd door/.test(b)?'✓ '+esc(b):'⚠ '+esc(b||'weekend: uitzondering'))+'</div>';})():''}<div class="acties"><button class="knop licht klein" data-act="splits">Splitsen</button><button class="knop licht klein" data-act="link">Rit-link</button><button class="knop klein" data-act="klaar">${r.klaarzet_status==='klaar'?'Klaargezet ✓':'Klaarzetten'}</button></div></div><div class="scroll">${
       r.stops.length?r.stops.map((s,i)=>`<div class="stop ${s.slot} ${s.geladen?'geladen':'sleepbaar'}" data-taak="${s.taak_id}" data-i="${i}"><div class="t">${esc(s.tijd)}</div><div class="nm">${esc(s.locatie)}<b>${esc(s.wat)}${s.status!=='gepland'?' · '+esc(s.status):''}</b></div><span class="pil ${s.slot==='vrij'?'oranje':''}" data-slot="${s.taak_id}" title="Tik om te wisselen tussen vast en vrij">${s.slot==='vrij'?'vrij':'🔒 vast'}</span><div class="pijl"><button data-wissel="${s.taak_id}" data-r="omhoog" ${i===0?'disabled':''}>▲</button><button data-wissel="${s.taak_id}" data-r="omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><button class="knop licht klein" data-uit="${s.taak_id}">✕</button></div>`).join('')
       :'<div class="leegtxt">Nog geen stops — zet een taak op deze rit via "N open" in de dagkop</div>'}</div>`;
   }
+
+  // LK1 (VT1-restpunt): het voertuig in het ritdetail is een keuzelijst, dezelfde als bij Nieuwe rit (eigen · huur · privé · ander voertuig…, "(ook op rit #n)" blijft kiesbaar).
+  const _minR=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?(+m[1])*60+(+m[2]):null;};
+  function voertuigKeuze(r){
+    const GR={eigen:'Eigen voertuigen',huur:'Huur',prive:'Privé'},vt=_minR(r.vertrek),et=_minR(r.einde);
+    const ook=v=>{const o=((v.bezet_op_dag||{})[r.datum]||[]).find(x=>x.rit_id!==r.id&&(vt==null||et==null||x.vertrek===''||x.einde===''||(_minR(x.vertrek)<=Math.max(et,vt)&&vt<=_minR(x.einde))));return o?` (ook op rit #${o.rit_id})`:'';};
+    const huidig=r.voertuig.id||'';
+    const groepen=['eigen','huur','prive'].map(s=>{const l=P.voertuigen.filter(v=>v.soort===s);return l.length?`<optgroup label="${GR[s]}">${l.map(v=>`<option value="${v.id}" ${v.id===huidig?'selected':''}>${esc(v.naam)}${v.plaatsen?' ('+v.plaatsen+' bakken)':''}${esc(ook(v))}</option>`).join('')}</optgroup>`:'';}).join('');
+    const vrij=!huidig&&r.voertuig.naam?`<option value="" selected>${esc(r.voertuig.naam)} (vrije naam)</option>`:'';
+    return `<select class="vsel" data-vsel="${r.id}" aria-label="Voertuig van rit #${r.id}">${vrij}${groepen}<option value="nieuw">Ander voertuig…</option></select>`;
+  }
+  async function voertuigWissel(sel){
+    const ritId=parseInt(sel.dataset.vsel);let body;
+    if(sel.value==='nieuw'){
+      const x=await vraag({titel:'Ander voertuig',ok:'Opslaan',html:'<label>Naam van het voertuig<input name="vnaam" value="Eigen wagen"></label><label>Plaatsen (bakken)<input name="cap" type="number" min="1"></label>',lees:f=>f.vnaam.value.trim()?{naam:f.vnaam.value.trim(),cap:parseInt(f.cap.value)||null}:(toast('Naam is verplicht','warn'),null)});
+      if(!x)return laad();
+      body={voertuig:x.naam,voertuig_soort:'eigen',voertuig_capaciteit:x.cap};
+    }else if(sel.value==='')return;else body={voertuig_id:parseInt(sel.value)};
+    const r=await api('PUT',`/api/ritten/${ritId}`,body);
+    if(!r.ok){toast(r.json.error||'Voertuig wisselen mislukt','error');return laad();}
+    toast('Voertuig gewijzigd','success');RIT=ritId;await laad();
+  }
+  document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('select[data-vsel]');if(s)voertuigWissel(s);});
 
   function opties(){
     const vast=P.personen.filter(p=>p.vast);
