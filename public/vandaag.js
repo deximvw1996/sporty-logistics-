@@ -49,7 +49,7 @@
     return window.sportyApi(methode,url,body,{toast:m=>toast(m,'info'),token:TOKEN||''});
   }
   if(!TOKEN){location.href='/';return;}
-  if(window.matchMedia('(max-width:767px)').matches){
+  function startGsm(){
     const tab=new URLSearchParams(location.search).get('tab')||'';
     let V=null;
     const laadG=async()=>{const r=await api('GET','/api/vandaag?mijn=1');if(!r.ok)return toast(r.json.error||'Vandaag laden mislukt','error');V=r.json;$('gsm').hidden=false;$('gsm').innerHTML=GSM.scherm(V,tab);};
@@ -60,8 +60,9 @@
       b.disabled=true;const r=await api(a.methode,a.url,a.body);b.disabled=false;
       if(!r.ok)return toast(r.json.error||'Actie mislukt','error');toast(a.label+': gelukt','success');laadG();
     });
-    laadG();return;
+    laadG();
   }
+  if(window.matchMedia('(max-width:767px)').matches){startGsm();return;}
 
   let DATA=null;
   const item=(x,i,kol)=>`<div class="it ${x.kleur}"><span class="ico">${esc(x.ico)}</span><span class="nm">${esc(x.titel)}<b>${esc(x.sub)}</b></span><span class="acts">${
@@ -105,8 +106,7 @@
     const rij=e.target.closest('[data-km]');if(rij&&!e.target.closest('button')){location.href='/kampmomenten?id='+rij.dataset.km;return;} // PL1: Deze week → het kampmoment
     const b=e.target.closest('button[data-k]');if(!b)return;
     const it=DATA[b.dataset.k][b.dataset.i],a=it.acties[b.dataset.j];
-    // PL1: kampmoment zonder thema / planningsmelding → Kampmomenten; VC1: tekorten → Nakijken
-    if(a.soort==='link'||a.soort==='tel'){location.href=a.url==='/#materiaal?tekorten'?'/nakijken':(a.url==='/#overzicht?conflicten'&&it.sub==='planning')?'/kampmomenten':aUrl(a.url);return;} // VC1: tekorten/nakijken openen op de nieuwe Nakijken-pagina
+    if(a.soort==='link'||a.soort==='tel'){location.href=aUrl(a.url);return;}
     b.disabled=true;
     const r=await api(a.methode,a.url,a.body);
     b.disabled=false;
@@ -132,6 +132,9 @@
     };
   }
   (async()=>{
+    // TF3 G33: wie geen kantoor is, ziet ook op desktop zijn eigen Vandaag; de rol komt uit de sessie.
+    const w=await api('GET','/api/wie-ben-ik');
+    if(w.ok&&w.json.rol!=='kantoor'){const f=document.querySelector('body>.frame');if(f)f.style.display='none';$('gsm').style.maxWidth='640px';$('gsm').style.margin='0 auto';startGsm();return;}
     const vk=await api('GET','/api/mij/voorkeuren');
     if(vk.ok&&vk.json.vandaag_weergave==='compact')$('wgC').checked=true;
     await laad();periodes();

@@ -295,10 +295,10 @@
     var a = act.getAttribute('data-act');
     if (a === 'thema') return kiesThema([D.id]);
     if (a === 'bewerken') return kampmomentForm(true);
-    if (a === 'locatie') { root.location.href = '/#planning'; return; }
+    if (a === 'locatie') { root.location.href = '/locaties'; return; }
     if (a === 'kv-link') { if (!D.kv) return toast('Koppel eerst een kampverantwoordelijke aan dit kampmoment.', 'warn'); return toonLinks([D.id]); }
     if (a === 'kv-kies') return kiesKv();
-    if (a === 'conflicten') { root.location.href = '/#overzicht?conflicten'; return; }
+    if (a === 'conflicten') { root.location.href = '/rooster'; return; }
     if (a === 'aanvragen') { root.location.href = '/vandaag'; return; }
     if (a === 'telling') { root.location.href = '/nakijken' + (D.maandag ? '?week=' + D.maandag : ''); return; }
   });

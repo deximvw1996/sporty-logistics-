@@ -167,7 +167,7 @@ try {
   }
   // catch-all '*' (index.html)
   r = await call('GET', '/', { token: kantoor });
-  check(r.status === 200 && /<html/i.test(r.text), `GET / (catch-all *) → ${r.status}, levert index.html`);
+  check(r.status === 200 && /<html/i.test(r.text), `GET / → ${r.status}, levert de doorstuurpagina (TF3: oude app weg)`);
   ok(`${geteld} GET-routes aangeroepen`);
 
   // ── 6. Volgorde middleware: zonder token → 401 op /api, publiek blijft publiek, Basic-muur eerst ──

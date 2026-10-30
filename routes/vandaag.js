@@ -110,7 +110,7 @@ module.exports = function(ctx){
 
     // ── Inplannen ──
     const inplannen=[];
-    const link=(label,hash,primair=true)=>({label,primair,soort:'link',url:'/#'+hash});
+    const link=(label,url,primair=true)=>({label,primair,soort:'link',url}); // TF3: geen /#-adressen meer
     all(`SELECT * FROM transport_taken WHERE (rit_id IS NULL OR rit_id=0) AND status='gepland'
       AND ((datum>=? AND datum<=?) OR ((datum IS NULL OR datum='') AND week=?)) ORDER BY datum,tijd,id`,[weekStart,weekEind,week??-1]).forEach(t=>{
       const n=get('SELECT COALESCE(SUM(qty),0) AS q,COUNT(*) AS c FROM transport_regels WHERE taak_id=?',[t.id]);
@@ -143,16 +143,16 @@ module.exports = function(ctx){
     const conflicten=(pid&&_roep('/api/conflicten',{periode_id:String(pid)},req))||[];
     conflicten.filter(c=>c.week==null||week==null||c.week===week).forEach((c,i)=>{
       if(c.type==='pool_tekort'){
-        inplannen.push({id:'conflict-'+i,ico:'🔥',kleur:'oranje',titel:c.bericht,sub:'capaciteitsconflict',acties:[link('Open conflict','overzicht?conflicten',false)]});
+        inplannen.push({id:'conflict-'+i,ico:'🔥',kleur:'oranje',titel:c.bericht,sub:'capaciteitsconflict',acties:[link('Open conflict','/rooster',false)]});
         return;
       }
       const planning=['geen_thema','geen_levering','geen_ophaling','locatieconfig_onvolledig','ontbrekend_transport'].includes(c.type);
-      nakijken.push({id:'conflict-'+i,ico:planning?'📋':'⚠',kleur:'blauw',titel:c.bericht,sub:planning?'planning':'conflict',acties:[link('Open','overzicht?conflicten',false)]});
+      nakijken.push({id:'conflict-'+i,ico:planning?'📋':'⚠',kleur:'blauw',titel:c.bericht,sub:planning?'planning':'conflict',acties:[link('Open',planning?'/kampmomenten':'/rooster',false)]});
     });
     const sessies=(pid&&_roep('/api/nakijk-tekorten',{periode_id:String(pid)},req))||[];
     let nOpen=0,nBesteld=0;
     sessies.forEach(s=>(s.tekorten||[]).forEach(r=>{nOpen++;if(r.tekort_status==='besteld')nBesteld++;}));
-    if(nOpen)nakijken.push({id:'tekorten',ico:'🧮',kleur:'blauw',titel:`${nOpen} tekort${nOpen===1?'':'en'} open uit vrijdagcontroles · ${nBesteld} besteld`,sub:'voorraad',acties:[link('Open','materiaal?tekorten',false)]});
+    if(nOpen)nakijken.push({id:'tekorten',ico:'🧮',kleur:'blauw',titel:`${nOpen} tekort${nOpen===1?'':'en'} open uit vrijdagcontroles · ${nBesteld} besteld`,sub:'voorraad',acties:[link('Open','/nakijken',false)]});
 
     // ── Ritten vandaag (en morgen: kantoor ziet op donderdag de leveringen van vrijdag) ──
     const rittenVan=(dag,enkelPersoon)=>all(`SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id`,[dag]).filter(r=>!enkelPersoon||(r.personeel_id&&String(r.personeel_id)===String(enkelPersoon))).map(r=>{
