@@ -1,0 +1,5 @@
+/* public/periodes.css — PL2 punt 3: Planning › Periodes (Periodes-scherm in design/mockup-planning-rest.html). Basis = rooster.css. */
+#f3 .kopr,#f3 .r{grid-template-columns:36px 2fr 1.6fr 0.8fr 1fr 100px}
+.kv b a{color:#2563eb;text-decoration:none}.kv b a.let{color:#b91c1c}
+.mbox .form{grid-template-columns:1fr}
+@media (max-width:767px){#f3 .r>span:nth-child(3),#f3 .r>span:nth-child(4),#f3 .r>span:nth-child(5){font-size:12px}}
