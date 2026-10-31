@@ -93,3 +93,5 @@ input[type=checkbox]{width:20px;height:20px}
 .r>span.wkcel{overflow:visible}
 .wk i.r{display:inline-block;min-height:0;height:22px;width:22px;padding:0;border:0;border-radius:5px;cursor:default;background:#93c5fd}
 .wk i.r:hover{background:#93c5fd}
+/* TF7 punt 4: op de gsm alles leesbaar (trekhaak, laadklep) en een tikbaar vakje */
+@media (max-width:767px){.r .k{white-space:normal!important;overflow:visible!important}.r input[type=checkbox]{width:24px;height:24px;margin:10px}}

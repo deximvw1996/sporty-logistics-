@@ -105,7 +105,7 @@ try {
   T.check(wk.length === 7 && wk[1].status === 'dubbel' && wk[1].ritten.length === 2 && wk[3].status === 'onderhoud' && wk[0].status === 'vrij' && wk[2].status === 'vrij', `weekstrook Camionette 1: di ${wk[1].status} (2 ritten), do ${wk[3].status}, ma/wo ${wk[0].status}/${wk[2].status}`);
   T.check(ov('Camionette 1').status === 'dubbel' && ov('Camionette 1').aandacht.includes('dubbel di') && ov('Camionette 1').aandacht.includes('onderhoud do'), `status dubbel met aandacht ${ov('Camionette 1').aandacht.join(', ')}`);
   T.check(ov('Camion 1').status === 'ok' && ov('Camion 1').week.every((d) => d.status === 'vrij' || d.status === 'rit'), 'Camion 1 zonder problemen → ok');
-  T.check(O.tellers.alle === O.voertuigen.length && O.tellers.eigen === 2 && O.tellers.huur === 1 && O.tellers.prive === 1 && O.tellers.dubbel === 1 && O.tellers.onderhoud === 1, `tellers ${JSON.stringify(O.tellers)}`);
+  T.check(O.tellers.alle === O.voertuigen.length + O.aanhangwagens.length && O.tellers.eigen === 11 && O.tellers.huur === 1 && O.tellers.prive === 1 && O.tellers.dubbel === 1 && O.tellers.onderhoud === 1, `tellers ${JSON.stringify(O.tellers)}`);
   const sub = ov('Huurwagen Hertz').sub;
   T.check(/^gehuurd /.test(sub) && ov('Eigen wagen Evy').sub.startsWith('privé · kilometervergoeding'), `sub-regels: “${sub}” en “${ov('Eigen wagen Evy').sub}”`);
   const O2 = (await A('GET', `/api/voertuigen-overzicht?week=${plus(MA, 7)}`)).json;
