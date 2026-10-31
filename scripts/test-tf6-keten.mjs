@@ -194,12 +194,12 @@ try {
   await P('POST', `/api/kv/${kvtok}/versturen`, {});
   const nk3 = (await A('GET', '/api/nakijken')).json.bakken.find((b) => b.bak.code === 'TF62' && b.kampmoment_id === km);
   const det3 = (await A('GET', `/api/nakijken/sessie/${nk3.sessie_id}`)).json;
-  const prul = det3.items.find((i) => i.naam === 'Tf6 Prul');
-  const waarden = prul.acties.map((a) => a.waarde);
-  T.check(['bestellen', 'uit_pool', 'aanvaarden', 'afschrijven_bestellen', 'herstellen'].every((w) => waarden.includes(w)), 'N3: tekort én kapot: alle acties van beide staan in de keuze (' + waarden.join(', ') + ')');
-  T.check(prul.acties.find((a) => a.waarde === 'afschrijven_bestellen').label.includes('1 kapot') && prul.acties.find((a) => a.waarde === 'bestellen').label.includes('2 tekort'), 'N3: elke actie toont het aantal van zijn eigen deel');
-  r = await A('PUT', `/api/nakijken/regel/${prul.regel_id}`, { kantoor_actie: 'afschrijven_bestellen', kantoor_aantal: 2 });
-  T.check(r.status === 200 && r.json.kantoor_actie === 'afschrijven_bestellen' && r.json.kantoor_aantal === 1, 'N3: afschrijven geldt voor het kapotte deel (1), niet voor het tekort (' + r.json.kantoor_aantal + ')');
+  // TF8 G4: het kapotte deel is een eigen regel met zijn eigen acties en aantal (de samengevoegde keuze van TF6 is vervangen).
+  const prulAll = det3.items.filter((i) => i.naam === 'Tf6 Prul');
+  const prul = prulAll.find((i) => i.afwijking === 'tekort'), prulKapot = prulAll.find((i) => i.afwijking === 'kapot');
+  T.check(prul && prulKapot && prul.acties.some((a) => a.waarde === 'bestellen') && prulKapot.acties.some((a) => a.waarde === 'afschrijven_bestellen'), 'N3 (TF8): tekort en kapot zijn twee regels met elk hun eigen acties');
+  r = await A('PUT', `/api/nakijken/regel/${prulKapot.regel_id}`, { kantoor_actie: 'afschrijven_bestellen', kantoor_aantal: 1 });
+  T.check(r.status === 200 && r.json.kantoor_actie === 'afschrijven_bestellen' && r.json.kantoor_aantal === 1, 'N3: afschrijven geldt voor het kapotte deel (1)');
   r = await A('PUT', `/api/nakijken/regel/${prul.regel_id}`, { kantoor_actie: 'bestellen', kantoor_aantal: 2 });
   T.check(r.json.kantoor_aantal === 2, 'N3: bestellen geldt voor het tekort (2)');
   // N1: Taken toont alles, ook wat voor de periode valt

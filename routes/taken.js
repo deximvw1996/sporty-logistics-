@@ -131,7 +131,7 @@ module.exports = function(ctx){
         if(!get('SELECT COUNT(*) AS n FROM nakijk_regels WHERE sessie_id=?',[r.sessie_id]).n)delMetLog(req,'DELETE FROM nakijk_sessies WHERE id=?',[r.sessie_id],'taak weggehaald');
       });
       updateMetLog(req,'aanvragen',id,{status:'afgehandeld',reden:'Kantoor haalde de levering weg: het stuk komt niet meer. Heb je het toch nodig? Vraag het opnieuw aan.'},'taak weggehaald');
-      logAct('aanvraag','taak weggehaald','Aanvraag #'+id+': taak weggehaald, stuk van de aanvullijst gehaald ('+regels+' regel(s)), KV ziet het',null,null);
+      logAct('aanvraag','taak weggehaald','Aanvraag #'+id+': taak weggehaald, stuk van de aanvullijst gehaald (regels: '+regels+'), KV ziet het',null,null);
       aanvragen++;
     });
     res.json({ok:true,regels,aanvragen});

@@ -120,7 +120,7 @@ module.exports = function(ctx){
     const actie=_voorraad(t.id)>=aantal?'uit_pool':'bestellen';
     const wie=(req.persoon&&req.persoon.naam)||'kantoor';
     const sid=insMetLog(req,'nakijk_sessies',['bak_type','locatie_id','week','datum','kv_wie','kv_tijdstip','kv_status','kantoor_wie','kantoor_tijdstip','kantoor_status','kantoor_afgerond_op','kantoor_door','kampmoment_id','notities'],
-      ['melding',km?km.locatie_id:null,km?km.week:null,isoDate(new Date()),wie,now(),'ingediend',wie,now(),'nagekeken',_isoNu(),wie,km?km.id:null,'aanvraag'],'aanvraag goedgekeurd');
+      ['melding',km?km.locatie_id:null,km?km.week:null,isoDate(new Date()),(km&&_kvNaam(km))||wie,now(),'ingediend',wie,now(),'nagekeken',_isoNu(),wie,km?km.id:null,'aanvraag'],'aanvraag goedgekeurd'); // TF8 G15: de KV is wie het vroeg, kantoor wie het goedkeurde
     const rid=insMetLog(req,'nakijk_regels',['sessie_id','item_naam','item_id','verwacht','aangetroffen','ontbreekt','notitie','kantoor_actie','kantoor_aantal','kantoor_notitie','tekort_status'],
       [sid,t.naam,null,aantal,0,aantal,'aangevraagd door de KV','uit_pool'===actie?'uit_pool':'bestellen',aantal,'gevraagd door KV · '+_markeer(a),'open'],'aanvraag goedgekeurd');
     return {regel_id:rid,actie};

@@ -260,7 +260,7 @@
       await bewaarVelden(velden, '✓ Opgeslagen'); return;
     }
     var n = await aanroep('POST', '/api/kampmomenten', { locatie_id: v.locatie, week: v.week, periode_id: O.periode.id, type: v.type });
-    if (!n.ok) return toast(n.json.error || 'Aanmaken mislukt', 'error');
+    if (!n.ok) { await vraag({ titel: 'Dit kampmoment kan niet', tekst: n.json.error || 'Aanmaken mislukt', ok: 'OK', annuleer: '', lees: function () { return {}; } }); return; } // TF8 N16: een blijvende uitleg, geen toast die verdwijnt
     var pv = await aanroep('PUT', '/api/kampmomenten/' + n.json.id + '/velden', Object.assign({ dagen: v.dagen }, velden));
     if (!pv.ok) toast(pv.json.error || 'Dagen/groep bewaren mislukt', 'error');
     toast('✓ Kampmoment aangemaakt', 'success'); await laad(); await laadDetail(n.json.id);
@@ -282,6 +282,7 @@
     if (!r.ok) return toast(r.json.error || 'Genereren mislukt', 'error');
     var tl = function (tekst, type) { toast(tekst, type); if (r.json.aangemaakt) { var t = $('toasts').lastChild; if (t) { var a = document.createElement('a'); a.href = '/taken?alle=1'; a.textContent = ' · Bekijk in Taken ›'; a.style.cssText = 'color:#fff;font-weight:700;margin-left:6px'; a.onclick = function (ev) { ev.stopPropagation(); }; t.appendChild(a); } } };
     tl(r.json.aangemaakt ? '✓ ' + r.json.aangemaakt + ' taken aangemaakt voor ' + r.json.kampmomenten + ' kampmoment' + (r.json.kampmomenten === 1 ? '' : 'en') + (r.json.overgeslagen ? ' (' + r.json.overgeslagen + ' bestonden al)' : '') : 'Niets nieuws te genereren' + (r.json.overgeslagen ? ' — ' + r.json.overgeslagen + ' bestonden al' : ''), r.json.aangemaakt ? 'success' : 'info');
+    if (r.json.verleden && r.json.verleden.length) toast('⚠ ' + r.json.verleden.length + ' levering' + (r.json.verleden.length === 1 ? ' heeft' : 'en hebben') + ' een datum in het verleden (' + r.json.verleden.map(function (x) { return x.datum; }).filter(function (d, i, a) { return a.indexOf(d) === i; }).join(', ') + '). Controleer de datum in Taken.', 'warn');
     await laad();
   }
 
@@ -332,7 +333,7 @@
     if (!keuze) return;
     var r = await aanroep('POST', '/api/kampmomenten/verwijderen', { ids: ids, opruimen: keuze.opruimen });
     if (!r.ok) return toast(r.json.error || 'Verwijderen mislukt', 'error');
-    var bl = r.json.blijft || {}, blijft = [bl.aanvullijst ? bl.aanvullijst + ' aanvullijst-regel(s)' : '', bl.aanvragen ? bl.aanvragen + ' aanvraag/aanvragen' : '', bl.ritten ? bl.ritten + ' lege rit(ten)' : ''].filter(Boolean);
+    var bl = r.json.blijft || {}, blijft = [bl.aanvullijst ? bl.aanvullijst + (bl.aanvullijst === 1 ? ' aanvullijst-regel' : ' aanvullijst-regels') : '', bl.aanvragen ? bl.aanvragen + (bl.aanvragen === 1 ? ' aanvraag' : ' aanvragen') : '', bl.ritten ? bl.ritten + (bl.ritten === 1 ? ' lege rit' : ' lege ritten') : ''].filter(Boolean);
     toast('✓ ' + r.json.verwijderd + ' verwijderd' + (blijft.length ? ' · blijft staan: ' + blijft.join(', ') : ''), blijft.length ? 'warn' : 'success'); if (D && ST.sel.has(D.id)) { D = null; ST.open = null; tekenDetail(); } ST.sel.clear(); await laad();
   };
   $('export').onclick = async function () {

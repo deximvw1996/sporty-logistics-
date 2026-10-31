@@ -9,8 +9,8 @@ module.exports = function(ctx){
   const {fmtDatumTijd,zonderHaakjes}=require('../lib/tijd');
 
   const ACTIES={
-    tekort:[['bestellen','Bestellen'],['uit_pool','Uit pool aanvullen'],['aanvaarden','Aanvaarden']],
-    te_veel:[['naar_pool','Terug naar pool'],['laten_staan','Laten staan']],
+    tekort:[['bestellen','Bestellen'],['uit_pool','Uit voorraad Rozenweg aanvullen'],['aanvaarden','Aanvaarden']],
+    te_veel:[['naar_pool','Terug naar voorraad Rozenweg'],['laten_staan','Laten staan']],
     kapot:[['afschrijven_bestellen','Afschrijven + bestellen'],['herstellen','Herstellen'],['aanvaarden','Aanvaarden']]
   };
   const ALLE_ACTIES=['','bestellen','uit_pool','aanvaarden','naar_pool','laten_staan','afschrijven_bestellen','herstellen'];
@@ -386,7 +386,7 @@ module.exports = function(ctx){
   const _poolPlaats=r=>{const it=r.item_id?get('SELECT t.pool_plaats FROM bak_items bi JOIN item_types t ON t.id=bi.item_type_id WHERE bi.id=?',[r.item_id]):null;return it&&it.pool_plaats?' ('+it.pool_plaats+')':'';};
   const WAAR={
     // MA1: pool-stukken met hun vaste plaats (item_types.pool_plaats, bv. 'rek P · bak P-03') als die gekend is.
-    uit_pool:r=>'uit de pool'+_poolPlaats(r),naar_pool:r=>'terug naar de pool'+_poolPlaats(r),afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
+    uit_pool:r=>'uit voorraad Rozenweg'+_poolPlaats(r),naar_pool:r=>'terug naar voorraad Rozenweg'+_poolPlaats(r),afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
     bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':(r.binnen_aantal||0)-(r.gedaan_aantal||0)>0?`bestelling · ${r.binnen_aantal} van ${(r.kantoor_aantal||0)+(r.gedaan_aantal||0)} binnen`:'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
   };
   // TF6 G5: bij een bestelling die nog op levering wacht: is er genoeg voorraad om meteen uit voorraad aan te vullen?
@@ -436,8 +436,8 @@ module.exports = function(ctx){
       const inhoud=s.bak_type==='attribuut'||s.bak_type==='melding'?[]:[...new Set(items.map(i=>zonderHaakjes(i.naam||'')).filter(Boolean))];
       const leegMeldbaar=!handelingen.length&&alles&&inhoud.length&&!!s.kantoor_afgerond_op; // TF4 G24: ook een bak zonder handelingen is meldbaar
       if(!handelingen.length&&!leegMeldbaar)return;
-      const vertrek=km?((get("SELECT MIN(datum) AS d FROM transport_taken WHERE kampmoment_id=? AND type='levering' AND COALESCE(status,'')<>'geannuleerd' AND datum<>''",[km.id])||{}).d||''):'';
-      groepen.push({inhoud,leeg:!handelingen.length,vertrek,sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
+      const vertrek=km?((get("SELECT MIN(datum) AS d FROM transport_taken WHERE kampmoment_id=? AND type='levering' AND COALESCE(status,'') NOT IN ('geannuleerd','gedaan') AND datum<>''",[km.id])||{}).d||''):''; // TF8 G12: een levering die al gedaan is, vertrekt niet meer
+      groepen.push({klaar:s.aanvulling_klaar_op?{door:s.aanvulling_klaar_door||'',op:s.aanvulling_klaar_op}:null,inhoud,leeg:!handelingen.length,vertrek,sessie_id:s.id,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||'',soort:s.bak_type},locatie:km?_locNaam(km.locatie_id):_locNaam(s.locatie_id),week:km?km.week:s.week,
         plaats:s.bak_type==='melding'?{rek:'',plank:'',tekst:''}:_plaats(bak),afgerond_op:s.kantoor_afgerond_op||'',handelingen});
     });
     const alle=groepen.flatMap(g=>g.handelingen).filter(h=>!h.wacht_op_kantoor); // TF4 G26: een melding die op kantoor wacht is nog geen handeling
@@ -530,6 +530,23 @@ module.exports = function(ctx){
     logAct('nakijken',binnen?'bestelling_binnen':'bestelling_terug',`${r.item_naam}: bestelling ${binnen?'is binnen':'teruggezet op wacht op levering'} (${wie(req)||'kantoor'})`,s?s.locatie_id:null,s?_locNaam(s.locatie_id):'');
     res.json({ok:true,regel_id:r.id,tekort_status:binnen?'binnen':'open'});
   });
+  // TF8: "Bak klaar" wordt bewaard (wie en wanneer) en blijft in de lijst zichtbaar. Alleen als alles wat de aanvuller kan doen af is.
+  app.post('/api/aanvullijst/sessie/:id/klaar',(req,res)=>{
+    const pr=req.persoon||{};
+    if(!['kantoor','coordinator'].includes(pr.rol))return res.status(403).json({error:'Alleen kantoor of een coördinator zet een bak op klaar.'});
+    const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]);
+    if(!s)return res.status(404).json({error:'Deze bak bestaat niet (meer).'});
+    const klaar=!(req.body&&(req.body.klaar===false||req.body.klaar===0||req.body.klaar==='0'));
+    if(klaar){
+      const g=_aanvullijst(isoLokaal(new Date()),true).bakken.find(x=>x.sessie_id===s.id);
+      const open=g?g.handelingen.filter(h=>!h.wacht_op_kantoor&&!h.aangevuld).length:0;
+      if(open)return res.status(409).json({error:`Er staan nog ${open} handeling${open===1?'':'en'} open in deze bak.`});
+    }
+    const door=klaar?wie(req):'',op=klaar?isoNu():'';
+    updateMetLog(req,'nakijk_sessies',s.id,{aanvulling_klaar_door:door,aanvulling_klaar_op:op},'aanvullen');
+    logAct('nakijken',klaar?'bak klaar':'bak klaar terug',`Bak ${klaar?'klaar gezet':'weer open gezet'} door ${wie(req)||'?'}`,s.locatie_id,_locNaam(s.locatie_id));
+    res.json({ok:true,klaar,door,op});
+  });
   app.post('/api/aanvullijst/:regelId/aangevuld',(req,res)=>{
     const r=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.regelId]);
     if(!r)return res.status(404).json({error:'Deze handeling bestaat niet (meer).'});
@@ -572,6 +589,7 @@ module.exports = function(ctx){
       try{fotoPad=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}
     }
     updateMetLog(req,'nakijk_regels',r.id,{aangevuld:aan,aangevuld_door:aan?wie(req):'',aangevuld_op:aan?isoNu():''},'aanvullen');
+    if(!aan&&s.aanvulling_klaar_op)updateMetLog(req,'nakijk_sessies',s.id,{aanvulling_klaar_door:'',aanvulling_klaar_op:''},'aanvullen'); // terugzetten: de bak is niet meer klaar
     // TB2: aanvullen uit de stockage verlaagt item_type_stock (Rozenweg) pas nu, bij het afvinken; terugzetten zet het terug.
     if(['uit_pool','bestellen','afschrijven_bestellen','naar_pool'].includes(r.kantoor_actie)&&(r.kantoor_aantal||0)>0&&aan!==(r.aangevuld?1:0)){
       const bi=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;

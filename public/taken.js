@@ -154,7 +154,7 @@
         html:D.regels.map(r=>`<label class="chk"><input type="checkbox" name="regel" value="${r.id}">${esc(r.naam)} × ${r.qty}</label>`).join('')+`<label>Nieuwe datum<input type="date" name="datum" value="${esc(D.taak.datum)}"></label>`,
         lees:f=>{const ids=[...f.querySelectorAll('[name=regel]:checked')].map(x=>+x.value);if(!ids.length){toast('Kies minstens één regel','warn');return null;}return {ids,datum:f.datum.value};}});
       if(!v)return;const r=await api('POST',`/api/transport-taken/${id}/splits`,{regel_ids:v.ids,datum:v.datum});
-      if(!r.ok)return toast(r.json.error||'Splitsen mislukt','error');toast(`${r.json.verplaatst} regel(s) naar taak #${r.json.nieuwe_taak_id}`,'success');return laad();}
+      if(!r.ok)return toast(r.json.error||'Splitsen mislukt','error');toast(`${r.json.verplaatst} regel${r.json.verplaatst===1?'':'s'} naar taak #${r.json.nieuwe_taak_id}`,'success');return laad();}
     const rw=t.closest('[data-regelweg]');
     if(rw){const rg=D.regels.find(x=>x.id===+rw.dataset.regelweg);
       if(!await vraag({titel:'Regel verwijderen?',tekst:`${rg.naam} × ${rg.qty} van taak #${id}`,ok:'Verwijderen'}))return;
@@ -229,6 +229,7 @@
       $('per-naam').textContent=v.json.periode?v.json.periode.naam:'geen periode';$('wie').textContent=v.json.gebruiker.naam+' · kantoor';}
     const p=await api('GET','/api/periodes');if(!p.ok)return;
     const sel=$('per-kies');sel.innerHTML=p.json.map(x=>`<option value="${x.id}"${x.actief?' selected':''}>${esc(x.naam)}</option>`).join('');
+    sel.title='Let op: dit wisselt de actieve periode voor alle schermen en alle gebruikers, niet alleen voor jou.'; // TF8
     sel.onchange=async()=>{const a=await api('POST','/api/periodes/'+sel.value+'/activeer');if(!a.ok)return toast(a.json.error||'Periode wisselen mislukt','error');location.reload();};
   }
   (async()=>{

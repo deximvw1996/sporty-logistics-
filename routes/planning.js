@@ -171,6 +171,7 @@ module.exports = function(ctx){
   app.post('/api/periodes', (req,res) => {
     const {naam, start_datum, eind_datum} = req.body;
     if(!naam||!start_datum||!eind_datum) return res.status(400).json({error:'Naam, startdatum en einddatum zijn verplicht'});
+    if(eind_datum<start_datum) return res.status(400).json({error:'Het einde ligt vóór de start. Kies een einddatum op of na de startdatum.'}); // TF8 G13
     // Bereken max_weken uit het aantal kalenderdagen
     const diffMs=new Date(eind_datum+'T12:00:00')-new Date(start_datum+'T12:00:00');
     const max_weken=Math.max(1,Math.ceil((diffMs/86400000+1)/7));
@@ -180,6 +181,7 @@ module.exports = function(ctx){
   app.put('/api/periodes/:id', (req,res) => {
     const {naam, start_datum, eind_datum} = req.body;
     if(!naam||!start_datum||!eind_datum) return res.status(400).json({error:'Naam, startdatum en einddatum zijn verplicht'});
+    if(eind_datum<start_datum) return res.status(400).json({error:'Het einde ligt vóór de start. Kies een einddatum op of na de startdatum.'}); // TF8 G13
     const diffMs=new Date(eind_datum+'T12:00:00')-new Date(start_datum+'T12:00:00');
     const max_weken=Math.max(1,Math.ceil((diffMs/86400000+1)/7));
     run('UPDATE vakantieperiodes SET naam=?,start_datum=?,eind_datum=?,max_weken=? WHERE id=?',[naam,start_datum,eind_datum,max_weken,req.params.id]);

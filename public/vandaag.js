@@ -81,11 +81,13 @@
       $('n-'+k).textContent=nu.length;
       $('l-'+k).innerHTML=nu.length?nu.map(([x,i])=>item(x,i,k)).join(''):`<div class="leeg">${LEEG[k]}</div>`;
     }
+    // TF8 G2: één regel die zegt wat onder "Later" zit, zodat je niet hoeft uit te klappen om te weten of er iets dringends in zit.
+    const laterRegel=l=>{const n={};l.forEach(([x])=>{const s=/^taak-/.test(x.id)?'taken zonder rit':/^rit-/.test(x.id)?'ritten zonder bestuurder':x.id==='tekorten'?'tekorten':x.sub==='planning'?'planningsmeldingen':x.sub==='capaciteitsconflict'?'capaciteitsmeldingen':'conflicten';n[s]=(n[s]||0)+1;});return Object.keys(n).map(k=>n[k]+' '+k).join(' · ')+(l.length?' · niets dringends':'');};
     let lb=$('later-blok');
     if(!lb){lb=document.createElement('details');lb.id='later-blok';lb.style.cssText='margin:12px 0;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc';const kols=document.querySelector('.kols');kols.parentNode.insertBefore(lb,kols.nextSibling);}
     const open=lb.open;
     lb.hidden=!later.length;
-    lb.innerHTML=`<summary style="cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center">Later deze periode · ${later.length}</summary><div style="margin-top:6px">${later.map(([x,i,k])=>item(x,i,k)).join('')}</div>`;
+    lb.innerHTML=`<summary style="cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">Later deze periode · ${later.length}<span style="font-weight:400;color:#64748b;font-size:13px">${esc(laterRegel(later))}</span></summary><div style="margin-top:6px">${later.map(([x,i,k])=>item(x,i,k)).join('')}</div>`;
     lb.open=open;
     const tel=(id,n)=>{const b=$(id);b.textContent=n;b.hidden=!n;};
     tel('b-vandaag',v.beslissen.length);tel('b-transport',v.inplannen.length);
@@ -99,7 +101,7 @@
     };
     // GF1: onder de ritten van vandaag staan die van morgen (zelfde rijstijl), zodat kantoor op donderdag de leveringen van vrijdag ziet.
     const morgen=(v.ritten_morgen||[]);
-    $('l-ritten').innerHTML=(v.ritten_vandaag.length?v.ritten_vandaag.map(ritRij).join(''):'<div class="leeg">Geen ritten vandaag</div>')
+    $('l-ritten').innerHTML='<div style="font-size:11px;color:#64748b;margin-bottom:4px">🔒 = vaste stop (afgesproken tijd) · vrij = mag verschuiven</div>'+(v.ritten_vandaag.length?v.ritten_vandaag.map(ritRij).join(''):'<div class="leeg">Geen ritten vandaag</div>')
       +(morgen.length?'<div class="morgen-kop" style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 2px">Morgen · '+morgen.length+'</div>'+morgen.map(ritRij).join(''):'');
     const wk=v.week_label==='Volgende week'?(v.volgende_week||[]):v.deze_week;
     $('t-week').textContent=v.week_label||'Deze week';
@@ -136,6 +138,7 @@
     const r=await api('GET','/api/periodes');if(!r.ok)return;
     const sel=$('per-kies');
     sel.innerHTML=r.json.map(p=>`<option value="${p.id}"${p.actief?' selected':''}>${esc(p.naam)}</option>`).join('');
+    sel.title='Let op: dit wisselt de actieve periode voor alle schermen en alle gebruikers, niet alleen voor jou.'; // TF8
     sel.onchange=async()=>{
       const a=await api('POST','/api/periodes/'+sel.value+'/activeer');
       if(!a.ok){toast(a.json.error||'Periode wisselen mislukt','error');return;}

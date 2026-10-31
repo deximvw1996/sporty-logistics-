@@ -129,6 +129,101 @@ try {
   T.check(hs.length === 2 && hs.some((h) => h.soort === 'bestelling' && h.aantal === 2) && hs.some((h) => h.actie === 'herstellen' && h.aantal === 2), 'beide delen staan op de aanvullijst, elk met zijn aantal');
   const nkJs = lees('public/nakijken.js');
   T.check(nkJs.includes('— kies een actie —'), 'een gemelde regel zonder besluit toont "— kies een actie —" i.p.v. een niet-bewaarde keuze');
+
+  // ═══ PUNT 2 · Aanvullen ═══
+  T.info('Punt 2 · Aanvullen en Vandaag');
+  const AV = require(T.ROOT + '/public/aanvullen.js');
+  // Bak klaar bewaard met wie en wanneer
+  const llK = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json;
+  const grpK = llK.bakken.find((g) => g.sessie_id === nk.sessie_id);
+  r = await A('POST', `/api/aanvullijst/sessie/${nk.sessie_id}/klaar`, { klaar: true });
+  T.check(r.status === 409 && /nog \d+ handeling/.test(r.json.error), 'Bak klaar kan niet zolang er nog handelingen open staan (' + (r.json.error || '') + ')');
+  for (const h of grpK.handelingen.filter((x) => !x.wacht_op_kantoor && !x.kan_afvinken && x.soort === 'bestelling')) await A('POST', `/api/nakijken/regel/${h.regel_id}/binnen`);
+  const grpK2 = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json.bakken.find((g) => g.sessie_id === nk.sessie_id);
+  for (const h of grpK2.handelingen.filter((x) => !x.wacht_op_kantoor && x.kan_afvinken && !x.aangevuld)) await A('POST', `/api/aanvullijst/${h.regel_id}/aangevuld`, {});
+  const rest = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json.bakken.find((g) => g.sessie_id === nk.sessie_id).handelingen.filter((x) => !x.wacht_op_kantoor && !x.aangevuld).length;
+  if (!rest) {
+    r = await A('POST', `/api/aanvullijst/sessie/${nk.sessie_id}/klaar`, { klaar: true });
+    T.check(r.status === 200 && r.json.klaar && r.json.door, 'Bak klaar bewaard: ' + JSON.stringify(r.json));
+    const g2 = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json.bakken.find((g) => g.sessie_id === nk.sessie_id);
+    T.check(g2.klaar && g2.klaar.door && g2.klaar.op, 'Bak klaar blijft in de lijst, met wie en wanneer');
+    T.check(/klaar ✓/.test(AV.lijst({ bakken: [g2], tellers: {}, datum: vandaag }, { filter: 'alles', vandaag })), 'de kaart in de lijst toont "klaar ✓ wie · tijd"');
+    await A('POST', `/api/aanvullijst/${g2.handelingen.find((h) => h.aangevuld).regel_id}/aangevuld`, { aangevuld: false });
+    const g3 = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json.bakken.find((g) => g.sessie_id === nk.sessie_id);
+    T.check(!g3.klaar, 'een handeling terugzetten maakt de bak weer "niet klaar"');
+  } else T.check(false, 'er blijven ' + rest + ' handelingen open, Bak klaar niet te testen');
+  // G12 vertrek: een datum in het verleden is "te laat", niet "vandaag"; een gedane levering vertrekt niet meer
+  const gTest = { sessie_id: 1, bak: { code: 'X1', naam: 'Test', soort: 'thema' }, locatie: 'A', week: 1, handelingen: [{ regel_id: 1, stuk: 'a', aantal: 1, soort: 'uit_pool', kan_afvinken: true, aangevuld: 0 }], vertrek: '2020-01-01' };
+  T.check(/levering te laat/.test(AV.lijst({ bakken: [gTest], tellers: {}, datum: vandaag }, { filter: 'alles', vandaag })) && !/vertrekt vandaag/.test(AV.lijst({ bakken: [gTest], tellers: {}, datum: vandaag }, { filter: 'alles', vandaag })), 'G12: een levering in het verleden staat als "te laat", niet als "vertrekt vandaag"');
+  T.check(/vertrekt vandaag/.test(AV.lijst({ bakken: [{ ...gTest, vertrek: vandaag }], tellers: {}, datum: vandaag }, { filter: 'alles', vandaag })), 'G12: een levering van vandaag staat als "vertrekt vandaag"');
+  const kmOudTaken = await q("SELECT id FROM transport_taken WHERE kampmoment_id=? AND type='levering' AND status<>'geannuleerd'", [km]);
+  if (kmOudTaken.length) {
+    await A('PUT', `/api/transport-taken/${kmOudTaken[0].id}`, { status: 'gedaan' });
+  }
+  // N6 tellers op dezelfde manier
+  const llN = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json;
+  const headerHtml = AV.lijst(llN, { filter: 'alles', vandaag });
+  const openH = llN.bakken.reduce((n, g) => n + g.handelingen.filter((h) => !h.wacht_op_kantoor && !h.aangevuld).length, 0);
+  const llOpen = (await A('GET', `/api/aanvullijst?datum=${vandaag}`)).json;
+  T.check(llOpen.tellers.totaal === openH && headerHtml.includes(openH + ' handeling'), 'N6: Aanvullen en Vandaag tellen dezelfde open handelingen (' + openH + ' = ' + llOpen.tellers.totaal + ')');
+  const av = lees('public/aanvullen.js');
+  T.check(av.includes('maar ${h.aantal} te doen'), 'N11: 9 invullen bij rest 2 geeft een melding');
+  T.check(!av.includes('Zonder bak') && !av.includes('Melding zonder bak') && av.includes('Losse melding'), 'N10: één naam: "Losse melding"');
+  // Tekorten: tekst vóór de keuze en bij voorraad 0
+  await zetStock(3225, 8);
+  const bakB = (await A('POST', `/api/themas/${thema}/bakken`, { label: 'Tf8 bak B', code: 'TF82' })).json.id;
+  await A('POST', `/api/bakken/${bakB}/items`, { naam: 'Multiblaasring', qty: 5 });
+  const kb2 = (await P('GET', `/api/kv/${kvtok}/data`)).json.bakken.find((b) => b.code === 'TF82');
+  await P('POST', `/api/kv/${kvtok}/bakken/${kb2.id}/tellen`, { regels: [{ item_id: kb2.items[0].id, aangetroffen: 1 }] });
+  await P('POST', `/api/kv/${kvtok}/versturen`, {});
+  const nk2 = (await A('GET', '/api/nakijken')).json.bakken.find((b) => b.bak.code === 'TF82' && b.kampmoment_id === km);
+  const reg2 = (await A('GET', `/api/nakijken/sessie/${nk2.sessie_id}`)).json.items[0];
+  await A('PUT', `/api/nakijken/regel/${reg2.regel_id}`, { kantoor_actie: 'bestellen', kantoor_aantal: 4 });
+  await A('POST', `/api/nakijken/sessie/${nk2.sessie_id}/afronden`);
+  const dt = (await A('GET', '/api/tekorten/3225/detail')).json;
+  T.check(!/nu al afvinkbaar/.test(dt.na_levering.aanvullijst) && /zodra je "Aanvullen uit voorraad" kiest/.test(dt.na_levering.aanvullijst), 'Tekorten zegt vóór de keuze niet "nu al afvinkbaar": ' + dt.na_levering.aanvullijst);
+  await A('PUT', '/api/tekorten/3225/stand', { stand: 'uit_voorraad' });
+  const dt2 = (await A('GET', '/api/tekorten/3225/detail')).json;
+  T.check(/nu al afvinkbaar/.test(dt2.na_levering.aanvullijst), 'na de keuze "Aanvullen uit voorraad" wel: ' + dt2.na_levering.aanvullijst);
+  const tk8 = lees('public/tekorten.js');
+  T.check(tk8.includes('⚠ te weinig: er ontbreekt') && tk8.includes('Er is te weinig voorraad'), 'bij te weinig voorraad: waarschuwing met het tekort, melden mag, verbieden niet');
+  T.check(tk8.includes("id=\"d-bestel\">Bestelling plaatsen") && lees('public/tekorten.html').includes('Staat besteld'), 'Tekorten: "Bestelling plaatsen" en "Staat besteld" i.p.v. Bestellen en Besteld');
+  const nkS = lees('routes/nakijken.js');
+  T.check(nkS.includes("'uit voorraad Rozenweg'") && !nkS.includes("'uit de pool'"), '"uit pool" heet "uit voorraad Rozenweg"');
+  // Zoeken en Meer
+  const zk = lees('public/zoeken.js');
+  T.check(zk.includes("!/^INFO:/i.test(a.naam)") && zk.includes('href="/meer"'), 'Zoeken: geen INFO-regel als artikel en een eigen terugknop naar Meer');
+  T.check(lees('public/meer.js').includes("bg.querySelector('#ber-t').focus()") && tk8.includes("id='terug-meer'"), 'Bericht aan kantoor: cursor meteen in het vak; Tekorten heeft een terugknop naar Meer voor wie geen kantoor is');
+
+  // ═══ PUNT 3 · Kantoor klein ═══
+  T.info('Punt 3 · kantoor klein');
+  r = await A('POST', '/api/periodes', { naam: 'Tf8 fout', start_datum: '2026-12-20', eind_datum: '2026-12-01' });
+  T.check(r.status === 400 && /vóór de start/.test(r.json.error), 'G13: periode met einde vóór start geeft 400');
+  const nieuw = await A('POST', '/api/periodes', { naam: 'Tf8 periode', start_datum: vandaag, eind_datum: new Date(Date.now() + 6 * 864e5).toISOString().slice(0, 10) });
+  r = await A('PUT', `/api/periodes/${nieuw.json.id}`, { naam: 'Tf8 periode', start_datum: '2026-12-20', eind_datum: '2026-12-01' });
+  T.check(nieuw.status === 200 && r.status === 400, 'G13: ook bij wijzigen (PUT) wordt een einde vóór start geweigerd');
+  const pl = lees('public/taken.js') + lees('public/kampmomenten.js') + lees('public/nakijken.js');
+  T.check(!/\(en\)|regel\(s\)|rit\(ten\)|aanvraag\/aanvragen/.test(pl), 'G17: geen "(en)", "(s)" of "aanvraag/aanvragen" meer in de teksten');
+  // G2 dringend, G8 verleden, G15 KV-naam, N13 historiek, N16 dubbel: in een eigen periode die vandaag start
+  await A('POST', `/api/periodes/${nieuw.json.id}/activeer`);
+  const kvP2 = (await A('POST', '/api/personeel', { naam: 'Tf8 KV twee', rol: 'kv' })).json;
+  const kmN = (await A('POST', '/api/kampmomenten', { locatie_id: 36, week: 1, periode_id: nieuw.json.id, kv_persoon_id: kvP2.id })).json;
+  const kmNid = kmN.id || kmN;
+  await A('POST', `/api/kampmomenten/${kmNid}/themas`, { thema_id: thema });
+  const dub = await A('POST', '/api/kampmomenten', { locatie_id: 36, week: 1, periode_id: nieuw.json.id });
+  T.check(dub.status === 409 && /al een kampmoment/.test(dub.json.error), 'N16: een tweede kampmoment op dezelfde locatie en week geeft een duidelijke uitkomst: ' + (dub.json.error || ''));
+  T.check(lees('public/kampmomenten.js').includes('Dit kampmoment kan niet'), 'N16: het scherm toont die uitleg blijvend');
+  const vd2 = (await A('GET', '/api/vandaag')).json;
+  const dring = vd2.inplannen.filter((x) => /^conflict-/.test(x.id) && /levering/.test(x.titel));
+  T.check(dring.length >= 1 && dring.every((x) => x.dringend === true) && vd2.inplannen[0].dringend === true && /^conflict-/.test(vd2.inplannen[0].id), 'G2: een kamp dat binnen 7 dagen start zonder levering is dringend en staat bovenaan Inplannen ' + JSON.stringify(vd2.inplannen.map((x) => [x.id, x.dringend, x.titel.slice(0, 50)])));
+  const gen2 = await A('POST', '/api/kampmomenten/genereer-transport', { ids: [kmNid], periode_id: nieuw.json.id });
+  T.check(gen2.status === 200 && Array.isArray(gen2.json.verleden), 'G8: genereren geeft een lijst "verleden" terug');
+  T.check(gen2.json.aangemaakt >= 1, 'G8: genereren wordt niet geblokkeerd (' + gen2.json.aangemaakt + ' taken, verleden ' + gen2.json.verleden.length + ')');
+  const dN = (await A('GET', `/api/kampmomenten/${kmNid}/detail`)).json;
+  T.check(!dN.historiek.some((h) => /02\/08|\/08\/2026/.test(h.tekst + (h.wie || ''))), 'N13: de historiek van een nieuw kampmoment bevat geen regels van een andere periode (' + dN.historiek.length + ' regels)');
+  const vj = lees('public/vandaag.js');
+  T.check(vj.includes('Later deze periode') && vj.includes('laterRegel') && vj.includes('🔒 = vaste stop'), 'G2/N: "Later" zegt in één regel wat erin zit; 🔒 heeft uitleg');
+  T.check(lees('public/app-schil.css').includes('TF8 N18'), 'N18: zoekveld en periodekiezer krijgen minstens 44 px op gsm (36 px op desktop)');
 } finally {
   await T.einde(srv);
 }

@@ -178,6 +178,8 @@ module.exports = function(ctx){
     });
     all("SELECT * FROM activiteiten_log WHERE locatie_id=? AND (beschrijving LIKE ? OR beschrijving LIKE ?) ORDER BY id DESC LIMIT 20",[km.locatie_id,`%eek ${km.week}%`,`%week ${km.week}%`]).forEach(a=>{
       const m=/(\d{1,2})\/(\d{1,2})\/(\d{4})\D+(\d{1,2}):(\d{2})/.exec(a.tijdstip||'');
+      const dm=m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:'';
+      if(periode&&dm&&(dm<plus(periode.start_datum,-60)||dm>plus(periode.eind_datum,30)))return; // TF8 N13: een regel van een andere periode (zelfde locatie en weeknummer) hoort hier niet
       hist.push({tekst:a.beschrijving,wie:'',tijd:a.tijdstip,sorteer:m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T${m[4].padStart(2,'0')}:${m[5]}`:''});
     });
     hist.sort((a,b)=>String(b.sorteer).localeCompare(String(a.sorteer)));
@@ -268,7 +270,9 @@ module.exports = function(ctx){
       if(r.status===200&&r.json&&r.json.id)gemaakt.push({kampmoment_id:v.kampmoment_id,type:v.type,taak_id:r.json.id,datum:v.datum});
     });
     if(gemaakt.length)logAct('transport','gegenereerd',`${gemaakt.length} taak${gemaakt.length===1?'':'en'} gegenereerd uit de planning door ${wie(req)||'kantoor'}`,null,null);
-    res.json({ok:true,aangemaakt:gemaakt.length,gemaakt,overgeslagen:overgeslagen.length,kampmomenten:[...new Set(gemaakt.map(x=>x.kampmoment_id))].length});
+    const nu=new Date(),vandaagIso=nu.getFullYear()+'-'+String(nu.getMonth()+1).padStart(2,'0')+'-'+String(nu.getDate()).padStart(2,'0');
+    const verleden=gemaakt.filter(x=>x.type==='levering'&&x.datum&&x.datum<vandaagIso); // TF8 G8: waarschuwen, niet blokkeren
+    res.json({ok:true,verleden,aangemaakt:gemaakt.length,gemaakt,overgeslagen:overgeslagen.length,kampmomenten:[...new Set(gemaakt.map(x=>x.kampmoment_id))].length});
   });
 
   // Verwijderen met bewaking: staat er al iets geladen, dan 409 en blijft alles staan (de oude DELETE-route kent die bewaking niet).
@@ -309,7 +313,7 @@ module.exports = function(ctx){
     if(opruim.aanvullijst){rest.regel_ids.forEach(id=>{const r=get('SELECT kantoor_notitie FROM nakijk_regels WHERE id=?',[id]);updateMetLog(req,'nakijk_regels',id,{tekort_status:'genegeerd',kantoor_notitie:[(r&&r.kantoor_notitie)||'','kampmoment verwijderd'].filter(Boolean).join(' · ')},'kampmoment verwijderd');});over.aanvullijst=0;}
     if(opruim.aanvragen){rest.aanvraag_ids.forEach(id=>updateMetLog(req,'aanvragen',id,{status:'afgehandeld',reden:'Dit kampmoment is verwijderd; de aanvraag vervalt.'},'kampmoment verwijderd'));over.aanvragen=0;}
     if(opruim.ritten){rest.ritten.forEach(r=>{delMetLog(req,'DELETE FROM verhuis_checks WHERE rit_id=?',[r.id],'kampmoment verwijderd');delMetLog(req,'DELETE FROM transport_ritten WHERE id=?',[r.id],'kampmoment verwijderd');});over.ritten=0;}
-    if(rest.aanvullijst||rest.aanvragen||rest.ritten.length)logAct('kampmoment','verwijderd (rest)',`Na verwijderen: ${rest.aanvullijst} aanvullijst-regel(s), ${rest.aanvragen} aanvraag/aanvragen, ${rest.ritten.length} lege rit(ten) ${opruim.aanvullijst||opruim.aanvragen||opruim.ritten?'opgeruimd volgens keuze':'bleven staan'} — ${wie(req)||'kantoor'}`,null,null);
+    if(rest.aanvullijst||rest.aanvragen||rest.ritten.length)logAct('kampmoment','verwijderd (rest)',`Na verwijderen: aanvullijst-regels: ${rest.aanvullijst}, aanvragen: ${rest.aanvragen}, lege ritten: ${rest.ritten.length} ${opruim.aanvullijst||opruim.aanvragen||opruim.ritten?'opgeruimd volgens keuze':'bleven staan'} — ${wie(req)||'kantoor'}`,null,null);
     res.json({ok:true,verwijderd:kms.length,blijft:over,tellingen_bewaard:rest.tellingen});
   });
 
