@@ -32,7 +32,7 @@
 
   const Q=new URLSearchParams(location.search);
   let O=null,D=null,SEL=new Set(),FILTER='alle',ZOEK='',TAB='gegevens';
-  const ROLLEN=[['kantoor','kantoor'],['chauffeur','chauffeur'],['monitor','monitor']];
+  const ROLLEN=[['kantoor','kantoor'],['chauffeur','chauffeur'],['monitor','monitor'],['kv','KV (geen login, werkt met de KV-link)']];
   const rolTekst=r=>({kv:'KV',animator:'monitor (animator)'}[r]||r);
   const FILTERS={alle:()=>true,kantoor:p=>p.rol_groep==='kantoor',chauffeur:p=>p.rol_groep==='chauffeur',kv:p=>p.rol_groep==='kv',monitor:p=>p.rol_groep==='monitor',zonder_pincode:p=>p.stand==='geen_pincode'};
   const zichtbaar=()=>O.personeel.filter(FILTERS[FILTER]).filter(p=>!ZOEK||[p.naam,p.rol,rolTekst(p.rol),p.telefoon].join(' ').toLowerCase().includes(ZOEK));

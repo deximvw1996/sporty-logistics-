@@ -13,7 +13,7 @@ module.exports = function(ctx){
     logWijziging(req,'personeel',id,'update',zonderPin(oud),zonderPin(get('SELECT * FROM personeel WHERE id=?',[id])),context);
   }
 
-  const ROLLEN=['kantoor','chauffeur','monitor'];
+  const ROLLEN=['kantoor','chauffeur','monitor','kv'];
   // Wat elke rol mag (één tabel; de app-schil en dit scherm lezen dezelfde lijst). kv/animator = oude namen.
   const RECHTEN={
     kantoor:['alles beheren: planning, transport, materiaal, personeel','ritten rijden en aanvullen in de stockage','keuren en beslissen (aanvragen, tellingen)','export en back-up'],
