@@ -61,7 +61,7 @@
       }
       const tabs=[['week','Week'],['zomer','Hele periode'],['sets',`Sets ${D.sets}`]];
       const inhoud=tab==='zomer'?`<div class="blok vol"><h4>Per week</h4>${BOUW.zomerRijen(D)}</div>`:tab==='sets'?BOUW.setsBlok(D):b.raster+b.letOp+b.verhuis;
-      return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(D.soort)} · week ${D.week}</h2><span>${esc(D.samenvatting.week)}</span></div><div class="acts">${knop('d-vorige',`‹ wk ${D.week-1}`)}${knop('d-volgende',`wk ${D.week+1} ›`)}${knop('d-inplannen','+ Inplannen',false)}</div></div>
+      return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(D.soort)} · week ${D.week}</h2><span>${esc(D.samenvatting.week)}</span></div><div class="acts">${D.week>1?knop('d-vorige',`‹ wk ${D.week-1}`):''}${D.week<D.weken?knop('d-volgende',`wk ${D.week+1} ›`):''}${knop('d-inplannen','+ Inplannen',false)}</div></div>
         <div class="dtabs">${tabs.map(([k,x])=>`<a class="${tab===k?'act':''}" data-tab="${k}">${x}</a>`).join('')}</div>
         <div class="dgrid"${tab==='week'?'':' style="grid-template-columns:1fr"'}>${inhoud}</div>`;
     },
