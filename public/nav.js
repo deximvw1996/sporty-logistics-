@@ -96,6 +96,8 @@
     // MOB1/TF3: niet ingelogd op een personeelspagina, op elke breedte → /login?terug=. De rest van de pagina wordt niet meer gelezen. De rol controleert tekenSchil met de sessie; de 403's blijven de echte grens.
     var tok0 = null; try { tok0 = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
     if (!tok0) { document.write('<plaintext style="display:none">'); naarLogin(); return; }
+    var rol0 = null; try { rol0 = root.localStorage.getItem('sporty-rol'); } catch (e) { /* geen opslag */ }
+    if (rol0 === 'coordinator' && pad === '/catalogus') { var cid0 = /[?&]id=(d+)/.exec(root.location.search); document.write('<plaintext style="display:none">'); root.location.replace('/zoeken?tab=artikelen' + (cid0 ? '&id=' + cid0[1] : '')); return; } // TF5: vóór de pagina zelf doorstuurt
     if (pad === '/meldingen') { var lg = document.querySelector('.top .logo'); if (lg) lg.insertAdjacentHTML('afterend', boven('')); } // ME1: bovenbalk op desktop
     if (eigenBalk) { tekenSchil(pad, tok0); return; }
     var top = document.querySelector('.top');

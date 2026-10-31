@@ -70,7 +70,7 @@
       : '<button type="button" disabled>' + (stops.length ? 'Rit afgerond ✓' : 'Geen stops') + '</button>';
     var probleemStop = h || stops[0];
     var laad = laadRegels(data), los = losRegels(data), blok = '';
-    if (laad.regels.length && laad.open) blok += '<button type="button" class="blokknop" data-act="blok" data-a="laden">📦 Laden in ' + esc(laad.plek) + ' · ' + laad.gedaan + ' van ' + laad.regels.length + '</button>';
+    if (laad.regels.length && laad.open) blok += '<button type="button" class="blokknop" data-act="blok" data-a="laden">📦 Laden in ' + esc(laad.plek) + ' · ' + laad.gedaan + ' van ' + laad.totaal + '</button>';
     if (los.regels.length) blok += '<button type="button" class="blokknop licht" data-act="blok" data-a="lossen">📥 Lossen in ' + esc(los.plek) + ' · ' + los.regels.length + ' nog te lossen</button>';
     var einde = stops.length && !h ? '<div class="einde"><h2>✓ Rit afgerond</h2><div>' + stops.length + (stops.length === 1 ? ' stop' : ' stops') + ' · ' + stuksWoord(stops.reduce(function (a, x) { return a + meeStuks(x); }, 0)) + '</div><a href="/vandaag">Terug naar Vandaag</a></div>' : '';
     return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span>' + pilRit(data.rit.status) + '</div><div class="s">' + esc(kopSub(data)) + '</div>' + (data.kantoor && data.kantoor.telefoon ? '<a class="belkantoor" href="tel:' + esc(data.kantoor.telefoon.replace(/[^+0-9]/g, '')) + '" style="display:inline-flex;align-items:center;min-height:44px;font-weight:700;color:#1d4ed8">📞 Bel kantoor · ' + esc(data.kantoor.telefoon) + '</a>' : '') + meldTeller(data) + '</div>' + einde + blok
@@ -84,8 +84,8 @@
   function laadRegels(data) {
     var st = data.stops.filter(function (s) { return s.type !== 'ophaling' && s.status !== 'gedaan'; }), regels = [];
     st.forEach(function (s) { s.regels.forEach(function (r) { if (!r.gelost) regels.push(r); }); });
-    var gedaan = regels.filter(function (r) { return r.geladen || isNietMee(r); }).length;
-    return { regels: regels, gedaan: gedaan, open: regels.length - gedaan, plek: st[0] && st[0].van && st[0].van.naam || 'de stockage' };
+    var som = function (l) { return l.reduce(function (n, r) { return n + (r.qty || 1); }, 0); }, gedaan = som(regels.filter(function (r) { return r.geladen || isNietMee(r); })), totaal = som(regels);
+    return { regels: regels, gedaan: gedaan, totaal: totaal, open: totaal - gedaan, plek: st[0] && st[0].van && st[0].van.naam || 'de stockage' };
   }
   function losRegels(data) {
     var st = data.stops.filter(function (s) { return s.type === 'ophaling'; }), regels = [];
@@ -226,7 +226,7 @@
     var sheet = '';
     if (st.sheet && st.sheet.type === 'nietmee') sheet = pastNietHtml(data, st.sheet);
     else if (st.sheet && st.sheet.type === 'probleem') sheet = probleemHtml(data, st.sheet);
-    else if (st.sheet && st.sheet.type === 'alles') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (st.sheet.actie === 'laden' ? 'Alles geladen' : 'Alles gelost') + ': ' + stuksWoord(st.sheet.ids.length) + '?</h3><p>Wat op "past niet" staat, slaat dit over. Je kan het daarna ongedaan maken.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="prim" data-act="alles-ok">Ja, ' + st.sheet.ids.length + (st.sheet.actie === 'laden' ? ' geladen' : ' gelost') + '</button></div></div></div>';
+    else if (st.sheet && st.sheet.type === 'alles') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (st.sheet.actie === 'laden' ? 'Alles geladen' : 'Alles gelost') + ': ' + stuksWoord(st.sheet.stuks) + '?</h3><p>Wat op "past niet" staat, slaat dit over. Je kan het daarna ongedaan maken.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="prim" data-act="alles-ok">Ja, ' + st.sheet.stuks + (st.sheet.actie === 'laden' ? ' geladen' : ' gelost') + '</button></div></div></div>';
     else if (st.sheet && st.sheet.type === 'toch') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>Nog niet geladen</h3><p>Dit stuk staat nog niet op geladen. Toch lossen zet het op geladen én gelost.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="rood" data-act="toch-ok">Toch lossen</button></div></div></div>';
     return basis + sheet;
   }
@@ -333,7 +333,7 @@
         }
         case 'blok': return ga('blok', a);
         case 'balk-weg': st.balk = ''; return teken();
-        case 'alles-open': st.sheet = { type: 'alles', actie: a, ids: String(b).split(',').map(Number) }; return teken();
+        case 'alles-open': { var aIds = String(b).split(',').map(Number); st.sheet = { type: 'alles', actie: a, ids: aIds, stuks: aIds.reduce(function (n, x) { var v = vindRegel(data, x); return n + (v ? v.regel.qty || 1 : 0); }, 0) }; return teken(); }
         case 'alles-ok': {
           var al = st.sheet; st.sheet = null;
           var ja2 = await post('/alles', { actie: al.actie, check_ids: al.ids });
