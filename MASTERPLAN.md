@@ -451,3 +451,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — TF3 + aanvulling (C) gekeurd en live: tf3-rechten 40, tf3-login 79, volle run 50/50. Blokkers T2 dicht.
 - 2026-10-31 — Prompt T3: rollentest (T kantoor, B chauffeur, C coördinator, D KV).
 - 2026-10-31 — T3 rollentest af (4 verslagen op main). Blokkers: verhuistaak niet af te ronden, KV-hertelling komt niet aan, coördinator kan bak niet opzoeken. Wacht op keuzes Maxim voor fixprompts.
+- 2026-10-31 — Besluiten Maxim T3: KV natellen onbeperkt, alles bewaard en gelogd; rit pas zichtbaar na klaarzetten; per stuk én Alles geladen; KV-link 14 dagen lezen, dan dicht. Prompts TF5 (C), TF6 (D). Open: rechten coördinator, mockups gsm en raster.
