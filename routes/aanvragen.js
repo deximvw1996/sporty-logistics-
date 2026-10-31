@@ -91,6 +91,68 @@ module.exports = function(ctx){
     if(ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:rit.chauffeur||'Chauffeur',tekst:volledig,link:'/vandaag?tab=beslissen'}); // ME1
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
+  // ── TF6 (T2-G7, besluit Maxim): een goedgekeurde materiaalaanvraag van een KV wordt echt werk ──
+  // Voorraad genoeg → handeling op de aanvullijst (uit voorraad); te weinig → Tekorten (bestellen), en na "binnen" op de aanvullijst.
+  // In beide gevallen een transporttaak Rozenweg → locatie van de KV. Artikel: kantoor kiest (item_type_id/artikel in de body) of het wordt
+  // uit de tekst van de KV herkend; lukt dat niet, dan is er wel een taak en een vraag aan kantoor (Tekorten › "Aanvragen zonder artikel").
+  const _zh=require('../lib/tijd').zonderHaakjes;
+  const _nrm=s=>_zh(String(s||'')).toLowerCase().replace(/\s+/g,' ').trim();
+  const _isoNu=()=>{const d=new Date();const z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+' '+z(d.getHours())+':'+z(d.getMinutes());};
+  const _markeer=a=>'aanvraag #'+a.id+' van KV';
+  function _artikelVan(a,body){
+    if(body&&body.item_type_id){const t=get('SELECT * FROM item_types WHERE id=?',[body.item_type_id]);if(t)return t;}
+    const naam=String(body&&body.artikel||'').trim()||String(a.tekst||'').replace(/^\s*\d+\s*[×x]\s*/i,'').trim();
+    const k=_nrm(naam);if(!k)return null;
+    const types=all('SELECT * FROM item_types');
+    const exact=types.find(t=>_nrm(t.naam)===k);
+    if(exact)return exact;
+    const bevat=k.length>=5?types.filter(t=>_nrm(t.naam).includes(k)):[]; // alleen als het er precies één is, anders kiest kantoor
+    return bevat.length===1?bevat[0]:null;
+  }
+  const _aantalVan=(a,body)=>{const n=parseInt(body&&body.aantal);if(n>0)return n;const m=/^\s*(\d{1,4})\s*[×x]/i.exec(a.tekst||'');return m&&parseInt(m[1])>0?parseInt(m[1]):1;};
+  function _voorraad(typeId){
+    return all("SELECT s.qty FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? AND l.name IN ('Rozenweg','Kantoor') AND (l.parent_id IS NULL OR l.parent_id=0)",[typeId]).reduce((x,r)=>x+(r.qty||0),0);
+  }
+  // Maakt de nakijk-regel (kantoor-sessie, al nagekeken) die Tekorten en de aanvullijst voeden. Geeft {regel_id,actie} of null als er al een is.
+  function _aanvraagRegel(req,a,t,aantal){
+    if(get('SELECT id FROM nakijk_regels WHERE kantoor_notitie LIKE ?',['%'+_markeer(a)+'%']))return null;
+    const km=a.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[a.kampmoment_id]):null;
+    const actie=_voorraad(t.id)>=aantal?'uit_pool':'bestellen';
+    const wie=(req.persoon&&req.persoon.naam)||'kantoor';
+    const sid=insMetLog(req,'nakijk_sessies',['bak_type','locatie_id','week','datum','kv_wie','kv_tijdstip','kv_status','kantoor_wie','kantoor_tijdstip','kantoor_status','kantoor_afgerond_op','kantoor_door','kampmoment_id','notities'],
+      ['melding',km?km.locatie_id:null,km?km.week:null,isoDate(new Date()),wie,now(),'ingediend',wie,now(),'nagekeken',_isoNu(),wie,km?km.id:null,'aanvraag'],'aanvraag goedgekeurd');
+    const rid=insMetLog(req,'nakijk_regels',['sessie_id','item_naam','item_id','verwacht','aangetroffen','ontbreekt','notitie','kantoor_actie','kantoor_aantal','kantoor_notitie','tekort_status'],
+      [sid,t.naam,null,aantal,0,aantal,'aangevraagd door de KV','uit_pool'===actie?'uit_pool':'bestellen',aantal,'gevraagd door KV · '+_markeer(a),'open'],'aanvraag goedgekeurd');
+    return {regel_id:rid,actie};
+  }
+  function _aanvraagTaak(req,a,naam,aantal){
+    const km=a.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[a.kampmoment_id]):null;
+    if(!km)return null;
+    const datum=_spoedDatum(km,new Date()),ts=now();
+    const taakId=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status,created_at,spoed_kind,spoed_ref_id,spoed_effect_toegepast,kampmoment_id,aanvraag_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      ['extra',datum,'09:00',_rozenwegId(),km.locatie_id,'📩 Aanvraag #'+a.id+': '+naam,'','gepland',ts,'',0,0,km.id,a.id],'aanvraag goedgekeurd');
+    ins('INSERT INTO transport_regels (taak_id,naam,qty,soort,item_type_id) VALUES (?,?,?,?,?)',[taakId,naam,aantal,'spoed',resolveItemTypeId(naam,undefined,false)]);
+    return taakId;
+  }
+  // Zonder artikel: een vraag aan kantoor + (na koppelen) dezelfde regel als hierboven.
+  app.get('/api/aanvragen/zonder-artikel',(req,res)=>{
+    const rij=all("SELECT a.*,l.name AS km_locatie FROM aanvragen a LEFT JOIN kampmomenten km ON km.id=a.kampmoment_id LEFT JOIN locaties l ON l.id=km.locatie_id WHERE a.status='goedgekeurd' AND a.soort='materiaal' AND a.kampmoment_id IS NOT NULL ORDER BY a.id DESC")
+      .filter(a=>a.reden==='Goedgekeurd — kantoor regelt het stuk en de levering.'&&!get('SELECT id FROM nakijk_regels WHERE kantoor_notitie LIKE ?',['%'+_markeer(a)+'%']));
+    res.json(rij.map(a=>({id:a.id,tekst:a.tekst,locatie:a.km_locatie||'',created_at:a.created_at})));
+  });
+  app.put('/api/aanvragen/:id/artikel',(req,res)=>{
+    if(!req.persoon||!['kantoor','coordinator'].includes(req.persoon.rol))return res.status(403).json({error:'Alleen kantoor of een coördinator kiest het artikel.'});
+    const a=get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]);
+    if(!a)return res.status(404).json({error:'Aanvraag niet gevonden'});
+    if(a.status!=='goedgekeurd')return res.status(409).json({error:'Deze aanvraag is niet goedgekeurd.'});
+    const t=_artikelVan(a,req.body||{});
+    if(!t)return res.status(400).json({error:'Kies een artikel uit de catalogus.'});
+    const r=_aanvraagRegel(req,a,t,_aantalVan(a,req.body||{}));
+    if(!r)return res.status(409).json({error:'Voor deze aanvraag staat al een handeling klaar.'});
+    logAct('aanvraag','artikel gekozen','Aanvraag #'+a.id+' → '+t.naam+' ('+(r.actie==='uit_pool'?'uit voorraad':'te bestellen')+')',null,null);
+    res.json({ok:true,...r,artikel:t.naam});
+  });
+
   app.put('/api/aanvragen/:id/status',(req,res)=>{
     const{status,reden,maak_spoedtransport,spoedtransport}=req.body;
     const a=get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]);
@@ -132,10 +194,22 @@ module.exports = function(ctx){
           if(!rest)updateMetLog(req,"UPDATE transport_ritten SET status='geannuleerd' WHERE id=?",[t.rit_id],'aanvraag afgewezen');}
       }
     }
+    // TF6: goedkeuren van een materiaalaanvraag maakt echt werk (zie boven).
+    let redenNieuw=reden||'';
+    if(status==='goedgekeurd'&&a.status!=='goedgekeurd'&&a.soort==='materiaal'&&a.kampmoment_id){
+      const b=req.body||{},t=_artikelVan(a,b),aantal=_aantalVan(a,b);
+      const naam=t?t.naam:String(b.artikel||a.tekst||'').replace(/^\s*\d+\s*[×x]\s*/i,'').trim();
+      let r=null;
+      if(t)r=_aanvraagRegel(req,a,t,aantal);
+      if(!spoed_taak_id){spoed_taak_id=_aanvraagTaak(req,a,naam,aantal)||null;}
+      if(!redenNieuw)redenNieuw=!t?'Goedgekeurd — kantoor regelt het stuk en de levering.':(r&&r.actie==='bestellen'?'Goedgekeurd — het stuk wordt besteld en daarna geleverd.':'Goedgekeurd — het stuk komt uit voorraad en wordt geleverd.');
+      if(!t&&ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:behandeld_door||'Kantoor',tekst:'Aanvraag "'+a.tekst+'" is goedgekeurd, maar het artikel is onbekend. Kies het in Tekorten onder "Aanvragen zonder artikel".',link:'/tekorten'});
+      logAct('aanvraag','goedgekeurd','Aanvraag #'+a.id+' goedgekeurd → '+(t?naam+' ('+(r?(r.actie==='uit_pool'?'uit voorraad':'te bestellen'):'al klaar')+')':'artikel nog te kiezen')+(spoed_taak_id?' · transporttaak #'+spoed_taak_id:' · geen transporttaak (geen kampmoment)'),null,null);
+    }
     // ME1: een beslissing op een aanvraag gaat naar de coördinatoren (de KV heeft geen account); niet voor chauffeursmeldingen.
     if(ctx.melding&&(status==='goedgekeurd'||status==='afgewezen')&&a.status!==status&&a.soort!=='probleem_chauffeur')ctx.melding(req,{voor_rol:'coordinator',van_naam:behandeld_door||'Kantoor',tekst:`Aanvraag "${a.tekst}" ${status}`,link:'/vandaag'});
     updateMetLog(req,'UPDATE aanvragen SET status=?,reden=?,spoed_taak_id=?,behandeld_door=?,behandeld_op=? WHERE id=?',
-      [status,reden||'',spoed_taak_id||null,behandeld_door,now(),req.params.id]);
+      [status,redenNieuw,spoed_taak_id||null,behandeld_door,now(),req.params.id]);
     logAct('aanvraag',status,`Aanvraag #${a.id} → ${status}`+(reden?` (${reden})`:''),null,null);
     res.json({...get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]),...(rit_zonder_chauffeur?{rit_zonder_chauffeur:true}:{})});
   });

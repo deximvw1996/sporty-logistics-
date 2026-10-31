@@ -16,7 +16,7 @@
       const sub=a.los?'bestelling zonder tekort':`${a.n_bakken} ${a.n_bakken===1?'bak':'bakken'}${a.n_locaties>1?' · '+a.n_locaties+' locaties':''}`;
       const v=a.voorraad,onder=v&&v.minimum&&v.rozenweg<v.minimum;
       const roz=!v?'—':`${fmt(v.rozenweg)}${onder?` <small style="color:#b91c1c">/${fmt(v.minimum)}</small>`:''}`;
-      return `<div class="r ${act?'act':''}" data-id="${esc(a.artikel_id)}"><span><input type="checkbox" data-sel="${esc(a.artikel_id)}" ${sel?'checked':''} aria-label="Selecteer ${esc(a.naam)}"></span><span><b>${esc(a.naam)}</b><span class="k" style="display:block">${esc(sub)}</span></span><span class="get">${a.los?'—':eenh(a.tekort,a.eenheid)}</span><span class="k">${esc(a.waar_tekst||'—')}</span><span class="get">${roz}</span><span>${pil(a.stand)}${a.bestelling&&a.bestelling.extra&&!a.bestelling.binnen_op?' <span class="pil blauw" title="extra bestelling">📦</span>':''}</span></div>`;
+      return `<div class="r ${act?'act':''}" data-id="${esc(a.artikel_id)}"><span><input type="checkbox" data-sel="${esc(a.artikel_id)}" ${sel?'checked':''} aria-label="Selecteer ${esc(a.naam)}"></span><span><b>${esc(a.naam)}</b><span class="k" style="display:block">${esc(sub)}</span></span><span class="get">${a.los?'—':eenh(a.tekort,a.eenheid)}</span><span class="k">${esc(a.waar_tekst||'—')}</span><span class="get">${roz}</span><span>${pil(a.stand)}${a.bestelling&&!a.bestelling.binnen_op&&a.bestelling.binnen_aantal>0?` <span class="k" style="display:block">${fmt(a.bestelling.binnen_aantal)} van ${fmt(a.bestelling.aantal)} binnen</span>`:''}${a.bestelling&&a.bestelling.extra&&!a.bestelling.binnen_op?' <span class="pil blauw" title="extra bestelling">📦</span>':''}</span></div>`;
     },
     detail(D,tab){
       const a=D.artikel,v=D.voorraad,b=D.bestelling;
@@ -29,7 +29,7 @@
       const tl=`<div class="blok vol"><h4>Stand</h4><div class="tl">${D.tijdlijn.map(s=>`<div class="${s.stand}">${esc(s.stap)}</div>`).join('')}</div></div>`;
       const waar=`<div class="blok"><h4>Waar ontbreekt het (${D.regels.length})</h4>${D.regels.map(r=>`<div class="rij"><span class="code">${esc(r.code||'—')}</span><div class="nm">${esc(r.bak||'')}<b>${esc([r.locatie,r.week?'wk '+r.week:'',r.kv?(/^kantoor$/.test(r.kv)?'kantoor':'KV '+r.kv.replace(/^KV\s+/i,'')):'',r.geteld!=null?`geteld ${fmt(r.geteld)} van ${fmt(r.gewenst)}`:'',r.notitie?'"'+r.notitie+'"':''].filter(Boolean).join(' · '))}${r.status!=='open'?' · '+esc(r.status):''}</b></div><span class="getal">${fmt(r.aantal)}</span></div>`).join('')||'<div class="rij"><div class="nm">Hangt niet aan een melding</div></div>'}</div>`;
       const vrd=`<div class="blok"><h4>Voorraad</h4>${kv('Rozenweg',v.rozenweg==null?'— (niet in de catalogus)':`${fmt(v.rozenweg)}${v.minimum?' · minimum '+fmt(v.minimum):''}`)}${kv('Kantoor',v.kantoor==null?'—':fmt(v.kantoor))}${a.los?'':kv('Na aanvullen',v.na_aanvullen==null?'—':`<span style="${v.onder_minimum?'color:#b91c1c':''}">${fmt(v.na_aanvullen)}${v.onder_minimum?' · onder minimum':''}</span>`)}${a.los?'':kv('Voorstel',esc(D.voorstel.tekst)+(a.stand_bron==='kantoor'?' · <span class="pil oranje">kantoor koos anders</span>':''))}</div>`;
-      const best=`<div class="blok"><h4>Bestelling</h4>${b&&b.besteld_op?kv('Aantal',`${eenh(b.aantal,a.eenheid)}${b.extra?' (extra)':''}`)+kv('Waar kopen',esc(b.waar_kopen||'—'))+kv('Leveren aan',esc(b.leveren_aan||'Rozenweg'))+kv('Besteld',esc([b.besteld_op,b.besteld_door].filter(Boolean).join(' · ')))+(b.binnen_op?kv('Binnen',esc(b.binnen_op)):'')
+      const best=`<div class="blok"><h4>Bestelling</h4>${b&&b.besteld_op?kv('Aantal',`${eenh(b.aantal,a.eenheid)}${b.extra?' (extra)':''}`)+kv('Waar kopen',esc(b.waar_kopen||'—'))+kv('Leveren aan',esc(b.leveren_aan||'Rozenweg'))+kv('Besteld',esc([b.besteld_op,b.besteld_door].filter(Boolean).join(' · ')))+(b.binnen_op?kv('Binnen',esc(b.binnen_op)):(b.binnen_aantal>0?kv('Binnen',esc(fmt(b.binnen_aantal)+' van '+fmt(b.aantal)+' binnen')):''))
         :kv('Aantal',a.stand==='uit_voorraad'?'— (uit voorraad; bestellen kan toch)':`voorstel ${eenh(a.bestel_voorstel,a.eenheid)}`)+kv('Leveren aan','Rozenweg')}<div class="stap3" style="margin-top:8px"><button class="knop klein" id="d-besteld">Besteld</button><button class="knop licht klein" id="d-binnen" ${b&&b.binnen_op?'disabled':''}>Bestelling binnen</button></div></div>`;
       const na=a.los?'':`<div class="blok"><h4>Na levering</h4>${kv('Aanvullijst',esc(D.na_levering.aanvullijst))}${kv('Rest',esc(D.na_levering.rest))}</div>`;
       const hist=`<div class="blok vol"><h4>Historiek (alles gelogd met naam)</h4>${D.historiek.map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc([h.t,h.wie].filter(Boolean).join(' · '))}</b></div></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>'}</div>`;
@@ -75,6 +75,16 @@
     O=r.json;SEL=new Set([...SEL].filter(id=>O.artikels.some(a=>a.artikel_id===id)));
     $('per-naam').textContent=O.periode?O.periode.naam:'geen periode';
     tekenLijst();if(D)await laadDetail(D.artikel.artikel_id,true);
+    zonderArtikel();
+  }
+  // TF6: goedgekeurde KV-aanvragen waar het artikel nog niet van gekozen is.
+  async function zonderArtikel(){
+    let b=$('zonder-art');
+    if(!b){b=document.createElement('div');b.id='zonder-art';b.style.cssText='margin:8px 12px;padding:10px 12px;border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;font-size:14px';const c=$('chips');c.parentNode.insertBefore(b,c);}
+    const r=await api('GET','/api/aanvragen/zonder-artikel');
+    const l=r.ok&&Array.isArray(r.json)?r.json:[];
+    b.hidden=!l.length;
+    b.innerHTML=l.length?`<b>Aanvragen zonder artikel (${l.length})</b> — goedgekeurd, maar welk artikel is het?`+l.map(a=>`<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1">${esc(a.tekst)}${a.locatie?' · '+esc(a.locatie):''}</span><button class="knop klein" data-kies-art="${a.id}">Kies artikel</button></div>`).join(''):'';
   }
   function tekenLijst(){
     $('chips').innerHTML=BOUW.chips(O.tellers,FILTER);
@@ -103,8 +113,17 @@
     klaar(r,'Besteld');
   }
   async function binnen(ids){
-    const r=ids.length===1?await api('POST',pad(ids[0],'binnen')):await api('POST','/api/tekorten/bulk/binnen',{artikel_ids:ids});
-    klaar(r,'Bestelling binnen — voorraad Rozenweg verhoogd');
+    let body={};
+    if(ids.length===1){
+      const a=O.artikels.find(x=>x.artikel_id===ids[0]),b=a&&a.bestelling;
+      const totaal=b&&b.aantal?b.aantal:(a?a.bestel_voorstel||a.tekort:0),eerder=(b&&b.binnen_aantal)||0,rest=Math.max(0,totaal-eerder);
+      const v=await vraag({titel:`${a?a.naam:'Bestelling'} binnen`,tekst:eerder>0?`Er is al ${fmt(eerder)} van ${fmt(totaal)} binnen. Hoeveel kwam er nu bij?`:`Besteld: ${fmt(totaal)}. Hoeveel is er nu binnen? Een deel mag ook; de rest blijft open staan.`,ok:'Bestelling binnen',
+        html:`<label>Aantal binnen<input name="aantal" type="number" min="0" step="any" max="${esc(rest)}" value="${esc(rest)}"></label>`,
+        lees:f=>{const n=parseFloat(f.aantal.value);if(!(n>0)){toast('Vul in hoeveel er binnen is','warn');return null;}return {aantal:n};}});
+      if(!v)return;body=v;
+    }
+    const r=ids.length===1?await api('POST',pad(ids[0],'binnen'),body):await api('POST','/api/tekorten/bulk/binnen',{artikel_ids:ids});
+    klaar(r,ids.length===1&&r.ok&&r.json.volledig===false?`${fmt(r.json.binnen)} van ${fmt(r.json.totaal)} binnen — voorraad Rozenweg verhoogd`:'Bestelling binnen — voorraad Rozenweg verhoogd');
   }
   async function negeren(ids){
     const v=await vraag({titel:`${ids.length===1?'Dit tekort':ids.length+' tekorten'} negeren?`,tekst:'De handelingen verdwijnen van de aanvullijst. Gelogd met je naam.',ok:'Negeren',html:'<label>Reden<input name="reden" placeholder="bv. nog genoeg in de bak"></label>',lees:f=>({reden:f.reden.value})});
@@ -135,6 +154,8 @@
     const t=e.target;
     if(t.matches('[data-sel]')){const id=t.dataset.sel;t.checked?SEL.add(id):SEL.delete(id);return tekenLijst();}
     if(t.id==='alles'){zichtbaar().forEach(a=>t.checked?SEL.add(a.artikel_id):SEL.delete(a.artikel_id));return tekenLijst();}
+    const kiesArt=t.closest('[data-kies-art]');
+    if(kiesArt){const id=kiesArt.dataset.kiesArt;const v=await catalogusKeuze('Welk artikel is dit?','Koppelen','');if(!v)return;const r=await api('PUT','/api/aanvragen/'+id+'/artikel',{item_type_id:v.item_type_id,artikel:v.naam,aantal:v.aantal});if(!r.ok)return toast(r.json.error||'Koppelen mislukt','error');toast('Gekoppeld: '+(r.json.actie==='uit_pool'?'uit voorraad aanvullen':'te bestellen'),'success');return laad();}
     const chip=t.closest('.chip[data-f]');if(chip){FILTER=chip.dataset.f;return tekenLijst();}
     const rij=t.closest('.r[data-id]');if(rij){TAB='tekort';return laadDetail(rij.dataset.id);}
     const tab=t.closest('[data-tab]');if(tab){TAB=tab.dataset.tab;return tekenDetail();}

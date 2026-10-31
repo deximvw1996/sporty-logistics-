@@ -351,7 +351,7 @@ module.exports = function(ctx){
   const WAAR={
     // MA1: pool-stukken met hun vaste plaats (item_types.pool_plaats, bv. 'rek P · bak P-03') als die gekend is.
     uit_pool:r=>'uit de pool'+_poolPlaats(r),naar_pool:r=>'terug naar de pool'+_poolPlaats(r),afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
-    bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
+    bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':(r.binnen_aantal||0)-(r.gedaan_aantal||0)>0?`bestelling · ${r.binnen_aantal} van ${(r.kantoor_aantal||0)+(r.gedaan_aantal||0)} binnen`:'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
   };
   function _aanvullijst(datum,alles){
     const sessies=all("SELECT * FROM nakijk_sessies WHERE (kantoor_afgerond_op<>'' AND kantoor_afgerond_op IS NOT NULL) OR id IN (SELECT sessie_id FROM nakijk_regels WHERE gemeld_soort<>'' AND COALESCE(kantoor_actie,'')='') ORDER BY kantoor_afgerond_op,id");
@@ -380,8 +380,9 @@ module.exports = function(ctx){
         else return;
         if(r.aangevuld&&!alles)return;
         if(r.tekort_status==='genegeerd')return; // TB2: genegeerd op Tekorten → niet meer op de aanvullijst
-        const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
+        const besch=Math.max(0,(r.binnen_aantal||0)-gedaanN); // TF6: deels binnen — afvinkbaar tot wat er binnen is
+        const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld||besch>0; // G15: een bestelling is pas af te vinken als ze binnen is
+        handelingen.push({max_nu:soort==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld&&besch>0?besch:undefined,regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
@@ -490,13 +491,20 @@ module.exports = function(ctx){
     if(!s||!s.kantoor_afgerond_op)return res.status(409).json({error:'Deze keuring is nog niet afgerond door kantoor.'});
     const aan=req.body?.aangevuld===false||req.body?.aangevuld===0||req.body?.aangevuld==='0'?0:1;
     if(aan&&r.gemeld_soort&&!r.kantoor_actie)return res.status(409).json({error:'Dit is gemeld en wacht op kantoor — kantoor beslist eerst in Nakijken.'});
-    if(aan&&SOORT[r.kantoor_actie]==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld)return res.status(409).json({error:'Deze bestelling is nog niet binnen — zet ze eerst op "Bestelling binnen".'});
+    // TF6: een bestelling die deels binnen is, kan tot dat aantal afgevinkt worden; de rest blijft open.
+    let bodyAantal=req.body?req.body.aantal:undefined;
+    if(aan&&!r.aangevuld&&SOORT[r.kantoor_actie]==='bestelling'&&r.tekort_status!=='binnen'){
+      const besch=(r.binnen_aantal||0)-(r.gedaan_aantal||0);
+      if(besch<=0)return res.status(409).json({error:'Deze bestelling is nog niet binnen — zet ze eerst op "Bestelling binnen".'});
+      if(bodyAantal===undefined||bodyAantal===null||bodyAantal==='')bodyAantal=besch;
+      else if(parseInt(bodyAantal)>besch)return res.status(409).json({error:`Er is nog maar ${besch} binnen van deze bestelling.`});
+    }
     // AV1: afschrijven vraagt altijd een foto van het kapotte stuk (bewijs); zonder foto geen afvinken.
     const heeftFoto=typeof req.body?.foto_data==='string'&&!!req.body.foto_data;
     if(aan&&!r.aangevuld&&r.kantoor_actie==='afschrijven_bestellen'&&!heeftFoto)return res.status(400).json({error:'Afschrijven vraagt een foto van het kapotte stuk.'});
     // AV1: minder gevonden dan nodig → alleen dat aantal telt nu (voorraad daalt met dat aantal), de rest blijft open en wordt gelogd.
-    const gedaan=parseInt(req.body?.aantal),totaalN=r.kantoor_aantal||0;
-    if(aan&&!r.aangevuld&&gedaan>=0&&Number.isFinite(gedaan)&&totaalN>0&&gedaan<totaalN&&req.body&&req.body.aantal!==undefined){
+    const gedaan=parseInt(bodyAantal),totaalN=r.kantoor_aantal||0;
+    if(aan&&!r.aangevuld&&gedaan>=0&&Number.isFinite(gedaan)&&totaalN>0&&gedaan<totaalN&&bodyAantal!==undefined){
       if(gedaan<1)return res.status(400).json({error:'Vul in hoeveel je aangevuld hebt (minstens 1), of laat het vakje leeg.'});
       let fp='';
       if(heeftFoto){try{fp=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}}
