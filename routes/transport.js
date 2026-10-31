@@ -660,7 +660,7 @@ module.exports = function(ctx){
       const van=(get('SELECT rit_id FROM transport_taken WHERE id=?',[id])||{}).rit_id;
       updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',
         [rit_id||null,rit?rit.datum:'',rit?rit.chauffeur:'',id]);
-      if(ctx.meldRitGewijzigd){if(van&&String(van)!==String(rit_id||''))ctx.meldRitGewijzigd(req,van,'stop weggehaald: '+_stopN(t));if(rit&&String(van||'')!==String(rit_id))ctx.meldRitGewijzigd(req,rit.id,'stop toegevoegd: '+_stopN(t));} // TF3
+      if(ctx.meldRitGewijzigd){const t=get('SELECT * FROM transport_taken WHERE id=?',[id])||{};if(van&&String(van)!==String(rit_id||''))ctx.meldRitGewijzigd(req,van,'stop weggehaald: '+_stopN(t));if(rit&&String(van||'')!==String(rit_id))ctx.meldRitGewijzigd(req,rit.id,'stop toegevoegd: '+_stopN(t));} // TF3
     });
     if(rit)_stoptijdenNaarVertrek(req,rit.id); // TF1 G6
     res.json({ok:true,count:ids.length});

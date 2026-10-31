@@ -69,7 +69,7 @@
     }).join('');
     var vasten = stops.filter(function (s) { return s.slot !== 'vrij'; }), heeftVrij = stops.some(function (s) { return s.slot === 'vrij'; });
     var uitleg = !stops.length ? '<div class="uitleg leeg">Geen stops gepland.</div>'
-      : heeftVrij ? '<div class="uitleg">▲▼ wisselt met een aangrenzende vrije stop; de stop neemt dan het uur van zijn nieuwe plaats over' + (vasten.length ? ' · ' + esc(vasten.map(stopNaam).join(', ')) + (vasten.length === 1 ? ' staat' : ' staan') + ' vast door kantoor' : '') + '</div>' : '';
+      : heeftVrij ? '<div class="uitleg">▲▼ wisselt alleen met een aangrenzende vrije stop; de stop neemt dan het uur van zijn nieuwe plaats over' + (vasten.length ? ' · ' + esc(vasten.map(stopNaam).join(', ')) + (vasten.length === 1 ? ' staat' : ' staan') + ' vast door kantoor' : '') + '</div>' : '';
     var h = stops.filter(function (s) { return s.volgorde === huidig && s.status !== 'gedaan'; })[0];
     var nr = h ? stops.indexOf(h) + 1 : 0;
     var prim = h ? '<button type="button" class="prim" data-act="stop" data-a="' + h.taak_id + '">Open stop ' + nr + ': ' + esc(stopNaam(h)) + ' →</button>'
@@ -127,8 +127,8 @@
       var kaal = String(r.naam || '').replace(/^\s*\d+\s*[×x]\s*/i, ''); // TF7 G6: de naam zonder het aantal van de eerste regel
       var k = !r.bak_id || r.is_bulk ? kaal + '|' + (r.code || '') + '|' + !!r.geladen + '|' + !!r.gelost : '';
       if (!k || isNietMee(r) || isGesplitst(r)) { uit.push(r); return; }
-      if (bij[k]) { bij[k].qty += r.qty || 1; bij[k].ids.push(r.check_id); if (bij[k].aantal_geladen != null) bij[k].aantal_geladen += r.aantal_geladen || 0; return; }
-      var c = {}; Object.keys(r).forEach(function (x) { c[x] = r[x]; }); c.ids = [r.check_id]; c.naam = kaal; bij[k] = c; uit.push(c);
+      if (bij[k]) { bij[k].naam = kaal; bij[k].qty += r.qty || 1; bij[k].ids.push(r.check_id); if (bij[k].aantal_geladen != null) bij[k].aantal_geladen += r.aantal_geladen || 0; return; }
+      var c = {}; Object.keys(r).forEach(function (x) { c[x] = r[x]; }); c.ids = [r.check_id]; bij[k] = c; uit.push(c);
     });
     return uit;
   }
