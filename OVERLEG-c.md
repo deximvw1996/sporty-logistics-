@@ -2076,3 +2076,45 @@ Aangepaste tests: `ko1`, `f1-modules` + inventaris (`GET *` weg), `v3b-ui`, `vei
 3. **Back-updatum.** `lib/db.js` gebruikt de lokale datum. Bewezen in het echte venster: om 00:3x lokaal stond er één bestand `sporty-2026-10-31.db`, geen `2026-10-30`. De versoepeling in `me1` is teruggedraaid.
 
 Aanpassing: de GEVONDEN over de UTC-datum uit TF3 is hiermee opgelost.
+
+## TF5 — KV-tellingen met historiek, KV-link, rit voor chauffeur, coördinator zoekt op (31/10)
+
+**Tests.** Nieuw: `test-tf5-kv` 29 ok, `test-tf5-rit` 42 ok, `test-tf5-coordinator` 20 ok. Volle run 2×: **niet volledig groen**: telkens rood `v3c-fotos` (2) en `veiligheid` (3), dezelfde als vóór TF5 (zie GEVONDEN TF3). `af1-afwerking` brak in één van de twee runs af zonder FOUT-regel; de tweede run groen. Run 1: 50 groen, run 2: 51 groen, van 53.
+
+**Punt 1, historiek.** Nieuwe tabellen `kv_telling_versies` en `kv_verstuurd` (migratie 89). Triggers weigeren UPDATE en DELETE; bewezen op een kopie van de db. Bestaande tellingen worden de eerste versie.
+**Mijn keuze bij een afgeronde keuring:** `nakijk_regels` blijft de stand waarop kantoor beslist.
+- Natellen na versturen schrijft alleen een versie. Pas bij versturen gaat het naar Nakijken.
+- Regel zonder beslissing: wordt bijgewerkt.
+- Regel met beslissing: blijft letterlijk staan. Is het tekort of kapot groter, dan komt alleen het verschil als gemelde regel (zelfde weg als de aanvuller), opgeteld bij een open regel.
+- Bij een afwijking heropent de keuring (`kantoor_status=open`). Een kleiner tekort of "te veel" op een beslissing geeft een melding en historiek, maar geen nieuwe regel.
+Melding: `Telling bijgewerkt · Abdijschool Vlierbeek: TF51: Politiepet 1 → 0, 'weg'`. Versturen zonder wijziging: geen melding, geen rij. Nakijken desktop: blok "Eerdere tellingen". Oude foto's blijven op schijf, ook bij "volledig verwijderen" van een kampmoment; versies blijven dan staan.
+
+**Punt 2, KV-scherm.** Thema en groep per bak, gegroepeerd bij twee thema's; kamp zonder bak: uitleg en belknop (leeg nummer: geen knop); één tijdvorm; "Rest klopt ✓ (zet n stuks)"; Kapot melden op het telscherm; "maandag nakijken" weg. Link: tot 14 dagen na de vrijdag van de week lezen (schrijven 403), daarna 403 op de data en 410 met nette pagina.
+
+**Punt 3, klaarzetten.** Niet in `/api/vandaag?mijn=1` (dus ook niet in de tab Ritten) en rit-link "Deze rit is nog niet klaargezet"; schrijven via de link 409. `POST /api/ritten/:id/klaarzet-terug` met melding, 409 als de rit gestart is. Gestarte rit: altijd melding, ook zonder klaarzetten. Vertrektijd op lopende rit: melding "vertrektijd aangepast"; afgeronde stop schuift niet mee.
+
+**Punt 4, verhuistaak.** De 0 regels traden ook op de juiste datum op: `sportrooster.js` maakt de taak zonder regels. Opgelost bij het aanmaken van de checks: één regel per set (type `verhuis`: één regel met de omschrijving). Stop toont welke set, van waar naar waar, hoeveel. Tot gedaan bewezen; `sport_sets.locatie_id` volgt. Sets hebben geen aparte voorraad. Een stop zonder regels rondt nu af bij "aangekomen".
+
+**Punt 5, rit.** `POST /api/rit-token/:token/alles` (laden of lossen, per rek, stop of blok; bevestiging met aantal; past niet overgeslagen; één logregel plus elke regel). Tweede tik: toast "Ongedaan maken". Lossen vóór laden: venster "Toch lossen"; op past niet geblokkeerd. Lossen vóór aankomst geeft de aankomst door. Verversen elke 30 s en bij terugkeer, balk "Kantoor wijzigde deze rit: …", open venster blijft staan. Meldingenteller, Past niet per regel (44 px), terugknop, eindscherm, dubbele losse regels samen, blok "Laden in …" en "Lossen in …" op één scherm.
+**Eenheid capaciteit:** plaatsen = bakken; losse regel telt zijn aantal; bulkregel telt 1, ongeacht de stuks. Tekst nu "n bakken op m plaatsen". Het laatste is mijn keuze: een rek fietsen van 50 stuks past niet echt op 1 plaats, dat is een aanname.
+
+**Punt 6, coördinator.** Meer: Waar staat een bak, Artikelen, Locaties en contacten, Bel kantoor (of "Geen kantoornummer ingesteld"), Bericht aan kantoor. Nieuwe pagina `/zoeken`, smalle routes `/api/opzoeken/*`, schrijfroute `/api/bericht-kantoor`. Chauffeur en monitor 403. Link "Catalogus ›": `tekorten.js` niet gewijzigd; `nav.js` stuurt een coördinator op `/catalogus?id=` door naar Artikelen.
+
+**Browser op 390 (element.click, geen vinger; netwerk niet echt uit; foto niet echt).** Geklikt: rit vóór klaarzetten, blok laden, Alles geladen, toast, stop, terugknop, Meer, locatie zoeken, Catalogus-doorsturing. Geen horizontale scroll, geen knop onder 44 px op die schermen. Niet in de browser: verversbalk, Toch lossen, KV-telscherm met bakken, lezen-stand, Nakijken-uitklap, bericht versturen, Bak/Artikel-tab (die via API en HTML-bouwer in de tests).
+
+**Aangepaste tests, met reden.**
+- `_testhulp.ritToken` zet de rit klaar; `v3a`, `f1-wijzigingen`, `mob1`, `me1` ook: de link werkt pas na klaarzetten.
+- `ch2`: tweede tik draait niet meer terug. `kv1`: tekst. `rp1`, `tf1`: "bakken op".
+- `gf1`: de nieuwe tellingtabellen blijven na volledig verwijderen. `tb1`: natelling telt na versturen. `tf4`: de KV-natelling geeft nu een eigen melding, dus de filter is scherper.
+
+**Regel overtreden.** Ik gebruikte één keer `git checkout -- scripts/test-tf4-keten.mjs` om mijn eigen tijdelijke debugregel weg te halen. Dat mag niet volgens CLAUDE.md. In dat bestand stond verder niets niet-gecommit, dus er is niets verloren.
+
+**GEVONDEN**
+1. Kantoor heeft geen knop voor `klaarzet-terug`: `public/ritplanning.js` stond niet in mijn lijst. Alleen API.
+2. `routes/voertuigen.js:88` zegt nog "stuks op … plaatsen".
+3. Een bestaande rit die op prod nog niet klaargezet en niet gestart is, verdwijnt na de deploy bij de chauffeur tot kantoor klaarzet. **Vóór 2 november nakijken.**
+4. Gsm-weergave Nakijken toont de uitklap "Eerdere tellingen" niet; alleen desktop.
+5. Een chauffeur die met `/alles` lost, draait met Ongedaan maken een al afgeronde taak niet terug (bestaand gedrag).
+6. Samengevoegde dubbele regels: Past niet geldt voor de eerste rij van de groep.
+7. Aanvragen: geen wisroute in `routes/aanvragen.js`; statuswijziging wordt gelogd. Alleen "volledig verwijderen" van een kampmoment wist ze nog (omkeerbaar via het log). Dat bestand stond niet in mijn lijst.
+8. Natellingen van de monitor-link gaan pas naar kantoor als de KV verstuurt.
