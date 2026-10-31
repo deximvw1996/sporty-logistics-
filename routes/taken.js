@@ -90,7 +90,7 @@ module.exports = function(ctx){
       if(r){
         const info=_ritPlanInfo(r);
         const stops=all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[r.id]);
-        rit={id:r.id,datum:r.datum,vertrek:info.vertrek,chauffeur:r.chauffeur||'',voertuig:r.voertuig||'',bezetting:info.bezetting,capaciteit:r.voertuig_capaciteit??null,
+        rit={id:r.id,datum:r.datum,vertrek:info.vertrek,chauffeur:r.chauffeur||'',voertuig:r.voertuig||'',lading:info.lading?info.lading.tekst:'',
           status:r.status,waarschuwingen:info.waarschuwingen,stop_nr:stops.findIndex(s=>s.id===t.id)+1,
           stops:stops.map(s=>({taak_id:s.id,naam:locNaam(stopLoc(s)),slot:s.slot==='vrij'?'vrij':'vast',is_deze:s.id===t.id}))};
         checks.klaargezet=r.klaarzet_status==='klaar';
