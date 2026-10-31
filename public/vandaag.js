@@ -18,8 +18,10 @@
     },
     ritten(v){
       const rij=(r,dag)=>GSM.rij({ico:'🚚',tijd:(dag?dag+' ':'')+(r.tijd||''),titel:`Rit #${r.id}${r.voertuig?' · '+r.voertuig:''}${r.status==='gedaan'?' · gedaan':r.status==='onderweg'?' · onderweg':''}`,sub:r.stops.map(s=>s.naam+(s.slot==='vrij'?' (vrij)':' 🔒')).join(' → '),url:'/rit/'+r.token});
-      const a=v.ritten_vandaag||[],b=v.ritten_morgen||[];
-      return GSM.kop(v,'Ritten')+`<div class="gbody"><div class="sec"><h3>Vandaag</h3>${a.map(r=>rij(r)).join('')||'<div class="hint">Geen ritten vandaag</div>'}</div>${b.length?`<div class="sec"><h3>Morgen</h3>${b.map(r=>rij(r)).join('')}</div>`:''}</div>`;
+      const a=v.ritten_vandaag||[],b=v.ritten_morgen||[],k=v.ritten_komend||[],gk=v.gekozen;
+      // MOB3: komende klaargezette ritten per dag + datumkeuze (een dag verder dan de lijst)
+      const kiezer=`<div class="sec"><h3>Andere dag bekijken</h3><label style="display:flex;flex-direction:column;gap:4px;font-size:13px;color:#64748b">Kies een datum<input type="date" data-rdatum value="${escG(gk?gk.datum:'')}" min="${escG(v.datum||'')}" aria-label="Datum kiezen" style="height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 10px;font:inherit;font-size:15px"></label>${gk?`<h3 style="margin-top:10px">${escG(gk.datum_tekst)}</h3>${gk.ritten.map(r=>rij(r)).join('')||'<div class="hint">Geen klaargezette ritten op deze dag</div>'}`:''}</div>`;
+      return GSM.kop(v,'Ritten')+`<div class="gbody"><div class="sec"><h3>Vandaag</h3>${a.map(r=>rij(r)).join('')||'<div class="hint">Geen ritten vandaag</div>'}</div>${b.length?`<div class="sec"><h3>Morgen</h3>${b.map(r=>rij(r)).join('')}</div>`:''}${k.map(x=>`<div class="sec" data-komend="${escG(x.datum)}"><h3>${escG(x.datum_tekst)}</h3>${x.ritten.map(r=>rij(r)).join('')}</div>`).join('')}${kiezer}</div>`;
     },
     // Kantoor: meldingen en beslissingen met de knoppen uit /api/vandaag; ploeg: alleen lezen.
     lijst(v,lijst,titel,leeg,kol){
@@ -54,6 +56,9 @@
     let V=null;
     const laadG=async()=>{const r=await api('GET','/api/vandaag?mijn=1');if(!r.ok)return toast(r.json.error||'Vandaag laden mislukt','error');V=r.json;$('gsm').hidden=false;$('gsm').innerHTML=GSM.scherm(V,tab);};
     window.addEventListener('sporty-live',()=>laadG()); // RT1
+    document.addEventListener('change',async e=>{const t=e.target;if(!t.matches||!t.matches('[data-rdatum]')||!t.value)return;
+      const r=await api('GET','/api/vandaag?mijn=1&datum='+encodeURIComponent(t.value));if(!r.ok)return toast(r.json.error||'Ritten laden mislukt','error');
+      V.gekozen={datum:t.value,datum_tekst:r.json.datum_tekst,ritten:r.json.ritten_vandaag||[]};$('gsm').innerHTML=GSM.scherm(V,tab);});
     document.addEventListener('click',async e=>{
       const b=e.target.closest('button[data-gk]');if(!b)return;
       const a=V[b.dataset.gk][b.dataset.i].acties[b.dataset.j];
@@ -63,6 +68,9 @@
     });
     laadG();
   }
+  // MOB3: een chauffeur ziet op desktop dezelfde lichte weergave als op gsm (geen lege kantoorkolommen).
+  let eigenRol='';try{eigenRol=localStorage.getItem('sporty-rol')||'';}catch(e){/* geen opslag */}
+  if(eigenRol==='chauffeur'){document.body.classList.add('alleen-gsm');startGsm();return;}
   if(window.matchMedia('(max-width:767px)').matches){startGsm();return;}
 
   let DATA=null;
