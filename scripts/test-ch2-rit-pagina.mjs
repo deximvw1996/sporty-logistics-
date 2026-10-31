@@ -99,7 +99,7 @@ try {
   await app.klik('laden', String(cN20.check_id));
   T.check(app.data().stops[0].regels.find((x) => x.code === 'N20').geladen === true && scherm.includes('class="k aan"'), 'laden-knop → regel geladen (groen), voortgang uit de data');
   await app.klik('laden', String(cN20.check_id));
-  T.check(app.data().stops[0].regels.find((x) => x.code === 'N20').geladen === false, 'nogmaals tikken draait het terug');
+  T.check(app.data().stops[0].regels.find((x) => x.code === 'N20').geladen === true, 'TF5: nogmaals tikken draait niet stil terug');
   // niet mee (enkel stuk)
   const s3 = app.data().stops.find((s) => s.taak_id === t3), cH53 = s3.regels[0];
   app.ga('stop', t3);

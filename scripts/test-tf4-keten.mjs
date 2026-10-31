@@ -103,7 +103,7 @@ try {
 
   // ═══ G22 + G26 + G14: melding opgeteld, losse melding, Gemeld-chip ═══
   await A('POST', '/api/aanvullijst/melding', { sessie_id: nk2.sessie_id, item_naam: 'tf4 paal', soort: 'kapot', aantal: 2, foto_data: PNG });
-  const mm = (await A('GET', '/api/meldingen')).json.meldingen.filter((m) => /Tf4 Paal/i.test(m.tekst));
+  const mm = (await A('GET', '/api/meldingen')).json.meldingen.filter((m) => /Tf4 Paal.*gemeld vanuit/i.test(m.tekst)); // TF5: een natelling van de KV geeft nu ook een eigen melding
   T.check(mm.length === 1 && /\(3×\)/.test(mm[0].tekst) && mm[0].gelezen === false, `G22: de kantoormelding werd bijgewerkt naar het nieuwe aantal: "${mm[0] && mm[0].tekst}"`);
   r = await A('POST', '/api/aanvullijst/melding', { item_naam: 'Tf4 Losse emmer', soort: 'weg', aantal: 1 });
   const lijst = (await A('GET', '/api/nakijken')).json;

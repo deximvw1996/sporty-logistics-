@@ -44,7 +44,7 @@
       return '<a data-tab="' + t[0] + '"' + (t[0] === act ? ' class="act"' : '') + ' href="' + t[3] + '">' + t[1] + '<span>' + esc(t[2]) + (n ? ' <em>' + n + '</em>' : '') + '</span></a>';
     }).join('');
   }
-  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || (pad === '/aanvullen' && rol !== 'monitor') || pad === '/meldingen' || (rol === 'coordinator' && pad === '/tekorten'); };
+  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || (pad === '/aanvullen' && rol !== 'monitor') || pad === '/meldingen' || (rol === 'coordinator' && (pad === '/tekorten' || pad === '/zoeken')); };
   var isGsm = function () { return !!(root.matchMedia && root.matchMedia('(max-width:767px)').matches); };
   var naarLogin = function () { root.location.replace('/login?terug=' + encodeURIComponent(root.location.pathname + root.location.search)); };
   function tekenSchil(pad, tok) {
@@ -61,6 +61,7 @@
     }).then(function (w) {
       if (!w) return;
       rol = w.rol; try { root.localStorage.setItem('sporty-rol', rol); } catch (e) { /* geen opslag */ }
+      if (rol === 'coordinator' && pad === '/catalogus') { var cid = /[?&]id=(\d+)/.exec(root.location.search); root.location.replace('/zoeken?tab=artikelen' + (cid ? '&id=' + cid[1] : '')); return; } // TF5: de link Catalogus › in Tekorten komt op Artikelen uit
       if (!magOpGsm(rol, pad)) { root.location.replace('/vandaag'); return; }
       zet();
       if (rol === 'kantoor') { if (kantoorTellers) kantoorTellers(); } else ploegMenu();
@@ -90,11 +91,13 @@
     if (typeof document === 'undefined') return;
     pad = pad || root.location.pathname;
     var actief = PAGINA[pad];
-    var eigenBalk = pad === '/meer' || pad === '/locaties' || pad === '/meldingen'; // /locaties tekent zijn balken zelf (LO1); hij krijgt alleen de schil
+    var eigenBalk = pad === '/meer' || pad === '/locaties' || pad === '/meldingen' || pad === '/zoeken'; // /locaties tekent zijn balken zelf (LO1); hij krijgt alleen de schil
     if (!actief && !eigenBalk) return;
     // MOB1/TF3: niet ingelogd op een personeelspagina, op elke breedte → /login?terug=. De rest van de pagina wordt niet meer gelezen. De rol controleert tekenSchil met de sessie; de 403's blijven de echte grens.
     var tok0 = null; try { tok0 = root.localStorage.getItem('sporty-auth-token'); } catch (e) { /* geen opslag */ }
     if (!tok0) { document.write('<plaintext style="display:none">'); naarLogin(); return; }
+    var rol0 = null; try { rol0 = root.localStorage.getItem('sporty-rol'); } catch (e) { /* geen opslag */ }
+    if (rol0 === 'coordinator' && pad === '/catalogus') { var cid0 = /[?&]id=(d+)/.exec(root.location.search); document.write('<plaintext style="display:none">'); root.location.replace('/zoeken?tab=artikelen' + (cid0 ? '&id=' + cid0[1] : '')); return; } // TF5: vóór de pagina zelf doorstuurt
     if (pad === '/meldingen') { var lg = document.querySelector('.top .logo'); if (lg) lg.insertAdjacentHTML('afterend', boven('')); } // ME1: bovenbalk op desktop
     if (eigenBalk) { tekenSchil(pad, tok0); return; }
     var top = document.querySelector('.top');

@@ -94,13 +94,13 @@ try {
   const taak1 = r.json.id;
   r = await call('POST', '/api/ritten', { body: { datum: '2026-11-03', chauffeur: 'Testchauffeur', taak_ids: [taak1] } });
   const rit1 = r.json.id;
-  const tok1 = (await call('POST', `/api/ritten/${rit1}/token`)).json.token;
+  const tok1 = (await call('POST', `/api/ritten/${rit1}/token`)).json.token; await call('POST', `/api/ritten/${rit1}/klaarzet`, {}); // TF5
   r = await call('GET', '/rit/' + tok1, { sessie: false });
   // CH2: de pagina tekent zich uit de rit-data; zoek in de HTML die rit.js daaruit bouwt.
   const pgStatus = r.status;
   r.text = ritTekst((await call('GET', `/api/rit-token/${tok1}/data`, { sessie: false })).json);
   r.status = pgStatus;
-  check(r.status === 200 && r.text.includes(themaBak.naam) && r.text.includes(bulk.naam), 'rit-pagina toont de bakkenlijst zonder Klaarzetten (checks automatisch aangemaakt)');
+  check(r.status === 200 && r.text.includes(themaBak.naam) && r.text.includes(bulk.naam), 'rit-pagina toont de bakkenlijst na Klaarzetten (checks automatisch aangemaakt)');
   check(r.text.includes('Ik ben aangekomen'), 'rit-pagina heeft per stop een knop "aangekomen"');
   const checks1 = (await call('GET', `/api/ritten/${rit1}/checks`)).json.checks;
   check(checks1.length === 2, `rit heeft 2 checks (kreeg ${checks1.length})`);
@@ -146,7 +146,7 @@ try {
   check((await db('SELECT status FROM transport_taken WHERE id=?', [taak0]))[0].status !== 'gedaan', 'die taak staat NIET op gedaan');
   check(JSON.stringify(await spreiding(bulk.id)) === JSON.stringify(sp), 'spreiding ongewijzigd (geen bijtelling op thuis)');
   r = await call('POST', '/api/ritten', { body: { datum: '2026-11-07', chauffeur: 'Testchauffeur', taak_ids: [taak0] } });
-  const tok0 = (await call('POST', `/api/ritten/${r.json.id}/token`)).json.token;
+  const tok0 = (await call('POST', `/api/ritten/${r.json.id}/token`)).json.token; await call('POST', `/api/ritten/${r.json.id}/klaarzet`, {}); // TF5
   await call('GET', '/rit/' + tok0, { sessie: false });
   const c0 = (await call('GET', `/api/ritten/${r.json.id}/checks`)).json.checks[0];
   r = await call('POST', `/api/rit-token/${tok0}/checks/${c0.id}/lossen`, { sessie: false });
@@ -168,10 +168,10 @@ try {
   const taakOud = r.json.id;
   r = await call('POST', '/api/ritten', { body: { datum: '2026-11-07', chauffeur: 'Testchauffeur', taak_ids: [taakO, taakOud] } });
   const ritO = r.json.id;
-  const tokO = (await call('POST', `/api/ritten/${ritO}/token`)).json.token;
+  const tokO = (await call('POST', `/api/ritten/${ritO}/token`)).json.token; await call('POST', `/api/ritten/${ritO}/klaarzet`, {}); // TF5
   r = await call('GET', '/rit/' + tokO, { sessie: false });
   r.text = ritTekst((await call('GET', `/api/rit-token/${tokO}/data`, { sessie: false })).json);
-  check(r.text.includes(`3 × ${bulk.naam}`), 'ophaalrit-pagina toont de bulkregel van het voorstel (zonder Klaarzetten)');
+  check(r.text.includes(`3 × ${bulk.naam}`), 'ophaalrit-pagina toont de bulkregel van het voorstel (na Klaarzetten)');
   check(r.text.includes(themaBak.naam), 'oude ophaling zonder regels: bak afgeleid uit wat op de locatie staat voor dat kampmoment');
   const chO = (await call('GET', `/api/ritten/${ritO}/checks`)).json.checks;
   check(chO.some((c) => c.taak_id === taakOud && c.bak_id === themaBak.id), 'afgeleide check hangt aan de oude ophaaltaak met bak_id');
@@ -211,7 +211,7 @@ try {
   r = await call('PUT', `/api/aanvragen/${aid2}/status`, { body: { status: 'goedgekeurd', maak_spoedtransport: true } });
   const st2 = (await db('SELECT * FROM transport_taken WHERE id=?', [r.json.spoed_taak_id]))[0];
   check((await db('SELECT qty FROM transport_regels WHERE taak_id=?', [st2.id]))[0].qty === 1, 'aanvraag zonder getal → aantal 1');
-  const tok2 = (await call('POST', `/api/ritten/${st2.rit_id}/token`)).json.token;
+  const tok2 = (await call('POST', `/api/ritten/${st2.rit_id}/token`)).json.token; await call('POST', `/api/ritten/${st2.rit_id}/klaarzet`, {}); // TF5
   await call('GET', '/rit/' + tok2, { sessie: false });
   const c2 = (await call('GET', `/api/ritten/${st2.rit_id}/checks`)).json.checks[0];
   await call('POST', `/api/rit-token/${tok2}/checks/${c2.id}/laden`, { sessie: false });

@@ -112,6 +112,7 @@ try {
   r = await call('POST', `/api/ritten/${ritId}/checks/init`, { token: kantoor });
   check(r.status === 200 && r.json?.checks?.length >= 1, `checks/init -> ${r.status} (${r.json?.aangemaakt} checks)`);
   const checkId = (r.json?.checks || []).find((c) => c.bak_id === bakId)?.id;
+  await call('POST', `/api/ritten/${ritId}/klaarzet`, { token: kantoor, body: {} }); // TF5
   r = await call('POST', `/api/ritten/${ritId}/token`, { token: kantoor });
   check(r.status === 200 && r.json?.token, `rit-token -> ${r.status}`);
   const ritToken = r.json?.token;

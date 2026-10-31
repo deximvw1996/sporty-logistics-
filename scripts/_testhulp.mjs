@@ -135,6 +135,7 @@ export async function kvToken(base, token, kampmomentId, kvNaam = 'Test KV harna
 export async function ritToken(base, token, ritId) {
   const r = await api(base, token, 'POST', `/api/ritten/${ritId}/token`);
   if (r.status !== 200 || !r.json?.token) throw new Error(`rit-token ${ritId} mislukt: ${r.status} ${r.text.slice(0, 200)}`);
+  await api(base, token, 'POST', `/api/ritten/${ritId}/klaarzet`, {}); // TF5: de rit-link werkt pas na Klaarzetten
   return r.json.token;
 }
 

@@ -98,7 +98,7 @@ try {
   // Tellen-lijst
   app.ga('tellen');
   const tl = scherm;
-  T.check(tl.includes('KV01') && tl.includes('pil rood') && tl.includes('Telling versturen (') && tl.includes('maandag nakijken'), 'Tellen: bakkenlijst met pil "tekort" en "Telling versturen (n/m)"');
+  T.check(tl.includes('KV01') && tl.includes('pil rood') && tl.includes('Telling versturen (') && !tl.includes('maandag nakijken') && tl.includes('natellen mag de hele week'), 'Tellen: bakkenlijst met pil "tekort" en "Telling versturen (n/m)"');
   console.log('--- DOM-dump Tellen ---\n' + tekst(tl) + '\n');
   // bak 2: deels tellen (2 van 5) → versturen onvolledig
   app.ga('bak', bak2().id);

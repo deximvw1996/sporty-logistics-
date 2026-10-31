@@ -71,3 +71,14 @@ button{font:inherit;cursor:pointer;border:0;-webkit-tap-highlight-color:transpar
 .toast.fout{background:#b91c1c}
 .toast.zicht{opacity:1;transform:translate(-50%,0)}
 @media(min-width:520px){#app{box-shadow:0 0 24px rgba(0,0,0,.12)}}
+
+/* TF5 */
+.rek .alles{min-height:44px;padding:0 10px;border-radius:10px;background:#dbeafe;color:#1e3a8a;font-size:12px;font-weight:700;letter-spacing:0}
+.rek{align-items:center}
+.stuk .pn{display:block;min-height:44px;margin-top:4px;padding:0 10px;border-radius:10px;background:#fee2e2;color:#b91c1c;font-size:12px;font-weight:700}
+.wijzig{display:flex;align-items:center;gap:8px;background:#fef3c7;color:#92400e;font-size:14px;font-weight:700;padding:8px 12px}.wijzig button{min-width:44px;min-height:44px;background:transparent;color:inherit;font-size:18px}
+.blokknop{display:block;width:calc(100% - 24px);margin:10px 12px 0;min-height:52px;border-radius:12px;background:#2563eb;color:#fff;font-size:15px;font-weight:700;padding:8px 12px}.blokknop.licht{background:#dbeafe;color:#1e3a8a}
+.einde{margin:12px;padding:20px;border-radius:14px;background:#dcfce7;color:#15803d;text-align:center}.einde h2{font-size:20px;margin-bottom:6px}.einde a{display:inline-flex;align-items:center;min-height:44px;margin-top:10px;font-weight:700;color:#15803d}
+.belmeld{display:inline-flex;align-items:center;min-height:44px;color:#fff;font-weight:700;margin-left:10px}
+.toast{pointer-events:none}.toast.zicht{pointer-events:auto}.toast .ongedaan{display:block;width:100%;min-height:44px;margin-top:6px;border-radius:10px;background:#fff;color:#15803d;font-weight:700}
+.reisregel{font-size:14px;font-weight:700;margin-top:6px}

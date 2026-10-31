@@ -263,7 +263,8 @@ module.exports = function(ctx){
     if(req.query.mijn==='1'&&req.persoon&&req.persoon.rol!=='kv'){
       const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoDate(new Date());
       // ME1: ook ritten met alleen een chauffeursnaam, als die naam bij precies één actieve persoon past en dat deze gebruiker is.
-      const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id",[dag]).filter(r=>r.personeel_id?r.personeel_id===req.persoon.persoon_id:((ctx.persoonOpNaam(r.chauffeur)||{}).id===req.persoon.persoon_id)).map(r=>{
+      // TF5 punt 3: de bestuurder ziet een rit pas na Klaarzetten (een rit die al gestart is, blijft zichtbaar).
+      const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id",[dag]).filter(r=>r.klaarzet_status==='klaar'||(r.status&&r.status!=='gepland')).filter(r=>r.personeel_id?r.personeel_id===req.persoon.persoon_id:((ctx.persoonOpNaam(r.chauffeur)||{}).id===req.persoon.persoon_id)).map(r=>{
         const taken=all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[r.id]);
         let token=r.rit_token||'';if(!token){token=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[token,r.id]);} // MOB1: de NU-kaart opent de rit-weergave
         let bez=null;try{const i=ctx._ritPlanInfo(r);if(r.voertuig_capaciteit)bez={n:i.bezetting,max:r.voertuig_capaciteit};}catch(e){}

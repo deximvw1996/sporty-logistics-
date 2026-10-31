@@ -88,6 +88,13 @@
       + rijen + '<div class="onder"><span>' + afw.length + ' afwijking' + (afw.length === 1 ? '' : 'en') + ' · ' + bestel + ' bestelling' + (bestel === 1 ? '' : 'en') + ' klaar om te plaatsen · ' + afschr + ' afschrijving' + (afschr === 1 ? '' : 'en') + '</span>'
       + '<button type="button" class="knop licht klein" data-act="notitie-open">Notitie aan KV</button></div></div>';
   }
+  // TF5: per stuk de eerdere tellingen, uitklapbaar. Niets is ooit gewist.
+  function eerdereHtml(det) {
+    var m = det.items.filter(function (i) { return (i.eerdere_tellingen || []).length; });
+    if (!m.length) return '';
+    var rij = function (t) { return '<div class="rij"><div class="nm">' + (t.status ? esc(t.status) : 'geteld ' + esc(t.geteld)) + (t.kapot ? ' · ' + esc(t.kapot) + ' kapot' : '') + (t.te_veel ? ' · ' + esc(t.te_veel) + ' te veel' : '') + (t.notitie ? ' · ' + esc(t.notitie) : '') + (t.foto_url ? ' · <a href="' + esc(t.foto_url) + '" target="_blank" rel="noopener">foto</a>' : '') + '<b>' + esc(t.op) + (t.wie ? ' · ' + esc(t.wie) : '') + '</b></div></div>'; };
+    return '<div class="blok"><h4>Eerdere tellingen</h4>' + m.map(function (i) { return '<details><summary style="min-height:36px;cursor:pointer;padding:8px 0;font-weight:600">' + esc(i.naam) + ' · laatste: ' + esc(i.laatste_telling.status || i.laatste_telling.geteld) + ' · ' + i.eerdere_tellingen.length + ' eerder</summary>' + i.eerdere_tellingen.map(rij).join('') + '</details>'; }).join('') + '</div>';
+  }
   function histBlok(det, titel) {
     var h = det.historiek || [];
     return '<div class="blok"><h4>' + titel + '</h4>' + (h.map(function (x) { return '<div class="rij"><div class="nm">' + esc(x.tekst) + '<b>' + esc(x.tijd ? tijdKort(x.tijd) : '') + (x.wie ? ' · ' + esc(x.wie) : '') + '</b></div></div>'; }).join('') || '<div class="leeg" style="padding:12px">Nog niets gelogd.</div>') + '</div>';
@@ -109,7 +116,7 @@
     var inhoud;
     if (tab === 'vorige') inhoud = '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Vorige tellingen van deze bak</h4>' + ((det.vorige_tellingen || []).map(function (v) { return '<div class="rij"><div class="nm">' + esc(v.locatie) + ' · week ' + esc(v.week) + '<b>' + esc(v.datum) + (v.kv_naam ? ' · KV ' + esc(v.kv_naam) : '') + '</b></div><span class="pil">' + esc(v.uitslag) + '</span></div>'; }).join('') || '<div class="leeg" style="padding:12px">Geen eerdere tellingen.</div>') + '</div></div>';
     else if (tab === 'historiek') inhoud = '<div class="dgrid" style="grid-template-columns:1fr">' + histBlok(det, 'Historiek (alles gelogd)') + '</div>';
-    else inhoud = '<div class="dgrid een">' + telTabel(det) + histBlok(det, 'Historiek (alles gelogd)') + '</div>';
+    else inhoud = '<div class="dgrid een">' + telTabel(det) + eerdereHtml(det) + histBlok(det, 'Historiek (alles gelogd)') + '</div>';
     return '<div class="detail"><div class="dkop"><div><h2>' + esc(det.bak.code) + (det.bak.code ? ' · ' : '') + esc(det.bak.naam) + ' · ' + esc(det.locatie) + '</h2><span>week ' + esc(det.week) + ' · ' + wie + ' · ' + det.geteld + ' van ' + det.totaal + ' stuks ' + pils + '</span></div>'
       + '<div class="acts"><button type="button" class="knop licht" data-act="bak-openen">Bak openen</button><button type="button" class="knop licht" data-act="fotos"' + (fotos.length ? '' : ' disabled') + '>Foto\'s ' + fotos.length + '</button>'
       + (tel ? '<a class="knop licht" href="' + tel + '">KV bellen</a>' : '<button type="button" class="knop licht" disabled>KV bellen</button>')

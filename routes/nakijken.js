@@ -169,7 +169,7 @@ module.exports = function(ctx){
         // MOB2: voorraad van dit artikel (gsm toont "Rozenweg 40 · minimum 100" bij de regel)
         const vrd=it.item_type_id?all('SELECT l.name,s.qty,s.minimum FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? AND (s.qty>0 OR s.minimum>0) ORDER BY l.name',[it.item_type_id]):[];
         const voorraad_tekst=vrd.map(x=>`${x.name} ${Math.round(x.qty*100)/100}${x.minimum>0?' · minimum '+x.minimum:''}`).join(' · ');
-        return {voorraad_tekst,regel_id:r?r.id:null,naam:it.naam,verwacht:it.qty,aangetroffen:r&&r.aangetroffen!=null?r.aangetroffen:null,te_veel:r&&r.aangetroffen>it.qty?r.aangetroffen-it.qty:0,
+        return {voorraad_tekst,item_id:it.id,regel_id:r?r.id:null,naam:it.naam,verwacht:it.qty,aangetroffen:r&&r.aangetroffen!=null?r.aangetroffen:null,te_veel:r&&r.aangetroffen>it.qty?r.aangetroffen-it.qty:0,
           kapot_aantal:r?(r.kapot_aantal||0):0,notitie:r?(r.notitie||''):'',foto_url:r&&r.foto_path?'/uploads/'+r.foto_path:null,afwijking:afw,
           kantoor_actie:r?(r.kantoor_actie||''):'',kantoor_aantal:r&&r.kantoor_aantal?r.kantoor_aantal:aantal,kantoor_notitie:r?(r.kantoor_notitie||''):'',
           aangevuld:r?(r.aangevuld||0):0,tekort_status:r?(r.tekort_status||''):'',aantal_afwijking:aantal,
@@ -186,6 +186,10 @@ module.exports = function(ctx){
     });
     if(melding)return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id||null,locatie:loc,week:km.week||null,maandag:null,bak:rij.bak,geteld:0,totaal:items.length,uitslag_tekst:rij.uitslag_tekst,status:rij.status,kv_naam:'',ingediend_op:'',nagekeken_op:rij.nagekeken_op,
       afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').length,te_veel:0,kapot:items.filter(i=>i.afwijking==='kapot').length},items,foto_s:items.filter(i=>i.foto_url).map(i=>({url:i.foto_url,stuk:i.naam})),vorige_tellingen:[],historiek:[],contact:{kv_naam:'',kv_telefoon:''}};
+    // TF5: alle tellingen per stuk, nieuwste eerst, uit de onwisbare kv_telling_versies.
+    const _tv=sessie?all('SELECT * FROM kv_telling_versies WHERE sessie_id=? ORDER BY id DESC',[sessie.id]):[];
+    const _tvUit=v=>({op:fmtDatumTijd(v.op),wie:v.wie||'',via:v.via||'',geteld:v.geteld,kapot:v.kapot||0,te_veel:v.te_veel||0,status:v.status||'',notitie:v.notitie||'',foto_url:v.foto_path?'/uploads/'+v.foto_path:null});
+    items.forEach(i=>{if(i.gemeld_door)return;const eig=_tv.filter(v=>bak.soort==='attribuut'?true:v.item_id===i.item_id).map(_tvUit);i.laatste_telling=eig[0]||null;i.eerdere_tellingen=eig.slice(1);});
     // Vorige tellingen van dezelfde bak in andere kampmomenten.
     const veld=bak.soort==='attribuut'?'attribuut_id':bak.soort==='thema'?'thema_bak_id':'vaste_bak_id';
     const andere=all(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veld}=? ${sessie?'AND id<>?':''} ORDER BY id DESC LIMIT 12`,sessie?[bak.soort,bak.id,sessie.id]:[bak.soort,bak.id]);
