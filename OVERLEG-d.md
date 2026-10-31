@@ -588,3 +588,24 @@ De voettekst ("2 kampmomenten · 0 geselecteerd") stond 40 px te laag en viel on
 
 ### Volle run
 Run 13: **60/60 groen**. De andere runs vielen uit door omgeving, niet door code: poort 3311 (v3a-keten) werd vastgehouden door een draaiende test van chat C (`D:\Sporty\sporty-c\scripts	est-f1-modules.mjs`, pid 37084), en één keer hing `tf3-rechten` 495 s waarna vijf tests op een time-out liepen; die vijf waren apart allemaal groen (35, 33, 47, 62 en 55 ok). Een tweede aaneengesloten groene run kon ik daardoor niet krijgen; wel is `test-tf10` 20 ok en zijn pl1, pl3, mob2, tf4, tf6, tf8 en ko1 in die groene run groen.
+
+## VERSLAG BW1 — Nieuw kampmoment, themakeuze en standaardmateriaal per locatie
+
+**Bewijs:** `scripts/test-bw1.mjs` = 59 controles groen (eigen poort 3364). Volle run: 64/64 groen, twee keer na elkaar (een eerdere run viel op een poort-botsing met andere chats: bw1 en kv1-pagina 0,4 s, daarna groen zonder wijziging). `f1-modules` moest de nieuwe route `/api/standaardmateriaal/:locId` leren kennen; aangepast.
+
+**Punt 1 — Nieuw kampmoment (tab 1):** dialoog `public/kampmoment-nieuw.js`, route `POST /api/kampmomenten/nieuw`. Alles optioneel behalve locatie en week (technisch nodig: er bestaat geen kampmoment zonder). Knoppen "Leeg kampmoment maken" / "Kampmoment maken (n weken)", één kampmoment per week, dagen, KV, thema's met aantal groepen (opgeslagen in `kampmoment_themas.groepen`, aanpasbaar in Gegevens), vinkje standaardmateriaal. Geen kinderen/kleuters/monitoren. Thema elders = melding, nooit een verbod. Bestaat locatie+week al: per week een duidelijke uitkomst, de rest wordt gemaakt.
+
+**Punt 2 — Themakeuze (tab 2):** `public/themakeuze.js`, `GET /api/themakeuze`; vanuit kampmoment én rooster (wissel). Tabs Kampen/Themadagen, filters, zoeken (ook op firma), kolommen. "Al ingepland" alleen bij periode > 2 weken. Migratie (twee keer gedraaid, niets overschreven): `extern_firma`, `is_zwem`, `locatie_nodig`; leeftijdsgroep `tieners` bestaat als keuze; bewerken in Materiaal › Thema's. Leeg toont "—", filter "Zonder info" voor onbekend.
+**Themabundels (alleen namen gelezen):** `Themabundels kampen` = Kleuterkampen (53), Lagere school kampen (52), Tieners (15); `Themabundels themadagen` = Kleuters, Lagere school. Tieners-map bevat *activiteitenfiches* (Archery tag, Catan, Kajak, Klimmen, MTB, …), geen themanamen: 0 van de 184 thema's in de db komt overeen, dus **er is geen thema op Tieners gezet**. Kleuter-/lagere-school-namen komen voor 39/37 deels overeen, maar leeftijdsgroep staat al op alle 184 thema's. `extern_firma`, `is_zwem`, `locatie_nodig` blijven overal leeg: niets verzonnen, niets afgeleid.
+
+**Punt 3 — Standaardmateriaal per locatie (tab 3):** `/standaardmateriaal` (tab onder Locaties), op `locatie_materiaal`: vinkje, aantal, catalogus zoeken, "Kopieer van locatie", voorraadmelding ("2 locaties samen 4, voorraad 3", nooit een verbod). Generator bleek dit al te doen (levert eerste open week, laat staan, haalt laatste week op); bewezen met cijfers in de test. Opening: nieuw per-kampmoment vinkje `standaard_materiaal` (uit = niets). Wijziging tijdens open weken: voorstel + na bevestiging taak voor kantoor (bijleveren/ophalen).
+
+**Niet gedaan / afwijkingen:** screenshots 1366×768 en gsm 390 van het standaardmateriaal-scherm en de dialogen zijn niet allemaal afzonderlijk vastgelegd (1920×900 wel, dialogen 1 en 2); knoppen ≥ 44 px alleen in CSS gecontroleerd, niet gemeten op een echte gsm.
+
+### GEVONDEN
+- Locatie en week zijn technisch verplicht bij een nieuw kampmoment.
+- Algemene `standaard_materiaal`-lijst blijft fallback voor locaties zonder eigen lijst (scherm meldt dat).
+- Thema-aanmaakformulier (nieuw thema) kent de nieuwe velden nog niet; alleen bewerken.
+- Themadag-kampmoment gebruikt nog de oude dagdialoog.
+- Rooster-themakeuze geeft geen locatie mee, "elders" kan de huidige locatie bevatten.
+- `public/nav.js`: één PAGINA-regel toegevoegd.

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Standaardmateriaal — Sporty logistiek</title>
+<link rel="stylesheet" href="/public/patroon.css">
+<link rel="stylesheet" href="/public/locaties.css">
+<link rel="stylesheet" href="/public/standaardmateriaal.css">
+</head><body>
+<div class="frame"><div class="top"><div class="logo">Sporty logistiek</div><a href="/vandaag">🏠 Vandaag <span class="b" id="b-vandaag" hidden></span></a><a href="/kampmomenten">📅 Planning</a><a href="/ritplanning">🚚 Transport</a><a href="/bakken">📦 Materiaal</a><a class="act" href="/locaties">📍 Locaties</a><a href="/nakijken">🧮 Voorraad &amp; controles</a><a href="/personeel">⚙️ Beheer</a><div class="rechts"><span class="per">Periode: <b id="per-naam">…</b> ▾<select id="per-kies" aria-label="Periode kiezen"></select></span><span id="wie"></span></div></div><div class="sub"><a href="/locaties">Locaties</a><a href="/locaties?zicht=kaart">Kaart</a><a href="/locaties?weergave=contacten">Contacten</a><a class="act" href="/standaardmateriaal">Standaardmateriaal</a></div><div class="body" id="body"><div class="kaart lijst"><div class="filters"><input id="zoek" type="search" placeholder="🔍 Zoek locatie…" aria-label="Zoek locatie"></div><div class="scroll" id="lijst"></div></div><div class="kaart" id="detail"><div class="leeg">Kies links een locatie.</div></div></div></div>
+<div id="toasts"></div>
+<script src="/public/nav.js"></script><script src="/public/standaardmateriaal.js"></script>
+</body></html>

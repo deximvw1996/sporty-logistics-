@@ -187,6 +187,7 @@ module.exports = function(ctx){
       // Filter themadag-kampmomenten weg vóór het itereren — anders breken
       // de prevKm/nextKm contiguïteits-checks (de themadag staat tussen 2 themakampen).
       const kmList=kmListAll.filter(k=>k.type!=='themadag').sort((a,b)=>a.week-b.week);
+      const stdAan=!kmList.length||kmList[0].standaard_materiaal!==0; // BW1: het vinkje "standaardmateriaal mee" van het eerste kampmoment geldt voor levering én ophaling
       // S5.2: basis-materiaal en kleurenborden volgen "periode-bereik per locatie" i.p.v.
       // "aansluitende weken" — enkel de EERSTE open week van de locatie in de periode levert,
       // enkel de LAATSTE haalt op; gap-weken (locatie tijdelijk dicht, later weer open) krijgen
@@ -241,7 +242,7 @@ module.exports = function(ctx){
         // eerste levering van dit kampmoment — zelfde timing als locConfigRegels.
         const themaBehoefteRegels=_themaBehoefteRegels(km,kmThemas,false);
         // Basis-materiaal met per-item stockage (fallback: sportStockageId)
-        const basisRegels=locMat.map(m=>({naam:m.name,qty:m.qty,soort:'basis',stockage_id:m.stockage_locatie_id||sportStockageId}));
+        const basisRegels=(stdAan?locMat:[]).map(m=>({naam:m.name,qty:m.qty,soort:'basis',stockage_id:m.stockage_locatie_id||sportStockageId}));
 
         // Groepeer regels per stockage-locatie en push één transport per groep
         function byStockage(regels){const g={};regels.forEach(r=>{if(!r.stockage_id)return;const k=r.stockage_id;if(!g[k])g[k]=[];g[k].push(r);});return g;}

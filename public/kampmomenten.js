@@ -89,6 +89,8 @@
     return '<div class="dgrid een"><div class="blok"><h4>Kampmoment</h4>'
       + '<div class="kv"><span>Dagen</span><b>' + dagenHtml(D) + '</b></div>'
       + '<div class="kv"><span>Thema</span><b>' + themaRegel + '</b></div>'
+      + D.themas.map(function (t) { return '<div class="kv"><span></span><b style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' + esc(t.naam) + '<span class="stapje" style="display:inline-flex;gap:4px;align-items:center"><button type="button" class="knop licht klein" style="min-width:44px;height:44px" data-grp-kt="' + t.kt_id + '" data-d="-1" data-n="' + (t.groepen || 1) + '" aria-label="Minder groepen voor ' + esc(t.naam) + '">−</button><b>' + (t.groepen || 1) + ' groep' + ((t.groepen || 1) === 1 ? '' : 'en') + '</b><button type="button" class="knop licht klein" style="min-width:44px;height:44px" data-grp-kt="' + t.kt_id + '" data-d="1" data-n="' + (t.groepen || 1) + '" aria-label="Meer groepen voor ' + esc(t.naam) + '">+</button></span></b></div>'; }).join('')
+      + '<div class="kv"><span>Standaard</span><b><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" data-std' + (D.standaard_materiaal === false ? '' : ' checked') + '> standaardmateriaal van de locatie mee leveren en ophalen <a href="/standaardmateriaal?locatie=' + D.locatie.id + '" class="pil" style="text-decoration:none">bewerken</a></label></b></div>'
       + '<div class="kv"><span>KV</span><b>' + kv + '</b></div><div class="kv"><span>Groep</span><b>' + groepHtml(D) + '</b></div><div class="kv"><span>Kookdagen</span><b>' + kook + '</b></div>'
       + '<div class="kv"><span>Opmerking</span><b style="flex:1"><textarea data-veld="opmerking" placeholder="optioneel">' + esc(D.opmerking) + '</textarea></b></div>'
       + '<h4 style="margin-top:14px">Transport voor dit kampmoment</h4>' + transportRijen(D) + '</div>'
@@ -198,6 +200,25 @@
       na: function (bg) { bg.addEventListener('click', async function (e) { var b = e.target.closest('[data-kopieer]'); if (!b) return; try { await root.navigator.clipboard.writeText(b.getAttribute('data-kopieer')); toast('✓ Link gekopieerd', 'success'); } catch (x) { toast('Kopiëren lukte niet — selecteer de link en kopieer zelf.', 'warn'); } }); } });
     await laad();
   }
+  async function kiesThemaNieuw(details, enkel) {
+    var gek = await root.ThemaKeuze.open({ periode_id: O.periode && O.periode.id, week: enkel ? enkel.week : null, locatie_id: enkel ? enkel.locatie.id : null,
+      gekozen: enkel ? enkel.themas.map(function (t) { return t.id; }) : [], titel: enkel ? 'Thema kiezen — ' + enkel.locatie.naam + ' · week ' + enkel.week : 'Thema toewijzen aan ' + details.length + ' kampmomenten' });
+    if (!gek) return;
+    var ids = gek.map(function (t) { return t.id; }), gedaan = 0, fouten = 0;
+    for (var j = 0; j < details.length; j++) {
+      var d = details[j], nu = d.themas.map(function (t) { return t.id; });
+      if (enkel) for (var a = 0; a < d.themas.length; a++) if (ids.indexOf(d.themas[a].id) < 0) { await aanroep('DELETE', '/api/kampmomenten/' + d.id + '/themas/' + d.themas[a].kt_id); gedaan++; }
+      for (var b = 0; b < gek.length; b++) {
+        if (nu.indexOf(gek[b].id) >= 0) continue;
+        var r = await aanroep('POST', '/api/kampmomenten/' + d.id + '/themas', { thema_id: gek[b].id, leeftijdsgroep: gek[b].leeftijdsgroep || '', groepen: 1 });
+        if (r.ok) gedaan++; else { fouten++; toast(r.json.error || 'Thema koppelen mislukt', 'error'); }
+      }
+    }
+    var elders = gek.filter(function (t) { return t.elders && t.elders.length; });
+    if (elders.length) toast('Let op: ' + elders.map(function (t) { return t.naam + ' staat die week ook in ' + t.elders.join(', '); }).join('; '), 'warn');
+    if (gedaan && !fouten) toast('✓ Thema opgeslagen', 'success'); else if (!gedaan && !fouten) toast('Niets gewijzigd.', 'info');
+    await laad();
+  }
   async function kiesThema(ids) {
     // ids: één kampmoment (detail D) of een selectie
     var kms = ids.map(function (id) { return O.kampmomenten.filter(function (k) { return k.id === id; })[0]; }).filter(Boolean);
@@ -206,6 +227,7 @@
     if (!details.length) return;
     var enkel = details.length === 1 ? details[0] : null;
     var themadag = enkel && enkel.type === 'themadag';
+    if (!themadag) { await kiesThemaNieuw(details, enkel); return; } // BW1 punt 2: de nieuwe themakeuze
     var gemeen = details[0].themas_beschikbaar.filter(function (t) { return details.every(function (d) { return d.themas_beschikbaar.some(function (x) { return x.id === t.id; }); }); });
     // TF4 G8: thema's die die week al elders staan blijven kiesbaar (onderaan, met waar ze staan): melden, niet verbieden
     var bezetMap = {}; details.forEach(function (d) { (d.themas_bezet || []).forEach(function (t) { if (!gemeen.some(function (g) { return g.id === t.id; })) { (bezetMap[t.id] = bezetMap[t.id] || { id: t.id, naam: t.naam, bij: [] }).bij.push(t.bij); } }); });
@@ -247,6 +269,19 @@
     }
     if (gedaan && !fouten) toast('✓ Thema opgeslagen', 'success'); else if (!gedaan && !fouten) toast('Niets gewijzigd.', 'info');
     await laad();
+  }
+  // BW1 punt 1: het nieuwe kampmoment is een eigen dialoog (kampmoment-nieuw.js); bewerken blijft het korte formulier.
+  async function nieuwKampmoment() {
+    var locs = await locaties(), pr = await aanroep('GET', '/api/personeel');
+    var kvs = pr.ok && Array.isArray(pr.json) ? pr.json.filter(function (x) { return x.rol === 'kv' && x.actief !== 0; }).map(function (x) { return { id: x.id, naam: x.naam }; }) : [];
+    var res = await root.KampNieuw.open({ periode: O.periode, locs: locs, kvs: kvs });
+    if (!res) return;
+    var regels = (res.weken || []).filter(function (w) { return w.status === 'bestond_al' || (w.meldingen && w.meldingen.length); });
+    toast(res.gemaakt ? '✓ ' + res.gemaakt + ' kampmoment' + (res.gemaakt === 1 ? '' : 'en') + ' gemaakt' + (res.bestond_al ? ' · ' + res.bestond_al + ' bestond' + (res.bestond_al === 1 ? '' : 'en') + ' al' : '') : 'Er is niets nieuws gemaakt: ' + res.bestond_al + ' bestond' + (res.bestond_al === 1 ? '' : 'en') + ' al.', res.gemaakt ? 'success' : 'warn');
+    await laad();
+    var eerste = (res.weken || []).filter(function (w) { return w.status === 'gemaakt'; })[0];
+    if (eerste) await laadDetail(eerste.id);
+    if (regels.length) await vraag({ titel: 'Per week', tekst: 'Dit viel op bij het maken:', ok: 'OK', annuleer: '', html: '<div style="grid-column:1/-1">' + (res.weken || []).map(function (w) { return '<div class="linkrij"><span>' + (w.status === 'bestond_al' ? '⚠ ' : '✓ ') + esc(w.tekst) + '</span></div>'; }).join('') + '</div>', lees: function () { return {}; } });
   }
   async function kampmomentForm(bewerk) {
     var locs = await locaties(), weken = []; for (var w = 1; w <= (O.periode ? O.periode.max_weken : 9); w++) weken.push(w);
@@ -304,7 +339,12 @@
     d.innerHTML = pil.getAttribute('data-tip').split('\n').map(function (x) { return '<div>• ' + esc(x) + '</div>'; }).join('');
     document.body.appendChild(d);
   }, true);
+  document.addEventListener('change', async function (e) {
+    if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-std') && D) { var rs = await aanroep('PUT', '/api/kampmomenten/' + D.id + '/velden', { standaard_materiaal: e.target.checked }); if (!rs.ok) return toast(rs.json.error || 'Opslaan mislukt', 'error'); toast(e.target.checked ? '✓ Standaardmateriaal gaat mee' : '✓ Standaardmateriaal gaat niet mee', 'success'); await laad(); }
+  });
   document.addEventListener('click', async function (e) {
+    var gk = e.target.closest && e.target.closest('[data-grp-kt]');
+    if (gk && D) { var nw = Math.max(1, Math.min(20, +gk.getAttribute('data-n') + +gk.getAttribute('data-d'))); var rg = await aanroep('PUT', '/api/kampmomenten/' + D.id + '/themas/' + gk.getAttribute('data-grp-kt') + '/groepen', { groepen: nw }); if (!rg.ok) return toast(rg.json.error || 'Opslaan mislukt', 'error'); await laad(); return; }
     var el = e.target;
     var cb = el.closest('input[data-sel]');
     if (cb) { var id0 = +cb.getAttribute('data-sel'); if (cb.checked) ST.sel.add(id0); else ST.sel.delete(id0); tekenLijst(); e.stopPropagation(); return; }
@@ -333,7 +373,7 @@
   document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role=button]')) { e.preventDefault(); e.target.click(); } });
   $('zoek').oninput = function (e) { ST.zoek = e.target.value; tekenLijst(); };
   $('alles').onchange = function (e) { zichtbaar(O, ST).forEach(function (k) { if (e.target.checked) ST.sel.add(k.id); else ST.sel.delete(k.id); }); tekenLijst(); };
-  $('nieuw').onclick = function () { kampmomentForm(false); };
+  $('nieuw').onclick = function () { nieuwKampmoment(); };
   $('genereer-alles').onclick = function () { genereer([]); };
   $('b-genereer').onclick = function () { genereer(Array.from(ST.sel)); };
   $('b-kvlinks').onclick = function () { toonLinks(Array.from(ST.sel)); };

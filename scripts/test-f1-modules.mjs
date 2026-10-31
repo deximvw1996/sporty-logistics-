@@ -139,6 +139,7 @@ try {
     .replace('/api/personeel/:id/detail', '/api/personeel/10/detail') // BH1
     .replace('/api/logboek/wijziging/:id', '/api/logboek/wijziging/999999') // BH1: onbekend → 404
     .replace('/api/nakijken/sessie/:id', '/api/nakijken/sessie/1') // VC1: onbekende sessie → 404 (geen 5xx)
+    .replace('/api/standaardmateriaal/:locId', '/api/standaardmateriaal/1') // BW1
     .replace('/api/catalogus/:id/detail', '/api/catalogus/1/detail') // MA2
     .replace('/api/voertuigen/:id/detail', '/api/voertuigen/1/detail') // VT1
     .replace('/api/sportrooster/soort/:soort', '/api/sportrooster/soort/Kinball') // PL3

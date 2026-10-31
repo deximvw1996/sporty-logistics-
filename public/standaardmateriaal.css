@@ -1,0 +1,16 @@
+/* public/standaardmateriaal.css — BW1 punt 3: aanvullingen op locaties.css (de stijl is die van tab 3 van design/mockup-opdracht-kampmoment.html). */
+.th{display:grid;gap:10px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;padding:0 0 6px}
+.tr{display:grid;align-items:center;gap:10px;min-height:44px;border-top:1px solid #eef2f7;font-size:13px}
+.stapje{display:inline-flex;gap:4px;align-items:center}.stapje button{width:44px;height:44px;border-radius:8px;background:#f1f5f9;color:#1e3a8a;font-weight:800;border:0;cursor:pointer}.stapje b{min-width:30px;text-align:center}
+.opt{color:#94a3b8}.pil.oranje{background:#ffedd5;color:#c2410c}
+.filters{flex-wrap:wrap}.filters input[type=search]{max-width:360px;flex:1;min-width:150px;height:44px}
+.r .k{color:#64748b;font-size:12px}.terug{display:none}
+#detail{overflow:hidden}#detail .scroll{min-height:0}
+@media (max-width:767px){
+  .body{grid-template-columns:1fr;height:auto;min-height:calc(100vh - var(--tk-h,0px) - 104px)}
+  .body #detail{display:none}.body.toon-detail #detail{display:flex}.body.toon-detail .lijst{display:none}
+  .terug{display:inline-flex;align-items:center;min-height:44px;font-weight:700;color:#1e3a8a;cursor:pointer}
+  .tr{grid-template-columns:30px 1fr 130px !important;row-gap:2px}.tr>span:nth-of-type(1){display:none}.th{display:none}
+  .tr>span:nth-of-type(3),.tr>span:nth-of-type(4){grid-column:1/-1}
+  .r{min-height:56px}
+}
