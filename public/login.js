@@ -3,7 +3,7 @@
 'use strict';
 (function(){
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const ROL={kantoor:'kantoor',chauffeur:'chauffeur',coordinator:'coördinator',monitor:'monitor'};
+  const ROL={kantoor:'kantoor',chauffeur:'chauffeur',monitor:'monitor'};
   const KOP='<div class="logo">Sporty logistiek</div><div class="vraag">Wie ben je?</div>';
   const VOET='<div class="voettekst">Je blijft ingelogd op deze gsm · Pincode vergeten? Vraag het kantoor</div>';
   const BOUW={

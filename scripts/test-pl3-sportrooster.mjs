@@ -95,9 +95,9 @@ try {
   // ═══ Wie doet de verhuis ═══
   const pers = (await A('GET', `/api/sportrooster/soort/${encodeURIComponent(H.soort)}?${q()}`)).json;
   const chauf = pers.personeel.find((p) => p.rol === 'chauffeur');
-  T.check(!!chauf && pers.personeel.every((p) => ['chauffeur', 'coordinator', 'kv'].includes(p.rol)), `keuzelijst bevat alleen chauffeur/coördinator (${pers.personeel.length})`);
+  T.check(!!chauf && pers.personeel.every((p) => ['chauffeur', 'kantoor', 'kv'].includes(p.rol)), `keuzelijst bevat alleen chauffeur/coördinator (${pers.personeel.length})`);
   T.check((await A('PUT', `/api/sportrooster/verhuis/${taken[0].id}`, { wie_id: chauf.id })).json.wie === chauf.naam, `verhuis krijgt ${chauf.naam}`);
-  T.check((await A('PUT', `/api/sportrooster/verhuis/${taken[0].id}`, { wie_id: 4 })).status === 400, 'een kantoor-persoon als verhuizer wordt geweigerd');
+  T.check((await A('PUT', `/api/sportrooster/verhuis/${taken[0].id}`, { wie_id: 999999 })).status === 400, 'TF9: kantoor mag verhuizen; een onbekende persoon wordt geweigerd');
   const pers2 = (await A('GET', `/api/sportrooster/soort/${encodeURIComponent(H.soort)}?${q()}`)).json;
   T.check(pers2.verhuis[0].wie === chauf.naam, 'paneel toont de gekozen verhuizer');
   const tk2 = (await A('GET', '/api/transport-taken')).json.find((t) => t.id === taken[0].id);

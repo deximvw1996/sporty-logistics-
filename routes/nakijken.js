@@ -473,7 +473,7 @@ module.exports = function(ctx){
   // waar kantoor in Nakijken over beslist; de voorraad verandert pas via de gewone keten.
   app.post('/api/aanvullijst/melding',(req,res)=>{
     const p=req.persoon||{};
-    if(!['kantoor','coordinator','chauffeur'].includes(p.rol))return res.status(403).json({error:'Alleen kantoor, coördinator of chauffeur kan iets melden.'});
+    if(!['kantoor','chauffeur'].includes(p.rol))return res.status(403).json({error:'Alleen kantoor of chauffeur kan iets melden.'});
     const b=req.body||{};
     const naam=String(b.item_naam||'').trim().slice(0,80),soort=b.soort,aantal=parseFloat(b.aantal);
     if(!naam)return res.status(400).json({error:'Vul in welk stuk het is.'});
@@ -554,7 +554,7 @@ module.exports = function(ctx){
   // TF8: "Bak klaar" wordt bewaard (wie en wanneer) en blijft in de lijst zichtbaar. Alleen als alles wat de aanvuller kan doen af is.
   app.post('/api/aanvullijst/sessie/:id/klaar',(req,res)=>{
     const pr=req.persoon||{};
-    if(!['kantoor','coordinator'].includes(pr.rol))return res.status(403).json({error:'Alleen kantoor of een coördinator zet een bak op klaar.'});
+    if(pr.rol!=='kantoor')return res.status(403).json({error:'Alleen kantoor zet een bak op klaar.'});
     const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]);
     if(!s)return res.status(404).json({error:'Deze bak bestaat niet (meer).'});
     const klaar=!(req.body&&(req.body.klaar===false||req.body.klaar===0||req.body.klaar==='0'));

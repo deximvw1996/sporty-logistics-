@@ -194,7 +194,7 @@ module.exports = function(ctx){
       return {id:x.id,label:x.label,item:x.item,stockage:x.stockage_locatie_id?(c.locNaam.get(x.stockage_locatie_id)||''):'',
         deze_week:rs.map(r=>`${r.loc} ${dagTekst(r.dag_van,r.dag_tot)}`).join(' · ')||'vrij'};
     });
-    const personeel=all("SELECT id,naam,rol FROM personeel WHERE rol IN ('chauffeur','coordinator','kv') AND COALESCE(actief,1)=1 ORDER BY naam COLLATE NOCASE");
+    const personeel=all("SELECT id,naam,rol FROM personeel WHERE rol IN ('chauffeur','kantoor','kv') AND COALESCE(actief,1)=1 ORDER BY naam COLLATE NOCASE");
     const ingepl=zomer.length,tekort=zomer.filter(z=>z.te_weinig).length;
     res.json({soort,week,label:weekLabel(per,week),weken:aantalWeken(per),sets:s.sets.length,dagen:di.dagen,raster,let_op:letOp,verhuis,hele_zomer:zomer,sets_lijst:setsLijst,personeel,
       samenvatting:{week:tw.length?`${s.sets.length} sets · ${dagTekst(tw[0],tw[tw.length-1])} ${Math.max(...di.dagen.map(x=>x.in_gebruik))} nodig`:`${s.sets.length} sets`,
@@ -269,7 +269,7 @@ module.exports = function(ctx){
   // Wie doet de verhuis: een chauffeur of coördinator.
   app.put('/api/sportrooster/verhuis/:taakId',alleenKantoor,(req,res)=>{
     const t=get("SELECT * FROM transport_taken WHERE id=? AND categorie LIKE 'sv:%'",[req.params.taakId]);if(!t)return res.status(404).json({error:'Verhuistaak niet gevonden'});
-    const p=get("SELECT id,naam,rol FROM personeel WHERE id=? AND rol IN ('chauffeur','coordinator','kv')",[req.body&&req.body.wie_id]);
+    const p=get("SELECT id,naam,rol FROM personeel WHERE id=? AND rol IN ('chauffeur','kantoor','kv')",[req.body&&req.body.wie_id]);
     if(!p)return res.status(400).json({error:'Kies een chauffeur of coördinator'});
     updateMetLog(req,'transport_taken',t.id,{wie:p.naam},'sportrooster');
     if(ctx.melding&&t.wie!==p.naam)ctx.melding(req,{voor_persoon_id:p.id,van_naam:req.persoon.naam,tekst:`Verhuistaak voor jou: ${t.opmerking}`,link:'/vandaag'}); // ME1

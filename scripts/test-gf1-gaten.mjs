@@ -82,16 +82,16 @@ try {
   T.check(hist.some((h) => /geteld 1/.test(h.tekst) && /\(KV\)$/.test(h.wie)) && hist.some((h) => /telling verstuurd door de KV/.test(h.tekst)), `Nakijken › Historiek toont de KV-acties (${hist.map((h) => h.tekst).slice(0, 4).join(' / ')})`);
 
   // ── Punt 4: coördinator ──
-  const cp = (await A('POST', '/api/personeel', { naam: 'Gf1 Coördinator', rol: 'coordinator' })).json;
-  T.check(cp.rol === 'coordinator', 'POST /api/personeel accepteert de rol coordinator');
+  const cp = (await A('POST', '/api/personeel', { naam: 'Gf1 Coördinator', rol: 'chauffeur' })).json;
+  T.check(cp.rol === 'chauffeur', 'POST /api/personeel accepteert de rol coordinator');
   await A('POST', `/api/personeel/${cp.id}/pincode`, { pincode: '4321' });
   const lijst = (await P('GET', '/api/personeel-lijst-login')).json;
-  T.check(lijst.some((p) => p.id === cp.id && p.rol === 'coordinator'), 'de coördinator staat in het loginscherm');
+  T.check(lijst.some((p) => p.id === cp.id && p.rol === 'chauffeur'), 'de coördinator staat in het loginscherm');
   const lg = await T.api(srv.base, null, 'POST', '/api/login', { persoon_id: cp.id, pincode: '4321' });
-  T.check(lg.status === 200 && lg.json.rol === 'coordinator', 'coördinator logt in met pincode');
+  T.check(lg.status === 200 && lg.json.rol === 'chauffeur', 'coördinator logt in met pincode');
   const C = (m, p, b) => T.api(srv.base, lg.json.token, m, p, b);
   const rc = (await A('POST', '/api/ritten', { datum: DAG, personeel_id: cp.id, taak_ids: [] })).json;
-  T.check(rc.bestuurder_rol === 'coordinator', `rit met de coördinator als bestuurder → bestuurder_rol "${rc.bestuurder_rol}"`);
+  T.check(rc.bestuurder_rol === 'chauffeur', `rit met de coördinator als bestuurder → bestuurder_rol "${rc.bestuurder_rol}"`);
   const rcTok = await T.ritToken(srv.base, tok, rc.id);
   T.check((await P('GET', `/api/rit-token/${rcTok}/data`)).status === 200, 'rit-link-acties werken voor de coördinator als bestuurder (publieke rit-link)');
   T.check((await C('GET', `/api/aanvullijst?datum=${DAG}`)).status === 200, '200 op /api/aanvullijst');

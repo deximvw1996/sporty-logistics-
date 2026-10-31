@@ -141,7 +141,7 @@ module.exports = function(ctx){
     res.json(rij.map(a=>({id:a.id,tekst:a.tekst,locatie:a.km_locatie||'',created_at:a.created_at})));
   });
   app.put('/api/aanvragen/:id/artikel',(req,res)=>{
-    if(!req.persoon||!['kantoor','coordinator'].includes(req.persoon.rol))return res.status(403).json({error:'Alleen kantoor of een coördinator kiest het artikel.'});
+    if(!req.persoon||req.persoon.rol!=='kantoor')return res.status(403).json({error:'Alleen kantoor kiest het artikel.'});
     const a=get('SELECT * FROM aanvragen WHERE id=?',[req.params.id]);
     if(!a)return res.status(404).json({error:'Aanvraag niet gevonden'});
     if(a.status!=='goedgekeurd')return res.status(409).json({error:'Deze aanvraag is niet goedgekeurd.'});
@@ -195,7 +195,7 @@ module.exports = function(ctx){
       }
     }
     // TF6: goedkeuren van een materiaalaanvraag maakt echt werk (zie boven).
-    let redenNieuw=reden||'';
+    let redenNieuw=reden||'',_onbekend=false; // TF9: één melding per beslissing
     if(status==='goedgekeurd'&&a.status!=='goedgekeurd'&&a.soort==='materiaal'&&a.kampmoment_id){
       const b=req.body||{},t=_artikelVan(a,b),aantal=_aantalVan(a,b);
       const naam=t?t.naam:String(b.artikel||a.tekst||'').replace(/^\s*\d+\s*[×x]\s*/i,'').trim();
@@ -203,11 +203,12 @@ module.exports = function(ctx){
       if(t)r=_aanvraagRegel(req,a,t,aantal);
       if(!spoed_taak_id){spoed_taak_id=_aanvraagTaak(req,a,naam,aantal)||null;}
       if(!redenNieuw)redenNieuw=!t?'Goedgekeurd — kantoor regelt het stuk en de levering.':(r&&r.actie==='bestellen'?'Goedgekeurd — het stuk wordt besteld en daarna geleverd.':'Goedgekeurd — het stuk komt uit voorraad en wordt geleverd.');
+      if(!t)_onbekend=true;
       if(!t&&ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:behandeld_door||'Kantoor',tekst:'Aanvraag "'+a.tekst+'" is goedgekeurd, maar het artikel is onbekend. Kies het in Tekorten onder "Aanvragen zonder artikel".',link:'/tekorten'});
       logAct('aanvraag','goedgekeurd','Aanvraag #'+a.id+' goedgekeurd → '+(t?naam+' ('+(r?(r.actie==='uit_pool'?'uit voorraad':'te bestellen'):'al klaar')+')':'artikel nog te kiezen')+(spoed_taak_id?' · transporttaak #'+spoed_taak_id:' · geen transporttaak (geen kampmoment)'),null,null);
     }
-    // ME1: een beslissing op een aanvraag gaat naar de coördinatoren (de KV heeft geen account); niet voor chauffeursmeldingen.
-    if(ctx.melding&&(status==='goedgekeurd'||status==='afgewezen')&&a.status!==status&&a.soort!=='probleem_chauffeur')ctx.melding(req,{voor_rol:'coordinator',van_naam:behandeld_door||'Kantoor',tekst:`Aanvraag "${a.tekst}" ${status}`,link:'/vandaag'});
+    // ME1: een beslissing op een aanvraag gaat naar kantoor (de KV heeft geen account); niet voor chauffeursmeldingen.
+    if(ctx.melding&&!_onbekend&&(status==='goedgekeurd'||status==='afgewezen')&&a.status!==status&&a.soort!=='probleem_chauffeur')ctx.melding(req,{voor_rol:'kantoor',van_naam:behandeld_door||'Kantoor',tekst:`Aanvraag "${a.tekst}" ${status}`,link:'/vandaag'});
     updateMetLog(req,'UPDATE aanvragen SET status=?,reden=?,spoed_taak_id=?,behandeld_door=?,behandeld_op=? WHERE id=?',
       [status,redenNieuw,spoed_taak_id||null,behandeld_door,now(),req.params.id]);
     logAct('aanvraag',status,`Aanvraag #${a.id} → ${status}`+(reden?` (${reden})`:''),null,null);

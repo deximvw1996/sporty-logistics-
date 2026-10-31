@@ -242,7 +242,7 @@
       $('pk-sub').textContent = printSubtekst(r.json, r.json.afgedrukt_door); $('rijen').innerHTML = printRijenHtml(r.json);
       var kt = r.json.kantoor; if (kt && (kt.telefoon || kt.gsm)) { var pv = document.createElement('div'); pv.className = 'pv'; pv.id = 'kantoor-regel'; pv.textContent = 'Kantoor: ' + [kt.telefoon, kt.gsm && 'gsm ' + kt.gsm].filter(Boolean).join(' · '); $('print-blad').appendChild(pv); } // BH2
       $('print-knop').onclick = function () { root.print(); };
-      // TF6 G8: de terugknop en de slottekst horen bij de rol (een coördinator mag Nakijken niet openen).
+      // TF6 G8: de terugknop en de slottekst horen bij de rol (een kantoor mag Nakijken niet openen).
       try { var w = await aanroep('GET', '/api/wie-ben-ik'); var rol = w.ok ? (w.json.rol || (w.json.persoon && w.json.persoon.rol)) : ''; if (rol && rol !== 'kantoor') { var t = $('terug-knop'); if (t) { t.href = '/aanvullen'; t.textContent = '‹ Terug naar Aanvullen'; } var pv2 = document.querySelector('.pv'); if (pv2 && !pv2.id) pv2.textContent = 'Na afloop: vink in de app af (Aanvullen) of geef dit blad aan kantoor. Afschrijvingen met foto in de app.'; } } catch (e) { /* standaard terugknop blijft */ }
     })();
     return;

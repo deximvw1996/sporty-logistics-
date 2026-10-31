@@ -11,6 +11,7 @@ const srv = await T.startServer({ poort: Number(process.env.TEST_POORT) || 3361 
 try {
   const tok = await T.login(srv.base);
   const A = (m, p, b) => T.api(srv.base, tok, m, p, b);
+  let _k2; const K2 = async (m, p) => { if (!_k2) { const x = (await A('POST', '/api/personeel', { naam: 'Tweede kantoor', rol: 'kantoor' })).json; await A('POST', `/api/personeel/${x.id}/pincode`, { pincode: '5861' }); _k2 = await T.login(srv.base, x.id, '5861'); } return T.api(srv.base, _k2, m, p); }; // TF9: een melding gaat niet naar wie de handeling deed
   const P = (m, p, b) => T.api(srv.base, null, m, p, b);
   const R = ijk.locaties.rozenweg, km = ijk.kampmomenten.abdijschool;
   const stock = async (typeId) => ((await T.leesDb(srv.dbPad, 'SELECT qty FROM item_type_stock WHERE item_type_id=? AND locatie_id=?', [typeId, R]))[0] || {}).qty;
@@ -106,7 +107,7 @@ try {
   T.check(r.status === 200, 'goedkeuren zonder bekend artikel lukt (200)');
   T.check((await T.leesDb(srv.dbPad, 'SELECT COUNT(*) n FROM transport_taken WHERE aanvraag_id=?', [av3]))[0].n === 1, 'wel een transporttaak');
   T.check((await T.leesDb(srv.dbPad, "SELECT COUNT(*) n FROM nakijk_regels WHERE kantoor_notitie LIKE ?", [`%aanvraag #${av3} van KV%`]))[0].n === 0, 'nog geen regel');
-  const mk = (await A('GET', '/api/meldingen')).json;
+  const mk = (await K2('GET', '/api/meldingen')).json;
   T.check((Array.isArray(mk) ? mk : mk.meldingen || []).some((m) => /artikel is onbekend/.test(m.tekst)), 'kantoor krijgt een duidelijke vraag');
   let za = (await A('GET', '/api/aanvragen/zonder-artikel')).json;
   T.check(za.some((x) => x.id === av3), 'staat onder "Aanvragen zonder artikel"');
@@ -236,7 +237,7 @@ try {
   T.check(lees('public/ritplanning.js').includes("'rit':'ritten'"), 'N12: "1 rit" in plaats van "1 ritten"');
   // G11: melding "bestelling binnen" gaat niet naar wie het zelf deed
   const ml = (await T.leesDb(srv.dbPad, "SELECT voor_rol,tekst FROM meldingen WHERE tekst LIKE 'Bestelling binnen:%' ORDER BY id"));
-  T.check(ml.length >= 2 && ml.every((m) => m.voor_rol === 'coordinator'), '"Bestelling binnen" van kantoor gaat naar coördinatoren');
+  T.check(ml.length >= 2 && ml.every((m) => m.voor_rol === 'kantoor'), 'TF9: "Bestelling binnen" gaat naar de andere kantoormedewerkers');
   T.check(ml.some((m) => /3 van 5/.test(m.tekst)), 'melding noemt "3 van 5" bij deels binnen');
 } finally {
   await T.einde(srv);

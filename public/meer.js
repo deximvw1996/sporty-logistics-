@@ -1,19 +1,17 @@
 // public/meer.js — MOB1: tab Meer (design/MOBIEL-DEFINITIEF.html, telefoon "Kantoor · Meer").
-// Alleen wat de rol mag: kantoor ziet alle onderdelen; chauffeur en coördinator hun eigen dingen. De 403's op de API blijven de echte grens.
+// Alleen wat de rol mag: kantoor ziet alle onderdelen; chauffeur en kantoor hun eigen dingen. De 403's op de API blijven de echte grens.
 'use strict';
 (function(){
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const rij=(x)=>`<a class="rij" ${x.act?`data-act="${x.act}" role="button" tabindex="0"`:`href="${esc(x.url)}"`}>${x.ico?`<div class="ico">${x.ico}</div>`:''}<div class="nm">${esc(x.t)}${x.s?`<b>${esc(x.s)}</b>`:''}</div><span class="pijl">›</span></a>`;
-  const ROLNAAM={kantoor:'kantoor',chauffeur:'chauffeur',coordinator:'coördinator',monitor:'monitor'};
+  const ROLNAAM={kantoor:'kantoor',chauffeur:'chauffeur',monitor:'monitor'};
   const ONDERDELEN={
-    kantoor:[{ico:'📅',t:'Planning',s:'rooster, kampmomenten, periodes',url:'/kampmomenten'},{ico:'📦',t:'Materiaal',s:'thema’s, bakken, pool, catalogus',url:'/bakken'},{ico:'📍',t:'Locaties',s:'adressen, contacten, sleutels, foto’s',url:'/locaties'},{ico:'⚙️',t:'Beheer',s:'personeel, export, logboek',url:'/personeel'}],
-    coordinator:[{ico:'🧮',t:'Tekorten & bestellingen',s:'bestellen en binnen melden',url:'/tekorten'},{ico:'🔍',t:'Waar staat een bak',s:'zoeken op code of naam',url:'/zoeken?tab=bakken'},{ico:'📦',t:'Artikelen',s:'voorraad per stockage en waar het ligt',url:'/zoeken?tab=artikelen'},{ico:'📍',t:'Locaties en contacten',s:'adres, telefoon, kaart',url:'/zoeken?tab=locaties'}]};
+    kantoor:[{ico:'🚚',t:'Mijn ritten',s:'zelf een rit rijden',url:'/vandaag?tab=ritten'},{ico:'📦',t:'Aanvullen',s:'stockage: aanvullen en melden',url:'/aanvullen'},{ico:'📅',t:'Planning',s:'rooster, kampmomenten, periodes',url:'/kampmomenten'},{ico:'📦',t:'Materiaal',s:'thema’s, bakken, pool, catalogus',url:'/bakken'},{ico:'📍',t:'Locaties',s:'adressen, contacten, sleutels, foto’s',url:'/locaties'},{ico:'⚙️',t:'Beheer',s:'personeel, export, logboek',url:'/personeel'}]};
   const BOUW={
     html(g,per){
       const ond=ONDERDELEN[g.rol]||[];
-      const kantoorDeel=g.rol==='coordinator'?`<div class="sec"><h3>Kantoor</h3>${g.kantoorTel?`<a class="rij" href="tel:${esc(String(g.kantoorTel).replace(/[^\d+]/g,''))}"><div class="ico">📞</div><div class="nm">Bel kantoor<b>${esc(g.kantoorTel)}</b></div><span class="pijl">›</span></a>`:'<div class="hint">Geen kantoornummer ingesteld</div>'}${rij({ico:'✉️',t:'Bericht aan kantoor',s:'korte tekst, komt in hun Meldingen',act:'bericht'})}</div>`:'';
       return `<div class="kopA"><div class="l">${esc(ROLNAAM[g.rol]||g.rol)} · ${esc(g.naam)}</div><b>Meer</b>${g.rol==='kantoor'?`<span>Periode: ${esc(per?per.naam:'—')} ▾</span>`:''}</div><div class="gbody">
-        ${ond.length?`<div class="sec"><h3>Onderdelen</h3>${ond.map(rij).join('')}</div>`:''}${kantoorDeel}
+        ${ond.length?`<div class="sec"><h3>Onderdelen</h3>${ond.map(rij).join('')}</div>`:''}
         ${g.rol==='kantoor'?`<div class="sec"><h3>Snel</h3><div class="twee"><a class="knop licht" href="/bakken">🔍 Waar staat…</a><a class="knop licht" href="/locaties">📞 Contacten</a></div></div><div class="sec"><h3>Periode</h3><select id="per-kies" aria-label="Periode kiezen" style="width:100%"></select></div>`:''}
         <div class="sec"><h3>Ik</h3>${rij({t:`${g.naam} · ${ROLNAAM[g.rol]||g.rol}`,s:'pincode wijzigen',act:'pin'})}${g.rol==='kantoor'?rij({t:'Weergave',s:'groot / compact (zoals op desktop)',act:'weergave'}):''}${rij({t:'Uitloggen',act:'uit'})}</div>
         ${g.rol==='kantoor'?'<div class="hint">Alles wat op de desktop kan, kan hier ook, maar één scherm per vraag. Voor de grote overzichten (weekagenda, tabellen) toont de gsm een lijst per dag of per item.</div>':''}</div>`;
@@ -29,26 +27,11 @@
     const w=await api('GET','/api/wie-ben-ik');if(!w.ok){location.replace('/login?terug=/meer');return;}
     G=w.json;try{localStorage.setItem('sporty-rol',G.rol);}catch(e){}
     const p=G.rol==='kantoor'?await api('GET','/api/periodes'):null,lijst=p&&p.ok?p.json:[];
-    if(G.rol==='coordinator'){const kt=await api('GET','/api/opzoeken/kantoor');G.kantoorTel=kt.ok?kt.json.telefoon:'';}
     $('meer').innerHTML=BOUW.html(G,lijst.find(x=>x.actief));
     const sel=$('per-kies');
     if(sel){sel.innerHTML=lijst.map(x=>`<option value="${x.id}"${x.actief?' selected':''}>${esc(x.naam)}</option>`).join('');
       sel.onchange=async()=>{const a=await api('POST','/api/periodes/'+sel.value+'/activeer');if(!a.ok)return toast(a.json.error||'Periode wisselen mislukt',true);location.reload();};}
   })();
-  // TF5: bericht aan kantoor.
-  function berichtKantoor(){
-    const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;z-index:1200;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:16px';
-    bg.innerHTML='<div role="dialog" aria-modal="true" style="background:#fff;border-radius:16px;padding:16px;width:100%;max-width:360px;font-family:system-ui"><b>Bericht aan kantoor</b><textarea id="ber-t" rows="4" maxlength="500" aria-label="Bericht" style="width:100%;margin:10px 0;padding:10px;font:16px system-ui;border:1px solid #cbd5e1;border-radius:10px"></textarea><div style="display:flex;gap:8px"><button type="button" id="ber-x" class="knop licht" style="flex:1;min-height:44px">Annuleren</button><button type="button" id="ber-ok" class="knop" style="flex:1;min-height:44px">Versturen</button></div></div>';
-    document.body.appendChild(bg);
-    bg.querySelector('#ber-t').focus(); // TF8 N8: de cursor staat meteen in het bericht
-    bg.querySelector('#ber-x').onclick=()=>bg.remove();
-    bg.querySelector('#ber-ok').onclick=async e=>{
-      const t=bg.querySelector('#ber-t').value.trim();if(!t)return toast('Schrijf eerst een korte tekst',true);
-      e.target.disabled=true;let r=null;try{r=await api('POST','/api/bericht-kantoor',{tekst:t});}catch(x){/* geen verbinding */}
-      e.target.disabled=false;if(!r)return toast('Geen verbinding, niet verstuurd',true);if(!r.ok)return toast(r.json.error||'Versturen mislukt',true);
-      bg.remove();toast('Verstuurd naar kantoor');
-    };
-  }
   // TF3 G27: pincode wijzigen op het toetsenblok, tweemaal invoeren.
   function pinKiezen(){
     let code='',eerste='',fout='';
@@ -72,7 +55,6 @@
     const a=(e.target.closest('[data-act]')||{dataset:{}}).dataset.act;
     if(a==='uit'){await api('POST','/api/logout');localStorage.removeItem('sporty-auth-token');localStorage.removeItem('sporty-rol');location.replace('/login');}
     if(a==='pin')pinKiezen();
-    if(a==='bericht')berichtKantoor();
     if(a==='weergave'){const v=await api('GET','/api/mij/voorkeuren');const nw=v.ok&&v.json.vandaag_weergave==='compact'?'groot':'compact';const r=await api('PUT','/api/mij/voorkeuren',{vandaag_weergave:nw});r.ok?toast('Weergave: '+nw):toast('Bewaren mislukt',true);}
   });
 })();

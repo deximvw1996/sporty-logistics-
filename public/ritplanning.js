@@ -119,7 +119,7 @@ const RITGSM=(function(){
   // + Nieuwe rit: overlay van volle hoogte.
   function nieuw(P,datum,opt={}){
     const vast=P.personen.filter(p=>p.vast);
-    const bst=`<optgroup label="Vaste chauffeurs">${vast.map(p=>`<option value="${p.personeel_id}" ${String(p.personeel_id)===String(opt.personeel_id||'')?'selected':''}>${esc(p.naam)}</option>`).join('')}</optgroup><optgroup label="Iemand anders… (coördinator rijdt mee)">${P.alle_personeel.filter(p=>!vast.some(v=>v.personeel_id===p.personeel_id)).map(p=>`<option value="${p.personeel_id}">${esc(p.naam)} (${esc(p.rol)})</option>`).join('')}</optgroup>`;
+    const bst=`<optgroup label="Vaste chauffeurs">${vast.map(p=>`<option value="${p.personeel_id}" ${String(p.personeel_id)===String(opt.personeel_id||'')?'selected':''}>${esc(p.naam)}</option>`).join('')}</optgroup><optgroup label="Iemand anders… (rijdt mee)">${P.alle_personeel.filter(p=>!vast.some(v=>v.personeel_id===p.personeel_id)).map(p=>`<option value="${p.personeel_id}">${esc(p.naam)} (${esc(p.rol)})</option>`).join('')}</optgroup>`;
     const GR={eigen:'Eigen voertuigen',huur:'Huur',prive:'Privé'};
     const vts=['eigen','huur','prive'].map(s=>{const l=P.voertuigen.filter(v=>v.soort===s);return l.length?`<optgroup label="${GR[s]}">${l.map(v=>`<option value="${v.id}">${esc(v.naam)}${v.plaatsen?' (± '+v.plaatsen+' bakken)':''}</option>`).join('')}</optgroup>`:'';}).join('')+'<option value="">Ander voertuig…</option>';
     return `<div class="kop2"><a data-g="annuleer">‹ Annuleren</a><div style="flex:1"><b>Nieuwe rit</b><span>${opt.taak_ids?'met taak #'+opt.taak_ids.join(', #'):'bestuurder = elke medewerker'}</span></div></div>
@@ -208,7 +208,7 @@ if(typeof window!=='undefined')(function(){
   function teken(){
     const w=P.week,ma=d0(w.start),zo=d0(w.eind);
     $('wk-label').textContent=`Week ${w.nummer} · ma ${ma.getDate()}${ma.getMonth()!==zo.getMonth()?' '+MAAND[ma.getMonth()]:''} – zo ${zo.getDate()} ${MAAND[zo.getMonth()]}`;
-    $('leg').innerHTML=(P.past_niet?`<a class="pil oranje" href="/taken" style="text-decoration:none;margin-right:8px">⚠ ${P.past_niet} past niet · taak voor kantoor</a>`:'')+P.personen.map(p=>`<i style="background:${p.kleur}"></i>${esc(p.naam)}${p.bestuurder_rol!=='chauffeur'?' <em>coörd.</em>':''}`).join('');
+    $('leg').innerHTML=(P.past_niet?`<a class="pil oranje" href="/taken" style="text-decoration:none;margin-right:8px">⚠ ${P.past_niet} past niet · taak voor kantoor</a>`:'')+P.personen.map(p=>`<i style="background:${p.kleur}"></i>${esc(p.naam)}${p.bestuurder_rol!=='chauffeur'?' <em>kantoor</em>':''}`).join('');
     const per=P.dagen.map(d=>({d,...banen(SLEEP&&SLEEP.doel&&SLEEP.doel.datum===d.datum?[...d.ritten.filter(r=>SLEEP.soort!=='rit'||r.id!==SLEEP.rit.id),{id:'schaduw',vertrek:SLEEP.doel.vertrek,einde:SLEEP.doel.einde,schaduw:true}]:d.ritten.filter(r=>!(SLEEP&&SLEEP.doel&&SLEEP.soort==='rit'&&r.id===SLEEP.rit.id)))}));
     const flex=x=>x.d.weekend&&!x.d.ritten.length?0.55:x.n;
     $('dagkop').innerHTML='<div class="tk"><button class="dagnav" data-dagnav="-1" aria-label="Vorige dag">‹</button><button class="dagnav" data-dagnav="1" aria-label="Volgende dag">›</button></div>'+per.map(x=>`<div class="${x.d.weekend?'wk':''} ${x.d.datum===DAG?'act':''}" style="flex:${flex(x)}" data-dag="${x.d.datum}">${esc(x.d.dag)}${x.d.weekend?'<i>weekend</i>':''}${x.d.ritten.length?`<span class="pil">${x.d.ritten.length} ${x.d.ritten.length===1?'rit':'ritten'}</span>`:''}${x.d.open.length?`<span class="pil oranje" data-open="${x.d.datum}">${x.d.open.length} open</span>`:''}</div>`).join('');
@@ -237,11 +237,11 @@ if(typeof window!=='undefined')(function(){
     P.personen.filter(p=>p.vast&&!rijen.some(x=>x.key===(p.naam||'').trim().toLowerCase()||x.key==='p'+p.personeel_id)).forEach(p=>rijen.push({key:(p.naam||'').trim().toLowerCase()||('p'+p.personeel_id),b:{...p,rol:'chauffeur'},ritten:[],leeg:true}));
     const uren=['07','08','09','10','11','12','13','14','15','16','17'];
     $('inzoom').innerHTML=`<div class="uren"><span class="wie">${esc(dagNaam)}</span>${uren.map(u=>`<span>${u}</span>`).join('')}</div>`+rijen.map(x=>
-      `<div class="rij"><div class="wie"><b style="color:${x.b.kleur}">${esc(x.b.naam||'geen bestuurder')}</b><span>${x.b.rol==='chauffeur'?'chauffeur':x.b.rol==='kantoor'?'kantoor':'coördinator'}</span></div><div class="spoor">${'<i></i>'.repeat(11)}${
+      `<div class="rij"><div class="wie"><b style="color:${x.b.kleur}">${esc(x.b.naam||'geen bestuurder')}</b><span>${x.b.rol==='chauffeur'?'chauffeur':x.b.rol==='kantoor'?'kantoor':'anders'}</span></div><div class="spoor">${'<i></i>'.repeat(11)}${
         x.leeg?`<button class="knop licht klein leeg" data-plus="${DAG}" data-pid="${x.b.personeel_id}">+ rit</button>`:x.ritten.map(r=>{
           const a=min(r.vertrek)??480,b=Math.max(min(r.einde)??a,a+30),wv=echteW(r).length;
           return `<div class="blok ${wv?'w':''} ${r.id===RIT?'sel':''}" data-rit="${r.id}" style="left:${f2(pct(a))}%;width:calc(${f2(pct(b))}% - ${f2(pct(a))}%);border-color:${r.bestuurder.kleur}"><b>#${r.id} ${esc(r.voertuig.naam||'geen voertuig')} ${bez(r)}${wv?' ⚠':''}</b></div>`;}).join('')}</div></div>`).join('')
-      +`<div class="rij ander"><div class="wie"><b data-plus="${DAG}" data-ander="1" style="cursor:pointer">+ iemand anders</b><span>coördinator / kantoor</span></div><div class="spoor leegspoor"><span>Kies een medewerker; de rit krijgt het label "coördinator rijdt mee". Voertuig: pool of eigen/huurwagen met capaciteit.</span></div></div>`;
+      +`<div class="rij ander"><div class="wie"><b data-plus="${DAG}" data-ander="1" style="cursor:pointer">+ iemand anders</b><span>kantoor</span></div><div class="spoor leegspoor"><span>Kies een medewerker; de rit krijgt het label "rijdt mee". Voertuig: pool of eigen/huurwagen met capaciteit.</span></div></div>`;
     tekenDetail();
   }
 
@@ -255,7 +255,7 @@ if(typeof window!=='undefined')(function(){
       return;
     }
     const r=ritVan(RIT),dt=d0(DAG),wv=echteW(r);
-    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${bestuurderKeuze(r)}${coord(r)?' (coördinator rijdt mee)':''} · ${voertuigKeuze(r)} · ${aanhangKeuze(r)} · <i>${esc(bez(r))}</i>${r.notitie?' · '+esc(r.notitie):''}${r.vol_tekst?' · '+esc(r.vol_tekst):''}</span></div>${
+    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${bestuurderKeuze(r)}${coord(r)?' (rijdt mee)':''} · ${voertuigKeuze(r)} · ${aanhangKeuze(r)} · <i>${esc(bez(r))}</i>${r.notitie?' · '+esc(r.notitie):''}${r.vol_tekst?' · '+esc(r.vol_tekst):''}</span></div>${
       wv.length?`<div class="waarsch">⚠ ${esc(wv.join(' · '))}</div>`:r.waarschuwingen.includes('weekend')?(()=>{const b=r.waarschuwingen.find(w=>/^weekend · /.test(w));return '<div class="waarsch">'+(b&&/bevestigd door/.test(b)?'✓ '+esc(b):'⚠ '+esc(b||'weekend: uitzondering'))+'</div>';})():''}<div class="acties"><button class="knop licht klein" data-act="splits">Splitsen</button><button class="knop licht klein" data-act="link">Rit-link</button>${r.klaarzet_status==='klaar'&&(!r.status||r.status==='gepland')?'<button class="knop licht klein" data-act="klaar-terug">Terugzetten</button>':''}<button class="knop klein" data-act="klaar">${r.klaarzet_status==='klaar'?'Klaargezet ✓':'Klaarzetten'}</button></div></div><div class="scroll">${ritLinkBlok(r)}${
       r.stops.length?r.stops.map((s,i)=>`<div class="stop ${s.slot} ${s.geladen?'geladen':'sleepbaar'}" data-taak="${s.taak_id}" data-i="${i}"><div class="t">${esc(s.tijd)}</div><div class="nm">${esc(s.locatie)}<b>${esc(s.wat)}${s.status!=='gepland'?' · '+esc(s.status):''}</b></div><span class="pil ${s.slot==='vrij'?'oranje':''}" data-slot="${s.taak_id}" title="Tik om te wisselen tussen vast en vrij">${s.slot==='vrij'?'vrij':'🔒 vast'}</span><div class="pijl"><button data-wissel="${s.taak_id}" data-r="omhoog" ${i===0?'disabled':''}>▲</button><button data-wissel="${s.taak_id}" data-r="omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><button class="knop licht klein" data-uit="${s.taak_id}">✕</button></div>`).join('')
       :'<div class="leegtxt">Nog geen stops — zet een taak op deze rit via "N open" in de dagkop</div>'}</div>`;
@@ -270,7 +270,7 @@ if(typeof window!=='undefined')(function(){
     const vast=P.personen.filter(p=>p.vast),huidig=r.bestuurder.personeel_id||'';
     const op=p=>`<option value="${p.personeel_id}" ${p.personeel_id===huidig?'selected':''}>${esc(p.naam)}${p.rol&&p.rol!=='chauffeur'?' ('+esc(p.rol)+')':''}</option>`;
     const ander=P.alle_personeel.filter(p=>!vast.some(v=>v.personeel_id===p.personeel_id));
-    return `<select class="vsel" data-bsel="${r.id}" aria-label="Bestuurder van rit #${r.id}">${huidig?'':`<option value="" selected>${esc(r.bestuurder.naam||'geen bestuurder')}</option>`}<optgroup label="Vaste chauffeurs">${vast.map(op).join('')}</optgroup><optgroup label="Iemand anders (coördinator rijdt mee)">${ander.map(op).join('')}</optgroup></select>`;
+    return `<select class="vsel" data-bsel="${r.id}" aria-label="Bestuurder van rit #${r.id}">${huidig?'':`<option value="" selected>${esc(r.bestuurder.naam||'geen bestuurder')}</option>`}<optgroup label="Vaste chauffeurs">${vast.map(op).join('')}</optgroup><optgroup label="Iemand anders (rijdt mee)">${ander.map(op).join('')}</optgroup></select>`;
   }
   async function bestuurderWissel(sel){
     if(sel.value==='')return;
@@ -305,7 +305,7 @@ if(typeof window!=='undefined')(function(){
 
   function opties(){
     const vast=P.personen.filter(p=>p.vast);
-    return `<optgroup label="Vaste chauffeurs">${vast.map(p=>`<option value="${p.personeel_id}">${esc(p.naam)}</option>`).join('')}</optgroup><optgroup label="Iemand anders… (coördinator rijdt mee)">${
+    return `<optgroup label="Vaste chauffeurs">${vast.map(p=>`<option value="${p.personeel_id}">${esc(p.naam)}</option>`).join('')}</optgroup><optgroup label="Iemand anders… (rijdt mee)">${
       P.alle_personeel.filter(p=>!vast.some(v=>v.personeel_id===p.personeel_id)).map(p=>`<option value="${p.personeel_id}">${esc(p.naam)} (${esc(p.rol)})</option>`).join('')}</optgroup>`;
   }
   function tekenNieuw(el){

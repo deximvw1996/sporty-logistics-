@@ -16,7 +16,7 @@ try {
   // ── overzicht ──
   let o = await ov();
   const tl = o.tellers, g = (r) => o.personeel.filter((p) => p.rol_groep === r).length;
-  T.check(tl.alle === o.personeel.length && tl.kantoor === g('kantoor') && tl.chauffeur === g('chauffeur') && tl.coordinator === g('coordinator') && tl.monitor === g('monitor')
+  T.check(tl.alle === o.personeel.length && tl.kantoor === g('kantoor') && tl.chauffeur === g('chauffeur') && tl.kv === g('kv') && tl.monitor === g('monitor')
     && tl.zonder_pincode === o.personeel.filter((p) => p.stand === 'geen_pincode').length, `tellers ${JSON.stringify(tl)}`);
   const ik = o.personeel.find((p) => p.id === 10);
   T.check(ik && /^vandaag \d\d:\d\d$/.test(ik.laatst_actief_tekst) && ik.stand === 'actief', `Claude (API) laatst actief "${ik?.laatst_actief_tekst}" (gezet bij login), stand ${ik?.stand}`);
@@ -26,7 +26,7 @@ try {
   const lotte = r.json.id;
   o = await ov();
   const lo = o.personeel.find((p) => p.id === lotte);
-  T.check(lo.rol_groep === 'coordinator' && lo.stand === 'geen_pincode' && o.tellers.zonder_pincode === tl.zonder_pincode + 1, `nieuwe coördinator: stand ${lo.stand}, zonder pincode ${o.tellers.zonder_pincode}`);
+  T.check(lo.rol_groep === 'kantoor' && lo.stand === 'geen_pincode' && o.tellers.zonder_pincode === tl.zonder_pincode + 1, `nieuwe coördinator: stand ${lo.stand}, zonder pincode ${o.tellers.zonder_pincode}`);
   r = await A('PUT', `/api/personeel/${lotte}/velden`, { rijbewijs: 'B', eigen_wagen_capaciteit: 6, meldingen_aan: true, telefoon: '0475 12 34 57' });
   T.check(r.status === 200 && r.json.rijbewijs === 'B' && r.json.eigen_wagen_capaciteit === 6 && !('pincode' in r.json), 'velden bewaard (rijbewijs, eigen wagen 6, telefoon), geen pincode-hash in het antwoord');
   r = await A('PUT', `/api/personeel/${lotte}/velden`, { eigen_wagen_capaciteit: -2 });
@@ -88,7 +88,7 @@ try {
   // ── rol wijzigen ──
   r = await A('PUT', `/api/personeel/${lotte}/rol`, { rol: 'chauffeur' });
   const rl = (await A('GET', '/api/logboek?wie=Claude&tabel=personeel')).json;
-  T.check(r.status === 200 && r.json.rol === 'chauffeur' && rl.regels.some((x) => /rol coordinator → chauffeur/.test(x.wat)), `rol gewijzigd en gelogd ("${rl.regels.find((x) => /rol /.test(x.wat))?.wat}")`);
+  T.check(r.status === 200 && r.json.rol === 'chauffeur' && rl.regels.some((x) => /rol kantoor → chauffeur/.test(x.wat)), `rol gewijzigd en gelogd ("${rl.regels.find((x) => /rol /.test(x.wat))?.wat}")`);
   r = await A('PUT', `/api/personeel/${lotte}/rol`, { rol: 'baas' });
   T.check(r.status === 400, 'ongeldige rol → 400');
 

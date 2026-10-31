@@ -187,11 +187,11 @@ try {
   stap('dinsdag 3 nov — coördinator vinkt de aanvullijst af');
   w0 = await maxW();
   // GF1: een coördinator met eigen rol en pincode (geen kantoor-login): inloggen, aanvullijst, afvinken; 403 op kantoorroutes.
-  const cpers = (await A('POST', '/api/personeel', { naam: 'FICTIEF Coördinator', rol: 'coordinator' })).json;
+  const cpers = (await A('POST', '/api/personeel', { naam: 'FICTIEF Coördinator', rol: 'chauffeur' })).json;
   await A('POST', `/api/personeel/${cpers.id}/pincode`, { pincode: '4321' });
   const clogin = await (await fetch(B + '/api/login', { method: 'POST', headers: { authorization: c.basic, 'Content-Type': 'application/json' }, body: JSON.stringify({ persoon_id: cpers.id, pincode: '4321' }) })).json();
   const CC = async (m, p, b) => { const r = await fetch(B + p, { method: m, headers: { authorization: c.basic, 'x-auth-token': clogin.token || '', 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : undefined }); return { status: r.status, json: await r.json().catch(() => ({})) }; };
-  check(!!clogin.token && clogin.rol === 'coordinator', 'coördinator logt in met pincode (rol coordinator)');
+  check(!!clogin.token && clogin.rol === 'chauffeur', 'coördinator logt in met pincode (rol coordinator)');
   check((await CC('GET', `/api/aanvullijst?datum=${vandaagIso}`)).status === 200, 'coördinator: 200 op /api/aanvullijst');
   check((await CC('GET', '/api/vandaag')).status === 403 && (await CC('GET', '/api/nakijken')).status === 403 && (await CC('GET', '/api/taken-overzicht')).status === 403, 'coördinator: 403 op kantoorroutes (Vandaag zonder mijn=1, Nakijken, Taken)');
   const mijn = await CC('GET', '/api/vandaag?mijn=1');

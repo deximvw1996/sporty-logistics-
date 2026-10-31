@@ -892,15 +892,15 @@ module.exports = function(ctx){
     return {...rit, taken: takenMet, bakken_totaal};
   }
   // ── RP1 punt 1: bestuurder = elke medewerker, voertuig vrij, bezetting/einde/waarschuwingen ──
-  const _ROLLEN=['chauffeur','coordinator','kantoor','anders'], _VSOORTEN=['pool','eigen','huur'];
+  const _ROLLEN=['chauffeur','kantoor','anders'], _VSOORTEN=['pool','eigen','huur'];
   const _hhmm=s=>/^\d{1,2}:\d{2}$/.test(s||'')?s.padStart(5,'0'):'';
   const _min=s=>{const m=/^(\d{1,2}):(\d{2})$/.exec(s||'');return m?(+m[1])*60+(+m[2]):null;};
   function _rolVanPersoon(pid){const p=pid?get('SELECT rol FROM personeel WHERE id=?',[pid]):null;
-    return !p?'chauffeur':p.rol==='chauffeur'?'chauffeur':p.rol==='kantoor'?'kantoor':'coordinator';}
+    return !p?'chauffeur':p.rol==='chauffeur'?'chauffeur':p.rol==='kantoor'||p.rol==='coordinator'?'kantoor':'anders';}
   // Velden uit de body valideren → {fout} of {velden} (alleen wat meegegeven of afgeleid is).
   function _ritVelden(b,rit){
     const v={};
-    if(b.bestuurder_rol!==undefined){if(!_ROLLEN.includes(b.bestuurder_rol))return {fout:'bestuurder_rol moet chauffeur, coordinator, kantoor of anders zijn'};v.bestuurder_rol=b.bestuurder_rol;}
+    if(b.bestuurder_rol!==undefined){const br=b.bestuurder_rol==='coordinator'?'kantoor':b.bestuurder_rol;if(!_ROLLEN.includes(br))return {fout:'bestuurder_rol moet chauffeur, kantoor of anders zijn'};v.bestuurder_rol=br;}
     else if(b.personeel_id&&(!rit||String(b.personeel_id)!==String(rit.personeel_id)))v.bestuurder_rol=_rolVanPersoon(b.personeel_id);
     if(b.voertuig_soort!==undefined){if(!_VSOORTEN.includes(b.voertuig_soort))return {fout:'voertuig_soort moet pool, eigen of huur zijn'};v.voertuig_soort=b.voertuig_soort;}
     if(b.voertuig_capaciteit!==undefined){const c=b.voertuig_capaciteit===null||b.voertuig_capaciteit===''?null:parseInt(b.voertuig_capaciteit);

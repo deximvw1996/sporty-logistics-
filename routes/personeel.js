@@ -17,14 +17,14 @@ module.exports = function(ctx){
   // Veiligheidsronde (DOORLICHTING-c #9): pincode-hash nooit teruggeven, enkel heeft_pincode.
   function _persoonZonderPin(p){ if(!p) return p; const{pincode,...rest}=p; return {...rest,heeft_pincode:!!pincode}; }
   app.post('/api/personeel', alleenKantoor, (req,res)=>{
-    const{naam,rol,telefoon,email,notities}=req.body;
+    const{naam,telefoon,email,notities}=req.body;const rol=req.body.rol==='coordinator'?'kantoor':req.body.rol; // TF9
     if(!naam?.trim())return res.status(400).json({error:'Naam vereist'});
     const id=ins('INSERT INTO personeel (naam,rol,telefoon,email,notities) VALUES (?,?,?,?,?)',
       [naam.trim(),rol||'kv',telefoon||'',email||'',notities||'']);
     res.json(_persoonZonderPin(get('SELECT * FROM personeel WHERE id=?',[id])));
   });
   app.put('/api/personeel/:id', alleenKantoor, (req,res)=>{
-    const{naam,rol,telefoon,email,notities}=req.body;
+    const{naam,telefoon,email,notities}=req.body;const rol=req.body.rol==='coordinator'?'kantoor':req.body.rol; // TF9
     run('UPDATE personeel SET naam=?,rol=?,telefoon=?,email=?,notities=? WHERE id=?',
       [naam,rol||'kv',telefoon||'',email||'',notities||'',req.params.id]);
     res.json(_persoonZonderPin(get('SELECT * FROM personeel WHERE id=?',[req.params.id])));

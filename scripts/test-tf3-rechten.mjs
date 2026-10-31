@@ -19,7 +19,7 @@ try {
   const api = routes.filter((r) => /^\/api\//i.test(r.pad) && !isPubliek(r.pad) && !r.pad.startsWith('/api/_test'));
   const tel = async () => { const u = {}; await new Promise((r) => setTimeout(r, 300)); for (const t of TABELLEN) u[t] = (await A('GET', '/api/_test/schrijfacties')).status && 0; return (await A('GET', '/api/_test/schrijfacties')).json.schrijfacties; };
 
-  for (const [naam, rol, tok] of [['chauffeur', 'chauffeur', ch.tok], ['coördinator', 'coordinator', co.tok], ['monitor', 'monitor', mo.tok]]) {
+  for (const [naam, rol, tok] of [['chauffeur', 'chauffeur', ch.tok], ['monitor', 'monitor', mo.tok]]) {
     const voor = await tel(); let open = [], binnen = 0;
     for (const r of api) {
       if (rolMag(rol, r.methode, vul(r.pad))) { binnen++; continue; }
@@ -41,13 +41,13 @@ try {
 
   // G1 letterlijk: kerngegevens blijven staan.
   const th = (await A('GET', '/api/themas')).json[0], lo = (await A('GET', '/api/locaties')).json[0], km = (await A('GET', '/api/kampmomenten')).json[0];
-  for (const [n, tok] of [['chauffeur', ch.tok], ['coördinator', co.tok]]) {
+  for (const [n, tok] of [['chauffeur', ch.tok], ['monitor', mo.tok]]) {
     T.check((await T.api(srv.base, tok, 'DELETE', '/api/themas/' + th.id)).status === 403 && (await T.api(srv.base, tok, 'DELETE', '/api/locaties/' + lo.id)).status === 403 && (await T.api(srv.base, tok, 'DELETE', '/api/kampmomenten/' + km.id)).status === 403 && (await T.api(srv.base, tok, 'PUT', '/api/locaties/' + lo.id, { name: 'GEHACKT' })).status === 403, `${n}: thema, locatie, kampmoment wissen en locatie hernoemen → 403`);
   }
   T.check((await A('GET', '/api/themas')).json.some((x) => x.id === th.id) && (await A('GET', '/api/locaties')).json.find((x) => x.id === lo.id).name === lo.name && (await A('GET', '/api/kampmomenten')).json.some((x) => x.id === km.id), 'database: thema, locatie (met oude naam) en kampmoment bestaan nog');
 
   // Flows per rol.
-  for (const [n, tok, rol] of [['chauffeur', ch.tok, 'chauffeur'], ['coördinator', co.tok, 'coordinator'], ['monitor', mo.tok, 'monitor']]) {
+  for (const [n, tok, rol] of [['chauffeur', ch.tok, 'chauffeur'], ['monitor', mo.tok, 'monitor']]) {
     const w = await T.api(srv.base, tok, 'GET', '/api/wie-ben-ik'), v = await T.api(srv.base, tok, 'GET', '/api/vandaag?mijn=1'), m = await T.api(srv.base, tok, 'GET', '/api/meldingen');
     T.check(w.json.rol === rol && v.status === 200 && m.status === 200, `${n}: wie-ben-ik, eigen Vandaag en Meldingen werken`);
     T.check((await T.api(srv.base, tok, 'GET', '/api/vandaag')).status === 403, `${n}: kantoor-Vandaag (zonder mijn=1) → 403`);
@@ -58,7 +58,7 @@ try {
   T.check(mld.status === 200, `chauffeur meldt in de stockage: ${mld.status} ${mld.status === 200 ? '' : mld.text.slice(0, 120)}`);
   T.check((await T.api(srv.base, co.tok, 'GET', '/api/tekorten-overzicht')).status === 200 && (await T.api(srv.base, co.tok, 'GET', '/api/voorraad')).status === 200 && (await T.api(srv.base, co.tok, 'GET', '/api/item-types')).status === 200, 'coördinator: Tekorten en de keuzes voor + Bestelling');
   T.check((await T.api(srv.base, ch.tok, 'GET', '/api/tekorten-overzicht')).status === 403 && (await T.api(srv.base, mo.tok, 'GET', '/api/voorraad')).status === 403, 'chauffeur geen Tekorten, monitor geen voorraad');
-  T.check((await T.api(srv.base, co.tok, 'POST', '/api/tekorten/melden', {})).status === 403, 'coördinator: tekort melden blijft kantoor (strengere vereisRol)');
+  T.check((await T.api(srv.base, ch.tok, 'POST', '/api/tekorten/melden', {})).status === 403, 'chauffeur: tekort melden blijft kantoor');
   // Rit rijden via de rit-link: geen sessie nodig.
   const rit = (await A('POST', '/api/ritten', { datum: '2026-11-02', personeel_id: ch.id })).json, rt = await T.ritToken(srv.base, A0, rit.id);
   T.check((await T.api(srv.base, null, 'GET', '/api/rit-token/' + rt + '/data')).status === 200 && (await T.api(srv.base, null, 'GET', '/api/rit-token/fout/data')).status >= 400, 'rit-link: eigen token werkt zonder login, fout token niet');

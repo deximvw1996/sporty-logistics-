@@ -22,7 +22,7 @@ try {
   const r3 = await rit('2026-11-05', { personeel_id: 3, voertuig: 'Camionette', vertrek: '09:30' }, [await taak('2026-11-05', '10:30', BE)]);
   const r4 = await rit('2026-11-04', { personeel_id: 1, voertuig: 'Camionette' }, [await taak('2026-11-04', '08:30', AB, 25)]);
   const r5 = await rit('2026-11-06', { personeel_id: 14, voertuig: 'Huurwagen', voertuig_soort: 'huur', voertuig_capaciteit: 15, vertrek: '09:00' }, [await taak('2026-11-06', '10:00', AB)]);
-  T.check(r5.bestuurder_rol === 'coordinator' && r5.voertuig_soort === 'huur' && r5.voertuig_capaciteit === 15 && r5.vertrek === '09:00', `coördinator met huurwagen: rol ${r5.bestuurder_rol}, ${r5.voertuig_soort} ${r5.voertuig_capaciteit}, vertrek ${r5.vertrek}`);
+  T.check(r5.bestuurder_rol === 'anders' && r5.voertuig_soort === 'huur' && r5.voertuig_capaciteit === 15 && r5.vertrek === '09:00', `coördinator met huurwagen: rol ${r5.bestuurder_rol}, ${r5.voertuig_soort} ${r5.voertuig_capaciteit}, vertrek ${r5.vertrek}`);
   const r6 = await rit('2026-11-07', { personeel_id: 3, voertuig: 'Camion' }, [await taak('2026-11-07', '10:00', BE)]);
   let r = await A('POST', '/api/ritten', { datum: '2026-11-07', voertuig_soort: 'boot' });
   T.check(r.status === 400, 'ongeldige voertuig_soort → 400');
@@ -50,10 +50,10 @@ try {
   const dag = (d) => p.dagen.find((x) => x.datum === d);
   T.check(dag('2026-11-05').ritten.length === 2 && dag('2026-11-02').ritten.length === 1 && dag('2026-11-07').weekend && !dag('2026-11-06').weekend, 'ritten op de juiste dag, weekend-vlag');
   const pr5 = dag('2026-11-06').ritten[0];
-  T.check(pr5.bestuurder.rol === 'coordinator' && pr5.bestuurder.kleur && pr5.voertuig.soort === 'huur' && pr5.voertuig.capaciteit === 15 && pr5.stops[0].slot === 'vast' && pr5.stops[0].locatie === 'Abdijschool Vlierbeek', `rit coördinator: ${JSON.stringify(pr5.bestuurder)} ${JSON.stringify(pr5.voertuig)}`);
+  T.check(pr5.bestuurder.rol === 'anders' && pr5.bestuurder.kleur && pr5.voertuig.soort === 'huur' && pr5.voertuig.capaciteit === 15 && pr5.stops[0].slot === 'vast' && pr5.stops[0].locatie === 'Abdijschool Vlierbeek', `rit coördinator: ${JSON.stringify(pr5.bestuurder)} ${JSON.stringify(pr5.voertuig)}`);
   T.check(/25/.test(dag('2026-11-04').ritten[0].lading.tekst), 'TF7: ritplanning zegt wat erop staat');
   const coord = p.personen.find((x) => x.personeel_id === 14);
-  T.check(coord && !coord.vast && coord.bestuurder_rol === 'coordinator' && /^#[0-9a-f]{6}$/.test(coord.kleur), `personen: coördinator ${coord?.naam} kleur ${coord?.kleur}`);
+  T.check(coord && !coord.vast && coord.bestuurder_rol === 'anders' && /^#[0-9a-f]{6}$/.test(coord.kleur), `personen: coördinator ${coord?.naam} kleur ${coord?.kleur}`);
   T.check(p.personen.filter((x) => x.vast).every((x) => x.rol === 'chauffeur') && p.personen.some((x) => x.vast && x.personeel_id === 13), 'personen: alle vaste chauffeurs, ook zonder rit');
   const o = (d) => dag(d).open.map((x) => x.taak_id);
   T.check(o('2026-11-02').includes(o1) && o('2026-11-03').includes(o2) && o('2026-11-06').includes(o3) && o('2026-11-07').includes(o4) && !o('2026-11-02').includes(ma1), `open per dag: ma ${o('2026-11-02')}, di ${o('2026-11-03')}, vr ${o('2026-11-06')}, za ${o('2026-11-07')}`);

@@ -40,7 +40,7 @@ try {
   T.check(acties.every((a) => !a.url.includes('#') && a.url !== '/'), `Vandaag: ${acties.length} actielinks, geen / of /#`);
   // Menu's per rol.
   T.check(NAV.tabsVan('chauffeur').map((t) => t[0]).join() === 'vandaag,ritten,stockage,meldingen,meer' && NAV.tabsVan('monitor').map((t) => t[0]).join() === 'vandaag,ritten,meldingen,meer', 'tabbalk per rol (monitor zonder Stockage, die mag hij niet)');
-  T.check(!NAV.magOpGsm('chauffeur', '/personeel') && !NAV.magOpGsm('coordinator', '/nakijken') && !NAV.magOpGsm('monitor', '/aanvullen') && NAV.magOpGsm('coordinator', '/tekorten') && NAV.magOpGsm('kantoor', '/personeel'), 'pagina per rol');
+  T.check(!NAV.magOpGsm('chauffeur', '/personeel') && !NAV.magOpGsm('monitor', '/aanvullen') && NAV.magOpGsm('kantoor', '/personeel'), 'pagina per rol');
   const nv = lees('public/nav.js');
   T.check(nv.includes("'/api/wie-ben-ik'") && !/isGsm\(\) && !magOpGsm\(rol0/.test(nv) && !/!tok0 && isGsm/.test(nv), 'nav.js: rol uit de sessie, niet-ingelogd op elke breedte naar /login');
   T.check(LOGIN.terug('?terug=/ritplanning') === '/ritplanning' && LOGIN.terug('?terug=//evil.test') === '/vandaag', 'terug-adres alleen binnen de site');

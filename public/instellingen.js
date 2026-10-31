@@ -7,7 +7,7 @@
   const kv=(k,x)=>`<div class="kv"><span>${k}</span><b>${x}</b></div>`;
   const veld=(label,naam,waarde,extra)=>`<div class="veld"><label for="v-${naam}">${esc(label)}</label><input id="v-${naam}" name="${naam}" value="${esc(waarde||'')}"${extra||''}></div>`;
   const datum=s=>{const d=new Date(s+'T12:00:00');return `${['zo','ma','di','wo','do','vr','za'][d.getDay()]} ${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;};
-  const SUBTITEL={kantoor:'Zo kunnen KV’s, chauffeurs en coördinatoren het kantoor bereiken',gesloten:'Feestdagen en sluitingen: voor heel Sporty of voor één locatie',stockage:'Waar het materiaal ligt tussen de kampen door',
+  const SUBTITEL={kantoor:'Zo kunnen KV’s, chauffeurs en kantoormedewerkers het kantoor bereiken',gesloten:'Feestdagen en sluitingen: voor heel Sporty of voor één locatie',stockage:'Waar het materiaal ligt tussen de kampen door',
     leeftijd:'De groepen in het rooster (KL1, LS1 …) komen hiervan',categorie:'Soorten thema’s (kamp, themadag …)',tijden:'Uren die de app als standaard gebruikt',app:'Versie, opslag en back-ups'};
   const BOUW={
     rij(g,act){const st=g.stand?(g.stand.soort?`<span class="pil ${g.stand.soort}">${esc(g.stand.tekst)}</span>`:esc(g.stand.tekst)):'';return `<div class="r ${act?'act':''}" data-id="${g.id}"><span></span><span><b>${esc(g.naam)}</b><span class="k" style="display:block">${esc(g.sub)}</span></span><span>${st}</span></div>`;},
