@@ -283,7 +283,7 @@ module.exports = function(ctx){
     const afwAantal=soort=>soort==='tekort'?Math.max(0,(r.verwacht||0)-(r.aangetroffen||0)):soort==='te_veel'?Math.max(0,(r.aangetroffen||0)-(r.verwacht||0)):soort==='kapot'?(r.kapot_aantal||0):0;
     // TF6 N3: hoort de actie bij een ander deel van de regel (kapot terwijl er ook een tekort is), dan geldt het aantal van dat deel.
     const eigenSoort=AFW[actie],hoofdSoort=_afwijking(r,r.verwacht||0);
-    const ander=b.kantoor_actie!==undefined&&actie&&eigenSoort&&eigenSoort!==hoofdSoort&&(eigenSoort==='kapot'?(r.kapot_aantal||0)>0:eigenSoort==='tekort');
+    const ander=b.kantoor_actie!==undefined&&actie&&eigenSoort&&r.aangetroffen!=null&&!r.gemeld_soort&&['tekort','kapot','te_veel'].includes(hoofdSoort)&&eigenSoort!==hoofdSoort&&(eigenSoort==='kapot'?(r.kapot_aantal||0)>0:eigenSoort==='tekort'&&hoofdSoort==='kapot'&&(r.verwacht||0)>(r.aangetroffen||0));
     const aantal=ander?afwAantal(eigenSoort):b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
       :(b.kantoor_actie!==undefined&&actie?afwAantal(AFW[actie]||_afwijking(r,r.verwacht||0)):(r.kantoor_aantal||0));
     if(isNaN(aantal)||aantal<0)return res.status(400).json({error:'Het aantal moet 0 of meer zijn.'});
