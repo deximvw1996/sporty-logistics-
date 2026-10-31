@@ -99,8 +99,22 @@ const RITGSM=(function(){
     const open=d.open.length?`<div class="sec"><h3>Open taken <span style="color:#c2410c">${d.open.length} zonder rit</span></h3>${d.open.map(o=>`<div class="rij" style="min-height:48px"><div class="nm">${esc(o.naam)}<b>${esc([o.stuks?o.stuks+(o.stuks===1?' stuk':' stuks'):'',o.tijd?'liefst om '+o.tijd:'',o.route].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" data-g="oprit" data-taak="${o.taak_id}">Op rit</button></div>`).join('')}</div>`:'';
     const ritten=[...groepen.values()].map(g=>`<h3 class="tus">${esc(g.naam)} · ${esc(g.vts.join(' / ')||'geen voertuig')}</h3>${g.ritten.map(ritKaart).join('')}`).join('')
       ||'<div class="hint" style="text-align:center;padding:18px 0">Geen ritten op deze dag</div>';
-    return `<div class="kop2"><div style="flex:1"><b>Ritplanning</b><span>${esc(kort(d.datum))} · ${d.ritten.length} ${d.ritten.length===1?'rit':'ritten'} · ${nw} waarschuwing${nw===1?'':'en'}</span></div></div>${dagen(P,d.datum)}
-      <div class="body">${open}${ritten}<button class="knop breed licht" data-g="nieuw">+ Nieuwe rit</button></div>`;
+    return `<div class="kop2"><div style="flex:1"><b>Ritplanning</b><span>${esc(kort(d.datum))} · ${d.ritten.length} ${d.ritten.length===1?'rit':'ritten'} · ${nw} waarschuwing${nw===1?'':'en'}</span></div></div>${dagen(P,d.datum)}${schakelaar('dag')}
+      <div class="body">${open}${ritten}<a class="knop breed licht" data-opdracht-ingang href="/opdracht?datum=${esc(d.datum)}" style="display:flex;text-decoration:none">Opdracht van ${esc(kort(d.datum))} (wagens en afspraken) ›</a><button class="knop breed licht" data-g="nieuw">+ Nieuwe rit</button></div>`;
+  }
+  // MOB3: schakelaar Dag / Week; weekbeeld = per dag de ritten per bestuurder, een tik opent het ritdetail.
+  function schakelaar(wat){return `<div class="wk" role="group" aria-label="Weergave" style="gap:8px"><button class="knop ${wat==='dag'?'':'licht'} klein" data-g="weergave" data-w="dag" aria-pressed="${wat==='dag'}" style="flex:1">Dag</button><button class="knop ${wat==='week'?'':'licht'} klein" data-g="weergave" data-w="week" aria-pressed="${wat==='week'}" style="flex:1">Week</button></div>`;}
+  function week(P,datum){
+    const dagen=P.dagen.filter((d,i)=>i<5||d.ritten.length||d.open.length);
+    const blok=d=>{const per=new Map();d.ritten.forEach(r=>{const k=(r.bestuurder.naam||'').trim().toLowerCase()||('p'+r.bestuurder.personeel_id);(per.get(k)||per.set(k,{naam:r.bestuurder.naam||'geen bestuurder',ritten:[]}).get(k)).ritten.push(r);});
+      const rijen=[...per.values()].map(g=>`<div class="rij" style="flex-direction:column;align-items:stretch;gap:4px"><div class="nm"><b style="display:inline;color:#1a1a1a;font-size:14px">${esc(g.naam)}</b></div>${g.ritten.map(ritKaart).join('')}</div>`).join('');
+      return `<div class="sec" data-weekdag="${d.datum}"><h3><a data-g="dag" data-d="${d.datum}" style="color:inherit">${esc(kort(d.datum))}</a><span>${d.ritten.length} ${d.ritten.length===1?'rit':'ritten'}${d.open.length?` · <i style="font-style:normal;color:#c2410c">${d.open.length} open</i>`:''}</span></h3>${rijen||'<div class="hint">Geen ritten</div>'}</div>`;};
+    return `<div class="kop2"><div style="flex:1"><b>Ritplanning</b><span>${esc(kopWeek(P))}</span></div></div><div class="wk"><button class="knop licht klein" data-g="week" data-n="-1" aria-label="Vorige week">‹</button><b>${esc(kopWeek(P))}</b><button class="knop licht klein" data-g="week" data-n="1" aria-label="Volgende week">›</button></div>${schakelaar('week')}<div class="body">${dagen.map(blok).join('')}</div>`;
+  }
+  // MOB3: splitsen op gsm — stop kiezen, regels aanvinken, nieuwe datum; geen slepen.
+  function splitsen(r,taken,sel){
+    const t=taken.find(x=>String(x.id)===String(sel&&sel.taak))||taken[0];
+    return `<div class="kop2"><a data-g="stap-terug">‹ Rit #${r.id}</a><div style="flex:1"><b>Splitsen</b><span>regels naar een nieuwe taak, bv. een dag later</span></div></div><form class="body" id="gsp" onsubmit="return false"><label class="vl">Stop<select name="taak" data-g="sp-stop">${taken.map(x=>`<option value="${x.id}" ${t&&x.id===t.id?'selected':''}>#${x.id} · ${esc(x.tijd)} · ${esc(x.type)}</option>`).join('')}</select></label><div class="sec"><h3>Regels die verhuizen</h3>${(t?t.regels:[]).map(g=>`<label class="rij" style="min-height:48px"><input type="checkbox" name="regel" value="${g.id}"><span class="nm">${esc(g.naam)} × ${g.qty}</span></label>`).join('')}</div><label class="vl">Nieuwe datum<input type="date" name="datum" value="${esc((sel&&sel.datum)||r.datum||'')}"></label></form><div class="voet"><button class="knop licht" data-g="stap-terug">Annuleren</button><button class="knop" data-g="splits-ok">Splitsen</button></div>`;
   }
   const voertuigOpties=(P,r)=>{
     const GR={eigen:'Eigen voertuigen',huur:'Huur',prive:'Privé'},huidig=r.voertuig.id||'';
@@ -116,7 +130,7 @@ const RITGSM=(function(){
     const ws=w.length?`<div class="sec" style="border-left:4px solid #dc2626"><h3>Waarschuwingen</h3>${w.map(x=>`<div class="rij" style="min-height:40px;color:#b91c1c;font-weight:600">⚠ ${esc(x)}</div>`).join('')}</div>`:'';
     const wie=`<div class="sec"><h3>Wie en wat</h3><label class="vl">Bestuurder<select data-g="bsel" data-id="${r.id}">${P.alle_personeel.map(p=>`<option value="${p.personeel_id}" ${p.personeel_id===r.bestuurder.personeel_id?'selected':''}>${esc(p.naam)}${p.rol==='chauffeur'?'':' ('+esc(p.rol)+')'}</option>`).join('')}</select></label>
       <label class="vl">Voertuig<select data-g="vsel" data-vsel="${r.id}">${voertuigOpties(P,r)}</select></label><label class="vl">Aanhangwagen<select data-asel="${r.id}" aria-label="Aanhangwagen">${aanhangOpties(P,r.aanhangwagen_id)}</select></label></div>`;
-    const stops=`<div class="sec"><h3>Stops <span>${esc(bezTekst(r))}</span></h3>${r.stops.length?r.stops.map((s,i)=>`<div class="it ${s.geladen?'groen':''}"><div class="stp"><button data-g="wissel" data-taak="${s.taak_id}" data-r="omhoog" aria-label="Omhoog" ${i===0?'disabled':''}>▲</button><button data-g="wissel" data-taak="${s.taak_id}" data-r="omlaag" aria-label="Omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><div class="nm">${esc(s.locatie)}<b>${esc([s.tijd,s.wat,s.status!=='gepland'?s.status:''].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" data-g="mat" data-taak="${s.taak_id}">+ Materiaal</button><button class="knop licht klein" data-g="uit" data-taak="${s.taak_id}" aria-label="Van de rit halen">✕</button></div>${(s.regels||[]).map(g=>`<div class="stopregel"><span>${esc(g.naam)}</span><input type="number" min="1" data-rq="${g.id}" value="${g.qty}" aria-label="Aantal"><button class="knop licht klein" data-rweg="${g.id}" aria-label="Regel verwijderen">✕</button></div>`).join('')}`).join(''):'<div class="hint" style="padding:10px 0">Nog geen stops: voeg er een toe of zet een open taak op deze rit</div>'}<button class="knop breed licht" data-g="stop-nieuw">+ Stop</button></div>`;
+    const stops=`<div class="sec"><h3>Stops <span>${esc(bezTekst(r))}</span></h3>${r.stops.length?r.stops.map((s,i)=>`<div class="it ${s.geladen?'groen':''}"><div class="stp"><button data-g="wissel" data-taak="${s.taak_id}" data-r="omhoog" aria-label="Omhoog" ${i===0?'disabled':''}>▲</button><button data-g="wissel" data-taak="${s.taak_id}" data-r="omlaag" aria-label="Omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><div class="nm">${esc(s.locatie)}<b>${esc([s.tijd,s.wat,s.status!=='gepland'?s.status:''].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" data-g="slot" data-taak="${s.taak_id}" data-slot="${s.slot==='vrij'?'vrij':'vast'}" aria-pressed="${s.slot!=='vrij'}" aria-label="${s.slot==='vrij'?'Tijd is vrij: vastzetten':'Tijd is vast: vrijgeven'}">${s.slot==='vrij'?'🔓 vrij':'🔒 vast'}</button><button class="knop licht klein" data-g="mat" data-taak="${s.taak_id}">+ Materiaal</button><button class="knop licht klein" data-g="uit" data-taak="${s.taak_id}" aria-label="Van de rit halen">✕</button></div>${(s.regels||[]).map(g=>`<div class="stopregel"><span>${esc(g.naam)}</span><input type="number" min="1" data-rq="${g.id}" value="${g.qty}" aria-label="Aantal"><button class="knop licht klein" data-rweg="${g.id}" aria-label="Regel verwijderen">✕</button></div>`).join('')}`).join(''):'<div class="hint" style="padding:10px 0">Nog geen stops: voeg er een toe of zet een open taak op deze rit</div>'}<button class="knop breed licht" data-g="stop-nieuw">+ Stop</button><button class="knop breed licht" data-g="splits">Splitsen: regels naar een andere dag</button></div>`;
     const meting=`<div class="sec"><h3>Tijd</h3><label class="vl">Geschat einde<input type="time" data-einde="${r.id}" value="${esc((r.meting&&r.meting.geschat)||'')}"></label>${r.meting&&r.meting.tekst?`<div class="hint">${esc(r.meting.tekst)}${r.meting.vorig?' · eerder geschat '+esc(r.meting.vorig):''}</div>`:''}</div>`;
     return `<div class="kop2"><a data-g="terug">‹ Ritplanning</a><div style="flex:1"><b>Rit #${r.id} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(kort(r.datum))} · ${esc(r.bestuurder.naam||'geen bestuurder')} · ${esc(r.voertuig.naam||'geen voertuig')}${r.vol_tekst?' · '+esc(r.vol_tekst):''}</span></div></div>
       <div class="body">${ws}${wie}${typeof LINK!=='undefined'&&LINK&&LINK.rit===r.id?`<div class="sec"><h3>Rit-link</h3><div class="rij" style="min-height:48px"><input readonly value="${esc(LINK.url)}" aria-label="Rit-link" style="flex:1;min-width:0;height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 8px;font:inherit"><button type="button" class="knop licht klein" data-g="kopieer">Kopieer</button></div></div>`:''}${meting}${stops}</div><div class="voet"><a class="knop licht" href="/opdracht?datum=${esc(r.datum||'')}&rit=${r.id}" style="display:inline-flex;align-items:center">Opdracht</a><button class="knop licht" data-g="link">Rit-link</button>${r.klaarzet_status==='klaar'&&(!r.status||r.status==='gepland')?'<button class="knop licht" data-g="klaar-terug">Terugzetten</button>':''}<button class="knop" data-g="klaar">${r.klaarzet_status==='klaar'?'Klaargezet ✓':'Klaarzetten'}</button></div>`;
@@ -147,7 +161,7 @@ const RITGSM=(function(){
       <form class="body" id="gor" onsubmit="return false"><label class="vl">Rit<select name="rit">${d.ritten.map(r=>`<option value="${r.id}">#${r.id} · ${esc(r.vertrek||'?')} · ${esc(r.bestuurder.naam||'geen bestuurder')} · ${esc(r.voertuig.naam||'')}</option>`).join('')}<option value="nieuw">+ nieuwe rit…</option></select></label></form>
       <div class="voet"><button class="knop licht" data-g="annuleer">Annuleren</button><button class="knop" data-g="oprit-ok" data-taak="${taakId}">Op deze rit zetten</button></div>`;
   }
-  return {lijst,detail,nieuw,opRit,dagen,ritKaart,echteW,stopNieuw,matZoek,matAantal};
+  return {lijst,week,schakelaar,splitsen,detail,nieuw,opRit,dagen,ritKaart,echteW,stopNieuw,matZoek,matAantal};
 })();
 if(typeof module!=='undefined'&&module.exports)module.exports={gebaren:GEBAREN,gsm:RITGSM};
 if(typeof window!=='undefined')(function(){
@@ -590,9 +604,11 @@ if(typeof window!=='undefined')(function(){
     if(GS.oprit)h=RITGSM.opRit(P,DAG,GS.oprit);
     else if(GS.nieuw)h=RITGSM.nieuw(P,GS.nieuw.datum||DAG,GS.nieuw);
     else if(GS.stap==='stop'&&RIT&&ritVan(RIT))h=RITGSM.stopNieuw(P,ritVan(RIT));
+    else if(GS.stap==='splits'&&RIT&&ritVan(RIT)&&GS.sp)h=RITGSM.splitsen(ritVan(RIT),GS.sp.taken,GS.sp);
     else if(GS.stap==='zoek')h=RITGSM.matZoek();
     else if(GS.stap==='aantal')h=RITGSM.matAantal(GS.mat);
     else if(GS.scherm==='detail'&&RIT&&ritVan(RIT))h=RITGSM.detail(P,ritVan(RIT));
+    else if(GS.weergave==='week'&&GS.scherm!=='detail')h=RITGSM.week(P,DAG);
     else{GS.scherm='lijst';h=RITGSM.lijst(P,DAG);}
     const y=(e.querySelector('.body')||{}).scrollTop||0;
     e.innerHTML=h;const b=e.querySelector('.body');if(b&&y&&!GS.nieuw&&!GS.oprit)b.scrollTop=y;
@@ -601,6 +617,7 @@ if(typeof window!=='undefined')(function(){
   document.addEventListener('change',e=>{
     const t=e.target;if(!t.closest||!t.closest('#gsm'))return;
     if(t.name==='voertuig'){const v=t.value==='';const n=$('gnf-n'),c=$('gnf-c');if(n)n.hidden=!v;if(c)c.hidden=!v;return;}
+    if(t.dataset.g==='sp-stop'&&GS.sp){const f=document.getElementById('gsp');GS.sp.taak=t.value;GS.sp.datum=f.datum.value;return tekenGsm();}
     if(t.dataset.g==='bsel')api('PUT',`/api/ritten/${t.dataset.id}`,{personeel_id:parseInt(t.value)||null}).then(r=>{if(!r.ok)toast(r.json.error||'Bestuurder wisselen mislukt','error');else toast('Bestuurder gewijzigd','success');laad();});
   });
   document.addEventListener('click',async e=>{
@@ -613,7 +630,8 @@ if(typeof window!=='undefined')(function(){
     if(a==='mat-kies'){const m=MATRES[+g.dataset.i];GS.mat={bron:m.bron,id:m.id,naam:m.naam};GS.stap='aantal';return tekenGsm();}
     if(a==='mat-vrij'){const v=document.getElementById('gm-vrij').value.trim();if(!v)return toast('Vul een tekst in','warn');GS.mat={bron:'tekst',naam:v};GS.stap='aantal';return tekenGsm();}
     if(a==='mat-ok'){const b={...GS.mat,qty:+document.getElementById('gm-n').value||1};if(await regelBewaar(GS.taak,b))GS.stap=null;return;}
-    if(a==='dag'){DAG=g.dataset.d;GS.scherm='lijst';return tekenGsm();}
+    if(a==='weergave'){GS.weergave=g.dataset.w;GS.scherm='lijst';return tekenGsm();}
+    if(a==='dag'){DAG=g.dataset.d;GS.scherm='lijst';GS.weergave='dag';return tekenGsm();}
     if(a==='week'){WEEK=GEBAREN.plusDag(P.week.start,7*(+g.dataset.n));DAG=null;GS.scherm='lijst';return laad();}
     if(a==='rit'){RIT=parseInt(g.dataset.id);GS.scherm='detail';tekenGsm();window.scrollTo(0,0);return;}
     if(a==='terug'){GS.scherm='lijst';return tekenGsm();}
@@ -643,6 +661,14 @@ if(typeof window!=='undefined')(function(){
       if(datum<P.week.start||datum>P.week.eind)WEEK=datum;DAG=datum;return laad();
     }
     if(!RIT)return;
+    if(a==='slot'){const r=await api('PUT',`/api/transport-taken/${g.dataset.taak}`,{slot:g.dataset.slot==='vrij'?'vast':'vrij'});if(!r.ok)return toast(r.json.error||'Tijd vast of vrij zetten mislukt','error');toast(g.dataset.slot==='vrij'?'Tijd staat vast':'Tijd is vrij','success');return laad();}
+    if(a==='splits'){const gg=await api('GET',`/api/ritten/${RIT}`);if(!gg.ok)return toast(gg.json.error||'Rit laden mislukt','error');
+      const taken=gg.json.taken.filter(t=>(t.regels||[]).length>1);if(!taken.length)return toast('Geen stop met meer dan één regel om te splitsen','warn');
+      GS.sp={taken,taak:taken[0].id,datum:ritVan(RIT).datum};GS.stap='splits';tekenGsm();return window.scrollTo(0,0);}
+    if(a==='splits-ok'){const f=document.getElementById('gsp'),ids=[...f.querySelectorAll('[name=regel]:checked')].map(x=>parseInt(x.value));
+      if(!ids.length)return toast('Kies minstens één regel','warn');
+      const r=await api('POST',`/api/transport-taken/${f.taak.value}/splits`,{regel_ids:ids,datum:f.datum.value});if(!r.ok)return toast(r.json.error||'Splitsen mislukt','error');
+      toast(`${r.json.verplaatst} regel(s) afgesplitst naar taak #${r.json.nieuwe_taak_id}`,'success');GS.stap=null;GS.sp=null;return laad();}
     if(a==='wissel'){const r=await api('POST',`/api/ritten/${RIT}/taken/${g.dataset.taak}/wissel`,{richting:g.dataset.r});if(!r.ok)return toast(r.json.error||'Wisselen mislukt','error');return laad();}
     if(a==='uit'){const r=await api('POST',`/api/ritten/${RIT}/taken/${g.dataset.taak}/ontkoppel`);if(!r.ok)return toast(r.json.error||'Van de rit halen mislukt','error');toast('Taak van de rit gehaald — staat weer bij "open"','success');return laad();}
     if(a==='kopieer')return kopieer();
