@@ -101,7 +101,7 @@ try {
   const restId = r.json.rest_taak_id;
   let rt = (await db('SELECT * FROM transport_taken WHERE id=?', [restId]))[0];
   let rr = await db('SELECT * FROM transport_regels WHERE taak_id=?', [restId]);
-  T.check(rt.status === 'gepland' && rt.rit_id === null && rt.slot === 'vrij' && /Rest van rit #\d+: past niet/.test(rt.opmerking) && rt.naar_locatie_id === AB, `rest-taak: gepland, zonder rit, vrij, "${rt.opmerking}"`);
+  T.check(rt.status === 'gepland' && rt.rit_id === null && rt.slot === 'vrij' && /^Past niet: /.test(rt.opmerking) && rt.naar_locatie_id === AB, `rest-taak: gepland, zonder rit, vrij, "${rt.opmerking}"`);
   T.check(rr.length === 1 && rr[0].bak_id === bak2.id, 'rest-taak bevat de regel van H53');
   T.check((await A('GET', '/api/transport-taken')).json.some((t) => t.id === restId), 'kantoor ziet de rest-taak in GET /api/transport-taken');
   let ch = (await db('SELECT * FROM verhuis_checks WHERE id=?', [cH53.check_id]))[0];
