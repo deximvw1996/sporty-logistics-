@@ -460,3 +460,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — TF7 (C) gekeurd en live: tf7 50/30/24 ok, volle run 57/58 (f1-modules los groen). Echte voertuigen + 4 aanhangwagens, hoe vol, geen capaciteitsberekening; restje Taken zelf gefixt.
 - 2026-10-31 — Besluit Maxim: kantoor en coördinator zijn dezelfde rol. Prompt TF9 (C).
 - 2026-10-31 — TF9 (C) gekeurd en live: tf9 26 ok, volle run 58/58. Rollen: kantoor, chauffeur, monitor, KV-link.
+- 2026-10-31 — Op verzoek van Maxim planning op prod leeggemaakt voor test van 0 (migratie 96, kopie sporty-hand-voor-leegmaken-2026-10-31.db).
