@@ -2203,7 +2203,7 @@ Vaste en plakkende onderdelen schuiven automatisch onder de balk.
 
 ## RT1 — Real time (chat C, 31/10)
 **Stand:** alle vijf punten gebouwd. `test-rt1` 46/46. Volle run: alleen `v3c-fotos` en `veiligheid` rood, zoals al vóór TF5 (zie GEVONDEN). Dus niet letterlijk 2× volledig groen.
-**Migraties, belangrijk:** main gebruikt al `migratie96_klaar` (planning leegmaken op prod). Mijn TF11-migratie had dezelfde vlag en zou op prod nooit lopen, met kapotte ritten als gevolg. Hernummerd: TF11 = 97, RT1 = 98. De eerder gepushte TF11-commit (062faf4) mag dus NIET los gemerged worden; merge deze push.
+**Migraties:** de hoofdchat zette TF11 op 98 op main; RT1 is daarom migratie 99.
 **Gebouwd:**
 - Melding: gebundeld per rit en stop, tekst "Jeroen · rit #38 · Rozenweg: 10 stuks niet gevonden" (bij één stuk "2 × Prints agenten niet gevonden"). Binnen 10 min bijgewerkt en weer ongelezen; push hooguit om de 5 min.
 - Rest-taak "Niet gevonden: 2 × Prints agenten". Vandaag: rood blok Nu oplossen per rit, met belknop, waar normaal, laatste rit, laatste telling. Gevonden / Toch inplannen / Afschrijven, gelogd. Chauffeur: knop "Toch gevonden". Alles afgehandeld = blok weg en melding gelezen. Open rest-taken staan niet in Inplannen.
