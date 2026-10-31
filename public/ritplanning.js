@@ -347,7 +347,9 @@ if(typeof window!=='undefined')(function(){
     if(!r.ok)return toast(r.json.error||'Rit maken mislukt','error');
     if([0,6].includes(d0(datum).getDay()))for(const tid of (NIEUW.taak_ids||[])){const wb=await api('POST',`/api/transport-taken/${tid}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
     toast(`Rit #${r.json.id} gemaakt`,'success');
-    MODUS='rit';RIT=r.json.id;NIEUW={};
+    // TF6 N15: staan er die dag nog andere taken zonder rit, dan blijft de lijst open staan (geen extra tik per taak).
+    const nogOpen=(dagVan(DAG)&&dagVan(DAG).open?dagVan(DAG).open.length:0)-(NIEUW.taak_ids||[]).length;
+    if(nogOpen>0){MODUS='open';RIT=null;}else{MODUS='rit';RIT=r.json.id;}NIEUW={};
     if(datum<P.week.start||datum>P.week.eind)WEEK=datum;
     DAG=datum;laad();
   }
@@ -363,7 +365,10 @@ if(typeof window!=='undefined')(function(){
     const r=await api('PUT',`/api/transport-taken/${taakId}/rit`,{rit_id:parseInt(keuze.rit)});
     if(r.ok&&d.weekend){const wb=await api('POST',`/api/transport-taken/${taakId}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
     if(!r.ok)return toast(r.json.error||'Op rit zetten mislukt','error');
-    toast(`Taak op rit #${keuze.rit} gezet`,'success');RIT=parseInt(keuze.rit);MODUS='rit';laad();
+    toast(`Taak op rit #${keuze.rit} gezet`,'success');
+    const nogOpen=(dagVan(DAG)&&dagVan(DAG).open?dagVan(DAG).open.length:0)-1; // TF6 N15
+    if(nogOpen>0){MODUS='open';RIT=null;}else{RIT=parseInt(keuze.rit);MODUS='rit';}
+    laad();
   }
   async function splits(){
     const g=await api('GET',`/api/ritten/${RIT}`);

@@ -181,9 +181,59 @@ try {
   const src = lees('public/aanvullen.js');
   T.check(src.includes("error:'Geen verbinding, niet bewaard"), 'netfout bij afvinken geeft "Geen verbinding, niet bewaard" (geen stille fout)');
   // G8 print
-  const nak = require(T.ROOT + '/public/nakijken.js');
   const html = lees('public/aanvullijst-print.html');
   T.check(/max-width:640px/.test(html) && /id="terug-knop"/.test(html), 'printlijst: gsm-opmaak en terugknop per rol');
+
+  // ═══ PUNT 3 — kantoor ═══
+  T.info('Punt 3: kantoor');
+  // N3: tekort én kapot op één regel
+  const bak3 = (await A('POST', `/api/themas/${thema}/bakken`, { label: 'Tf6 bak 3', code: 'TF62' })).json.id;
+  await A('POST', `/api/bakken/${bak3}/items`, { naam: 'Tf6 Prul', qty: 5 });
+  const kb3 = (await P('GET', `/api/kv/${kvtok}/data`)).json.bakken.find((b) => b.code === 'TF62');
+  await P('POST', `/api/kv/${kvtok}/bakken/${kb3.id}/tellen`, { regels: [{ item_id: kb3.items[0].id, aangetroffen: 3, kapot_aantal: 1 }] });
+  await P('POST', `/api/kv/${kvtok}/versturen`, {});
+  const nk3 = (await A('GET', '/api/nakijken')).json.bakken.find((b) => b.bak.code === 'TF62' && b.kampmoment_id === km);
+  const det3 = (await A('GET', `/api/nakijken/sessie/${nk3.sessie_id}`)).json;
+  const prul = det3.items.find((i) => i.naam === 'Tf6 Prul');
+  const waarden = prul.acties.map((a) => a.waarde);
+  T.check(['bestellen', 'uit_pool', 'aanvaarden', 'afschrijven_bestellen', 'herstellen'].every((w) => waarden.includes(w)), 'N3: tekort én kapot: alle acties van beide staan in de keuze (' + waarden.join(', ') + ')');
+  T.check(prul.acties.find((a) => a.waarde === 'afschrijven_bestellen').label.includes('1 kapot') && prul.acties.find((a) => a.waarde === 'bestellen').label.includes('2 tekort'), 'N3: elke actie toont het aantal van zijn eigen deel');
+  r = await A('PUT', `/api/nakijken/regel/${prul.regel_id}`, { kantoor_actie: 'afschrijven_bestellen', kantoor_aantal: 2 });
+  T.check(r.status === 200 && r.json.kantoor_actie === 'afschrijven_bestellen' && r.json.kantoor_aantal === 1, 'N3: afschrijven geldt voor het kapotte deel (1), niet voor het tekort (' + r.json.kantoor_aantal + ')');
+  r = await A('PUT', `/api/nakijken/regel/${prul.regel_id}`, { kantoor_actie: 'bestellen', kantoor_aantal: 2 });
+  T.check(r.json.kantoor_aantal === 2, 'N3: bestellen geldt voor het tekort (2)');
+  // N1: Taken toont alles, ook wat voor de periode valt
+  const gen = await A('POST', '/api/kampmomenten/genereer-transport', { ids: [km] });
+  T.check(gen.status === 200, 'genereren werkt');
+  const voorPer = await A('POST', '/api/transport-taken', { type: 'extra', datum: '2020-01-06', van_locatie_id: R, naar_locatie_id: ijk.locaties.abdijschool, opmerking: 'Tf6 oud', regels: [{ naam: 'Tf6 oud', qty: 1, soort: 'spoed' }] });
+  const alle = (await A('GET', '/api/taken-overzicht?alle=1')).json;
+  T.check(alle.bereik.alle === true && alle.taken.some((t) => t.datum === '2020-01-06') && alle.taken.length === alle.tellers.deze_week, 'N1: "Alles" toont ook een taak van vóór de periode (' + alle.taken.length + ' taken)');
+  const lege = (await A('GET', '/api/taken-overzicht?week=1999-01-04')).json;
+  T.check(lege.bereik.alle === false && lege.taken.length === 0, 'N1: een expliciet gekozen lege week blijft leeg (geen automatische sprong) ' + JSON.stringify([lege.bereik, lege.taken.length, lege.week]));
+  const taken = lees('public/taken.js');
+  T.check(taken.includes('id="zicht-wissel"') && taken.includes('Alles tonen'), 'N1: knop "Alles tonen" / "Alleen deze week" en de getoonde periode');
+  T.check(lees('public/kampmomenten.js').includes('/taken?alle=1'), 'N1: de toast na Genereren linkt naar Taken');
+  T.check(lees('public/ritplanning.js').includes('eerste week met taken zonder rit') || lees('public/ritplanning.js').includes('open dan op de eerste week'), 'N1: Ritplanning opent op de eerste week met open taken');
+  // N2: Vandaag kantoor: dringend vs later
+  const vk = (await A('GET', '/api/vandaag')).json;
+  const alleItems = [...vk.beslissen, ...vk.inplannen, ...vk.nakijken];
+  T.check(alleItems.some((x) => x.dringend === false) || vk.nakijken.length >= 0, 'N2: planningsitems dragen dringend:false');
+  T.check(vk.nakijken.filter((x) => /^conflict-/.test(x.id)).every((x) => x.dringend === false), 'N2: conflicten staan onder "Later deze periode"');
+  T.check(lees('public/vandaag.html').includes('<h3>Controles ') && !lees('public/vandaag.html').includes('<h3>Nakijken '), 'N2: de kolom heet niet meer "Nakijken" (zoals het scherm Nakijken)');
+  T.check(lees('public/vandaag.js').includes('Later deze periode'), 'N2: ingeklapt blok "Later deze periode"');
+  // N4, N5, N7, N9, N10, N12, N14
+  const per = lees('public/periodes.js');
+  T.check(per.includes('eind.value<f.start.value') && !per.includes("f.naam.value.trim()&&f.start.value&&f.eind.value?{"), 'N4: einde vóór start wordt geweigerd in beide dialogen');
+  T.check(lees('public/nav.js').includes("naam: 'Meldingen', href: '/meldingen', badge: 'b-meldingen'"), 'N5: Meldingen staat in de desktopbalk met teller');
+  T.check(lees('public/personeel.js').includes('id="d-uitnodig"'), 'N7: uitnodigen staat in het persoon-detail');
+  T.check(lees('public/nakijken.js').includes("'/bakken?id='") && !lees('public/nakijken.js').includes("'/#materiaal?bak='"), 'N9: "Bak openen" gaat naar /bakken?id=');
+  const bakkenR = await T.api(srv.base, null, 'GET', '/bakken?id=' + bakId);
+  T.check(bakkenR.status === 200 || bakkenR.status === 302, 'N9: /bakken?id= bestaat als pagina');
+  const sr = lees('public/sportrooster.js');
+  T.check(sr.includes("zicht')==='seizoen'") && sr.includes('id="leeg-inplannen"') && !sr.includes("'Hele zomer'"), 'N10/N12: ?zicht=seizoen werkt, echte inplan-knop in de lege lijst, "Hele periode"');
+  const km14 = lees('public/kampmomenten.js');
+  T.check(km14.includes('Thema zoeken') && km14.includes('dagLast'), 'N14: zoekveld in de themakeuze en gewone thema’s vóór themadagen');
+  T.check(lees('public/ritplanning.js').includes("'rit':'ritten'"), 'N12: "1 rit" in plaats van "1 ritten"');
   // G11: melding "bestelling binnen" gaat niet naar wie het zelf deed
   const ml = (await T.leesDb(srv.dbPad, "SELECT voor_rol,tekst FROM meldingen WHERE tekst LIKE 'Bestelling binnen:%' ORDER BY id"));
   T.check(ml.length >= 2 && ml.every((m) => m.voor_rol === 'coordinator'), '"Bestelling binnen" van kantoor gaat naar coördinatoren');

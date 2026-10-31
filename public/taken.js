@@ -64,7 +64,7 @@
       :'<div class="leeg">Geen taken voor deze filter</div>';
     $('n-taken').textContent=`${lijst.length} taken`;
     // TF6 N1: duidelijk welke periode je ziet, met een knop om te wisselen tussen "Alles" en "Deze week".
-    const bk=O.bereik||{},dtxt=s=>s?new Date(s+'T12:00:00').toLocaleDateString('nl-BE',{day:'numeric',month:'short'}).replace(/./g,''):'';
+    const bk=O.bereik||{},dtxt=s=>s?new Date(s+'T12:00:00').toLocaleDateString('nl-BE',{day:'numeric',month:'short'}).replace(/\./g,''):'';
     let zicht=$('taken-zicht');
     if(!zicht){zicht=document.createElement('div');zicht.id='taken-zicht';zicht.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px;font-size:13px;color:#475569';const l=$('lijst');l.parentNode.insertBefore(zicht,l);}
     zicht.innerHTML=bk.alle?`<span>Je ziet <b>alle taken</b>${bk.van?' · '+esc(dtxt(bk.van))+' – '+esc(dtxt(bk.tot)):''}</span><a href="/taken?week=${esc(iso0())}" class="knop licht klein" id="zicht-wissel">Alleen deze week</a>`:`<span>Je ziet <b>week ${esc(dtxt(O.week.start))} – ${esc(dtxt(O.week.eind))}</b></span><a href="/taken?alle=1" class="knop licht klein" id="zicht-wissel">Alles tonen</a>`;

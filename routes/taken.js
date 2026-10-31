@@ -49,7 +49,7 @@ module.exports = function(ctx){
     const alleTaken=()=>all("SELECT * FROM transport_taken WHERE status<>'geannuleerd' ORDER BY CASE WHEN COALESCE(datum,'')='' THEN '9999' ELSE datum END,COALESCE(tijd,''),id").map(t=>rij(t,ritten));
     const week=sel([ma,zo]).map(t=>rij(t,ritten));
     let toonAlle=req.query.alle==='1',auto=false;
-    if(!toonAlle&&!/^d{4}-d{2}-d{2}$/.test(req.query.week||'')&&!week.length){const nAll=get("SELECT COUNT(*) AS n FROM transport_taken WHERE status<>'geannuleerd'").n;if(nAll){toonAlle=true;auto=true;}}
+    if(!toonAlle&&!/^\d{4}-\d{2}-\d{2}$/.test(req.query.week||'')&&!week.length){const nAll=get("SELECT COUNT(*) AS n FROM transport_taken WHERE status<>'geannuleerd'").n;if(nAll){toonAlle=true;auto=true;}}
     const taken=toonAlle?alleTaken():week;
     const datums=taken.map(t=>t.datum).filter(Boolean).sort();
     const van=toonAlle?(datums[0]||ma):ma,tot=toonAlle?(datums[datums.length-1]||zo):zo;

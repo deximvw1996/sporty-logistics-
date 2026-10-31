@@ -10,6 +10,7 @@
     { id: 'materiaal', ico: '📦', naam: 'Materiaal', href: '/bakken' },
     { id: 'locaties', ico: '📍', naam: 'Locaties', href: '/locaties' }, // LO1 gebouwd (30/10): nieuw scherm
     { id: 'voorraad', ico: '🧮', naam: 'Voorraad & controles', href: '/nakijken', badge: 'b-nakijken' },
+    { id: 'meldingen', ico: '🔔', naam: 'Meldingen', href: '/meldingen', badge: 'b-meldingen' }, // TF6 N5
     { id: 'beheer', ico: '⚙️', naam: 'Beheer', href: '/personeel' }
   ];
   var SUB = {

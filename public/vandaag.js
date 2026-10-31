@@ -89,6 +89,7 @@
     lb.open=open;
     const tel=(id,n)=>{const b=$(id);b.textContent=n;b.hidden=!n;};
     tel('b-vandaag',v.beslissen.length);tel('b-transport',v.inplannen.length);
+    api('GET','/api/meldingen').then(m=>{const b=$('b-meldingen');if(b&&m.ok){b.textContent=m.json.ongelezen||0;b.hidden=!m.json.ongelezen;}}).catch(()=>{}); // TF6 N5: teller bij Meldingen in de balk
     $('c-onderweg').textContent=v.cijfers.ritten_onderweg;$('c-open').textContent=v.cijfers.locaties_open;
     $('n-ritten').textContent=v.ritten_vandaag.length;
     const ritRij=r=>{

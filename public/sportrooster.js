@@ -94,7 +94,7 @@
   }
   const Q=new URLSearchParams(location.search);
   const PER=Q.get('periode_id')||'';
-  let MODE=Q.get('modus')==='seizoen'?'seizoen':'week',WEEK=parseInt(Q.get('week'))||0,FILTER='ingepland',ZOEK='',TAB='week',SOORT=Q.get('soort')||'';
+  let MODE=(Q.get('modus')==='seizoen'||Q.get('zicht')==='seizoen')?'seizoen':'week',WEEK=parseInt(Q.get('week'))||0,FILTER='ingepland',ZOEK='',TAB='week',SOORT=Q.get('soort')||'';
   let W=null,S=null,D=null,SEL=new Set();
   const pq=()=>PER?`periode_id=${PER}&`:'';
 
@@ -117,7 +117,7 @@
     const l=lijstNu();
     if(MODE==='week'){
       $('kopr-plek').innerHTML=BOUW.kop();$('lijst').className='scroll';
-      $('lijst').innerHTML=l.length?l.map(s=>BOUW.rij(s,{act:SOORT===s.soort,sel:SEL.has(s.soort)})).join(''):`<div class="leeg">${FILTER==='ingepland'?'Deze week is nog geen sport ingepland. Kies "Alle" of "+ Inplannen".':'Geen sporten voor deze filter'}</div>`;
+      $('lijst').innerHTML=l.length?l.map(s=>BOUW.rij(s,{act:SOORT===s.soort,sel:SEL.has(s.soort)})).join(''):`<div class="leeg">${FILTER==='ingepland'?'Deze week is nog geen sport ingepland. Plan er een in met de knop hieronder, of kies "Alle".':'Geen sporten voor deze filter'}${FILTER==='ingepland'?'<div style="margin-top:10px"><button class="knop" id="leeg-inplannen">+ Inplannen</button></div>':''}</div>`;
       $('voet').innerHTML=`<span><span id="n-tot">${l.length} sport${l.length===1?'':'en'}</span> · <span class="n">${SEL.size} geselecteerd</span></span><span>vakje = sets in gebruik / sets van die sport · sets zijn uitwisselbaar</span>${BOUW.legende()}`;
       const al=$('alles');if(al)al.checked=l.length>0&&l.every(x=>SEL.has(x.soort));
     }else{
@@ -191,6 +191,7 @@
     if(t.closest('[data-act="terug"]')){$('body').classList.remove('toon-detail');return;}
     if(!D)return;
     if(t.id==='d-vorige'||t.id==='d-volgende'){WEEK=Math.max(1,Math.min(D.weken,WEEK+(t.id==='d-vorige'?-1:1)));MODE==='week'&&(W=null);return laad();}
+    if(t.id==='leeg-inplannen')return inplannen('');
     if(t.id==='d-inplannen')return inplannen(D.soort);
     if(t.id==='d-naarweek'){MODE='week';TAB='week';FILTER='alle';return laad();}
     const nw=t.closest('[data-naarweek],[data-oplossen]');if(nw){WEEK=+(nw.dataset.naarweek||nw.dataset.oplossen);MODE='week';TAB='week';FILTER='alle';return laad();}
