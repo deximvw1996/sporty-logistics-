@@ -134,7 +134,7 @@ try {
     .replace('/api/locatie-config/:locatie_id', `/api/locatie-config/${v(ids.locatie)}`)
     .replace('/api/locaties/:id', `/api/locaties/${v(ids.locatie)}`)
     .replace('/api/themas/:id', `/api/themas/${v(ids.thema)}`)
-    .replace('/api/opdrachten/:id', '/api/opdrachten/1').replace('/api/ritten/:id', `/api/ritten/${v(ids.rit)}`)
+    .replace('/api/meehelpen/:id', '/api/meehelpen/1').replace('/meehelpen/:id', '/meehelpen/1').replace('/api/opdrachten/:id', '/api/opdrachten/1').replace('/api/ritten/:id', `/api/ritten/${v(ids.rit)}`)
     .replace('/api/taken/:id', '/api/taken/999999') // TR1: taak-detail (onbekende taak → 404, geen 500)
     .replace('/api/personeel/:id/detail', '/api/personeel/10/detail') // BH1
     .replace('/api/logboek/wijziging/:id', '/api/logboek/wijziging/999999') // BH1: onbekend → 404

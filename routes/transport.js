@@ -1448,12 +1448,14 @@ module.exports = function(ctx){
   app.use('/api/rit-token/:token',(req,res,next)=>{
     const r=_ritVanToken(req.params.token);
     if(!_nogNietKlaar(r))return next();
+    { const s0=req.headers['x-auth-token']&&ctx.checkSessie?ctx.checkSessie(req.headers['x-auth-token']):null;if(s0&&s0.rol==='kantoor')return next(); } // TF13: kantoor mag meehelpen vóór het klaarzetten
     if(req.method==='GET')return res.json({niet_klaargezet:true,rit:{id:r.id,datum:r.datum}});
     return res.status(409).json({error:'Deze rit is nog niet klaargezet.'});
   });
   // gezet = true/false zet de stand; zonder gezet wisselt de stand zoals vroeger.
   // TF13: wie deed het. Ingelogd = de sessie; op de rit-link de keuze "Wie ben jij?" (alleen iemand van deze wagen); anders de bestuurder zoals vroeger.
   const _actief=new Map();
+  const _helper=(req,rit)=>{const s=req.headers['x-auth-token']&&ctx.checkSessie?ctx.checkSessie(req.headers['x-auth-token']):null;if(!s||s.persoon_id===rit.personeel_id||(ctx.isOpWagen&&ctx.isOpWagen(rit.id,s.persoon_id)))return null;return s;};
   function _ritWie(req,rit){
     let naam='',bekend=false;
     const s=req.headers['x-auth-token']&&ctx.checkSessie?ctx.checkSessie(req.headers['x-auth-token']):null;
@@ -1562,6 +1564,8 @@ module.exports = function(ctx){
     if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
     const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.taakId]);
     if(!taak||taak.rit_id!==rit.id)return res.status(403).json({error:'Deze stop hoort niet bij deze rit'});
+    // TF13: aankomst doorgeven blijft voor wie op de rit staat; kantoor kan het met een bevestiging.
+    { const h=_helper(req,rit);if(h){if(h.rol!=='kantoor')return res.status(403).json({error:'Aankomst doorgeven doet wie op de rit staat'});if(!req.body?.bevestigd)return res.status(409).json({error:'Je staat niet op deze rit',code:'helper'});} }
     if(taak.status!=='gedaan')updateMetLog(req,"UPDATE transport_taken SET status='aangekomen' WHERE id=?",[taak.id],'rit-link');
     if(!rit.status||rit.status==='gepland')updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[rit.id],'rit-link');
     _startEcht(req,rit.id);
@@ -1657,7 +1661,7 @@ module.exports = function(ctx){
     const _p=rit.personeel_id?get('SELECT id,rol FROM personeel WHERE id=?',[rit.personeel_id]):ctx.persoonOpNaam&&ctx.persoonOpNaam(rit.chauffeur);
     const _rol=_p?(_p.rol||(get('SELECT rol FROM personeel WHERE id=?',[_p.id])||{}).rol):'';
     const _vol=_volVan(rit.id);
-    _ritWie(req,rit);res.json({...(ctx.wagenExtra?ctx.wagenExtra(rit,_ritData(rit)):_ritData(rit)),actief:_actieven(rit.id),vol:{vraag:_volVraag(rit.id),antwoord:_vol.length?_vol[_vol.length-1].antwoord:'',n:_vol.length},kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
+    _ritWie(req,rit);const _h=_helper(req,rit);res.json({helper:_h?{rol:_h.rol}:null,nog_niet_klaargezet:rit.klaarzet_status!=='klaar'&&(!rit.status||rit.status==='gepland'),...(ctx.wagenExtra?ctx.wagenExtra(rit,_ritData(rit)):_ritData(rit)),actief:_actieven(rit.id),vol:{vraag:_volVraag(rit.id),antwoord:_vol.length?_vol[_vol.length-1].antwoord:'',n:_vol.length},kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
   });
 
   // TF7 punt 5: "Hoe vol zat de wagen?" Hint per rit: één antwoord, één keer wijzigen, alles bewaard. Geen berekening en geen score.

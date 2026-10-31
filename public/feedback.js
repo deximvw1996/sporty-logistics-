@@ -27,6 +27,18 @@
   function zet() {
     if (pad === '/meer' && !document.getElementById('fb-open')) { var hier = document.getElementById('meer'); if (hier && hier.parentNode) hier.parentNode.insertBefore(knop(), hier.nextSibling); }
   }
+  // TF13: alle ritten van de dag, met Meehelpen. Kantoor en chauffeurs; de route laat de rest niet door.
+  var RDAG = '';
+  async function alleRitten() {
+    if (pad !== '/vandaag' && pad !== '/meer') return;
+    var r = await fetch('/api/meehelpen/ritten' + (RDAG ? '?datum=' + RDAG : ''), { headers: H() }); if (!r.ok) return; var j = await r.json(), e = document.getElementById('alle-ritten');
+    if (!e) { var g = document.getElementById('gsm'), k = document.querySelector('.kols'), hier = document.getElementById('meer'), doel = pad === '/meer' ? hier && hier.nextSibling : g && !g.hidden ? g : k; if (!doel && !hier) return; e = document.createElement('details'); e.id = 'alle-ritten'; e.style.cssText = 'background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin:0 0 10px;font-size:14px;max-width:900px'; (doel ? doel.parentNode : hier.parentNode).insertBefore(e, doel || null); }
+    var open = e.open, ov = document.activeElement && document.activeElement.id === 'ar-dag';
+    if (ov) return;
+    e.innerHTML = '<summary style="min-height:44px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700">Alle ritten · ' + j.ritten.length + '</summary><label style="display:flex;gap:8px;align-items:center;margin:4px 0">Dag <input type="date" id="ar-dag" value="' + esc(j.datum) + '" style="min-height:44px"></label>' + (j.ritten.map(function (x) { return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid #eef2f7;padding:6px 0"><div style="flex:1;min-width:170px"><b>' + esc(x.tijd || '') + ' · ' + esc(x.mensen.join(', ') || 'niemand') + '</b><div style="font-size:12px;color:#64748b">' + esc([x.stand, x.voertuig, x.lading, x.stops.join(' → ')].filter(Boolean).join(' · ')) + '</div></div><a href="/meehelpen/' + x.id + '" style="min-height:44px;display:inline-flex;align-items:center;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;text-decoration:none">Meehelpen</a></div>'; }).join('') || '<div style="color:#64748b;padding:6px 0">Geen ritten op die dag.</div>');
+    e.open = open;
+  }
+  document.addEventListener('change', function (ev) { if (ev.target.id === 'ar-dag') { RDAG = ev.target.value; ev.target.blur(); var d = document.getElementById('alle-ritten'); if (d) d.open = true; alleRitten(); } });
   // Kantoor: lijst in Meldingen.
   async function lijst() {
     if (pad !== '/meldingen') return;
@@ -43,6 +55,6 @@
     e.innerHTML = open.map(function (a) { return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fef3c7;color:#92400e;border-radius:10px;padding:8px 12px;margin:0 0 8px"><div style="flex:1;min-width:180px"><b>' + esc(a.van) + ' ' + esc(a.titel) + '</b><div style="font-size:12px">' + esc([a.voertuig, a.wie, a.waar, a.tot ? 'tot ' + a.tot : ''].filter(Boolean).join(' · ')) + '</div></div><button type="button" data-afsp="' + a.id + '" style="min-height:44px;padding:0 14px;border-radius:8px;border:0;background:#fff;color:#92400e;font-weight:700;cursor:pointer">Klaar</button></div>'; }).join('');
   }
   document.addEventListener('click', async function (e) { var b = e.target.closest && e.target.closest('[data-afsp]'); if (!b) return; b.disabled = true; await fetch('/api/afspraken/' + b.dataset.afsp + '/klaar', { method: 'POST', headers: H() }); afspraken(); });
-  window.addEventListener('sporty-live', function () { lijst(); afspraken(); });
-  setTimeout(function () { zet(); lijst(); afspraken(); }, 400);
+  window.addEventListener('sporty-live', function () { lijst(); afspraken(); alleRitten(); });
+  setTimeout(function () { zet(); lijst(); afspraken(); alleRitten(); }, 400);
 })();

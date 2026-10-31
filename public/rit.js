@@ -252,7 +252,7 @@
     if (data.niet_klaargezet) return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span></div></div><div class="uitleg leeg" style="padding:24px;font-size:16px">Deze rit is nog niet klaargezet. Kantoor werkt er nog aan; je krijgt een melding zodra ze klaarstaat.<br><a class="knop" href="/vandaag" style="display:inline-flex;align-items:center;min-height:44px;margin-top:12px;padding:0 14px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;text-decoration:none">Naar Vandaag</a></div></div>';
     // TF7 G7: de laatste actie blijft boven aan het scherm ongedaan te maken tot de volgende actie of tot je weggaat; geen toast over de regels.
     var ook = (data.actief || []).filter(function (n) { return n !== st.ikNaam; });
-    var st1 = { balkLaatste: (st.nietBewaard ? '<div class="laatste fout" role="alert"><span>Niet bewaard: geen verbinding. Tik opnieuw zodra je weer verbinding hebt.</span></div>' : '') + (ook.length ? '<div class="ookbezig">ook bezig: ' + ook.map(esc).join(', ') + '</div>' : '') + (st.laatste ? '<div class="laatste"><span>' + esc(st.laatste.tekst) + '</span><button type="button" data-act="laatste-undo">Laatste actie ongedaan maken</button></div>' : '') };
+    var st1 = { balkLaatste: (data.helper ? '<div class="ookbezig helperb"><span>Je helpt mee, je staat niet op deze rit' + (data.nog_niet_klaargezet ? ' · nog niet klaargezet' : '') + '</span><button type="button" class="knop licht" data-act="op-rit-mee">Op deze rit mee</button></div>' : '') + (st.nietBewaard ? '<div class="laatste fout" role="alert"><span>Niet bewaard: geen verbinding. Tik opnieuw zodra je weer verbinding hebt.</span></div>' : '') + (ook.length ? '<div class="ookbezig">ook bezig: ' + ook.map(esc).join(', ') + '</div>' : '') + (st.laatste ? '<div class="laatste"><span>' + esc(st.laatste.tekst) + '</span><button type="button" data-act="laatste-undo">Laatste actie ongedaan maken</button></div>' : '') };
     var basis = st.scherm === 'stop' ? stopHtml(data, st.taakId, st1) : st.scherm === 'blok' ? blokHtml(data, st.taakId, st1) : dagHtml(data, st1);
     if (st.balk) basis = '<div class="wijzig"><span style="flex:1">Kantoor wijzigde deze rit: ' + esc(st.balk) + '</span><button type="button" data-act="balk-weg" aria-label="Sluiten">✕</button></div>' + basis;
     var sheet = '';
@@ -260,6 +260,7 @@
     else if (st.sheet && st.sheet.type === 'probleem') sheet = probleemHtml(data, st.sheet);
     else if (st.sheet && st.sheet.type === 'alles') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (st.sheet.actie === 'laden' ? 'Alles geladen' : 'Alles gelost') + ': ' + telling(st.sheet.ids.length, st.sheet.stuks) + '?</h3><p>Wat op "past niet" staat, slaat dit over. Je kan het daarna ongedaan maken.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="prim" data-act="alles-ok">Ja, ' + telling(st.sheet.ids.length, st.sheet.stuks) + '</button></div></div></div>';
     else if (st.sheet && st.sheet.type === 'wie') sheet = '<div class="dim"><div class="sheet" role="dialog" aria-modal="true"><h3>Wie ben jij?</h3><p>Zo zien de anderen wie wat deed. Dit toestel onthoudt het.</p>' + (data.mensen || []).filter(function (m) { return m.id; }).map(function (m) { return '<button type="button" class="wiek" data-act="wie-kies" data-a="' + m.id + '">' + esc(m.naam) + '</button>'; }).join('') + '</div></div>';
+    else if (st.sheet && st.sheet.type === 'aankomst') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>Je staat niet op deze rit</h3><p>Toch de aankomst doorgeven?</p><div class="knoppen"><button type="button" data-act="sheet-sluit">Nee</button><button type="button" class="prim" data-act="aangekomen" data-a="' + st.sheet.id + '">Ja</button></div></div></div>';
     else if (st.sheet && st.sheet.type === 'ander') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>Dit deed ' + esc(st.sheet.door) + '</h3><p>Toch terugzetten?</p><div class="knoppen"><button type="button" data-act="sheet-sluit">Nee</button><button type="button" class="prim" data-act="ander-ok">Ja, terugzetten</button></div></div></div>';
     else if (st.sheet && st.sheet.type === 'toch') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>Nog niet geladen</h3><p>Dit stuk staat nog niet op geladen. Toch lossen zet het op geladen én gelost.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="rood" data-act="toch-ok">Toch lossen</button></div></div></div>';
     return basis + sheet;
@@ -361,8 +362,12 @@
           if (j) { await laad(); }
           return;
         }
+        case 'op-rit-mee': { var tkm = ''; try { tkm = root.localStorage.getItem('sporty-auth-token') || ''; } catch (e) { /* geen opslag */ } var rm = await deps.fetch('/api/meehelpen/' + data.rit.id + '/mee', { method: 'POST', headers: { 'x-auth-token': tkm } }); if (rm.ok) { deps.toast('Je staat nu op deze rit', true); await laad(); } return; }
         case 'aangekomen': {
-          var ja = await post('/taken/' + id + '/aangekomen');
+          if (data.helper && data.helper.rol !== 'kantoor') { deps.toast('Aankomst doorgeven doet wie op de rit staat', false); return; }
+          if (data.helper && !(st.sheet && st.sheet.type === 'aankomst')) { st.sheet = { type: 'aankomst', id: id }; return teken(); }
+          st.sheet = null;
+          var ja = await post('/taken/' + id + '/aangekomen', data.helper ? { bevestigd: true } : undefined);
           if (ja) { deps.toast('✓ Aankomst doorgegeven', true); await laad(); }
           return;
         }

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Meehelpen</title></head><body style="font-family:system-ui;padding:24px">Checklist openen…
+<script>
+// TF13: dezelfde checklist met de eigen sessie; de token blijft uit de adresbalk.
+(async function(){
+  var tok='';try{tok=localStorage.getItem('sporty-auth-token')||'';}catch(e){}
+  if(!tok){location.replace('/login?terug='+encodeURIComponent(location.pathname));return;}
+  var id=location.pathname.split('/').pop(),r=await fetch('/api/meehelpen/'+encodeURIComponent(id),{headers:{'x-auth-token':tok}});
+  if(r.status===401){location.replace('/login?terug='+encodeURIComponent(location.pathname));return;}
+  var j=await r.json();if(!r.ok){document.body.textContent=j.error||'Dit lukt niet.';return;}
+  var h=await (await fetch('/rit/'+encodeURIComponent(j.token))).text();
+  document.open();document.write(h);document.close();
+})();
+</script></body></html>

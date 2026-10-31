@@ -241,5 +241,26 @@ module.exports=function(ctx){
     const w=[],p=[];[['rit_id','rit'],['locatie_id','locatie'],['voertuig_id','voertuig']].forEach(([k,q])=>{if(req.query[q]){w.push(k+'=?');p.push(req.query[q]);}});
     res.json({feedback:all(`SELECT * FROM feedback ${w.length?'WHERE '+w.join(' AND '):''} ORDER BY id DESC LIMIT 200`,p).map(x=>({...x,locatie:x.locatie_id?locNaam(x.locatie_id):'',voertuig:x.voertuig_id?(get('SELECT naam FROM voertuigen WHERE id=?',[x.voertuig_id])||{}).naam||'':'',foto_url:x.foto_path?'/uploads/'+x.foto_path:null}))});
   });
+  // ── TF13 punt 3: meehelpen zonder op de rit te staan. Met de eigen sessie; plant niemand. Chauffeurs zien geen niet-klaargezette ritten. ──
+  const zichtbaar=(r,rol)=>rol==='kantoor'||r.klaarzet_status==='klaar'||(r.status&&r.status!=='gepland');
+  app.get('/api/meehelpen/ritten',(req,res)=>{
+    const d=new Date(),datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    res.json({datum,ritten:all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY vertrek,id",[datum]).filter(r=>zichtbaar(r,req.persoon.rol)).map(r=>{
+      const t=takenVan(r.id);return {id:r.id,tijd:_ritPlanInfo(r).vertrek,mensen:mensen(r).map(m=>m.naam),voertuig:r.voertuig||'',stand:r.status==='gedaan'?'afgerond':r.status==='onderweg'?'onderweg':r.klaarzet_status==='klaar'?'klaargezet':'nog niet klaargezet',lading:ctx._ritLading?ctx._ritLading(r.id).tekst:'',stops:t.map(x=>locNaam(stopLoc(x)))};
+    })});
+  });
+  app.get('/api/meehelpen/:id',(req,res)=>{
+    const r=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);if(!r)return res.status(404).json({error:'Rit niet gevonden'});
+    if(!zichtbaar(r,req.persoon.rol))return res.status(403).json({error:'Deze rit is nog niet klaargezet'});
+    let t=r.rit_token;if(!t){t=ctx._genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[t,r.id]);}
+    res.json({token:t});
+  });
+  app.post('/api/meehelpen/:id/mee',(req,res)=>{
+    const r=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]),pid=req.persoon.persoon_id;if(!r)return res.status(404).json({error:'Rit niet gevonden'});
+    if(!zichtbaar(r,req.persoon.rol))return res.status(403).json({error:'Deze rit is nog niet klaargezet'});
+    if(r.personeel_id!==pid&&!ctx.isOpWagen(r.id,pid)){insMetLog(req,'rit_personen',['rit_id','personeel_id'],[r.id,pid],'op deze rit mee');ctx.melding(req,{voor_rol:'kantoor',van_naam:req.persoon.naam,tekst:`${req.persoon.naam} rijdt mee op rit #${r.id}`,link:'/opdracht?datum='+r.datum+'&rit='+r.id,niveau:'vandaag'});}
+    res.json({ok:true});
+  });
+  app.get('/meehelpen/:id',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','meehelpen.html')));
   app.get('/opdracht',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','opdracht.html')));
 };
