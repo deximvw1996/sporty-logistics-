@@ -123,9 +123,9 @@ module.exports = function(ctx){
 
   // ── THEMAS AAN KAMPMOMENT KOPPELEN ──
   app.post('/api/kampmomenten/:id/themas',(req,res)=>{
-    const{thema_id,dag,leeftijdsgroep}=req.body;
+    const{thema_id,dag,leeftijdsgroep,groepen}=req.body;
     const dagVal=(dag===null||dag===undefined)?null:(Number.isInteger(dag)&&dag>=0&&dag<=4?dag:null);
-    try{ins('INSERT INTO kampmoment_themas (kampmoment_id,thema_id,dag,leeftijdsgroep) VALUES (?,?,?,?)',[req.params.id,thema_id,dagVal,leeftijdsgroep||'']);res.json(getKampmoment(req.params.id));}
+    try{ins('INSERT INTO kampmoment_themas (kampmoment_id,thema_id,dag,leeftijdsgroep,groepen) VALUES (?,?,?,?,?)',[req.params.id,thema_id,dagVal,leeftijdsgroep||'',Math.max(1,Math.min(20,parseInt(groepen)||1))]);res.json(getKampmoment(req.params.id));}
     catch(e){res.status(400).json({error:'Thema al gekoppeld aan dit kampmoment.'});}
   });
   app.delete('/api/kampmomenten/:id/themas/:ktid',(req,res)=>{

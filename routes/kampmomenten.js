@@ -4,7 +4,7 @@
 // POST /api/kampmomenten/verwijderen (met 409-bewaking voor al geladen transport). Data en weergave gescheiden (MOBIEL-REGEL).
 'use strict';
 module.exports = function(ctx){
-  const {app,get,all,run,ins,now,logAct,updateMetLog,delMetLog,_genToken,alleenKantoor,path,ROOT_DIR} = ctx;
+  const {app,get,all,run,ins,now,logAct,updateMetLog,insMetLog,delMetLog,_genToken,alleenKantoor,path,ROOT_DIR} = ctx;
 
   const KORT=['zo','ma','di','wo','do','vr','za'];
   const MND=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
@@ -52,8 +52,8 @@ module.exports = function(ctx){
   const kookLijst=km=>(km.kookdagen||'').split(',').map(s=>s.trim()).filter(x=>KOOK.includes(x));
 
   function _themas(km){
-    return all(`SELECT kt.id AS kt_id,kt.dag,kt.leeftijdsgroep AS kt_lg,t.id,t.name,t.leeftijdsgroep FROM kampmoment_themas kt JOIN themas t ON t.id=kt.thema_id WHERE kt.kampmoment_id=? ORDER BY kt.dag,t.name`,[km.id])
-      .map(t=>({id:t.id,kt_id:t.kt_id,naam:t.name,leeftijdsgroep:t.kt_lg||t.leeftijdsgroep||'',dag:t.dag==null?null:t.dag}));
+    return all(`SELECT kt.id AS kt_id,kt.dag,kt.groepen,kt.leeftijdsgroep AS kt_lg,t.id,t.name,t.leeftijdsgroep FROM kampmoment_themas kt JOIN themas t ON t.id=kt.thema_id WHERE kt.kampmoment_id=? ORDER BY kt.dag,t.name`,[km.id])
+      .map(t=>({id:t.id,kt_id:t.kt_id,naam:t.name,leeftijdsgroep:t.kt_lg||t.leeftijdsgroep||'',dag:t.dag==null?null:t.dag,groepen:t.groepen||1}));
   }
   function _themaTekst(km,themas){
     if(!themas.length)return '— geen thema';
@@ -315,6 +315,72 @@ module.exports = function(ctx){
     if(opruim.ritten){rest.ritten.forEach(r=>{delMetLog(req,'DELETE FROM verhuis_checks WHERE rit_id=?',[r.id],'kampmoment verwijderd');delMetLog(req,'DELETE FROM transport_ritten WHERE id=?',[r.id],'kampmoment verwijderd');});over.ritten=0;}
     if(rest.aanvullijst||rest.aanvragen||rest.ritten.length)logAct('kampmoment','verwijderd (rest)',`Na verwijderen: aanvullijst-regels: ${rest.aanvullijst}, aanvragen: ${rest.aanvragen}, lege ritten: ${rest.ritten.length} ${opruim.aanvullijst||opruim.aanvragen||opruim.ritten?'opgeruimd volgens keuze':'bleven staan'} — ${wie(req)||'kantoor'}`,null,null);
     res.json({ok:true,verwijderd:kms.length,blijft:over,tellingen_bewaard:rest.tellingen});
+  });
+
+  // ── BW1 punt 2: themakeuze — alle thema's met hun info en waar ze al staan (melden, nooit verbieden) ──
+  const LANG_PERIODE=per=>per&&per.start_datum&&per.eind_datum&&((d0(per.eind_datum)-d0(per.start_datum))/864e5+1)>14; // "al ingepland" enkel bij een periode langer dan 2 weken
+  app.get('/api/themakeuze',alleenKantoor,(req,res)=>{
+    const per=(parseInt(req.query.periode_id)&&get('SELECT * FROM vakantieperiodes WHERE id=?',[parseInt(req.query.periode_id)]))||actievePeriode();
+    if(!per)return res.json({periode:null,themas:[],toon_ingepland:false});
+    const week=parseInt(req.query.week)||null,loc=parseInt(req.query.locatie_id)||null;
+    const rijen=all('SELECT kt.thema_id,km.week,km.locatie_id,km.id AS km_id FROM kampmoment_themas kt JOIN kampmomenten km ON km.id=kt.kampmoment_id WHERE km.periode_id=?',[per.id]);
+    const themas=all('SELECT * FROM themas ORDER BY name').map(t=>{
+      const mijn=rijen.filter(r=>r.thema_id===t.id);
+      const elders=week?mijn.filter(r=>r.week===week&&r.locatie_id!==loc).map(r=>locNaam(r.locatie_id)):[];
+      return {id:t.id,naam:t.name,categorie:t.categorie||'',leeftijdsgroep:t.leeftijdsgroep||'',extern_firma:t.extern_firma||'',eigen:!(t.extern_firma||'').trim(),
+        is_zwem:!!t.is_zwem,heeft_kook:!!t.heeft_kookactiviteit,locatie_nodig:t.locatie_nodig||'',
+        ingepland_n:mijn.length,elders:[...new Set(elders)],hier:!!(week&&loc&&mijn.some(r=>r.week===week&&r.locatie_id===loc))};
+    });
+    res.json({periode:{id:per.id,naam:per.naam,max_weken:per.max_weken},toon_ingepland:LANG_PERIODE(per),themas});
+  });
+
+  // ── BW1 punt 1: nieuw kampmoment (alles optioneel behalve locatie en minstens één week: zonder die twee bestaat er geen kampmoment) ──
+  // Eén kampmoment per week. Een week die al bestaat voor die locatie wordt niet aangeraakt en meldt dat; de rest wordt gemaakt.
+  app.post('/api/kampmomenten/nieuw',alleenKantoor,(req,res)=>{
+    const b=req.body||{};
+    const per=(parseInt(b.periode_id)&&get('SELECT * FROM vakantieperiodes WHERE id=?',[parseInt(b.periode_id)]))||actievePeriode();
+    if(!per)return res.status(400).json({error:'Er is geen periode. Maak eerst een periode.'});
+    const loc=parseInt(b.locatie_id),locRij=loc?get('SELECT * FROM locaties WHERE id=?',[loc]):null;
+    if(!locRij)return res.status(400).json({error:'Kies een locatie.'});
+    const weken=[...new Set((Array.isArray(b.weken)?b.weken:[]).map(Number).filter(w=>w>=1&&w<=(per.max_weken||52)))].sort((a,c)=>a-c);
+    if(!weken.length)return res.status(400).json({error:'Kies minstens één week.'});
+    const dagen=Array.isArray(b.dagen)&&b.dagen.length===7?b.dagen.map(Boolean):[true,true,true,true,true,false,false];
+    const kv=parseInt(b.kv_persoon_id)||null;
+    if(kv&&!get('SELECT id FROM personeel WHERE id=?',[kv]))return res.status(400).json({error:'Deze KV bestaat niet.'});
+    const themaIn=(Array.isArray(b.themas)?b.themas:[]).map(t=>({id:parseInt(t.thema_id),groepen:Math.max(1,Math.min(20,parseInt(t.groepen)||1))})).filter(t=>t.id&&get('SELECT id FROM themas WHERE id=?',[t.id]));
+    const themaRij=themaIn.map(t=>({...t,rij:get('SELECT * FROM themas WHERE id=?',[t.id])}));
+    const soort=themaRij.length&&themaRij.every(t=>t.rij.categorie==='themadag')?'themadag':'kamp';
+    const std=b.standaard_materiaal===false||b.standaard_materiaal===0?0:1;
+    const gesloten=new Set(all('SELECT datum FROM gesloten_dagen WHERE locatie_id IS NULL OR locatie_id=?',[loc]).map(g=>g.datum));
+    const uitkomst=[];
+    weken.forEach(week=>{
+      const bestaand=get('SELECT id FROM kampmomenten WHERE locatie_id=? AND week=? AND periode_id=?',[loc,week,per.id]);
+      if(bestaand){uitkomst.push({week,status:'bestond_al',id:bestaand.id,tekst:`Week ${week}: er bestaat al een kampmoment voor ${locRij.name}, dat is ongemoeid gelaten.`});return;}
+      const id=insMetLog(req,'INSERT INTO kampmomenten (locatie_id,week,periode_id,type,kv_persoon_id,standaard_materiaal) VALUES (?,?,?,?,?,?)',[loc,week,per.id,soort,kv,std],'planning');
+      const km={id,locatie_id:loc,week,periode_id:per.id};
+      _dagen(km,per).datums.forEach((dt,i)=>{
+        if(!dagen[i]||gesloten.has(dt))return;
+        if(!get('SELECT id FROM kalender_dagen WHERE locatie_id=? AND datum=?',[loc,dt]))ins('INSERT INTO kalender_dagen (locatie_id,datum,open) VALUES (?,?,?)',[loc,dt,1]);
+      });
+      const meldingen=[];
+      themaRij.forEach(t=>{
+        insMetLog(req,'INSERT INTO kampmoment_themas (kampmoment_id,thema_id,dag,leeftijdsgroep,groepen) VALUES (?,?,?,?,?)',[id,t.id,null,t.rij.leeftijdsgroep||'',t.groepen],'planning');
+        const elders=all('SELECT DISTINCT km2.locatie_id FROM kampmoment_themas kt JOIN kampmomenten km2 ON km2.id=kt.kampmoment_id WHERE kt.thema_id=? AND km2.week=? AND km2.periode_id=? AND km2.id<>?',[t.id,week,per.id,id]).map(r=>locNaam(r.locatie_id));
+        if(elders.length)meldingen.push(`${t.rij.name} staat in week ${week} ook in ${elders.join(', ')}`);
+      });
+      logAct('kampmoment','aangemaakt',`Week ${week} — ${locRij.name} (nieuw kampmoment, ${themaRij.length} thema${themaRij.length===1?'':"'s"}, ${themaRij.reduce((n,t)=>n+t.groepen,0)} groepen) door ${wie(req)||'kantoor'}`,loc,locRij.name);
+      uitkomst.push({week,status:'gemaakt',id,meldingen,tekst:`Week ${week}: kampmoment gemaakt${meldingen.length?' — let op: '+meldingen.join('; '):''}.`});
+    });
+    res.json({ok:true,gemaakt:uitkomst.filter(u=>u.status==='gemaakt').length,bestond_al:uitkomst.filter(u=>u.status==='bestond_al').length,weken:uitkomst});
+  });
+  // Aantal groepen van een thema binnen een kampmoment wijzigen.
+  app.put('/api/kampmomenten/:id/themas/:ktid/groepen',alleenKantoor,(req,res)=>{
+    const kt=get('SELECT * FROM kampmoment_themas WHERE id=? AND kampmoment_id=?',[req.params.ktid,req.params.id]);
+    if(!kt)return res.status(404).json({error:'Dit thema hoort niet bij dit kampmoment.'});
+    const n=parseInt(req.body&&req.body.groepen);
+    if(!(n>=1&&n<=20))return res.status(400).json({error:'Het aantal groepen moet tussen 1 en 20 liggen.'});
+    updateMetLog(req,'kampmoment_themas',kt.id,{groepen:n},'planning');
+    res.json({ok:true,groepen:n});
   });
 
   app.get('/kampmomenten',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','kampmomenten.html')));
