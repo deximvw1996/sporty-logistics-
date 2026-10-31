@@ -105,6 +105,7 @@
       if (!b) { b = { id: id, plek: s.van && s.van.naam || 'de stockage', regels: [] }; uit.push(b); }
       s.regels.forEach(function (r) { if (isNietMee(r)) return; var c = {}; Object.keys(r).forEach(function (k) { c[k] = r[k]; }); c.voor = stopNaam(s); b.regels.push(c); });
     });
+    var vg = data.laadvolgorde || [], pl = function (x) { var i = vg.indexOf(x.id); return i < 0 ? 999 : i; }; uit.sort(function (x, y) { return pl(x) - pl(y); }); // BW2: de laadvolgorde van de wagen
     uit.forEach(function (b) { b.totaal = stuksVan(b.regels); b.gedaan = stuksVan(b.regels.filter(function (r) { return r.geladen; })); b.open = b.totaal - b.gedaan; b.sleutel = 'laden:' + b.id; });
     return uit;
   }
@@ -201,6 +202,7 @@
     return '<div class="scherm"><div class="kop"><div class="t"><button type="button" class="terug" data-act="dag">← Dag</button><span class="pil">STOP ' + (idx + 1) + ' VAN ' + n + '</span></div>'
       + '<div class="s">Rit ' + datumKort(r.datum) + (sub.length ? ' · ' + esc(sub.join(' · ')) : '') + '</div></div>'
       + (st0 && st0.balkLaatste || '') + geplandTekst(data) + kaart + groot + (function () { var k = allesKnop('lossen', s.regels, 'Alles gelost'); return k ? '<div class="rek"><span>Deze stop</span>' + k + '</div>' : ''; })() + groepen + '<div style="height:12px"></div></div>'
+      + (s.samen && s.samen.length ? '<div class="uitleg">Samen met: ' + s.samen.map(function (w) { return esc([w.voertuig].concat(w.mensen).filter(Boolean).join(' · ')); }).join('; ') + '</div>' : '') // BW2
       + '<div class="nav"><button type="button" class="rood" data-act="probleem-open" data-a="' + s.taak_id + '" aria-label="Probleem melden">⚠</button>'
       + prim + '</div>';
   }

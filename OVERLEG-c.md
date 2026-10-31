@@ -2242,3 +2242,63 @@ Eigen keuze: push "alles" = nu + vandaag, nooit info. Standaard is "alleen Nu op
 - Losse stukken koppelen op naam: heet een regel anders dan de bakregel, dan staat het in het blok maar zakt verwacht niet.
 - Commit per punt niet gehaald: verweven in dezelfde bestanden.
 - v3c-fotos en veiligheid blijven rood, zoals al vóór TF5.
+
+## BW2 — Datamodel (vóór het bouwen geschreven)
+- **Wagen = bestaande `transport_ritten`-rij.** Eigen voertuig, aanhangwagen, token, stops (`transport_taken`), lading (`transport_regels`, `verhuis_checks`) en echte tijd. Daardoor blijven rit-link, token, oude rit-id's, geschiedenis, chauffeursscherm en alle rit-routes ongewijzigd werken.
+- **Nieuw `opdrachten`** (id, datum, einde, einde_vorig, created_at) + kolom `transport_ritten.opdracht_id`. **Overgang:** elke bestaande rit krijgt een eigen opdracht met één wagen; loopt alleen op ritten zonder `opdracht_id`, dus twee keer draaien doet niets. Nieuwe ritten via oude routes (generator, Nieuwe rit) krijgen er vanzelf een.
+- **`rit_personen`** (rit_id, personeel_id, uniek): extra mensen. De bestuurder blijft in `personeel_id`/`chauffeur`.
+- **Gedeelde stop:** niet opgeslagen maar afgeleid: zelfde opdracht, zelfde locatie en tijd op twee of meer wagens. Zonder lading komen helpen = een stop zonder regels; die werkt al ("aankomen is afronden").
+- **Meerdere ophaalplaatsen:** elke stop heeft al een `van_locatie_id`; laadstops van een wagen = de verschillende van-locaties. Nieuw: `transport_ritten.laadvolgorde` (locatie-id's, om om te draaien) en `item_types.thuislocatie_id` (artikel; leeg = wat de generator nu kiest). Bak, attribuut en sportset hebben hun thuisplaats al.
+- **Nieuw `afspraken`** en **`feedback`** (onwisbaar via triggers, net als `kv_telling_versies`).
+- Geen bestaande kolom wijzigt of verdwijnt. `stockage_rol` blijft onaangeraakt.
+
+## BW2 — Verslag (chat C, 31/10)
+**Stand:** alle vijf punten gebouwd; test-bw2 groen. Pagina: `/opdracht` (tab 4), bereikbaar via de knop Opdracht in het ritdetail van Ritplanning; de subknop Ritplanning licht er op.
+**Afwijking van de mockup:** tab 4 staat op een eigen pagina; de weekplanning met slepen blijft op /ritplanning. Op de stops staan extra knoppen (▲▼, + Materiaal, Andere wagen, Stuk verplaatsen), want verplaatsen moet kunnen. Schermafdruk 1920×900 vergeleken: kolommen, wagens, paars, agenda en knoppen kloppen. 1366×768: geen paginascroll (768 = 768). Gsm 390: scherm per wagen, ▲▼, knoppen 44 px of meer, geen horizontale scroll.
+**Niet gedaan of alleen deels:**
+- Afspraken staan op /opdracht, Vandaag en de gsm, niet in het weekraster van /ritplanning.
+- Feedback per voertuig en locatie: via `GET /api/feedback?voertuig= of locatie= of rit=` en per opdracht in de API; lijst in Meldingen. Niet zichtbaar op de pagina's Voertuigen en Locaties (die laatste is van chat D).
+- `item_types.thuislocatie_id` en de route bestaan, maar de generator leest ze nog niet: artikels gaan nog waar de generator ze nu heen stuurt. Materiaal draagt verder de bestaande thuisplaats. "Rechtstreeks naar de volgende locatie" is niet nieuw gebouwd: terugbrengen blijft zoals de generator dat nu doet.
+- De generator stelt per stuk de laadstop voor via de bestaande `van_locatie_id`; de opdracht toont en wisselt die. Ik heb de generator zelf niet aangepast en niet getest op echte zomerdata.
+- Wie laadde: op de rit-link staat de bestuurder als `geladen_door`, ook als de tweede persoon tikt (de link kent de persoon niet).
+- Live op gsm is niet in twee echte toestellen getest; de API is idempotent getest (twee keer tikken blijft geladen).
+- Migratie getest op de herfst-testdata plus een herstart; niet op een kopie van prod.
+**Stockages (BESLISSING MAXIM, niets gewijzigd):** de stockagekeuze toont alleen `type='stockage'`. Testdata:
+| locatie | type | stockage_rol |
+|---|---|---|
+| Abdijschool Vlierbeek | kamp | beide |
+| Betekom | kamp | beide |
+| Boudewijnstadion | kamp | beide |
+| Boutersem | kamp | beide |
+| Campus GroepT | kamp | beide |
+| De Ark 3 | kamp | beide |
+| De Bosstraat | kamp | beide |
+| De Kraal | kamp | beide |
+| De Kring | kamp | beide |
+| De Mozaiek | kamp | beide |
+| De Waaier | kamp | beide |
+| De Wijzer Oud-Heverlee | kamp | beide |
+| Fablab KUL | kamp | beide |
+| Gemeenteschool Bertem | kamp | beide |
+| Grasmus | kamp | beide |
+| Klare Bron | kamp | beide |
+| Rotselaar | kamp | beide |
+| Scoutslokalen Vlierbeek | kamp | beide |
+| Sporthal Heverlee | kamp | beide |
+| Sporthal Kessel-Lo | kamp | beide |
+| Sporthal UCLL | kamp | beide |
+| Sportschuur | kamp | beide |
+| Syntra | kamp | beide |
+| Terbank | kamp | beide |
+| Verkeerspark Heverlee | kamp | beide |
+| Wimpelhof | kamp | beide |
+| Woudlucht | kamp | beide |
+| Kantoor | stockage | beide |
+| Marko | stockage | beide |
+| Rozenweg | stockage | beide |
+Op prod kan de lijst anders zijn: ik heb prod niet ingekeken.
+**GEVONDEN:**
+- Migratienummer 100 gekozen: 99 is RT1. Bij een botsing op main hernummeren.
+- Commit per punt niet gehaald: één grote commit (de punten delen dezelfde routes en dezelfde pagina).
+- `v3c-fotos` en `veiligheid` blijven rood, zoals al vóór TF5.
+**Aangepaste tests:** `f1-modules` (padparameter voor de nieuwe route).

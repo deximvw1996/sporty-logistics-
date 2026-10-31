@@ -1,0 +1,41 @@
+/* BW2: exacte kopie van design/mockup-opdracht-kampmoment.html, tabs 4 en 5. */
+html,body{height:100%}
+body{background:#f5f5f5;display:flex;flex-direction:column;min-height:calc(100vh - var(--tk-h,0px));margin:0}
+button{font:inherit;cursor:pointer;border:0}
+.top,.sub{flex:none}
+.body2{padding:16px 28px;flex:1;min-height:0;display:grid;gap:16px;grid-template-columns:600px 1fr;height:calc(100vh - var(--tk-h,0px) - 104px);box-sizing:border-box}
+.kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;display:flex;flex-direction:column;min-height:0;min-width:0}
+h3{font-size:15px;font-weight:800;margin:0 0 10px;display:flex;align-items:center;gap:6px}
+.knop{height:38px;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:13px;white-space:nowrap}.knop.licht{background:#f1f5f9;color:#1e3a8a}.knop.klein{height:36px;padding:0 10px;font-size:12px}
+.pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.pil.groen{background:#dcfce7;color:#15803d}.pil.oranje{background:#ffedd5;color:#c2410c}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.blauw{background:#dbeafe;color:#1e3a8a}
+.ag{display:grid;grid-template-columns:54px 1fr;font-size:12px;flex:1;min-height:0;overflow-y:auto;align-content:start}
+.ag .h{height:30px;font-weight:700;background:#e2e8f0;display:flex;align-items:center;padding:0 8px;border-right:2px solid #fff;position:sticky;top:0;z-index:2}
+.ag .u{color:#64748b;height:58px;border-top:1px solid #eef2f7;padding-top:2px;box-sizing:border-box}
+.ag .c{position:relative;border-left:1px solid #e2e8f0}
+.bl{position:absolute;border-radius:8px;padding:5px 8px;font-size:12px;font-weight:700;overflow:hidden;cursor:pointer;box-sizing:border-box}
+.bl span{display:block;font-weight:500}.bl.o{background:#dbeafe;color:#1e3a8a}.bl.a{background:#fef3c7;color:#92400e}.bl.g{background:#e2e8f0;color:#334155}.bl.act{outline:2px solid #1e3a8a}
+.dkop{display:flex;align-items:flex-start;gap:16px;margin-bottom:10px}.dkop h2{font-size:22px;font-weight:800;display:flex;align-items:center;gap:10px;margin:0}.dkop span{font-size:13px;color:#64748b}
+.veld{height:36px;border:1px solid #cbd5e1;border-radius:8px;padding:0 8px;font:inherit;font-size:14px;background:#fff;box-sizing:border-box}
+.grid3{display:grid;gap:12px;min-height:0;flex:1;overflow:auto;align-items:start}
+.wagen{background:#f8fafc;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.wkop{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;flex-wrap:wrap}.wkop select{border:0;background:transparent;font:inherit;font-weight:800;max-width:150px;min-height:36px}
+.mens{font-size:12px;font-weight:700;background:#e0e7ff;color:#3730a3;border-radius:999px;padding:3px 9px;display:inline-flex;gap:4px;align-items:center;min-height:24px}.mens.plus{background:#f1f5f9;color:#64748b;cursor:pointer}.mens button{background:none;color:inherit;padding:0 2px}
+.stop{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;font-size:13px}.stop.ged{border:2px solid #7c3aed;background:#faf5ff}.stop b{display:block}.stop .t{font-size:12px;color:#64748b}.stop.lade{background:#f1f5f9}
+.lad{font-size:12px;color:#334155;margin-top:3px}
+.acties{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}.acties button{background:#f1f5f9;color:#1e3a8a;border-radius:6px;min-height:30px;padding:0 8px;font-size:12px;font-weight:600}
+.waarsch{font-size:12px;color:#b45309}
+.onder{font-size:12px;color:#64748b;padding-top:8px}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.35);display:flex;align-items:center;justify-content:center;z-index:50}
+.mbox{background:#fff;border-radius:14px;padding:20px 24px;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column;width:560px;max-width:calc(100vw - 24px);max-height:90vh;overflow:auto;box-sizing:border-box}
+.lbl{font-size:12px;font-weight:700;color:#64748b;display:block;margin:0 0 4px}.mbox .veld{height:40px;width:100%;margin-bottom:10px}
+.chip{height:36px;padding:0 12px;border-radius:999px;background:#f1f5f9;font-size:13px;font-weight:600;display:inline-flex;align-items:center;cursor:pointer;white-space:nowrap;color:#1a1a1a}.chip.act{background:#1e3a8a;color:#fff}
+.gsmtabs{display:none}
+.leeg{padding:40px;text-align:center;color:#64748b;font-size:14px}
+@media (max-width:767px){
+  .top,.sub{display:none}
+  .body2{display:block;height:auto;padding:12px}
+  #agenda{margin-bottom:12px}.ag{max-height:300px}
+  .gsmtabs{display:flex;gap:6px;overflow:auto;margin-bottom:8px}.gsmtabs button{min-height:44px;padding:0 12px;border-radius:10px;background:#f1f5f9;color:#1e3a8a;font-weight:700;white-space:nowrap}.gsmtabs button.act{background:#1e3a8a;color:#fff}
+  .grid3{display:block;overflow:visible}.wagen{display:none}.wagen.act{display:flex}
+  .knop,.knop.klein,.acties button,.mens.plus,.wkop select{min-height:44px}.mens button{min-width:44px;min-height:44px}.dkop{flex-wrap:wrap}
+}

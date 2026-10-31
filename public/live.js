@@ -53,6 +53,7 @@
     }).catch(function () { open = false; setTimeout(verbind, 3000); });
   }
   verbind();
+  if (m && m[1] === 'rit' || /^\/(meer|meldingen|vandaag)$/.test(pad)) { var fbs = doc.createElement('script'); fbs.src = '/public/feedback.js'; doc.head.appendChild(fbs); } // BW2
   // ── Instellingen in Meer en Meldingen ──
   function api(me, p, b) { return root.fetch(p, { method: me, headers: { 'Content-Type': 'application/json', 'x-auth-token': tok }, body: b ? JSON.stringify(b) : undefined }).then(function (r) { return r.json(); }); }
   var b64 = function (s) { s = (s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); };
