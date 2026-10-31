@@ -28,7 +28,7 @@ try {
   const oudRit = (await db("SELECT r.id,r.voertuig,r.voertuig_id FROM transport_ritten r WHERE r.voertuig_id IS NOT NULL LIMIT 1"))[0];
   if (oudRit) { const kop = oud.find((x) => x.id === oudRit.voertuig_id); T.check(!!kop && oudRit.voertuig !== '', `oude rit #${oudRit.id} houdt ${oudRit.voertuig}`); }
   else T.info('testdb heeft geen oude rit met voertuig_id');
-  const lg = await db("SELECT COUNT(*) AS n FROM activiteiten_log WHERE beschrijving LIKE '%migratie 92%'");
+  const lg = await db("SELECT COUNT(*) AS n FROM activiteiten_log WHERE beschrijving LIKE '%migratie 93%'");
   T.check(lg[0].n >= 9, `migratie gelogd (${lg[0].n})`);
 
   // Tweede start
