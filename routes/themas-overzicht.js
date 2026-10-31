@@ -98,7 +98,8 @@ module.exports = function(ctx){
       hist.push({t:tijdTekst(w.tijdstip),wie:w.persoon_naam||'',wat,wijziging_id:w.id,terugdraaibaar:false});
     });
     res.json({thema:{id:t.id,naam:t.name,kleur:t.color||'#1D9E75',kleur_naam:KLEUREN[(t.color||'').toUpperCase()]||'',categorie:t.categorie||'',leeftijdsgroep:t.leeftijdsgroep||'',
-        thema_type:t.thema_type||'eigen_materiaal',materiaal_tekst:SOORT_TXT[t.thema_type]||t.thema_type||'',kook:!!t.heeft_kookactiviteit,soort_tekst:soortTekst(t)},
+        thema_type:t.thema_type||'eigen_materiaal',materiaal_tekst:SOORT_TXT[t.thema_type]||t.thema_type||'',kook:!!t.heeft_kookactiviteit,soort_tekst:soortTekst(t),
+        extern_firma:t.extern_firma||'',is_zwem:!!t.is_zwem,locatie_nodig:t.locatie_nodig||''},
       bakken,attributen,los,kampmomenten,historiek:hist});
   });
 
@@ -110,7 +111,10 @@ module.exports = function(ctx){
     if(!naam)return res.status(400).json({error:'Naam is verplicht'});
     updateMetLog(req,'themas',t.id,{name:naam,color:b.color||t.color,categorie:b.categorie!==undefined?b.categorie:t.categorie,
       leeftijdsgroep:b.leeftijdsgroep!==undefined?b.leeftijdsgroep:t.leeftijdsgroep,thema_type:b.thema_type||t.thema_type,
-      heeft_kookactiviteit:b.heeft_kookactiviteit!==undefined?(b.heeft_kookactiviteit?1:0):t.heeft_kookactiviteit},'themas');
+      heeft_kookactiviteit:b.heeft_kookactiviteit!==undefined?(b.heeft_kookactiviteit?1:0):t.heeft_kookactiviteit,
+      extern_firma:b.extern_firma!==undefined?String(b.extern_firma||'').trim().slice(0,80):(t.extern_firma||''),   // BW1: leeg = eigen
+      is_zwem:b.is_zwem!==undefined?(b.is_zwem?1:0):(t.is_zwem||0),
+      locatie_nodig:b.locatie_nodig!==undefined?(['binnen','buiten','beide'].includes(b.locatie_nodig)?b.locatie_nodig:''):(t.locatie_nodig||'')},'themas');
     res.json({ok:true,id:t.id});
   });
 

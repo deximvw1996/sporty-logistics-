@@ -161,7 +161,12 @@
   }
   async function wissel(ktId){
     const o=await api('GET',`/api/rooster/wissel-opties?kt_id=${ktId}`);if(!o.ok)return toast(o.json.error||'Keuzelijst laden mislukt','error');
-    const id=await kies({titel:`Wissel ${o.json.groep} ${o.json.huidig.naam} · ${o.json.locatie} wk ${o.json.week}`,opties:o.json.opties});if(!id)return;
+    // BW1 punt 2: dezelfde themakeuze als bij het kampmoment (één thema kiezen); zonder dat script blijft de oude keuzelijst.
+    let id;
+    if(window.ThemaKeuze){
+      const g=await window.ThemaKeuze.open({periode_id:PER||undefined,week:o.json.week,enkel:true,gekozen:o.json.huidig&&o.json.huidig.id?[o.json.huidig.id]:[],titel:`Wissel ${o.json.groep} ${o.json.huidig.naam} · ${o.json.locatie} wk ${o.json.week}`});
+      if(!g||!g.length||(o.json.huidig&&g[0].id===o.json.huidig.id))return;id=g[0].id;
+    }else{id=await kies({titel:`Wissel ${o.json.groep} ${o.json.huidig.naam} · ${o.json.locatie} wk ${o.json.week}`,opties:o.json.opties});if(!id)return;}
     const km=(D&&D.kt_ids&&D.kt_ids.includes(ktId))?D.kampmoment.id:undefined;
     const r=await api('POST','/api/rooster/wissel',{kampmoment_id:km,groep_thema_id:ktId,nieuw_thema_id:id});
     if(!r.ok)return toast(r.json.error||'Wisselen mislukt','error');
