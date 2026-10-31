@@ -468,3 +468,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — RT1 (C) gekeurd en live: rt1 46 ok, volle run 62/62. TF12 nog niet gedaan.
 - 2026-10-31 — TF12 (C) gekeurd en live: tf12 35 ok, volle run 63/63. Volgende: BW1 (D) kampmoment, themakeuze, standaardmateriaal; BW2 (C) opdracht, afspraak, feedback.
 - 2026-10-31 — BW2 (C) gekeurd en live: bw2 42 ok, volle run 63/64, tf12 daarin 4 fout maar los 35 ok (onderzoeken als het terugkomt).
+- 2026-10-31 — BW1 (D) gekeurd en live: bw1 59 ok, volle run 62/65 (bh2, kv1, tf3-login los groen, wellicht botsing met lopende chats).
