@@ -52,7 +52,7 @@ try {
   r = await A('GET', `/api/taken/${t1}/detail`);
   const d = r.json;
   T.check(r.status === 200 && d.regels.length === 3 && d.regels[0].code === 'N20' && d.regels.every((x) => x.id && x.naam && x.qty && x.soort), `detail regels: ${d.regels.map((x) => (x.code || '-') + ' ' + x.naam + ' ×' + x.qty).join(' | ')}`);
-  T.check(d.rit && d.rit.id === rit && d.rit.stops.length === 2 && d.rit.stops.filter((s) => s.is_deze).length === 1 && d.rit.stops[0].is_deze && d.rit.stops[1].slot === 'vrij' && d.rit.capaciteit === 20, `rit #${d.rit?.id}: ${d.rit?.stops.map((s) => s.naam + '/' + s.slot + (s.is_deze ? '*' : '')).join(' → ')}`);
+  T.check(d.rit && d.rit.id === rit && d.rit.stops.length === 2 && d.rit.stops.filter((s) => s.is_deze).length === 1 && d.rit.stops[0].is_deze && d.rit.stops[1].slot === 'vrij' && d.rit.capaciteit === undefined && typeof d.rit.lading === 'string', `rit #${d.rit?.id}: ${d.rit?.stops.map((s) => s.naam + '/' + s.slot + (s.is_deze ? '*' : '')).join(' → ')}`);
   T.check(d.checks && 'geladen' in d.checks && 'gelost' in d.checks && d.checks.totaal >= 3 && d.checks.klaargezet === false, `checks ${JSON.stringify(d.checks)}`);
   T.check(d.kampmoment && d.kampmoment.locatie === 'Abdijschool Vlierbeek' && d.kampmoment.kv_naam && d.kampmoment.contact_telefoon === '0470 11 22 33' && d.kampmoment.sleutel_info, `kampmoment ${JSON.stringify(d.kampmoment)}`);
   T.check(d.gekoppeld && d.gekoppeld.ophaling_taak_id === t4, `gekoppeld: ${d.gekoppeld?.tekst}`);
