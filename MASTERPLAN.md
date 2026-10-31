@@ -461,3 +461,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — Besluit Maxim: kantoor en coördinator zijn dezelfde rol. Prompt TF9 (C).
 - 2026-10-31 — TF9 (C) gekeurd en live: tf9 26 ok, volle run 58/58. Rollen: kantoor, chauffeur, monitor, KV-link.
 - 2026-10-31 — Op verzoek van Maxim planning op prod leeggemaakt voor test van 0 (migratie 96, kopie sporty-hand-voor-leegmaken-2026-10-31.db).
+- 2026-10-31 — TK1 testklok (C) gekeurd: tk1 32 ok, volle run 59/59. SPORTY_TESTKLOK=1 op prod voor Maxims test; MOET UIT voor echte ingebruikname.
