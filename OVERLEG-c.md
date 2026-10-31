@@ -2173,3 +2173,23 @@ Filter Coördinator in Personeel is nu **KV** (de KV's stonden in die groep). Be
 1. Werkt er maar één iemand op kantoor, dan ziet die eigen rolmeldingen niet meer, ook niet de herinnering "artikel onbekend". Tekorten toont het blok wel. Volgt de opdracht, maar let erop.
 2. Kantoor ziet alle ophalingen van vandaag als "Tellen" op de gsm, niet alleen eigen ritten (zoals de coördinator had); kan druk worden.
 3. `scripts/generale-repetitie.mjs` noemt nog coordinator; de server zet het om. Niet aangepast.
+
+## TK1 — Testklok (31/10)
+
+**Tests.** `test-tk1-testklok` 32 ok. Volle run 2× zonder de variabele: 57 en 56 van 59; **niet volledig groen**. Rood: `v3c-fotos` en `veiligheid` (zelfde fouten als vóór TF5). In run 2 ook `pl3-sportrooster`, zonder FOUT-regel afgebroken (zelfde onverklaarde afbreken als eerder); apart 3× herdraaid, zie het eindbericht.
+
+**Punt 1, server.** `lib/testklok.js` staat vooraan in `server.js`. Alleen met `SPORTY_TESTKLOK=1` wordt `Date` vervangen; zonder blijft alles het echte `Date`, geen routes (404), geen HTML en een opgeslagen verschil wordt genegeerd. Verschil in `app_vlaggen.testklok_verschil`, overleeft herstart. Geen SQL-tijdfuncties in de code gevonden. Echte tijd: pincodeblokkering, `backupDb`, nachtback-up, namen van back-ups. Sessies hebben geen vervaltijd. `laatst_actief` en logregels volgen de klok.
+
+**Punt 2, schermen (aanvulling Maxim).** Klok in een vaste balk bovenaan elk HTML-antwoord, door de server vooraan in `<head>` gezet (ook rit, KV, login, print; niet op de afdruk). Venster met datum, uur, Zetten, +1 uur, +1 dag, Volgende maandag 08:00, Volgende vrijdag 16:00. ⟲ zonder bevestiging, uit op echte tijd. Grijs op echte tijd, oranje als verzet. Geen Beheer-pagina.
+**Bewuste keuze: overal aanpasbaar, ook als chauffeur en op de KV-link, zonder login.** De variabele is de muur. Elke wissel staat in het log: van, naar, echte tijd, via welk scherm (zonder token), wie. **Zet de variabele dus nooit op een omgeving met echte gebruikers:** iedereen met het adres kan de klok verzetten.
+**Gegevens na een wissel.** Rit en KV verversen zelf zonder vensters te verliezen. Andere pagina's herladen, tenzij een venster open staat of er getypt is: dan verschijnt in de balk "Gegevens verversen". Dat is mijn keuze: die pagina's hebben geen algemene ververs-functie, en zo gaat er geen werk verloren.
+Vaste en plakkende onderdelen schuiven automatisch onder de balk.
+
+**Browser (element.click).** 390: KV met open Materiaal vragen en getypte tekst blijft staan na Zetten, overlay onder de balk, ⟲ 44 px; rit: kop onder de balk; login: klok aanwezig; Vandaag: geopend, ⟲ ging naar echte tijd (daarna uit, grijs). 1920: Vandaag, balk 40 px, ⟲ 36 px, geen scroll. Geen knop bedekt op die schermen.
+**Niet getest:** "Gegevens verversen" op een kantoorpagina met open venster, wissel overnemen na 30 s in een tweede tabblad, de printpagina echt afdrukken, chauffeur op 1920. In de test: browser-`Date` via een nagebootste `window`, geen echte DOM (er is geen jsdom).
+
+**GEVONDEN**
+1. "Vertrekt vandaag" en "dringend" zijn zwak getest: de test bewijst dat de bron de klok volgt (`new Date()` in de browser, datum op `/api/vandaag`), niet elke tekst met eigen data.
+2. Terug naar eerder: latere regels staan "in de toekomst"; niets crasht. Een gewiste rit of telling komt niet terug: de klok is geen tijdmachine voor de data.
+3. Op de testomgeving blijft een eerdere stand staan na herstart zolang niemand ⟲ tikt.
+4. De balk neemt 40 of 48 px; schermen van `100vh` krijgen zoveel extra verticale scroll.
