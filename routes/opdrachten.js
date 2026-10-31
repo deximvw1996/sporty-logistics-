@@ -261,6 +261,21 @@ module.exports=function(ctx){
     if(r.personeel_id!==pid&&!ctx.isOpWagen(r.id,pid)){insMetLog(req,'rit_personen',['rit_id','personeel_id'],[r.id,pid],'op deze rit mee');ctx.melding(req,{voor_rol:'kantoor',van_naam:req.persoon.naam,tekst:`${req.persoon.naam} rijdt mee op rit #${r.id}`,link:'/opdracht?datum='+r.datum+'&rit='+r.id,niveau:'vandaag'});}
     res.json({ok:true});
   });
+  // TF13 punt 4: alleen bekijken. Concepten niet; alleen de naam als persoonsgegeven.
+  app.get('/api/planning-ploeg',(req,res)=>{
+    const isoD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,nu=new Date(),m=new Date(nu);m.setDate(m.getDate()+1);
+    const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoD(nu),meeOk=datum===isoD(nu)||datum===isoD(m),per=new Map();
+    const bij=(n,x)=>{if(!per.has(n))per.set(n,[]);per.get(n).push(x);};
+    all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id",[datum]).filter(r=>r.klaarzet_status==='klaar'||(r.status&&r.status!=='gepland')).forEach(r=>{
+      const i=_ritPlanInfo(r),ms=mensen(r).map(x=>x.naam),item={soort:'rit',id:r.id,opdracht_id:r.opdracht_id,tijd:i.vertrek,einde:i.einde,voertuig:r.voertuig||'',stand:r.status==='gedaan'?'afgerond':r.status==='onderweg'?'onderweg':'klaargezet',mensen:ms,stops:takenVan(r.id).map(t=>locNaam(stopLoc(t))),kan_meehelpen:meeOk&&r.status!=='gedaan'};
+      (ms.length?ms:['Nog niemand']).forEach(n=>bij(n,item));
+    });
+    all('SELECT * FROM afspraken WHERE datum=? ORDER BY van,id',[datum]).forEach(a=>bij(a.personeel_id?persNaam(a.personeel_id):'Zonder persoon',{soort:'afspraak',titel:SOORT[a.soort]||a.soort,van:a.van,tot:a.tot,voertuig:a.voertuig_id?(get('SELECT naam FROM voertuigen WHERE id=?',[a.voertuig_id])||{}).naam||'':'',klaar:a.status==='klaar'}));
+    const ik=req.persoon.naam;if(!per.has(ik))per.set(ik,[]);
+    const tijd=x=>x.tijd||x.van||'99';
+    res.json({datum,personen:[...per.entries()].map(([naam,items])=>({naam,eigen:naam===ik,items:items.sort((a,b)=>tijd(a).localeCompare(tijd(b)))})).sort((a,b)=>(b.eigen-a.eigen)||a.naam.localeCompare(b.naam,'nl'))});
+  });
+  app.get('/planning-ploeg',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','planning-ploeg.html')));
   app.get('/meehelpen/:id',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','meehelpen.html')));
   app.get('/opdracht',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','opdracht.html')));
 };

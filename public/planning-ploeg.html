@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planning ploeg — Sporty logistiek</title>
+<style>
+body{margin:0;background:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1a1a1a;padding-bottom:90px}
+.kop{background:#1e3a8a;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:8px}.kop b{flex:1;text-align:center;font-size:16px}.kop button{min-width:44px;min-height:44px;border:0;border-radius:10px;background:rgba(255,255,255,.18);color:#fff;font-size:18px;cursor:pointer}
+.wrap{max-width:720px;margin:0 auto;padding:12px;box-sizing:border-box}
+.pers{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}.pers h3{margin:0 0 6px;font-size:15px}.pers.eigen{border-left:4px solid #2563eb}
+.it{border-top:1px solid #eef2f7;padding:8px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}.it .nm{flex:1;min-width:0;overflow-wrap:anywhere}.it small{display:block;color:#64748b;font-size:12px}.it.af .nm{color:#92400e}
+.mee{min-height:44px;display:inline-flex;align-items:center;padding:0 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;text-decoration:none}
+.leeg{color:#64748b;font-size:14px;padding:4px 0}
+</style></head><body>
+<div class="kop"><button data-d="-1" aria-label="Vorige dag">‹</button><b id="dag">…</b><button data-d="1" aria-label="Volgende dag">›</button></div>
+<div class="wrap" id="lijst"></div><div class="wrap"><a href="/vandaag" style="min-height:44px;display:inline-flex;align-items:center;font-weight:700;color:#1e3a8a">‹ Terug naar Vandaag</a></div>
+<script src="/public/nav.js"></script>
+<script src="/public/planning-ploeg.js"></script>
+</body></html>

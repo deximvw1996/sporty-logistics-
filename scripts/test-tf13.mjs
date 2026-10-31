@@ -104,7 +104,7 @@ try {
   const lA = luister('?rit=' + tm0); await new Promise((r) => setTimeout(r, 200)); const nA = lA.ber.length;
   v((await Bapi('GET', '/api/meehelpen/ritten?datum=' + dagM)).json.ritten.some((x) => x.id === rm), 'B ziet de klaargezette rit');
   const dB = (await rawM('GET', '/data', null, BH)).json, cB = dB.stops[0].regels[1].check_id;
-  v(dB.helper && dB.helper.rol === 'chauffeur', 'B opent als helper');
+  v(dB.helper && dB.helper.rol === 'chauffeur' && dB.ik === 'Tf Bert', 'B opent als helper en kent zichzelf');
   v((await rawM('POST', `/checks/${cB}/laden`, { gezet: true }, BH)).json.geladen_door === 'Tf Bert', 'chauffeur B laadt op de rit van A met de eigen naam');
   await wachtTot(() => lA.ber.length > nA); v(lA.ber.length > nA, 'live: A krijgt een sein');
   v((await rawM('GET', '/data', null, { 'x-auth-token': jer.tok })).json.actief.includes('Tf Bert'), 'A ziet: ook bezig Tf Bert');
@@ -121,6 +121,17 @@ try {
   const rp0 = (await T.leesDb(srv.dbPad, 'SELECT COUNT(*) AS n FROM rit_personen WHERE rit_id=?', [rm]))[0].n;
   v(rp0 === 0, 'rit_personen ongewijzigd');
   v((await Bapi('POST', `/api/meehelpen/${rm}/mee`)).status === 200 && (await Bapi('GET', '/api/vandaag?mijn=1&datum=' + dagM)).json.ritten_vandaag.some((x) => x.id === rm) && (await A('GET', '/api/meldingen')).json.meldingen.some((m) => /Tf Bert rijdt mee/.test(m.tekst)), 'Op deze rit mee: toegevoegd, melding aan kantoor');
+  // Planning ploeg
+  const dagP = '2026-11-06', pk = (await A('POST', '/api/opdrachten', { datum: dagP, vertrek: '08:00', personeel_id: jer.id })).json, pc = (await A('POST', '/api/opdrachten', { datum: dagP, vertrek: '09:00', personeel_id: jes.id })).json;
+  for (const x of [pk, pc]) await A('POST', `/api/ritten/${x.wagens[0].rit_id}/stops`, { type: 'levering', van_locatie_id: R, naar_locatie_id: X, tijd: '10:00' });
+  await A('POST', `/api/opdrachten/${pk.id}/klaarzet`); await A('POST', '/api/afspraken', { soort: 'carwash', personeel_id: jer.id, datum: dagP, van: '13:00', tot: '14:00', waar: 'geheim adres' });
+  const pp = await Bapi('GET', '/api/planning-ploeg?datum=' + dagP), ppT = JSON.stringify(pp.json);
+  const pj = pp.json.personen.find((x) => x.naam === 'Tf Jeroen');
+  v(pp.status === 200 && pj.items.some((x) => x.id === pk.wagens[0].rit_id) && pj.items.some((x) => x.soort === 'afspraak' && /Carwash/.test(x.titel)), 'B ziet de klaargezette rit en de afspraak van een collega');
+  v(!ppT.includes('"id":' + pc.wagens[0].rit_id + ','), 'concept niet zichtbaar');
+  v(!/pincode|telefoon|email|personeel_id|geheim adres|token/i.test(ppT), 'geen verboden velden');
+  v(pp.json.personen[0].naam === 'Tf Bert' && pp.json.personen[0].eigen, 'eigen planning bovenaan');
+  v((await Bapi('POST', '/api/afspraken', { soort: 'tanken', datum: dagP, van: '08:00' })).status === 403 && (await Bapi('POST', '/api/opdrachten', { datum: dagP })).status === 403 && (await Bapi('GET', '/api/opdrachten?datum=' + dagP)).status === 403, 'schrijven en kantoorschermen geweigerd');
   // Aanvullijst
   const it = (await A('POST', '/api/item-types', { naam: 'Tf Krijt' })).json;
   const db = (q, p) => T.leesDb(srv.dbPad, q, p);

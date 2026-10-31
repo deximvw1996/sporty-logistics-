@@ -1661,7 +1661,7 @@ module.exports = function(ctx){
     const _p=rit.personeel_id?get('SELECT id,rol FROM personeel WHERE id=?',[rit.personeel_id]):ctx.persoonOpNaam&&ctx.persoonOpNaam(rit.chauffeur);
     const _rol=_p?(_p.rol||(get('SELECT rol FROM personeel WHERE id=?',[_p.id])||{}).rol):'';
     const _vol=_volVan(rit.id);
-    _ritWie(req,rit);const _h=_helper(req,rit);res.json({helper:_h?{rol:_h.rol}:null,nog_niet_klaargezet:rit.klaarzet_status!=='klaar'&&(!rit.status||rit.status==='gepland'),...(ctx.wagenExtra?ctx.wagenExtra(rit,_ritData(rit)):_ritData(rit)),actief:_actieven(rit.id),vol:{vraag:_volVraag(rit.id),antwoord:_vol.length?_vol[_vol.length-1].antwoord:'',n:_vol.length},kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
+    const _ik=_ritWie(req,rit);const _h=_helper(req,rit);res.json({ik:_ik.bekend?_ik.naam:'',helper:_h?{rol:_h.rol}:null,nog_niet_klaargezet:rit.klaarzet_status!=='klaar'&&(!rit.status||rit.status==='gepland'),...(ctx.wagenExtra?ctx.wagenExtra(rit,_ritData(rit)):_ritData(rit)),actief:_actieven(rit.id),vol:{vraag:_volVraag(rit.id),antwoord:_vol.length?_vol[_vol.length-1].antwoord:'',n:_vol.length},kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
   });
 
   // TF7 punt 5: "Hoe vol zat de wagen?" Hint per rit: één antwoord, één keer wijzigen, alles bewaard. Geen berekening en geen score.
