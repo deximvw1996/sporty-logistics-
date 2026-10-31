@@ -478,7 +478,7 @@ module.exports = function(ctx){
         const gedaanN=r.gedaan_aantal||0;
         if(r.gemeld_soort&&(!r.kantoor_actie||!_nagekeken(s))){
           // AV2: gemeld door de aanvuller, kantoor heeft nog niet beslist (of de keuring is nog niet afgerond): zichtbaar maar niet af te vinken.
-          handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort:'melding',waar_tekst:(r.gemeld_soort==='kapot'?'kapot':'weg')+' gemeld door '+(r.gemeld_door||'?')+' · wacht op kantoor',aangevuld:0,binnen:false,kan_afvinken:false,gemeld:1,wacht_op_kantoor:true,gemeld_soort:r.gemeld_soort,gemeld_door:r.gemeld_door||'',gedaan:gedaanN,totaal:gedaanN+aantal});
+          handelingen.push({aangevuld_door:r.aangevuld_door||'',gedaan_door:r.gedaan_door||'',regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort:'melding',waar_tekst:(r.gemeld_soort==='kapot'?'kapot':'weg')+' gemeld door '+(r.gemeld_door||'?')+' · wacht op kantoor',aangevuld:0,binnen:false,kan_afvinken:false,gemeld:1,wacht_op_kantoor:true,gemeld_soort:r.gemeld_soort,gemeld_door:r.gemeld_door||'',gedaan:gedaanN,totaal:gedaanN+aantal});
           return;
         }
         if(r.aangetroffen==null&&!r.gemeld_soort){soort='nakijken';waar='KV telde niet · zelf tellen';aantal=it?it.qty:(r.verwacht||0);}
@@ -488,7 +488,7 @@ module.exports = function(ctx){
         if(r.tekort_status==='genegeerd')return; // TB2: genegeerd op Tekorten → niet meer op de aanvullijst
         const besch=Math.max(0,(r.binnen_aantal||0)-gedaanN); // TF6: deels binnen — afvinkbaar tot wat er binnen is
         const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld||besch>0; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({...(soort==='bestelling'&&!binnen?_uitVoorraadInfo(r,aantal):{}),max_nu:soort==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld&&besch>0?besch:undefined,regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
+        handelingen.push({aangevuld_door:r.aangevuld_door||'',gedaan_door:r.gedaan_door||'',...(soort==='bestelling'&&!binnen?_uitVoorraadInfo(r,aantal):{}),max_nu:soort==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld&&besch>0?besch:undefined,regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
@@ -613,6 +613,11 @@ module.exports = function(ctx){
     const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[r.sessie_id]);
     if(!s||!s.kantoor_afgerond_op)return res.status(409).json({error:'Deze keuring is nog niet afgerond door kantoor.'});
     const aan=req.body?.aangevuld===false||req.body?.aangevuld===0||req.body?.aangevuld==='0'?0:1;
+    // TF13: twee mensen op één lijst. Al gedaan blijft één keer gedaan; terugzetten van een ander vraagt een bevestiging met de naam.
+    if(aan&&r.aangevuld)return res.json({ok:true,regel_id:r.id,aangevuld:1,al_gedaan:true,door:r.aangevuld_door||''});
+    if(!aan&&!r.aangevuld)return res.json({ok:true,regel_id:r.id,aangevuld:0,al_gedaan:true});
+    if(!aan&&r.aangevuld_door&&r.aangevuld_door!==wie(req)&&!req.body?.bevestigd)return res.status(409).json({error:'Aangevuld door '+r.aangevuld_door,code:'ander',door:r.aangevuld_door});
+    const gezien=parseInt(req.body?.gezien),intussen=Number.isFinite(gezien)&&gezien>(r.kantoor_aantal||0)?{aantal:gezien-(r.kantoor_aantal||0),door:r.gedaan_door||''}:null;
     if(aan&&r.gemeld_soort&&!r.kantoor_actie)return res.status(409).json({error:'Dit is gemeld en wacht op kantoor — kantoor beslist eerst in Nakijken.'});
     // TF6: een bestelling die deels binnen is, kan tot dat aantal afgevinkt worden; de rest blijft open.
     let bodyAantal=req.body?req.body.aantal:undefined;
@@ -640,9 +645,9 @@ module.exports = function(ctx){
         if(st)updateMetLog(req,'item_type_stock',st.id,{qty:Math.max(0,(st.qty||0)+dl)},'aanvullen (deels): '+zonderHaakjes(r.item_naam||''));
         else if(typeId&&roz&&dl>0)insMetLog(req,'INSERT INTO item_type_stock (item_type_id,locatie_id,qty,minimum) VALUES (?,?,?,0)',[typeId,roz.id,dl],'aanvullen (deels)');
       }
-      updateMetLog(req,'nakijk_regels',r.id,{kantoor_aantal:totaalN-gedaan,gedaan_aantal:(r.gedaan_aantal||0)+gedaan},'aanvullen (deels)');
+      updateMetLog(req,'nakijk_regels',r.id,{kantoor_aantal:totaalN-gedaan,gedaan_aantal:(r.gedaan_aantal||0)+gedaan,gedaan_door:wie(req)},'aanvullen (deels)');
       logAct('nakijken','aangevuld_deels',`${r.item_naam}: ${gedaan} van ${totaalN} aangevuld door ${wie(req)||'?'} — ${totaalN-gedaan} blijven open${fp?' (foto '+fp+')':''}`,s.locatie_id,_locNaam(s.locatie_id));
-      return res.json({ok:true,regel_id:r.id,aangevuld:0,gedaan,open:totaalN-gedaan,foto:fp?'/uploads/'+fp:null});
+      return res.json({ok:true,regel_id:r.id,aangevuld:0,gedaan,open:totaalN-gedaan,intussen,foto:fp?'/uploads/'+fp:null});
     }
     let fotoPad='';
     if(aan&&typeof req.body?.foto_data==='string'&&req.body.foto_data){
@@ -661,7 +666,7 @@ module.exports = function(ctx){
       else if(typeId&&roz&&dl>0)insMetLog(req,'INSERT INTO item_type_stock (item_type_id,locatie_id,qty,minimum) VALUES (?,?,?,0)',[typeId,roz.id,dl],'aanvullen');
     }
     logAct('nakijken',aan?'aangevuld':'aangevuld_terug',`${r.item_naam}: ${aan?'aangevuld':'teruggezet naar open'} door ${wie(req)||'?'}${fotoPad?' (foto '+fotoPad+')':''}`,s.locatie_id,_locNaam(s.locatie_id));
-    res.json({ok:true,regel_id:r.id,aangevuld:aan,foto:fotoPad?'/uploads/'+fotoPad:null});
+    res.json({ok:true,regel_id:r.id,aangevuld:aan,gedaan:aan?totaalN:undefined,intussen,foto:fotoPad?'/uploads/'+fotoPad:null});
   });
 
   // ── Pagina's ──

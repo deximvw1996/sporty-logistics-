@@ -100,7 +100,7 @@ module.exports = function(ctx){
       const t=new Date(x.tijdstip);
       hist.push({t:isNaN(t)?(x.tijdstip||''):`${DAG[t.getDay()]} ${t.getDate()} ${MND[t.getMonth()]} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`,wie:x.persoon_naam||'',wat,wijziging_id:x.id,terugdraaibaar:false});
     });
-    res.json({voertuig:{id:v.id,naam:v.naam,aard:v.aard||'voertuig',trekhaak:!!v.trekhaak,laadklep:!!v.laadklep,soort:v.soort,soort_tekst:SOORT_TXT[v.soort]||v.soort,nummerplaat:v.nummerplaat||'',plaatsen:v.plaatsen,rijbewijs:v.rijbewijs||'',
+    res.json({feedback:all('SELECT soort,tekst,wie,created_at FROM feedback WHERE voertuig_id=? ORDER BY id DESC LIMIT 20',[v.id]),voertuig:{id:v.id,naam:v.naam,aard:v.aard||'voertuig',trekhaak:!!v.trekhaak,laadklep:!!v.laadklep,soort:v.soort,soort_tekst:SOORT_TXT[v.soort]||v.soort,nummerplaat:v.nummerplaat||'',plaatsen:v.plaatsen,rijbewijs:v.rijbewijs||'',
         standplaats_locatie_id:v.standplaats_locatie_id,standplaats:locNaam(v.standplaats_locatie_id),sleutel_info:v.sleutel_info||'',keuring_tot:v.keuring_tot||'',
         huur_van:v.huur_van||'',huur_tot:v.huur_tot||'',notitie:v.notitie||'',status:r.status,aandacht:r.aandacht},
       week:{start:w.start,eind:w.eind,dagen:wv.week.map(d=>({...d,tekst:`${d.dag} ${d0(d.datum).getDate()}/${d0(d.datum).getMonth()+1}`,weekend:[0,6].includes(d0(d.datum).getDay())}))},

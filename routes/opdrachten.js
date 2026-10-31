@@ -69,7 +69,8 @@ module.exports=function(ctx){
     const stops=taken.map((t,i)=>{
       const regels=all('SELECT id,naam,qty FROM transport_regels WHERE taak_id=? ORDER BY id',[t.id]),samen=samenVan(r,t),korte=regels.slice(0,3).map(x=>x.qty>1?x.qty+' × '+x.naam:x.naam).join(', ')+(regels.length>3?' +'+(regels.length-3):'');
       const lad=regels.length?(t.type==='ophaling'?'ophalen: ':'lossen: ')+korte+(samen.length?', samen helpen':''):i===0&&t.van_locatie_id===t.naar_locatie_id?'vertrekt zonder lading':samen.length?'helpt, geen lading':'geen lading';
-      return {taak_id:t.id,tijd:hhmm(t.tijd),locatie:locNaam(stopLoc(t)),locatie_id:stopLoc(t),type:t.type,status:t.status,samen,lad,regels};
+      const door=[...new Set(all('SELECT geladen_door AS a,gelost_door AS b FROM verhuis_checks WHERE taak_id=?',[t.id]).flatMap(c=>[c.a,c.b]).filter(Boolean))];
+      return {taak_id:t.id,gedaan_door:door,tijd:hhmm(t.tijd),locatie:locNaam(stopLoc(t)),locatie_id:stopLoc(t),type:t.type,status:t.status,samen,lad,regels};
     });
     return {rit_id:r.id,token:r.rit_token||'',status:r.status,klaarzet_status:r.klaarzet_status||'',voertuig:{id:r.voertuig_id||null,naam:r.voertuig||''},aanhangwagen_id:r.aanhangwagen_id||null,mensen:mensen(r),
       vertrek:info.vertrek,einde:info.einde,lading:info.lading,laadstops:laadstops(r,taken).map(l=>({...l,tijd:info.vertrek})),stops,waarschuwingen:waarschuwingen(r,info),echte_start:r.echte_start||'',echte_einde:r.echte_einde||''};

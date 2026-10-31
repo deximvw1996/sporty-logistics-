@@ -163,6 +163,7 @@
     var totaal = r.qty + (gespl ? r.niet_mee.aantal : 0);
     var sub = r.is_bulk ? eenheden(r) + ' van ' + totaal + ' geladen · tik voor aantal' : (r.code ? esc(r.code) + ' · ' : '') + '×' + r.qty;
     if (r.is_bulk && r.code) sub = esc(r.code) + ' · ' + sub;
+    var door = modus === 'lossen' ? r.gelost_door : r.geladen_door; if (door) sub += ' · <span class="door">' + esc(door) + '</span>'; // TF13
     if (r.geleverd === false) sub += ' <span class="pil" style="background:#ffedd5;color:#c2410c">niet geleverd</span>'; // TF1 G10
     var melding = nietMee ? '<i>' + esc(REDEN_TEKST[r.niet_mee.reden] || 'niet mee') + ' → blijft open als nieuwe taak</i>'
       : gespl ? '<i>' + r.niet_mee.aantal + ' ' + esc(REDEN_TEKST[r.niet_mee.reden] || 'niet mee') + ' → blijven open als nieuwe taak</i>' : '';
@@ -250,13 +251,16 @@
   function schermHtml(data, st) {
     if (data.niet_klaargezet) return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span></div></div><div class="uitleg leeg" style="padding:24px;font-size:16px">Deze rit is nog niet klaargezet. Kantoor werkt er nog aan; je krijgt een melding zodra ze klaarstaat.<br><a class="knop" href="/vandaag" style="display:inline-flex;align-items:center;min-height:44px;margin-top:12px;padding:0 14px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;text-decoration:none">Naar Vandaag</a></div></div>';
     // TF7 G7: de laatste actie blijft boven aan het scherm ongedaan te maken tot de volgende actie of tot je weggaat; geen toast over de regels.
-    var st1 = { balkLaatste: st.laatste ? '<div class="laatste"><span>' + esc(st.laatste.tekst) + '</span><button type="button" data-act="laatste-undo">Laatste actie ongedaan maken</button></div>' : '' };
+    var ook = (data.actief || []).filter(function (n) { return n !== st.ikNaam; });
+    var st1 = { balkLaatste: (st.nietBewaard ? '<div class="laatste fout" role="alert"><span>Niet bewaard: geen verbinding. Tik opnieuw zodra je weer verbinding hebt.</span></div>' : '') + (ook.length ? '<div class="ookbezig">ook bezig: ' + ook.map(esc).join(', ') + '</div>' : '') + (st.laatste ? '<div class="laatste"><span>' + esc(st.laatste.tekst) + '</span><button type="button" data-act="laatste-undo">Laatste actie ongedaan maken</button></div>' : '') };
     var basis = st.scherm === 'stop' ? stopHtml(data, st.taakId, st1) : st.scherm === 'blok' ? blokHtml(data, st.taakId, st1) : dagHtml(data, st1);
     if (st.balk) basis = '<div class="wijzig"><span style="flex:1">Kantoor wijzigde deze rit: ' + esc(st.balk) + '</span><button type="button" data-act="balk-weg" aria-label="Sluiten">✕</button></div>' + basis;
     var sheet = '';
     if (st.sheet && st.sheet.type === 'nietmee') sheet = pastNietHtml(data, st.sheet);
     else if (st.sheet && st.sheet.type === 'probleem') sheet = probleemHtml(data, st.sheet);
     else if (st.sheet && st.sheet.type === 'alles') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (st.sheet.actie === 'laden' ? 'Alles geladen' : 'Alles gelost') + ': ' + telling(st.sheet.ids.length, st.sheet.stuks) + '?</h3><p>Wat op "past niet" staat, slaat dit over. Je kan het daarna ongedaan maken.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="prim" data-act="alles-ok">Ja, ' + telling(st.sheet.ids.length, st.sheet.stuks) + '</button></div></div></div>';
+    else if (st.sheet && st.sheet.type === 'wie') sheet = '<div class="dim"><div class="sheet" role="dialog" aria-modal="true"><h3>Wie ben jij?</h3><p>Zo zien de anderen wie wat deed. Dit toestel onthoudt het.</p>' + (data.mensen || []).filter(function (m) { return m.id; }).map(function (m) { return '<button type="button" class="wiek" data-act="wie-kies" data-a="' + m.id + '">' + esc(m.naam) + '</button>'; }).join('') + '</div></div>';
+    else if (st.sheet && st.sheet.type === 'ander') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>Dit deed ' + esc(st.sheet.door) + '</h3><p>Toch terugzetten?</p><div class="knoppen"><button type="button" data-act="sheet-sluit">Nee</button><button type="button" class="prim" data-act="ander-ok">Ja, terugzetten</button></div></div></div>';
     else if (st.sheet && st.sheet.type === 'toch') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>Nog niet geladen</h3><p>Dit stuk staat nog niet op geladen. Toch lossen zet het op geladen én gelost.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="rood" data-act="toch-ok">Toch lossen</button></div></div></div>';
     return basis + sheet;
   }
@@ -277,7 +281,11 @@
   function createApp(deps) {
     var st = { scherm: 'dag', taakId: null, sheet: null }, data = null, offlineGemeld = false;
     var base = '/api/rit-token/' + encodeURIComponent(deps.token);
-    function teken() { if (data) deps.mount(schermHtml(data, st)); }
+    // TF13: wie ben je. Ingelogd = sessie; op de losse link één keer kiezen, per toestel onthouden.
+    var opslag = deps.wie || (root.localStorage ? { sleutel: 'sporty-wie-' + deps.token, get: function () { try { return root.localStorage.getItem(this.sleutel) || ''; } catch (e) { return ''; } }, set: function (v) { try { root.localStorage.setItem(this.sleutel, v); } catch (e) { /* geen opslag */ } }, sessie: function () { try { return root.localStorage.getItem('sporty-auth-token') || ''; } catch (e) { return ''; } } } : null);
+    var kaleFetch = deps.fetch; deps.fetch = function (u, o) { o = o || {}; if (opslag) { var h = {}; Object.keys(o.headers || {}).forEach(function (k) { h[k] = o.headers[k]; }); var ts = opslag.sessie && opslag.sessie(); if (ts) h['x-auth-token'] = ts; else if (opslag.get()) h['x-wie'] = opslag.get(); o.headers = h; } return kaleFetch(u, o); };
+    var moetKiezen = function () { return opslag && !(opslag.sessie && opslag.sessie()) && !opslag.get() && data && (data.mensen || []).filter(function (m) { return m.id; }).length > 1; };
+    function teken() { if (data) { if (opslag && opslag.get() && data.mensen) { var ik = data.mensen.filter(function (m) { return String(m.id) === String(opslag.get()); })[0]; st.ikNaam = ik ? ik.naam : ''; } deps.mount(schermHtml(data, st)); } }
     // TF2 G3: tijdens een deploy geeft de proxy 502/503/504 (of is de verbinding even weg): na 2 s en 5 s nog twee keer proberen.
     // POST's worden alleen herhaald bij 502/503/504 (de app is dan niet bereikt) en bij een netwerkfout als de aanroep idempotent is (idem=true).
     var herhaalMelding = false;
@@ -296,9 +304,10 @@
     async function post(pad, body, zacht) {
       var r;
       try { r = await haal(base + pad, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }, false); }
-      catch (e) { deps.toast('Geen verbinding — probeer het zo opnieuw.', false); return null; }
+      catch (e) { st.nietBewaard = true; deps.toast('Niet bewaard: geen verbinding.', false); teken(); return null; }
+      st.nietBewaard = false;
       var j = null; try { j = await r.json(); } catch (e) { /* leeg antwoord */ }
-      if (!r.ok) { if (zacht && j && j.code) return { _code: j.code }; deps.toast((j && j.error) || 'Dat lukte niet (' + r.status + ').', false); return null; }
+      if (!r.ok) { if (zacht && j && j.code) return { _code: j.code, _door: j.door }; deps.toast((j && j.error) || 'Dat lukte niet (' + r.status + ').', false); return null; }
       return j || {};
     }
     async function laad() {
@@ -322,19 +331,29 @@
       var oud = data;
       try {
         var r = await deps.fetch(base + '/data'); if (!r.ok) return;
-        var j = await r.json();
+        var j = await r.json(); st.nietBewaard = false;
         if (oud && oud.stops && j.stops) { var w = verschil(oud, j); if (w.length) st.balk = w.join(', '); }
         data = j; if (deps.bewaar) deps.bewaar(j);
         if (st.scherm === 'stop' && !data.niet_klaargezet && !data.stops.some(function (s) { return s.taak_id === st.taakId; })) st.scherm = 'dag';
         if (!st.sheet) teken();
       } catch (e) { /* geen verbinding: volgende keer opnieuw */ }
     }
-    function undo(actie, ids) { return function () { return (ids.length === 1 ? post('/checks/' + ids[0] + '/' + actie, { gezet: false }) : post('/alles', { actie: actie, check_ids: ids, gezet: false })).then(function (j) { if (j) { st.laatste = null; deps.toast('✓ Ongedaan gemaakt', true); return laad(); } }); }; }
+    async function terug(actie, ids, bev) {
+      var body = bev ? { gezet: false, bevestigd: true } : { gezet: false };
+      var j = ids.length === 1 ? await post('/checks/' + ids[0] + '/' + actie, body, true) : await post('/alles', { actie: actie, check_ids: ids, gezet: false, bevestigd: !!bev });
+      if (j && j._code === 'ander') { st.sheet = { type: 'ander', door: j._door, actie: actie, ids: ids }; return teken(); }
+      if (j && j.ander && j.ander.length) { st.sheet = { type: 'ander', door: j.ander.join(', '), actie: actie, ids: ids }; return teken(); }
+      if (j) { st.laatste = null; await laad(); }
+    }
+    function undo(actie, ids) { return function () { return terug(actie, ids, false); }; }
     function onthoud(tekst, actie, ids) { st.laatste = { tekst: tekst, doe: undo(actie, ids) }; }
     function ga(scherm, taakId) { st.laatste = null; if (deps.toastWeg) deps.toastWeg(); st.scherm = scherm; st.taakId = taakId || null; st.sheet = null; if (deps.onNav) deps.onNav(scherm, st.taakId); teken(); }
     async function klik(act, a, b) {
       var id = a === '' || a == null ? null : (isNaN(+a) ? a : +a);
+      if ((act === 'laden' || act === 'lossen' || act === 'alles-open') && moetKiezen()) { st.sheet = { type: 'wie', na: [act, a, b] }; return teken(); }
       switch (act) {
+        case 'wie-kies': { var na = st.sheet && st.sheet.na; opslag.set(String(a)); st.sheet = null; teken(); await laad(); if (na) return klik(na[0], na[1], na[2]); return; }
+        case 'ander-ok': { var an = st.sheet; st.sheet = null; return terug(an.actie, an.ids, true); }
         case 'dag': return ga('dag');
         case 'stop': return ga('stop', id);
         case 'wissel': {
@@ -355,6 +374,7 @@
           st.laatste = null;
           var voorAankomst = act === 'lossen' && f0 && f0.stop.status === 'gepland';
           var jl = lijst.length > 1 ? await post('/alles', { actie: act, check_ids: lijst }) : await post('/checks/' + lijst[0] + '/' + act, { gezet: true }, true);
+          if (jl && jl.al_gedaan) { deps.toast('Al gedaan' + (jl.door ? ' door ' + jl.door : ''), true); await laad(); return; }
           if (jl && jl._code === 'niet_geladen') { st.sheet = { type: 'toch', id: lijst[0] }; return teken(); }
           if (jl && jl._code) { deps.toast('Dit stuk staat op niet mee: draai dat eerst terug.', false); return; }
           if (jl) { onthoud(schoonNaam(f0.regel.naam, f0.regel.code) + (act === 'laden' ? ' geladen' : ' gelost'), act, lijst); await laad(); if (voorAankomst) deps.toast('Aankomst ook doorgegeven', true); }
@@ -376,7 +396,7 @@
           var ja2 = await post('/alles', { actie: al.actie, check_ids: al.ids });
           if (ja2) {
             var nS = ja2.verwerkt.reduce(function (n, x) { var v = vindRegel(data, x); return n + (v ? v.regel.qty || 1 : 0); }, 0);
-            var tks = (al.actie === 'laden' ? 'Geladen: ' : 'Gelost: ') + telling(ja2.verwerkt.length, nS) + (ja2.overgeslagen ? ' · ' + ja2.overgeslagen + ' overgeslagen' : '') + (ja2.fout ? ' · ' + ja2.fout : '');
+            var tks = (al.actie === 'laden' ? 'Geladen: ' : 'Gelost: ') + telling(ja2.verwerkt.length, nS) + (ja2.al_gedaan ? ' · ' + ja2.al_gedaan + ' al gedaan' + (ja2.al_door && ja2.al_door.length ? ' door ' + ja2.al_door.join(', ') : '') : '') + (ja2.overgeslagen ? ' · ' + ja2.overgeslagen + ' overgeslagen' : '') + (ja2.fout ? ' · ' + ja2.fout : '');
             st.laatste = null; if (ja2.verwerkt.length) onthoud(tks, al.actie, ja2.verwerkt);
             await laad(); if (vrk) deps.toast('Aankomst ook doorgegeven', true); else if (ja2.fout) deps.toast(ja2.fout, false);
           } else teken();

@@ -5,7 +5,9 @@ import { createRequire } from 'node:module';
 process.env.SPORTY_TESTKLOK = '1';
 const require = createRequire(import.meta.url), NK = require(T.ROOT + '/public/nakijken.js'), ijk = T.leesIjk();
 const srv = await T.startServer({ poort: Number(process.env.TEST_POORT) || 3383 });
-const rust = (ms = 200) => new Promise((r) => setTimeout(r, ms)), v = T.check;
+const rust = (ms = 200) => new Promise((r) => setTimeout(r, Number(process.env.TF12_RUST ?? ms))), v = T.check;
+// TF13: de database op schijf loopt achter op de server (bewaren gaat uitgesteld). Een vaste wachttijd faalt onder belasting; dus wachten tot de waarde er is.
+const wachtTot = async (f, ms = 15000) => { const e = Date.now() + ms; let x; while (Date.now() < e) { x = await f(); if (x) return x; await new Promise((r) => setTimeout(r, 150)); } return x; };
 try {
   const tok = await T.login(srv.base), A = (m, p, b) => T.api(srv.base, tok, m, p, b);
   const km = ijk.kampmomenten.abdijschool, R = ijk.locaties.rozenweg, AB = ijk.locaties.abdijschool;
@@ -46,7 +48,7 @@ try {
   v((await vers()) === n1, 'geen dubbele versie zonder wijziging');
   await K('POST', `/bakken/${bak0.id}/ongedaan`, {}); await rust(1000);
   d = await data(); b = d.bakken.find((x) => x.id === bak0.id);
-  v(b.geteld === 0 && (await vers()) > n1, 'ongedaan: weer niet geteld, versies bewaard');
+  v(b.geteld === 0 && (process.env.TF12_RUST ? (await vers()) > n1 : await wachtTot(async () => (await vers()) > n1)), 'ongedaan: weer niet geteld, versies bewaard');
   await K('POST', `/bakken/${bak0.id}/klopt-helemaal`, {});
   // Afwijking tikken
   const it1 = d.bakken.find((x) => x.id === bak0.id).items[0];
@@ -60,6 +62,7 @@ try {
   const det = (await A('GET', `/api/nakijken/sessie/${rij.sessie_id}`)).json;
   v(det.niet_geleverd.length === 3 && NK.detailHtml(det, { tab: 'telling' }) !== undefined, 'detail kent het verschil');
   // Automatisch nagekeken + log
+  if (!process.env.TF12_RUST) await wachtTot(async () => (await T.leesDb(srv.dbPad, "SELECT COUNT(*) AS n FROM activiteiten_log WHERE beschrijving LIKE '%automatisch nagekeken, alles klopt%'"))[0].n >= 1);
   const lg = await T.leesDb(srv.dbPad, "SELECT COUNT(*) AS n FROM activiteiten_log WHERE beschrijving LIKE '%automatisch nagekeken, alles klopt%'");
   await rust(800);
   v((await T.leesDb(srv.dbPad, "SELECT COUNT(*) AS n FROM activiteiten_log WHERE beschrijving LIKE '%automatisch nagekeken, alles klopt%'"))[0].n >= 1 || lg[0].n >= 1, 'automatisch nagekeken gelogd');
@@ -105,7 +108,7 @@ try {
   const naB = d.bakken.find((x) => x.id === bak1.id), naI = d.bakken.find((x) => x.id === bak0.id).items.find((i) => i.id === it0.id);
   v(naB && naB.geteld === 0 && naI.gewenst === g0 && naI.aangetroffen == null, 'nageleverd stuk: opnieuw tellen');
   const vr = await vers(); await K('POST', `/bakken/${bak0.id}/klopt-helemaal`, {}); await rust(1000);
-  v((await vers()) > vr, 'nieuwe versie, niets overschreven');
+  v(process.env.TF12_RUST ? (await vers()) > vr : await wachtTot(async () => (await vers()) > vr), 'nieuwe versie, niets overschreven');
   // Tikken meten
   const src = fs.readFileSync(T.ROOT + '/public/kv.js', 'utf8');
   v(/'klopt-helemaal'/.test(src) && /Ongedaan maken/.test(src) && /Iets klopt niet/.test(src) && /Volgende bak/.test(src) && /stuks in orde/.test(src) && /van ' \+ tot \+ ' stuks/.test(src), 'telscherm: alle knoppen');

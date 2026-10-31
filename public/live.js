@@ -37,7 +37,7 @@
   }
   function piep() { try { var A = new (root.AudioContext || root.webkitAudioContext)(); [880, 660, 880].forEach(function (f, i) { var o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; o.connect(g); g.connect(A.destination); g.gain.value = 0.15; o.start(A.currentTime + i * 0.18); o.stop(A.currentTime + i * 0.18 + 0.14); }); } catch (e) { /* geluid mag nog niet */ } }
   // ── kanaal met herverbinden; terugval: elke 30 s verversen zolang het kanaal dicht is ──
-  var open = false;
+  var open = false, wasDicht = false;
   setInterval(function () { if (!open) sein(); }, 30000);
   function verbind() {
     root.fetch(url, { headers: hdr }).then(function (r) {
@@ -46,11 +46,11 @@
       var lees = function () { return rd.read().then(function (d) {
         if (d.done) throw new Error('einde');
         buf += dec.decode(d.value, { stream: true }); var i;
-        while ((i = buf.indexOf('\n\n')) >= 0) { var blok = buf.slice(0, i); buf = buf.slice(i + 2); var l = /^data: (.*)$/m.exec(blok); if (!l) continue; var x = JSON.parse(l[1]); if (x.t === 'hallo') continue; if (x.t === 'melding') toon(x); sein(); }
+        while ((i = buf.indexOf('\n\n')) >= 0) { var blok = buf.slice(0, i); buf = buf.slice(i + 2); var l = /^data: (.*)$/m.exec(blok); if (!l) continue; var x = JSON.parse(l[1]); if (x.t === 'hallo') { if (wasDicht) sein(); wasDicht = false; continue; } if (x.t === 'melding') toon(x); sein(); }
         return lees();
       }); };
       return lees();
-    }).catch(function () { open = false; setTimeout(verbind, 3000); });
+    }).catch(function () { open = false; wasDicht = true; setTimeout(verbind, 3000); }); // TF13: na herverbinden de echte stand
   }
   verbind();
   if (m && m[1] === 'rit' || /^\/(meer|meldingen|vandaag)$/.test(pad)) { var fbs = doc.createElement('script'); fbs.src = '/public/feedback.js'; doc.head.appendChild(fbs); } // BW2

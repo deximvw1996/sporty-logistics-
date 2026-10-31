@@ -109,6 +109,9 @@ body.sleept{cursor:grabbing;user-select:none}
 label.mresult{display:flex!important;margin:0!important;font-weight:400}label.mresult input{width:auto!important;height:auto!important;flex:none;margin:0!important}
 /* TF11: de uurkolom volgt de kolomhoogte ook bij een langere dag */
 .raster .tk span,#raster .tk span{flex:1 1 0;min-height:0;overflow:hidden;line-height:1.1}
+/* TF13 */
+.be.afspr{background:#fef3c7;border-color:#d97706;color:#92400e;text-decoration:none;z-index:3;display:block}.be.afspr.klaar{background:#e2e8f0;border-color:#94a3b8;color:#334155}.be.afspr b{color:inherit}
+.ritfb{flex-basis:100%;font-size:12px;color:#334155;background:#f8fafc;border-radius:8px;padding:6px 8px;margin-bottom:6px}.ritfb small{color:#64748b}
 /* ── MOB2: gsm-weergave (design/mockup-gsm-1.html); boven 768 px blijft alles hetzelfde (#gsm is dan leeg en verborgen) ── */
 #gsm{display:none}
 @media (max-width:767px){
