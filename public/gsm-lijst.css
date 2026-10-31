@@ -1,0 +1,84 @@
+/* public/gsm-lijst.css — MOB4: gsm-lijsten in plaats van tabellen (design/mockup-gsm-lijsten.html). Alles onder 768 px; daarboven alleen "verborgen". */
+#gl,#gl-terug,#gl-sheet{display:none}
+@media (max-width:767px){
+  /* de desktoplijst blijft in de DOM (bron van de kaarten en van alle knoppen) maar is verborgen; alleen het detail mag boven komen */
+  body.gl .frame>.top,body.gl .frame>.sub,body.gl.heeft-tabs .sub,body.gl .gsm-acties{display:none!important}
+  body.gl .frame{height:auto;overflow:visible}
+  body.gl .body>*:not(.gl-host),body.gl .body2>*:not(.gl-host){display:none!important}
+  body.gl .gl-host{display:none!important}
+  body.gl.gl-detail .gl-host{display:block!important;position:fixed;left:0;right:0;top:calc(var(--tk-h,0px) + 52px);bottom:calc(72px + env(safe-area-inset-bottom));z-index:800;overflow:auto;background:#f5f5f5;border-radius:0;padding:10px 12px;margin:0;max-width:none;width:auto}
+  body.gl.gl-detail .gl-host .detail,body.gl.gl-detail .gl-host>div{max-width:100%}
+  body.gl.gl-detail #gl{display:none}
+  body.gl.heeft-tabs{padding-bottom:0}
+  #gl{position:fixed;left:0;right:0;top:var(--tk-h,0px);bottom:calc(72px + env(safe-area-inset-bottom));z-index:700;display:flex;flex-direction:column;background:#f5f5f5;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:13px;color:#1a1a1a}
+  body:not(.gl) #gl{display:none}
+  .gl-k{padding:10px 12px 6px;background:#fff;display:flex;align-items:center;gap:6px}
+  .gl-k b{font-size:17px;flex:1}
+  .gl-ik{width:44px;height:44px;border-radius:10px;background:#f1f5f9;color:#1e3a8a;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:18px;border:0;cursor:pointer}
+  .gl-ik.b{background:#2563eb;color:#fff}
+  .gl-z{padding:6px 12px;background:#fff}
+  .gl-z input{width:100%;height:44px;border:1px solid #e2e8f0;border-radius:10px;padding:0 12px;font:inherit;font-size:14px;background:#fff;color:#1a1a1a}
+  .gl-cw{position:relative;background:#fff;border-bottom:1px solid #e2e8f0}
+  .gl-cs{display:flex;gap:6px;padding:6px 12px 8px;overflow-x:auto;scrollbar-width:none}
+  .gl-cs::-webkit-scrollbar{display:none}
+  .gl-cw.meer:after{content:"›";position:absolute;right:0;top:0;bottom:0;width:30px;background:linear-gradient(90deg,transparent,#fff 60%);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-weight:800;color:#64748b;pointer-events:none}
+  .gl-c{flex:none;min-height:44px;padding:0 13px;border-radius:999px;background:#f1f5f9;font-weight:600;font-size:12px;display:flex;align-items:center;white-space:nowrap;border:0;color:#1a1a1a;cursor:pointer}
+  .gl-c.a{background:#1e3a8a;color:#fff}
+  .gl-l{flex:1;overflow-y:auto;padding:8px 10px 14px;display:flex;flex-direction:column;gap:7px;-webkit-overflow-scrolling:touch}
+  .gl-o{background:#fff;border-radius:12px;padding:9px 10px;box-shadow:0 1px 2px rgba(0,0,0,.06);display:grid;grid-template-columns:44px 1fr auto;gap:4px 6px;align-items:start;cursor:pointer;min-height:56px}
+  .gl-o.gl-een{grid-template-columns:1fr auto}
+  .gl-v{width:44px;height:44px;margin:-9px 0 -9px -10px;background:none;border:0;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+  .gl-v i{width:24px;height:24px;border:2px solid #94a3b8;border-radius:6px;display:block;background:#fff}
+  .gl-v.x i{background:#2563eb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3L13 4.5' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat;border-color:#2563eb}
+  .gl-t{min-width:0}
+  .gl-t b{font-size:14px;display:block;overflow-wrap:anywhere}
+  .gl-klein .gl-t b{font-size:13px}
+  .gl-t small{font-size:12px;color:#64748b;display:block;line-height:1.35;overflow-wrap:anywhere}
+  .gl-g{color:#94a3b8;font-size:18px;font-weight:700;align-self:center}
+  .gl-p .p{font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;background:#e2e8f0;display:inline-block;margin:3px 3px 0 0}
+  .gl-p .p.gr{background:#dcfce7;color:#15803d}.gl-p .p.or{background:#ffedd5;color:#c2410c}.gl-p .p.bl{background:#dbeafe;color:#1e3a8a}.gl-p .p.ro{background:#fee2e2;color:#b91c1c}
+  .gl-leeg{padding:24px 12px;text-align:center;color:#64748b}
+  .gl-ba{background:#1e3a8a;color:#fff;padding:9px 12px;display:flex;align-items:center;gap:8px;font-weight:700}
+  .gl-ba[hidden]{display:none}
+  .gl-ba button{height:44px;padding:0 14px;border:0;border-radius:10px;background:#fff;color:#1e3a8a;font-weight:800;font:inherit;font-weight:800;cursor:pointer}
+  .gl-ba .gl-alles{margin-left:auto;background:rgba(255,255,255,.16);color:#fff}
+  .gl-ba .gl-acties{margin-left:0}
+  #gl-terug{position:fixed;left:0;right:0;top:var(--tk-h,0px);height:52px;z-index:810;background:#1e3a8a;color:#fff;align-items:center;padding:0 6px}
+  body.gl.gl-detail #gl-terug{display:flex}
+  #gl-terug button{height:44px;min-width:44px;background:none;border:0;color:#fff;font:inherit;font-weight:700;font-size:16px;display:flex;align-items:center;gap:6px;padding:0 10px;max-width:100%}
+  #gl-terug-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #gl-sheet:not([hidden]){display:block;position:fixed;inset:0;z-index:2400}
+  .gl-bg{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+  .gl-sh{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -10px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:7px;max-height:85vh;overflow-y:auto}
+  .gl-sht{font-weight:800;font-size:15px;padding-bottom:2px}
+  .gl-b{min-height:48px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;padding:0 12px;font:inherit;font-weight:700;color:#1e3a8a;border:0;text-align:left;cursor:pointer}
+  .gl-b.r{color:#b91c1c}
+  .gl-b:disabled{opacity:.45}
+  .gl-annuleer{justify-content:center;background:#fff;border:1px solid #e2e8f0;color:#475569}
+  /* dialogen: scherm van volle hoogte */
+  body.gl .mbg{padding:0;align-items:stretch}
+  body.gl .mbox{width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0;box-shadow:none}
+  body.gl .kn-box,body.gl .tkz-box{width:100%!important;max-width:100%!important;height:100%!important;max-height:100%!important;border-radius:0!important}
+}
+@media (max-width:767px){
+  /* detailscherm: dezelfde inhoud als desktop, in één kolom */
+  body.gl .gl-host,body.gl .gl-host .detail{display:block}
+  body.gl.gl-detail .gl-host{display:block!important}
+  body.gl .gl-host .dkop{flex-wrap:wrap;gap:8px}
+  body.gl .gl-host .dkop h2{font-size:20px}
+  body.gl .gl-host .dkop .acts{margin-left:0;flex-wrap:wrap;width:100%}
+  body.gl .gl-host .dtabs{overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}
+  body.gl .gl-host .dtabs a{flex:none;min-height:44px;white-space:nowrap}
+  body.gl .gl-host .dgrid,body.gl .gl-host .dgrid.een{grid-template-columns:1fr!important;overflow:visible;min-height:0;flex:none}
+  body.gl .gl-host .kv,body.gl .gl-host .rij{flex-wrap:wrap}
+  body.gl .gl-host button,body.gl .gl-host .knop,body.gl .gl-host select,body.gl .gl-host input:not([type=checkbox]):not([type=radio]){min-height:44px}
+  body.gl .gl-host table{display:block;overflow-x:auto;max-width:100%}
+}
+@media (max-width:767px){
+  body.gl .gl-host .terug{display:none}
+  body.gl .gl-host .blok,body.gl .gl-host .dgrid>*,body.gl .gl-host .detail{min-width:0!important;max-width:100%!important;width:auto!important}
+  body.gl .gl-host .kv{min-width:0}
+}
+@media (max-width:767px){
+  body.gl .gl-host b,body.gl .gl-host .pil,body.gl .gl-host span,body.gl .gl-host small{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+}

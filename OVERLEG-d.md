@@ -640,3 +640,32 @@ Run 13: **60/60 groen**. De andere runs vielen uit door omgeving, niet door code
 - Op gsm lopen de vijf tabellen nog horizontaal binnen hun frame; de bulkbalk is nu wel bereikbaar.
 - De voorkeur Groot/Compact gold alleen voor desktop.
 - Hermeting van 2 knoppen (24 px) op Opdracht/Rooster/Sportrooster staat open.
+
+## VERSLAG MOB4 — Gsm-lijsten in plaats van tabellen (mockup-gsm-lijsten.html)
+
+**Bewijs:** `scripts/test-mob4.mjs` = 54 controles groen. Volle run 69/69 groen, twee keer (de tussenrun viel op een poortbotsing van ch2-rit-pagina, afgebroken na 0,3 s, los groen). Live gecontroleerd in de browser op 390 en 1920.
+
+**Opzet (één gedeelde hulp, geen vijf kopieën):** `public/gsm-lijst.js` + `.css`, geladen door `nav.js`. Onder 768 px: kop met titel, ⬇ en +, zoeken, chips met pijltje, een kaart per rij, tik = detail als volgend scherm met ‹ terug (ook de terugknop van de telefoon), vinkje (aanraakgebied 44 px) en onderaan "n gekozen · Alles · Acties". Acties = alle bulkknoppen van de pagina als grote knop; Verwijderen/Deactiveren rood met "…". De pagina-scripts en -HTML zijn niet gewijzigd: de hulp leest de rijen van de bestaande desktoplijst (zelfde API, filters, selectie, RT1-verversing) en geeft elke tik door aan het bestaande element (rij, vinkje, chip, zoekveld, bulkknop, Export, + Nieuw). De gevaarlijke acties vragen op elke pagina zelf om bevestiging (dialoog nu schermvullend).
+
+**Per pagina (kaart zoals de mockup; live gezien):**
+- Kampmomenten: locatie · dagen · "KV x · thema" · status-pil. Detail = het desktop-detail (Gegevens, Thema's, Tellingen, Historiek, …) in één kolom.
+- Taken: "#id soort · wanneer", route, inhoud, oranje pil "zonder rit" (of rit/chauffeur).
+- Bakken: code naam, thema · inhoud, waar nu, stand-pil. 551 kaarten.
+- Personeel: naam, rol · telefoon, laatst actief, pil (geen pincode = oranje).
+- Logboek: kleine kaart, geen vinkje en geen +, wel ⬇ (export van de zichtbare regels als CSV); chips Vandaag / Week / Alles sturen de datumvelden van de pagina.
+- Thema's, Pool, Catalogus, Locaties: zelfde patroon met hun eigen kolommen (thema/soort/inhoud; poolstuk/aantal/waar; artikel/eenheid/voorraad; naam/type/gemeente/KV).
+
+**Meting:** 390: geen horizontale scroll (scrollWidth 390) op alle negen, geen tabel op het scherm, kop-knoppen 44 px, details zonder horizontale overloop. 1920: `#gl` verborgen, `.frame` en lijst ongewijzigd zichtbaar, subbalk ongewijzigd, scrollWidth gelijk aan breedte. Schermafdrukken op 390 bekeken en vergeleken met de mockup: Kampmomenten, Taken (ook Acties-sheet), Logboek, detail Kampmomenten; de andere vijf alleen gemeten (structuur, aantallen, overloop), niet als afbeelding naast de mockup gelegd.
+
+**Status T5-functies:** alle functies van het desktop-detail zijn bereikbaar omdat het detail zelf getoond wordt; Bulkacties (T5 "ontbreekt" op Kampmomenten, Taken, Bakken, Personeel) nu via Acties; Export en + Nieuw nu altijd zichtbaar; chips met pijltje; vinkjes 44 px. Niet individueel op gsm uitgeklikt: elke detailknop en elk dialoog per pagina (afhankelijk van bestaande desktopcode, dialogen wel schermvullend).
+
+**Wat nog ontbreekt per pagina:**
+- Logboek: de mockup-chips Ritten, Voorraad en Wie ontbreken; filters Wie en Tabel staan niet op gsm (alleen datum en zoeken). "↶ terugdraaien" zit in het detail zoals op desktop.
+- Taken: niet getest met een rit toegewezen (pil in blauw) en met vinkje Bundelen uitgeschakeld.
+- Bakken: bij 551 kaarten wordt alles bij elke wijziging opnieuw getekend; geen paginering.
+- Alle: sorteren (kolomkoppen) bestaat op gsm niet; niet getest met echte vinger of telefoon; geen aparte gsm-versie van de dialogen buiten "volle hoogte".
+
+### GEVONDEN
+- De subbalk (Rooster, Sportrooster, …) staat op deze negen pagina's niet meer op gsm (zoals de mockup); die pagina's zijn bereikbaar via Meer.
+- Pool, Catalogus, Locaties en Thema's hadden een eigen "‹ terug naar de lijst"; op gsm verborgen, de gedeelde terugbalk neemt het over.
+- Het patroon leest de desktoplijst: verandert een pagina haar kolomvolgorde, dan moet de kaartconfiguratie in `gsm-lijst.js` mee.

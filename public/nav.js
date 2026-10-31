@@ -53,6 +53,8 @@
     if (!document.querySelector('link[href="/public/app-schil.css"]')) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/public/app-schil.css'; document.head.appendChild(l); }
     // MOB3: gedeelde gsm-regels en -hulp (bulkbalk, acties, aanraakmaat, tik-uitleg)
     if (!document.querySelector('link[href="/public/gsm-gelijk.css"]')) { var l2 = document.createElement('link'); l2.rel = 'stylesheet'; l2.href = '/public/gsm-gelijk.css'; document.head.appendChild(l2); var s2 = document.createElement('script'); s2.src = '/public/gsm-gelijk.js'; document.head.appendChild(s2); }
+    // MOB4: gsm-lijsten (kaart per rij) voor de lijstpagina's; de pagina zelf blijft bron en blijft desktop
+    if (!document.querySelector('link[href="/public/gsm-lijst.css"]')) { var l3 = document.createElement('link'); l3.rel = 'stylesheet'; l3.href = '/public/gsm-lijst.css'; document.head.appendChild(l3); var s3 = document.createElement('script'); s3.src = '/public/gsm-lijst.js'; document.head.appendChild(s3); }
     var balk = document.createElement('nav'); balk.className = 'app-tabs'; balk.setAttribute('aria-label', 'Hoofdmenu');
     var zet = function (t) { balk.innerHTML = tabbalk(rol, pad, root.location.search, t); };
     zet(); document.body.classList.add('heeft-tabs'); document.body.appendChild(balk);
