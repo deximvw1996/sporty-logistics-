@@ -38,7 +38,7 @@
       var kv = LEEG(c[4].t) || /geen kv/i.test(c[4].t) ? 'Geen KV' : 'KV ' + c[4].t.replace(/^KV\s+/i, '');
       return { titel: c[1].t, regels: [c[2].t, deel(kv, LEEG(c[3].t) || /^geen thema/i.test(c[3].t) ? 'nog geen thema' : c[3].t)], pills: tekstPil(c[5], 'gr').concat(pilVan(c[6])) }; } },
     '/taken': { titel: 'Taken', zoek: 'Route, inhoud, rit…', noun: 'taak', nouns: 'taken', kaart: function (c) {
-      return { titel: deel(c[1].t, c[2].t), regels: [c[3].t, c[4].t], pills: LEEG(c[5].t) && !pilVan(c[5]).length ? [{ t: 'zonder rit', k: 'or' }] : (pilVan(c[5]).length ? pilVan(c[5]) : tekstPil(c[5], 'bl')) }; } },
+      return { titel: deel(c[1].t, c[2].t), regels: [c[3].t, c[4].t], pills: (pilVan(c[5]).length ? pilVan(c[5]) : tekstPil(c[5], 'bl')).map(function (p) { var t = p.t.replace(/^[—–-]\s*/, ''); return { t: t, k: /zonder rit/i.test(t) ? 'or' : p.k }; }).concat(LEEG(c[5].t) && !pilVan(c[5]).length ? [{ t: 'zonder rit', k: 'or' }] : []) }; } },
     '/bakken': { titel: 'Bakken', zoek: 'Code of naam…', noun: 'bak', nouns: 'bakken', kaart: function (c) {
       return { titel: c[1].t, regels: [deel(c[2].t, c[4].t), c[3].t], pills: tekstPil(c[5], 'bl').concat(pilVan(c[6])) }; } },
     '/personeel': { titel: 'Personeel', zoek: 'Naam, rol…', noun: 'persoon', nouns: 'personen', kaart: function (c) {
@@ -77,7 +77,7 @@
     return chips.map(function (c) { return '<button type="button" class="gl-c' + (c.act ? ' a' : '') + '" data-gl="chip" data-f="' + esc(c.key) + '" aria-pressed="' + (!!c.act) + '">' + esc(c.label) + '</button>'; }).join('');
   }
   function balkHtml(n, nouns) { return n ? '<span>' + n + ' gekozen</span><button type="button" class="gl-alles" data-gl="alles">Alles</button><button type="button" class="gl-acties" data-gl="acties">Acties</button>' : ''; }
-  var GEVAAR = /verwijder|deactiveer|wissen/i;
+  var GEVAAR = /verwijder|deactiv|wissen/i;
   function sheetHtml(n, cfg, acties) {
     return '<div class="gl-sh" role="dialog" aria-label="Acties"><div class="gl-sht">Acties voor ' + n + ' ' + (n === 1 ? cfg.noun : cfg.nouns) + '</div>'
       + acties.map(function (a, i) { return '<button type="button" class="gl-b' + (a.gevaar ? ' r' : '') + '" data-gl="actie" data-i="' + i + '"' + (a.uit ? ' disabled' : '') + '>' + esc(a.label) + (a.gevaar && !/…$/.test(a.label) ? '…' : '') + '</button>'; }).join('')
