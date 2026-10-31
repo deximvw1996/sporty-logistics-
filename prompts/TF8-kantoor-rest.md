@@ -1,0 +1,26 @@
+# PROMPT TF8 — T4: kantoor en aanvuller, wat achterblijft en wat verstopt raakt
+**Chat D (Sonnet) · map `D:\Sporty\sporty-d` · branch `bouw-d` · poort 3304 · verslag `OVERLEG-d.md` · TIJDSLIMIET 3 uur**
+
+Lees eerst `CLAUDE.md`. Ga naar je branch (`git checkout bouw-d`), dan `git fetch origin` en `git rebase origin/main`. Controleer de exitcode van de rebase zelf vóór je pusht. Lees dan volledig: `TESTVERSLAG-T4-kantoor.md`, `TESTVERSLAG-T4-coordinator.md`, `public/vandaag.*`, `public/nakijken.*`, `routes/nakijken.js`, `public/taken.*`, `routes/taken.js`, `routes/aanvragen.js`, `routes/kampmomenten.js`, `routes/planning.js`, `public/tekorten.*`, `routes/tekorten-overzicht.js`, `public/aanvullen.*`, `public/kampmomenten.*`, `public/zoeken.js`.
+
+Je raakt de bestanden hierboven, `lib/migraties.js` (onderaan), `scripts/test-tf8-*.mjs`, `OVERLEG-d.md`, en in `routes/vandaag.js` alleen het veld `dringend`. NIET `public/rit.*`, `routes/transport.js`, `routes/ritplanning.js`, `public/ritplanning.*`, `routes/voertuigen.js`, `routes/meldingen.js`, `routes/kv.js`, `public/kv.*` (chat C). In `routes/nakijken.js`/`public/nakijken.js` niet de historiek en niet de vraag "Bestelling nog nodig?" (chat C). Capaciteit is niet jouw werk.
+
+## Punt 1 — Niets blijft stil achter
+- **G5:** taak van een goedgekeurde aanvraag weghalen: vraag "Ook het stuk van de aanvullijst halen en de KV laten weten?" (Ja: regel weg, aanvraag blijft in historiek met status, KV ziet het; Nee: regel blijft). Verwijderen staat ook in het taakdetail.
+- **G6:** kampmoment verwijderen ruimt aanvullijst-regels, open aanvragen en lege ritten op, of toont vooraf wat blijft staan met een keuze. Niets stil. Historiek en tellingen blijven bewaard (BINDEND: alles bewaren en loggen).
+- **G3:** een onbesliste melding na afronden blijft in Nakijken bij "Te keuren" en "Gemeld" staan. "1 telling te keuren" op Vandaag en de teller in Nakijken zijn altijd gelijk. Het vak toont geen actie als keuze die niet bewaard is.
+- **G4:** tekort én kapot: elk deel krijgt een eigen actie en aantal (tweede regel of tweede actieveld, jouw keuze, leg uit). Het aantal vóór en na afronden is gelijk.
+
+## Punt 2 — Vandaag en Aanvullen
+- **G2:** binnen 7 dagen geen levering gepland = dringend, bovenaan, ook als er andere planning onder Later staat. In Later staat wat erin zit in één regel.
+- **G12:** "vertrekt vandaag" klopt met de echte levering; oorzaak zoeken. Levering die al voorbij is en niet gedaan: duidelijk "te laat". **G8:** genereren met een leveringsdatum in het verleden: waarschuwing, niet blokkeren.
+- **Coördinator:** Tekorten zegt niet langer "nu al afvinkbaar" vóór de keuze (G5 rest). Vandaag en Aanvullen tellen handelingen op dezelfde manier (N6). 9 invullen bij rest 2 geeft een melding (N11). Bak Klaar blijft zichtbaar in de lijst, met wie en wanneer, in de bewaarde data. Melding aan kantoor is goed om mee te geven: tekst bij de bak. Hernoem "Zonder bak"/"Losse melding" naar één naam (N10). Controleer "Aanvullen uit voorraad" op het scherm: de hoofdchat herstelde de rol, klik het als coördinator. Bij voorraad 0 toont Tekorten niet "-5" zonder duidelijke waarschuwing (melden mag, verbieden niet).
+- **Zoeken:** cursor meteen in bericht (N8) en geen "INFO:"-regel als artikel (N9). Eigen kop en terug op Tekorten en Zoeken (G14).
+
+## Punt 3 — Kantoor, klein
+- **G11:** blok "Aanvragen zonder artikel" boven de filterbalk, volle breedte, aantal uit de aanvraag vooraf ingevuld. **G13:** API weigert einde vóór start. **G15:** de echte KV-naam in plaats van "Claude (API)"; **G16:** "Alles tonen" overlapt niet, losse aanvragen dragen hun naam. **G17:** enkelvoud/meervoud, geen "(en)" of "(s)". **N13:** historiek kampmoment filtert op periode. **N16:** tweede kampmoment zelfde locatie en week: duidelijke uitkomst. **N18:** periodekiezer en zoekveld gsm ≥ 44 px, chip niet afgesneden.
+- **Tekorten:** "Bestellen" en "Besteld" krijgen namen die zeggen wat ze doen ("Bestelling plaatsen", "Staat besteld"). "uit pool": toon "uit voorraad Rozenweg". Periodekiezer zegt of dit alleen je zicht wijzigt. "🔒 vast" krijgt uitleg. Leg de tekst per keuze vast in het verslag.
+- `G18` in T4-kantoor (Migratie 47 bij de eerste start na terugzetten): onderzoek of ze iets wijzigt; alleen melden.
+
+## Bewijs
+`scripts/test-tf8-keten.mjs` (via `_testhulp`, eigen poort): taak en kampmoment weghalen met beide keuzes; onbesliste melding blijft, tellers gelijk; tekort én kapot met twee acties en juiste voorraad en aantallen; levering ontbreekt over 2 dagen = dringend; "vertrekt vandaag"; periode-API 400; handelingen gelijk. Bestaande vc1, tb2, av1, av2, tf4, tf6, ko1 groen. Browser op localhost op 1920 en 390, ook "Aanvullen uit voorraad" klikken; NOOIT een adres met gebruikersnaam/wachtwoord openen; lukt een browserstap niet zonder toestemming: overslaan, melden, verder. Volle run 2× groen. Commit per punt, push `origin HEAD:bouw-d`. NOOIT naar main, NOOIT deploy.bat. Verslag onderaan `OVERLEG-d.md` per punt + GEVONDEN. Laatste bericht eindigt met exact: **VOLLEDIG KLAAR MET DE PROMPT. NU IS HET TERUG AAN DE HOOFDCHAT.** Bij de tijdslimiet: stop, commit, "Stand bij tijdslimiet", push, **TIJDSLIMIET BEREIKT: GESTOPT MET EEN TUSSENSTAND. NU IS HET TERUG AAN DE HOOFDCHAT.** Volgorde bij tijdnood: 1, 2, 3.
