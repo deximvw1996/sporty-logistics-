@@ -8,14 +8,17 @@
   var MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
   function dagLang(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); if (!m) return esc(iso || ''); var d = new Date(+m[1], +m[2] - 1, +m[3]); return DAGEN[d.getDay()].slice(0, 2) + ' ' + d.getDate() + ' ' + MAANDEN[d.getMonth()].slice(0, 3) + ' ' + d.getFullYear(); }
 
-  var FILTERS = [['gemeld', 'Gemeld'], ['te_keuren', 'Te keuren'], ['niet_geteld', 'Niet geteld'], ['nog_niet', 'Nog niet geteld'], ['met_tekort', 'Met tekort'], ['met_kapot', 'Met kapot'], ['nagekeken', 'Nagekeken']];
-  var PIL = { te_keuren: ['oranje', 'te keuren'], niet_geteld: ['', 'niet geteld'], nog_niet: ['', 'nog niet geteld'], nagekeken: ['groen', 'nagekeken'] };
+  // TF12: vier filters; "nog niet geteld" telt ook de bakken zonder telling in een open sessie.
+  var FILTERS = [['te_keuren', 'Te keuren'], ['gemeld', 'Gemeld'], ['nog_niet', 'Nog niet geteld'], ['', 'Alles']];
+  var telVan = function (t, f) { return f === 'nog_niet' ? (t.nog_niet || 0) + (t.niet_geteld || 0) : f === '' ? null : (t[f] || 0); };
+  var PIL = { niet_geleverd: ['rood', 'niet geleverd'], te_keuren: ['oranje', 'te keuren'], niet_geteld: ['', 'niet geteld'], nog_niet: ['', 'nog niet geteld'], nagekeken: ['groen', 'nagekeken'] };
   function meldDag(iso) { var n = new Date(), v = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0'); return !iso || iso === v ? 'vandaag' : dagLang(iso); }
   var sleutel = function (b) { return b.kampmoment_id + ':' + b.bak.soort + ':' + b.bak.id; };
 
   function passeert(b, st) {
     var f = st.filter;
-    if (f === 'te_keuren' || f === 'niet_geteld' || f === 'nog_niet' || f === 'nagekeken') { if (b.status !== f) return false; }
+    if (f === 'nog_niet') { if (b.status !== 'nog_niet' && b.status !== 'niet_geteld') return false; }
+    else if (f === 'te_keuren' || f === 'niet_geteld' || f === 'nagekeken') { if (b.status !== f) return false; }
     else if (f === 'gemeld') { if (!(b.gemeld > 0)) return false; }
     else if (f === 'met_tekort') { if (!b.met_tekort) return false; }
     else if (f === 'met_kapot') { if (!b.met_kapot) return false; }
@@ -25,22 +28,40 @@
   }
   function zichtbaar(data, st) { return (data.bakken || []).filter(function (b) { return passeert(b, st); }); }
 
+  // TF12: één rij per locatie; openklappen toont enkel wat afwijkt.
+  var afwijkend = function (b) { return b.status === 'te_keuren' || b.gemeld > 0 || b.status === 'niet_geleverd'; };
+  function locatieLijst(data, st) {
+    var locs = (data.locaties || []).slice(), los = (data.bakken || []).filter(function (b) { return b.kampmoment_id == null; });
+    if (los.length) locs.unshift({ kampmoment_id: 'x', locatie: 'Losse meldingen stockage', tekst: los.length + ' gemeld', te_keuren: 0, niet_geteld: 0, niet_geleverd: [] });
+    return locs.map(function (l) {
+      var alle = (data.bakken || []).filter(function (b) { return String(b.kampmoment_id == null ? 'x' : b.kampmoment_id) === String(l.kampmoment_id); });
+      return { l: l, alle: alle, zicht: alle.filter(function (b) { return passeert(b, st); }) };
+    }).filter(function (x) { return x.zicht.length || (!st.filter && !(st.zoek || '').trim()); });
+  }
+  function locatieHtml(x, st, attr, bakRij) {
+    var l = x.l, sl = String(l.kampmoment_id), open = (st.locOpen || {})[sl] !== undefined ? st.locOpen[sl] : l.te_keuren > 0, allesT = (st.locAlles || {})[sl];
+    var toon = allesT ? x.zicht : x.zicht.filter(function (b) { return afwijkend(b) || st.filter === 'nog_niet' || (st.zoek || '').trim(); });
+    var waarsch = l.waarschuwing ? '<div class="lw">⚠ ' + l.niet_geteld + ' niet geteld, de eerste kampdag is voorbij <button type="button" class="knop licht klein" ' + attr + '="herinner" data-a="' + l.kampmoment_id + '">Herinner de KV</button></div>' : '';
+    return '<div class="locatie' + (l.te_keuren ? ' te' : '') + '"><div class="locr" role="button" tabindex="0" ' + attr + '="loc" data-a="' + sl + '" aria-expanded="' + !!open + '"><span class="pijl">' + (open ? '▾' : '▸') + '</span><div class="nm"><b>' + esc(l.locatie) + '</b> · ' + esc(l.tekst) + '</div></div>' + waarsch
+      + (open ? (l.niet_geleverd && l.niet_geleverd.length ? '<div class="lng"><b>Niet geleverd (geen tekort van de KV):</b> ' + l.niet_geleverd.map(esc).join(' · ') + '</div>' : '') + toon.map(bakRij).join('') + (x.zicht.length > toon.length ? '<button type="button" class="knop licht klein" style="margin:6px 0" ' + attr + '="loc-alles" data-a="' + sl + '">Toon alle ' + x.alle.length + ' bakken</button>' : toon.length ? '' : '<div class="hint" style="padding:6px 0">Geen afwijkende bakken.</div>') : '') + '</div>';
+  }
   // ── Lijst (links) ──
   function lijstHtml(data, st) {
     var t = data.tellers || {};
-    var chips = FILTERS.map(function (f) { return '<span class="chip' + (st.filter === f[0] ? ' act' : '') + '" role="button" tabindex="0" data-act="filter" data-a="' + f[0] + '">' + f[1] + ' ' + (t[f[0]] || 0) + '</span>'; }).join('')
+    var chips = FILTERS.map(function (f) { return '<span class="chip' + (st.filter === f[0] ? ' act' : '') + '" role="button" tabindex="0" data-act="filter" data-a="' + f[0] + '">' + f[1] + (telVan(t, f[0]) == null ? '' : ' ' + telVan(t, f[0])) + '</span>'; }).join('')
       + '<span class="wk"><span class="chip" role="button" tabindex="0" data-act="week" data-a="-1" aria-label="Vorige week">‹</span><span class="chip">Week ' + esc(data.week && data.week.weeknummer != null ? data.week.weeknummer : '—') + '</span><span class="chip" role="button" tabindex="0" data-act="week" data-a="1" aria-label="Volgende week">›</span></span>';
     var rijen = zichtbaar(data, st);
     var sel = st.geselecteerd || new Set();
     var alleSel = rijen.length && rijen.every(function (b) { return b.sessie_id && sel.has(b.sessie_id); });
-    var body = rijen.map(function (b) {
+    var bakRij = function (b) {
       var p = PIL[b.status] || PIL.niet_geteld;
       var kan = !!b.sessie_id;
       var grijs = b.status === 'nog_niet';
       return '<div class="r l' + (st.open === sleutel(b) ? ' act' : '') + (grijs ? ' nog-niet' : '') + '"' + (grijs ? ' style="opacity:.55"' : '') + ' role="button" tabindex="0" data-act="open" data-a="' + esc(sleutel(b)) + '"><span><input type="checkbox" data-act="vink" data-a="' + (b.sessie_id || '') + '"' + (kan ? '' : ' disabled') + (kan && sel.has(b.sessie_id) ? ' checked' : '') + ' aria-label="Selecteer"></span>'
         + '<span><b>' + esc(b.locatie) + '</b><br><small>' + (b.bak.soort === 'melding' ? 'gemeld ' + esc(meldDag(b.gemeld_op)) : 'wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(b.kv_naam) : '')) + '</small></span>'
         + '<span>' + esc(b.bak.code) + ' ' + esc(b.bak.naam) + '</span><span>' + (b.bak.soort === 'melding' ? b.totaal + ' gemeld' : b.geteld + '/' + b.totaal + (b.bak.soort === 'attribuut' ? '' : ' geteld')) + '</span><span>' + esc(grijs && b.kv_naam ? b.uitslag_tekst + ' · ' + kvL(b.kv_naam) : b.uitslag_tekst) + '</span><span><span class="pil ' + p[0] + '">' + p[1] + '</span></span></div>';
-    }).join('') || '<div class="leeg">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
+    };
+    var body = locatieLijst(data, st).map(function (x) { return locatieHtml(x, st, 'data-act', bakRij); }).join('') || '<div class="leeg">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
     return '<div class="filters"><input type="search" id="zoek" placeholder="🔍 Zoek locatie, bak, KV, stuk…" value="' + esc(st.zoek || '') + '" data-f="zoek">' + chips + '</div>'
       + '<div class="kopr l"><span><input type="checkbox" data-act="vink-alles"' + (alleSel ? ' checked' : '') + ' aria-label="Alles selecteren"></span><span>Locatie · KV</span><span>Bak</span><span>Geteld</span><span>Uitslag</span><span>Status</span></div>'
       + '<div class="scroll">' + body + '</div>'
@@ -77,6 +98,7 @@
     if (it.tekort_status === 'besteld') return '<button type="button" class="knop klein" style="min-height:36px" data-act="binnen" data-a="' + it.regel_id + '">Bestelling binnen</button>';
     return '';
   }
+  function nietGeleverdBlok(det) { var n = det.niet_geleverd || []; return n.length ? '<div class="blok" style="border-left:4px solid #dc2626"><h4>Niet geleverd · geen tekort op de locatie</h4>' + n.map(function (x) { return '<div class="rij"><div class="nm">' + esc(x.tekst) + '<b>' + esc(x.reden_tekst) + ' · ' + esc(x.stand) + '</b></div></div>'; }).join('') + '</div>' : ''; }
   function telTabel(det) {
     var rijen = det.items.map(function (it) {
       return '<div class="r tel ' + (KLEUR[it.afwijking] || '') + '"><span><b>' + esc(it.naam) + '</b>' + (it.foto_url ? ' 📷' : '') + (it.herkomst ? '<br><small class="herkomst">' + esc(it.herkomst) + '</small>' : '') + '</span><span>' + it.verwacht + '</span><span><b>' + (it.aangetroffen == null ? '—' : it.aangetroffen) + '</b></span><span>' + afwPil(it) + '</span><span class="not">' + (it.notitie ? esc(it.notitie) : '—') + '</span><span>' + actieCel(it) + '</span></div>';
@@ -85,7 +107,7 @@
     var gekozen = function (i) { return i.kantoor_actie || (i.acties[0] && i.acties[0].waarde) || ''; };
     var bestel = afw.filter(function (i) { return gekozen(i) === 'bestellen' || gekozen(i) === 'afschrijven_bestellen'; }).length;
     var afschr = afw.filter(function (i) { return gekozen(i) === 'afschrijven_bestellen'; }).length;
-    return '<div class="blok"><h4>Telling KV vs. verwacht · kies per afwijking wat kantoor doet</h4><div class="kopr tel"><span>Stuk</span><span>Hoort</span><span>Geteld</span><span>Afwijking</span><span>Notitie KV</span><span>Actie kantoor</span></div>'
+    return nietGeleverdBlok(det) + '<div class="blok"><h4>Telling KV vs. verwacht · kies per afwijking wat kantoor doet</h4><div class="kopr tel"><span>Stuk</span><span>Hoort</span><span>Geteld</span><span>Afwijking</span><span>Notitie KV</span><span>Actie kantoor</span></div>'
       + rijen + '<div class="onder"><span>' + afw.length + ' afwijking' + (afw.length === 1 ? '' : 'en') + ' · ' + bestel + ' bestelling' + (bestel === 1 ? '' : 'en') + ' klaar om te plaatsen · ' + afschr + ' afschrijving' + (afschr === 1 ? '' : 'en') + '</span>'
       + '<button type="button" class="knop licht klein" data-act="notitie-open">Notitie aan KV</button></div></div>';
   }
@@ -162,11 +184,12 @@
   var AFWTEKST = { tekort: function (i) { return i.aantal_afwijking + ' tekort'; }, kapot: function (i) { return i.kapot_aantal + ' kapot'; }, te_veel: function (i) { return i.aantal_afwijking + ' te veel'; } };
   function gsmLijstHtml(data, st) {
     var t = data.tellers || {}, rijen = zichtbaar(data, st), w = data.week || {};
-    var chips = FILTERS.map(function (f) { return '<span class="chip' + (st.filter === f[0] ? ' act' : '') + '" role="button" tabindex="0" data-gk="filter" data-a="' + f[0] + '">' + f[1] + ' ' + (t[f[0]] || 0) + '</span>'; }).join('');
-    var kaarten = rijen.map(function (b) {
+    var chips = FILTERS.map(function (f) { return '<span class="chip' + (st.filter === f[0] ? ' act' : '') + '" role="button" tabindex="0" data-gk="filter" data-a="' + f[0] + '">' + f[1] + (telVan(t, f[0]) == null ? '' : ' ' + telVan(t, f[0])) + '</span>'; }).join('');
+    var gsmRij = function (b) {
       var p = PIL[b.status] || PIL.niet_geteld, kls = b.met_tekort || b.met_kapot ? 'rood' : b.status === 'nagekeken' ? 'groen' : '';
       return '<div class="bak ' + kls + '" role="button" tabindex="0" data-gk="open" data-a="' + esc(sleutel(b)) + '"><span class="code">' + esc(b.bak.code || '—') + '</span><div class="nm">' + esc(b.bak.naam) + '<b>' + esc(b.locatie) + ' · wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(kvL(b.kv_naam)) : '') + ' · ' + b.geteld + '/' + b.totaal + ' geteld' + (b.uitslag_tekst ? ' · ' + esc(b.uitslag_tekst) : '') + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
-    }).join('') || '<div class="hint" style="text-align:center;padding:18px 0">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
+    };
+    var kaarten = locatieLijst(data, st).map(function (x) { return locatieHtml(x, st, 'data-gk', gsmRij); }).join('') || '<div class="hint" style="text-align:center;padding:18px 0">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
     return '<div class="kop2"><div style="flex:1"><b>Nakijken</b><span>' + rijen.length + ' bak' + (rijen.length === 1 ? '' : 'ken') + ' · ' + (t.te_keuren || 0) + ' te keuren</span></div></div>'
       + '<div class="wk"><button type="button" class="knop licht klein" data-gk="week" data-a="-1" aria-label="Vorige week">‹</button><b>Week ' + esc(w.weeknummer != null ? w.weeknummer : '—') + '</b><button type="button" class="knop licht klein" data-gk="week" data-a="1" aria-label="Volgende week">›</button></div>'
       + '<div class="chipsS">' + chips + '</div><div class="body">' + kaarten + '</div>';
@@ -308,7 +331,11 @@
     var gk = e.target.closest('#gsm [data-gk]');
     if (gk && !gk.disabled) {
       var ga = gk.getAttribute('data-gk'), gv = gk.getAttribute('data-a');
-      if (ga === 'filter') { ST.filter = ST.filter === gv ? '' : gv; tekenGsm(); return; }
+      var a0 = gv;
+      if (ga === 'loc') { ST.locOpen = ST.locOpen || {}; var _l = (DATA.locaties || []).filter(function (x) { return String(x.kampmoment_id) === a0; })[0]; ST.locOpen[a0] = !(ST.locOpen[a0] !== undefined ? ST.locOpen[a0] : !!(_l && _l.te_keuren)); tekenGsm(); return; }
+      if (ga === 'loc-alles') { ST.locAlles = ST.locAlles || {}; ST.locAlles[a0] = true; tekenGsm(); return; }
+      if (ga === 'herinner') { var _h = await aanroep('POST', '/api/nakijken/herinnering', { kampmoment_id: +a0 }); toast(_h.ok ? '✓ Herinnering verstuurd' : (_h.json.error || 'Dat lukte niet'), _h.ok ? 'success' : 'error'); e.stopPropagation(); return; }
+      if (ga === 'filter') { ST.filter = gv; tekenGsm(); return; }
       if (ga === 'week') { var nw0 = weekVan(+gv); if (!nw0) return; ST.week = nw0; ST.weekGezet = true; ST.geselecteerd = new Set(); ST.open = null; DETAIL = null; await laadLijst(); return; }
       if (ga === 'open') { ST.gs = 'regel'; ST.gi = 0; await laadDetail(gv); return; }
       if (ga === 'terug') { ST.gs = 'lijst'; tekenGsm(); return; }
@@ -331,7 +358,11 @@
     if (act === 'vink') { var id = +a; if (!id) return; if (el.checked) ST.geselecteerd.add(id); else ST.geselecteerd.delete(id); tekenLijst(); e.stopPropagation(); return; }
     if (e.target.matches('input[type=checkbox]') || e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
     if (act === 'vink-alles') { var rijen = zichtbaar(DATA, ST); var alle = rijen.length && rijen.every(function (b) { return b.sessie_id && ST.geselecteerd.has(b.sessie_id); }); rijen.forEach(function (b) { if (b.sessie_id) { if (alle) ST.geselecteerd.delete(b.sessie_id); else ST.geselecteerd.add(b.sessie_id); } }); tekenLijst(); return; }
-    if (act === 'filter') { ST.filter = ST.filter === a ? '' : a; tekenLijst(); return; }
+    var a0 = a;
+    if (act === 'loc') { ST.locOpen = ST.locOpen || {}; var _l = (DATA.locaties || []).filter(function (x) { return String(x.kampmoment_id) === a0; })[0]; ST.locOpen[a0] = !(ST.locOpen[a0] !== undefined ? ST.locOpen[a0] : !!(_l && _l.te_keuren)); tekenLijst(); return; }
+    if (act === 'loc-alles') { ST.locAlles = ST.locAlles || {}; ST.locAlles[a0] = true; tekenLijst(); return; }
+    if (act === 'herinner') { var _h = await aanroep('POST', '/api/nakijken/herinnering', { kampmoment_id: +a0 }); toast(_h.ok ? '✓ Herinnering verstuurd' : (_h.json.error || 'Dat lukte niet'), _h.ok ? 'success' : 'error'); e.stopPropagation(); return; }
+    if (act === 'filter') { ST.filter = a; tekenLijst(); return; }
     if (act === 'week') { var nw = weekVan(+a); if (!nw) return; ST.week = nw; ST.weekGezet = true; ST.geselecteerd = new Set(); ST.open = null; DETAIL = null; await laadLijst(); tekenDetail(); return; }
     if (act === 'open') { await laadDetail(a); return; }
     if (act === 'tab') { ST.tab = a; tekenDetail(); return; }

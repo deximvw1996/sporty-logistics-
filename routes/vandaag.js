@@ -254,7 +254,7 @@ module.exports = function(ctx){
       const daarna=kies.daarna.concat(wk.length?[{soort:'week',ico:'🏫',tijd:'ma–vr',titel:`Deze week · ${wk.length} locatie${wk.length===1?'':'s'}`,sub:wk.slice(0,5).map(k=>k.locatie).join(', '),url:'/kampmomenten'}]:[]);
       const meldingen=ongelezen(req);
       return {nu:kies.nu,daarna,n_dingen:alle.length,meldingen,beslissen:v.beslissen,periode:v.periode,
-        tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.nakijken.filter(x=>x.id!=='tellingen-te-keuren').length+v.te_keuren,meldingen:meldingen.length}};
+        tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.te_keuren,meldingen:meldingen.length}};
     }
     const naam=req.persoon.naam;
     const meld=ongelezen(req);

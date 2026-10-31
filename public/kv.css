@@ -67,3 +67,9 @@ a.knop{text-decoration:none}
 .toast.fout{background:#b91c1c}
 .toast.zicht{opacity:1;transform:translate(-50%,0)}
 @media(min-width:520px){#app{box-shadow:0 0 24px rgba(0,0,0,.12)}}
+
+/* TF12 */
+.ngblok{border-left:4px solid #dc2626;background:#fef2f2}.nablok{border-left:4px solid #2563eb}
+.voortgang{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 0;font-size:15px}.voortgang .knop{min-height:48px}
+.bakw{margin:6px 0}.bakw .bak{margin:0}.snel{display:flex;gap:8px;margin:6px 0 10px}.snel .knop{flex:1;min-height:48px;font-size:15px}
+.alleenlezen .snel,.alleenlezen [data-act=toch-gevonden],.alleenlezen .voortgang .knop{display:none}
