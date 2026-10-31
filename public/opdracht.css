@@ -37,5 +37,5 @@ h3{font-size:15px;font-weight:800;margin:0 0 10px;display:flex;align-items:cente
   #agenda{margin-bottom:12px}.ag{max-height:300px}
   .gsmtabs{display:flex;gap:6px;overflow:auto;margin-bottom:8px}.gsmtabs button{min-height:44px;padding:0 12px;border-radius:10px;background:#f1f5f9;color:#1e3a8a;font-weight:700;white-space:nowrap}.gsmtabs button.act{background:#1e3a8a;color:#fff}
   .grid3{display:block;overflow:visible}.wagen{display:none}.wagen.act{display:flex}
-  .knop,.knop.klein,.acties button,.mens.plus,.wkop select{min-height:44px}.dkop{flex-wrap:wrap}
+  .knop,.knop.klein,.acties button,.mens.plus,.wkop select{min-height:44px}.mens button{min-width:44px;min-height:44px}.dkop{flex-wrap:wrap}
 }
