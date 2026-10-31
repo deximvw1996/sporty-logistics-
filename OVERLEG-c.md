@@ -2242,3 +2242,12 @@ Eigen keuze: push "alles" = nu + vandaag, nooit info. Standaard is "alleen Nu op
 - Losse stukken koppelen op naam: heet een regel anders dan de bakregel, dan staat het in het blok maar zakt verwacht niet.
 - Commit per punt niet gehaald: verweven in dezelfde bestanden.
 - v3c-fotos en veiligheid blijven rood, zoals al vóór TF5.
+
+## BW2 — Datamodel (vóór het bouwen geschreven)
+- **Wagen = bestaande `transport_ritten`-rij.** Eigen voertuig, aanhangwagen, token, stops (`transport_taken`), lading (`transport_regels`, `verhuis_checks`) en echte tijd. Daardoor blijven rit-link, token, oude rit-id's, geschiedenis, chauffeursscherm en alle rit-routes ongewijzigd werken.
+- **Nieuw `opdrachten`** (id, datum, einde, einde_vorig, created_at) + kolom `transport_ritten.opdracht_id`. **Overgang:** elke bestaande rit krijgt een eigen opdracht met één wagen; loopt alleen op ritten zonder `opdracht_id`, dus twee keer draaien doet niets. Nieuwe ritten via oude routes (generator, Nieuwe rit) krijgen er vanzelf een.
+- **`rit_personen`** (rit_id, personeel_id, uniek): extra mensen. De bestuurder blijft in `personeel_id`/`chauffeur`.
+- **Gedeelde stop:** niet opgeslagen maar afgeleid: zelfde opdracht, zelfde locatie en tijd op twee of meer wagens. Zonder lading komen helpen = een stop zonder regels; die werkt al ("aankomen is afronden").
+- **Meerdere ophaalplaatsen:** elke stop heeft al een `van_locatie_id`; laadstops van een wagen = de verschillende van-locaties. Nieuw: `transport_ritten.laadvolgorde` (locatie-id's, om om te draaien) en `item_types.thuislocatie_id` (artikel; leeg = wat de generator nu kiest). Bak, attribuut en sportset hebben hun thuisplaats al.
+- **Nieuw `afspraken`** en **`feedback`** (onwisbaar via triggers, net als `kv_telling_versies`).
+- Geen bestaande kolom wijzigt of verdwijnt. `stockage_rol` blijft onaangeraakt.
