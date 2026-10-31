@@ -2,7 +2,7 @@
 <html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Etiketten — Sporty logistiek</title>
 <link rel="stylesheet" href="/public/patroon.css">
-<style>
+<style>.gsm-hint{display:none}@media (max-width:767px){.gsm-hint{display:block}}
 /* MA1: printbare etiketten (er bestond geen etiketroute). A4, 3 × 7 etiketten van 70 × 42 mm; op scherm met een printknop. */
 body{background:#f5f5f5}
 .balk{display:flex;align-items:center;gap:12px;padding:12px 28px;background:#fff;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b}
@@ -13,7 +13,7 @@ body{background:#f5f5f5}
 .et .th{font-size:11px;color:#334155}.et .plaats{font-size:11px;font-weight:700;color:#334155;border-top:1px solid #e2e8f0;padding-top:1mm}
 @media print{.balk{display:none}body{background:#fff}.vel{margin:0;padding:10mm 0}.et{border-color:#e2e8f0}@page{size:A4;margin:0}}
 </style></head><body>
-<div class="balk"><b>Etiketten</b><span id="info">laden…</span><button class="knop klein" onclick="window.print()">🖨 Printen</button></div>
+<div class="balk"><b>Etiketten</b><span id="info">laden…</span><button class="knop klein" onclick="window.print()">🖨 Printen</button></div><div class="gsm-hint" style="margin:8px 12px;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px">Printen vanaf een gsm gaat via het afdrukmenu van je browser (⋮ › Delen › Afdrukken). Liever vanaf een pc met printer: A4, 3 × 7 etiketten.</div>
 <div class="vel" id="vel"></div>
 <script>
 (async function(){

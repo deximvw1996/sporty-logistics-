@@ -1,6 +1,7 @@
 /* public/gsm-gelijk.css — MOB3: gedeelde gsm-regels (< 768 px) voor de beheerpagina's: bulkbalk, actieknoppen, aanraakmaat, scrollhints, tik-uitleg.
    Boven 767 px staat hier niets dat de desktop verandert. */
 .gsm-uitleg{display:none}
+.gsm-hint{display:none}
 @media (max-width:767px){
   /* bulkbalk: vast onderaan boven de tabbalk, alle acties als knop van minstens 44 px */
   .voet.sel{position:fixed;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom));z-index:900;height:auto;flex-wrap:wrap;gap:8px;padding:8px 12px 10px;background:#fff;border-top:1px solid #cbd5e1;box-shadow:0 -6px 18px rgba(15,23,42,.16)}
@@ -24,6 +25,7 @@
   input[type=radio]:checked{background:radial-gradient(#2563eb 45%,#fff 50%);border-color:#2563eb}
   /* geen horizontale paginascroll */
   body.heeft-tabs{overflow-x:hidden}
+  .gsm-hint{display:block!important;margin:8px 12px;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px;line-height:1.4}
   /* tik-uitleg (vervangt title-hover) */
   .gsm-uitleg{display:block;position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:3000;background:#0f172a;color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 }
