@@ -22,3 +22,11 @@ De app stelt de route voor met uitleg; kantoor beslist (nog door Maxim te bevest
 - Dubbels: voorstellijst, Maxim beslist per groep.
 - Voorraad: wordt nu nergens bijgehouden, op het zicht. Alles start op **niet geteld** ("aantal onbekend", geen 0 en geen vals tekort). Tellen wanneer je er toch bent, een schatting mag.
 - "INFO:"-regels zijn geen artikels. Kapotte tekens opkuisen.
+
+## 4. Thema's (Maxim 31/10)
+- Tienerkampen bestaan echt (bv. duikkamp), maar Maxim kent de lijst niet uit het hoofd. Bron: programma's in `D:\Sporty\Sporty data voor de app\Programma's` (9 weken, 167 docx). Daar komen o.a. Duiken en snorkelen, Klim & Rackets, Windsurfen en kajakken, Zeilen, Mountainbiken voor; die tellen eerst als kandidaten, Maxim beslist.
+- Eigen/extern: alle combinaties bestaan. Twee aparte keuzes per thema: wie geeft het (eigen of firma) en wiens materiaal (ons, niet ons, deels).
+- Kook, zwem, binnen: tonen en filteren, plus een melding als de locatie het niet biedt. Nooit verbieden.
+- Groepen: verbruiksmateriaal schaalt mee met het aantal groepen; meestal is de inhoud voorzien voor 2 groepen. Bakken zelf blijven gelijk. Per artikel is dus nodig: verbruik en "voorzien voor n groepen" (standaard 2).
+- Info invullen: hoofdchat leest de PDF-bundels, maakt een voorstel per thema, Maxim keurt goed.
+- Kamp en themadag: bijna altijd twee aparte versies met volledig gesplitste bakken. Ze kunnen op hetzelfde moment op twee locaties. Dus geen "dubbel"-melding tussen kamp- en themadagversie, en het blijven aparte thema's (wel koppelbaar als familie).
