@@ -48,7 +48,7 @@
       const vink=gemeldWacht?`<button type="button" class="vink uit" disabled aria-label="Gemeld, wacht op kantoor">🕓</button>`:wacht?`<button type="button" class="vink uit" disabled aria-label="Wacht op levering">⏳</button>`:`<button type="button" class="vink${h.aangevuld?' aan':''}" data-av="vink" data-regel="${h.regel_id}" aria-label="${h.aangevuld?'Terugzetten naar open':'Afvinken'}: ${esc(h.stuk)}">${h.aangevuld?'✓':''}</button>`;
       const aantal=h.aangevuld||wacht||gemeldWacht?'':`<label class="aantal">aantal<input type="number" inputmode="numeric" min="1" max="${h.aantal}" value="${(st.aantal||{})[h.regel_id]||h.aantal}" data-av="aantal" data-regel="${h.regel_id}" aria-label="Aantal aangevuld van ${esc(h.stuk)}"></label>`;
       const fotoKnop=h.aangevuld||wacht||gemeldWacht?'':`<label class="knop ${foto?'':'licht'} klein cam" aria-label="Foto maken">📷${foto?' ✓':''}<input type="file" accept="image/*" capture="environment" data-av="foto" data-regel="${h.regel_id}" hidden></label>`;
-      return `<div class="it ${kleur}" data-regel="${h.regel_id}">${vink}<div class="nm">${esc(h.stuk)} <b class="x">× ${h.aangevuld&&h.totaal?h.totaal:h.aantal}</b><span class="pil ${p[0]}">${wacht?'wacht op levering':p[1]}</span>${h.gedaan>0&&!h.aangevuld?`<span class="pil blauw gedaan">${h.gedaan} van ${h.totaal} gedaan</span>`:''}<b>${esc(h.waar_tekst||'')}${h.soort==='afschrijven'&&!h.aangevuld?' · foto verplicht':''}</b>${h.uit_voorraad_mogelijk&&st.rol&&st.rol!=='aanvuller'&&st.rol!=='chauffeur'?`<button type="button" class="knop klein uitV" data-av="uit-voorraad" data-art="${esc(h.artikel_id)}" aria-label="Aanvullen uit voorraad: ${esc(h.stuk)}">Aanvullen uit voorraad</button>`:''}</div><div class="acties">${aantal}${fotoKnop}${h.aangevuld||gemeldWacht?'':`<button type="button" class="knop licht klein melds" data-av="meld-open" data-stuk="${esc(h.stuk)}" aria-label="Kapot of weg melden: ${esc(h.stuk)}">⚠</button>`}</div></div>`;
+      return `<div class="it ${kleur}" data-regel="${h.regel_id}">${vink}<div class="nm">${esc(h.stuk)} <b class="x">× ${h.aangevuld&&h.totaal?h.totaal:h.aantal}</b>${h.aangevuld&&h.aangevuld_door?`<small class="door">${esc(h.aangevuld_door)}</small>`:h.gedaan_door?`<small class="door">deel: ${esc(h.gedaan_door)}</small>`:''}<span class="pil ${p[0]}">${wacht?'wacht op levering':p[1]}</span>${h.gedaan>0&&!h.aangevuld?`<span class="pil blauw gedaan">${h.gedaan} van ${h.totaal} gedaan</span>`:''}<b>${esc(h.waar_tekst||'')}${h.soort==='afschrijven'&&!h.aangevuld?' · foto verplicht':''}</b>${h.uit_voorraad_mogelijk&&st.rol&&st.rol!=='aanvuller'&&st.rol!=='chauffeur'?`<button type="button" class="knop klein uitV" data-av="uit-voorraad" data-art="${esc(h.artikel_id)}" aria-label="Aanvullen uit voorraad: ${esc(h.stuk)}">Aanvullen uit voorraad</button>`:''}</div><div class="acties">${aantal}${fotoKnop}${h.aangevuld||gemeldWacht?'':`<button type="button" class="knop licht klein melds" data-av="meld-open" data-stuk="${esc(h.stuk)}" aria-label="Kapot of weg melden: ${esc(h.stuk)}">⚠</button>`}</div></div>`;
     },
     // Bakscherm: ‹ terug, per stuk afvinken, Bak klaar als alles af is.
     bak(g,st={}){
@@ -162,16 +162,20 @@
     }
     if(a==='vink'){
       const id=+el.dataset.regel,g=groep(),h=g&&g.handelingen.find(x=>x.regel_id===id);if(!h)return;
-      if(h.aangevuld){const r=await api('POST',`/api/aanvullijst/${id}/aangevuld`,{aangevuld:false});if(!r.ok)return toast(r.json.error||'Terugzetten mislukt','error');return laad();}
+      if(h.aangevuld){let r=await api('POST',`/api/aanvullijst/${id}/aangevuld`,{aangevuld:false});
+        if(r.status===409&&r.json.code==='ander'){if(!confirm(`Dit deed ${r.json.door}. Toch terugzetten?`))return;r=await api('POST',`/api/aanvullijst/${id}/aangevuld`,{aangevuld:false,bevestigd:true});}
+        if(!r.ok)return toast(r.json.error||'Terugzetten mislukt','error');return laad();}
       if(!h.kan_afvinken)return toast('Deze bestelling wacht nog op levering.','warn');
-      const body={aangevuld:true};
+      const body={aangevuld:true,gezien:h.aantal};
       if(h.soort==='afschrijven'&&!ST.fotos[id])return toast('Afschrijven vraagt een foto: tik eerst op 📷.','warn');
       if(ST.fotos[id])body.foto_data=ST.fotos[id];
       const n=ST.aantal[id];
       if(n&&n>h.aantal)toast(`Je vulde ${n} in, maar er is nog maar ${h.aantal} te doen: het worden er ${h.aantal}.`,'warn'); // TF8 N11
       if(n&&n<h.aantal)body.aantal=n;
       const r=await api('POST',`/api/aanvullijst/${id}/aangevuld`,body);
-      if(!r.ok)return toast(r.json.error||'Afvinken mislukt','error');
+      if(!r.ok){toast('Niet bewaard: '+(r.json.error||'afvinken mislukt'),'error');return laad();}
+      if(r.json.al_gedaan){toast(`Al gedaan${r.json.door?' door '+r.json.door:''}`,'warn');return laad();}
+      if(r.json.intussen)toast(`${r.json.intussen.door||'Iemand'} deed er intussen al ${r.json.intussen.aantal}`,'warn');
       delete ST.fotos[id];delete ST.aantal[id];
       if(r.json.open)toast(`${r.json.gedaan} aangevuld, ${r.json.open} blijven open`,'warn');else toast(`${h.stuk} aangevuld`,'success');
       return laad();

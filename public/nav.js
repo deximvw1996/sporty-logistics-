@@ -45,7 +45,7 @@
       return '<a data-tab="' + t[0] + '"' + (t[0] === act ? ' class="act"' : '') + ' href="' + t[3] + '">' + t[1] + '<span>' + esc(t[2]) + (n ? ' <em>' + n + '</em>' : '') + '</span></a>';
     }).join('');
   }
-  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || (pad === '/aanvullen' && rol !== 'monitor') || pad === '/meldingen'; };
+  var magOpGsm = function (rol, pad) { return !rol || rol === 'kantoor' || pad === '/vandaag' || pad === '/meer' || pad === '/planning-ploeg' || (pad === '/aanvullen' && rol !== 'monitor') || pad === '/meldingen'; };
   var isGsm = function () { return !!(root.matchMedia && root.matchMedia('(max-width:767px)').matches); };
   var naarLogin = function () { root.location.replace('/login?terug=' + encodeURIComponent(root.location.pathname + root.location.search)); };
   function tekenSchil(pad, tok) {

@@ -69,7 +69,8 @@ module.exports=function(ctx){
     const stops=taken.map((t,i)=>{
       const regels=all('SELECT id,naam,qty FROM transport_regels WHERE taak_id=? ORDER BY id',[t.id]),samen=samenVan(r,t),korte=regels.slice(0,3).map(x=>x.qty>1?x.qty+' × '+x.naam:x.naam).join(', ')+(regels.length>3?' +'+(regels.length-3):'');
       const lad=regels.length?(t.type==='ophaling'?'ophalen: ':'lossen: ')+korte+(samen.length?', samen helpen':''):i===0&&t.van_locatie_id===t.naar_locatie_id?'vertrekt zonder lading':samen.length?'helpt, geen lading':'geen lading';
-      return {taak_id:t.id,tijd:hhmm(t.tijd),locatie:locNaam(stopLoc(t)),locatie_id:stopLoc(t),type:t.type,status:t.status,samen,lad,regels};
+      const door=[...new Set(all('SELECT geladen_door AS a,gelost_door AS b FROM verhuis_checks WHERE taak_id=?',[t.id]).flatMap(c=>[c.a,c.b]).filter(Boolean))];
+      return {taak_id:t.id,gedaan_door:door,tijd:hhmm(t.tijd),locatie:locNaam(stopLoc(t)),locatie_id:stopLoc(t),type:t.type,status:t.status,samen,lad,regels};
     });
     return {rit_id:r.id,token:r.rit_token||'',status:r.status,klaarzet_status:r.klaarzet_status||'',voertuig:{id:r.voertuig_id||null,naam:r.voertuig||''},aanhangwagen_id:r.aanhangwagen_id||null,mensen:mensen(r),
       vertrek:info.vertrek,einde:info.einde,lading:info.lading,laadstops:laadstops(r,taken).map(l=>({...l,tijd:info.vertrek})),stops,waarschuwingen:waarschuwingen(r,info),echte_start:r.echte_start||'',echte_einde:r.echte_einde||''};
@@ -240,5 +241,41 @@ module.exports=function(ctx){
     const w=[],p=[];[['rit_id','rit'],['locatie_id','locatie'],['voertuig_id','voertuig']].forEach(([k,q])=>{if(req.query[q]){w.push(k+'=?');p.push(req.query[q]);}});
     res.json({feedback:all(`SELECT * FROM feedback ${w.length?'WHERE '+w.join(' AND '):''} ORDER BY id DESC LIMIT 200`,p).map(x=>({...x,locatie:x.locatie_id?locNaam(x.locatie_id):'',voertuig:x.voertuig_id?(get('SELECT naam FROM voertuigen WHERE id=?',[x.voertuig_id])||{}).naam||'':'',foto_url:x.foto_path?'/uploads/'+x.foto_path:null}))});
   });
+  // ── TF13 punt 3: meehelpen zonder op de rit te staan. Met de eigen sessie; plant niemand. Chauffeurs zien geen niet-klaargezette ritten. ──
+  const zichtbaar=(r,rol)=>rol==='kantoor'||r.klaarzet_status==='klaar'||(r.status&&r.status!=='gepland');
+  app.get('/api/meehelpen/ritten',(req,res)=>{
+    const d=new Date(),datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    res.json({datum,ritten:all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY vertrek,id",[datum]).filter(r=>zichtbaar(r,req.persoon.rol)).map(r=>{
+      const t=takenVan(r.id);return {id:r.id,tijd:_ritPlanInfo(r).vertrek,mensen:mensen(r).map(m=>m.naam),voertuig:r.voertuig||'',stand:r.status==='gedaan'?'afgerond':r.status==='onderweg'?'onderweg':r.klaarzet_status==='klaar'?'klaargezet':'nog niet klaargezet',lading:ctx._ritLading?ctx._ritLading(r.id).tekst:'',stops:t.map(x=>locNaam(stopLoc(x)))};
+    })});
+  });
+  app.get('/api/meehelpen/:id',(req,res)=>{
+    const r=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);if(!r)return res.status(404).json({error:'Rit niet gevonden'});
+    if(!zichtbaar(r,req.persoon.rol))return res.status(403).json({error:'Deze rit is nog niet klaargezet'});
+    let t=r.rit_token;if(!t){t=ctx._genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[t,r.id]);}
+    res.json({token:t});
+  });
+  app.post('/api/meehelpen/:id/mee',(req,res)=>{
+    const r=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]),pid=req.persoon.persoon_id;if(!r)return res.status(404).json({error:'Rit niet gevonden'});
+    if(!zichtbaar(r,req.persoon.rol))return res.status(403).json({error:'Deze rit is nog niet klaargezet'});
+    if(r.personeel_id!==pid&&!ctx.isOpWagen(r.id,pid)){insMetLog(req,'rit_personen',['rit_id','personeel_id'],[r.id,pid],'op deze rit mee');ctx.melding(req,{voor_rol:'kantoor',van_naam:req.persoon.naam,tekst:`${req.persoon.naam} rijdt mee op rit #${r.id}`,link:'/opdracht?datum='+r.datum+'&rit='+r.id,niveau:'vandaag'});}
+    res.json({ok:true});
+  });
+  // TF13 punt 4: alleen bekijken. Concepten niet; alleen de naam als persoonsgegeven.
+  app.get('/api/planning-ploeg',(req,res)=>{
+    const isoD=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`,nu=new Date(),m=new Date(nu);m.setDate(m.getDate()+1);
+    const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoD(nu),meeOk=datum===isoD(nu)||datum===isoD(m),per=new Map();
+    const bij=(n,x)=>{if(!per.has(n))per.set(n,[]);per.get(n).push(x);};
+    all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id",[datum]).filter(r=>r.klaarzet_status==='klaar'||(r.status&&r.status!=='gepland')).forEach(r=>{
+      const i=_ritPlanInfo(r),ms=mensen(r).map(x=>x.naam),item={soort:'rit',id:r.id,opdracht_id:r.opdracht_id,tijd:i.vertrek,einde:i.einde,voertuig:r.voertuig||'',stand:r.status==='gedaan'?'afgerond':r.status==='onderweg'?'onderweg':'klaargezet',mensen:ms,stops:takenVan(r.id).map(t=>locNaam(stopLoc(t))),kan_meehelpen:meeOk&&r.status!=='gedaan'};
+      (ms.length?ms:['Nog niemand']).forEach(n=>bij(n,item));
+    });
+    all('SELECT * FROM afspraken WHERE datum=? ORDER BY van,id',[datum]).forEach(a=>bij(a.personeel_id?persNaam(a.personeel_id):'Zonder persoon',{soort:'afspraak',titel:SOORT[a.soort]||a.soort,van:a.van,tot:a.tot,voertuig:a.voertuig_id?(get('SELECT naam FROM voertuigen WHERE id=?',[a.voertuig_id])||{}).naam||'':'',klaar:a.status==='klaar'}));
+    const ik=req.persoon.naam;if(!per.has(ik))per.set(ik,[]);
+    const tijd=x=>x.tijd||x.van||'99';
+    res.json({datum,personen:[...per.entries()].map(([naam,items])=>({naam,eigen:naam===ik,items:items.sort((a,b)=>tijd(a).localeCompare(tijd(b)))})).sort((a,b)=>(b.eigen-a.eigen)||a.naam.localeCompare(b.naam,'nl'))});
+  });
+  app.get('/planning-ploeg',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','planning-ploeg.html')));
+  app.get('/meehelpen/:id',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','meehelpen.html')));
   app.get('/opdracht',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','opdracht.html')));
 };

@@ -3,6 +3,7 @@
 // Gebruik: node scripts/volle-run.mjs [--alleen keten-levering,veiligheid] [--vanaf keten-ophaling]
 // Exitcode 1 als er iets rood of afgebroken is. Dit draait de hoofdchat bij elke keuring.
 import { spawn } from 'node:child_process';
+import net from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,8 +45,11 @@ function draai(bestand, poort) {
 }
 
 const rijen = [];
+const vrij = (p) => new Promise((ok) => { const v = net.createServer(); v.once('error', () => ok(false)); v.listen(p, () => v.close(() => ok(true))); });
 let poort = 3320;
 for (const t of tests) {
+  // TF13: andere chats draaien hun tests op dezelfde pc. Een bezette poort = de test praat met een vreemde server (fouten die los groen zijn). Dus eerst een vrije poort zoeken.
+  for (let n = 0; n < 20 && !(await vrij(poort)); n++) poort = poort >= 3339 ? 3320 : poort + 1;
   const r = await draai(t, poort);
   poort = poort >= 3339 ? 3320 : poort + 1;
   rijen.push({ test: kaal(t), ...r });

@@ -2302,3 +2302,21 @@ Op prod kan de lijst anders zijn: ik heb prod niet ingekeken.
 - Commit per punt niet gehaald: één grote commit (de punten delen dezelfde routes en dezelfde pagina).
 - `v3c-fotos` en `veiligheid` blijven rood, zoals al vóór TF5.
 **Aangepaste tests:** `f1-modules` (padparameter voor de nieuwe route).
+
+## TF13 — Meerdere personen op dezelfde lijst, meehelpen, BW2-resten (chat C, 31/10)
+**Punt 1:** tik van de een komt via `/api/live` op de gsm van de ander. Twee tegelijk: één keer gedaan, de tweede krijgt "Al gedaan door Jesse". Terugzetten van een ander: bevestiging met naam (409 `ander`, daarna `bevestigd`). Alles geladen slaat over wat de ander deed en telt juist. Aanvullijst idem, deelaantal niet dubbel, de tweede ziet wat de ander deed. Wie: sessie, anders "Wie ben jij?" op de losse link (per toestel), anders de bestuurder. Naam bij het stuk, "ook bezig", "Niet bewaard" en de echte stand na herverbinden.
+**Punt 2:** afspraken in het weekraster met eigen kleur en klikbaar; knop Opdracht openen op desktop en gsm; feedback in ritdetail en bij een voertuig.
+**Punt 3:** `/meehelpen/:id` en Alle ritten (met datum) op Vandaag en Meer, voor kantoor en chauffeurs, met de eigen sessie; geen token in de adresbalk. Smal in ROL_ROUTES: lijst, openen, Op deze rit mee. Niet-klaargezet alleen voor kantoor. Aankomst: chauffeur-helper 403, kantoor met bevestiging.
+**Voor chat D (locaties):** feedback per locatie: `GET /api/feedback?locatie=<id>` geeft tekst, soort, wie, created_at, foto_url.
+**Bewijs:** test-tf13 43/43. Browser met twee vensters op 390 met echte klikken: "Wie ben jij?" → Jesse, tik zichtbaar in venster 1, venster 2 toonde zonder herladen 2 van 10. De tijd is daar niet exact gemeten (na een wacht van 2 s gelezen); RT1 mat eerder 411 ms. **Echte toestellen zijn NIET getest.** De twee vensters delen dezelfde browseropslag, dus twee verschillende namen zijn via test-tf13 bewezen, niet in de browser. Ook Meehelpen is alleen via API en test bewezen, niet aangeklikt in de browser.
+**tf12 (4 fouten in de volle run van de hoofdchat):** waarschijnlijke oorzaak: poorten. 8× en 12× tegelijk op eigen poorten: altijd 35/35, dus geen tijdsprobleem. Wel zag ik `tf5-kv` op zijn vaste poort met "fetch failed" falen en daarna 3× groen op een andere poort, en stonden er servers op poorten binnen de testreeks (3330) terwijl mijn run niet liep: de chats delen één pc en volle-run gebruikt voor iedereen 3320–3339. Niet sluitend bewezen: de eigenaar van die server is niet vast te stellen. `volle-run` zoekt nu eerst een vrije poort. Ook de afbrekende tests zonder FOUT (lo1, tf5-kv, bh2, f1) passen in dit beeld.
+**GEVONDEN:**
+- RT1-fout, nu hersteld: `live.js` zat niet in de rit- en KV-pagina (die sturen zelf hun html). De rit-pagina had dus geen live-verversing, wat ik bij RT1 ten onrechte niet zag; KV-pagina idem. RT1-browserproef ging over Vandaag en Ritplanning.
+- Een helper die het laatste stuk lost, rondt daarmee de stop af, en na de laatste stop de rit: dat gebeurt vanzelf bij lossen. Dat wijkt af van "afronden blijft voor wie op de rit staat". Blokkeren zou de stop laten hangen; beslissing voor de hoofdchat.
+- Past niet en kapot door een helper werken via dezelfde checklist; de naam staat in het log, de melding aan kantoor noemt nog de bestuurder (nuoplossen).
+- `meehelpen` geeft de chauffeur de rit-token in het geheugen van de pagina, met wat op een rit hoort (ook KV-telefoon per stop).
+- Commit per punt deels: twee commits voor drie punten.
+- `v3c-fotos` en `veiligheid` blijven rood, zoals al vóór TF5.
+**Aangepaste tests:** `tf12` (wachten), `f1-modules` (padparameters).
+
+**TF13 punt 4 — Planning ploeg:** `/planning-ploeg` en `GET /api/planning-ploeg?datum=` (smal in ROL_ROUTES): dagkiezer, per persoon de klaargezette ritten en afspraken, eigen bovenaan, Meehelpen voor vandaag en morgen, live. Geen schrijfknoppen; concept niet zichtbaar; alleen namen als persoonsgegeven, adres van een afspraak niet. Link staat in het blok Alle ritten op Vandaag en Meer.

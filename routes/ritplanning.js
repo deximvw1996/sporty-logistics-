@@ -84,7 +84,7 @@ module.exports = function(ctx){
     return {week:{start,eind,nummer,kampweek},past_niet,locaties:all('SELECT id,name AS naam,type FROM locaties WHERE parent_id IS NULL OR parent_id=0 ORDER BY name COLLATE NOCASE'),dagen:dagObj,personen,voertuigen,aanhangwagens,
       alle_personeel:personeel.map(p=>({personeel_id:p.id,naam:p.naam,rol:p.rol,kleur:kleur(p.id,p.naam)}))};
   }
-  app.get('/api/ritplanning',alleenKantoor,(req,res)=>res.json({...planning(req),standaard_vertrek:(get("SELECT waarde FROM app_vlaggen WHERE naam='tijd_vertrek_ritten'")||{}).waarde||''})); // ME1
+  app.get('/api/ritplanning',alleenKantoor,(req,res)=>res.json({...(p=>{p.dagen.forEach(d=>{d.afspraken=all('SELECT a.*,v.naam AS voertuig,pp.naam AS wie FROM afspraken a LEFT JOIN voertuigen v ON v.id=a.voertuig_id LEFT JOIN personeel pp ON pp.id=a.personeel_id WHERE a.datum=? ORDER BY a.van',[d.datum]);d.ritten.forEach(r=>{r.feedback=all('SELECT soort,tekst,wie,created_at FROM feedback WHERE rit_id=? ORDER BY id DESC',[r.id]);});});return p;})(planning(req)),standaard_vertrek:(get("SELECT waarde FROM app_vlaggen WHERE naam='tijd_vertrek_ritten'")||{}).waarde||''})); // ME1
 
   // ▲▼ door kantoor: wisselt volgorde én tijd van twee buurstops; geen slot-eis (kantoor beslist), wel log.
   app.post('/api/ritten/:id/taken/:taakId/wissel',alleenKantoor,(req,res)=>{
