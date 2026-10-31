@@ -68,7 +68,7 @@ try {
   await K('POST', '/versturen', {});
   N = await nk(); rij = N.bakken.find((x) => x.bak.id === bak0.id && x.kampmoment_id === km);
   v(rij.status === 'te_keuren' && rij.met_tekort, 'latere afwijking heropent');
-  const vd = (await A('GET', `/api/vandaag?datum=${(await data()).dagen.van}`)).json;
+  const vd = (await A('GET', `/api/vandaag?periode_id=${(await T.leesDb(srv.dbPad, 'SELECT periode_id FROM kampmomenten WHERE id=?', [km]))[0].periode_id}`)).json;
   v(vd.te_keuren === N.tellers.te_keuren && vd.te_keuren >= 1, `badge Vandaag = chip Te keuren (${vd.te_keuren})`);
   // Herstellen; toch gevonden
   await K('POST', `/bakken/${bak0.id}/tellen`, { regels: [{ item_id: it1.id, aangetroffen: it1.gewenst }] });

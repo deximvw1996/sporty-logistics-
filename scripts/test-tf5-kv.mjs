@@ -95,7 +95,7 @@ try {
   T.check(/niets te tellen/.test(KV.tellenHtml(leeg, false)) && !/tel:/.test(KV.tellenHtml(leeg, false)), 'zonder bak: uitleg, zonder nummer geen knop');
   T.check(/tel:016/.test(KV.tellenHtml({ ...leeg, kantoor: { telefoon: '016 123' } }, false)), 'zonder bak, met nummer: belknop');
   const vers = { ...b, items: b.items.map((i, n) => ({ ...i, aangetroffen: n ? null : i.aangetroffen })) };
-  T.check(/Rest klopt ✓ \(zet 2 stuks\)/.test(KV.bakHtml({ ...d, bakken: [vers] }, b.id, {})) && /Kapot melden/.test(KV.bakHtml({ ...d, bakken: [vers] }, b.id, {})), 'Rest klopt zegt hoeveel; Kapot melden op het telscherm');
+  T.check(/Bak klaar \S+ \d+ stuks in orde/.test(KV.bakHtml({ ...d, bakken: [vers] }, b.id, {})) && /Kapot melden/.test(KV.bakHtml({ ...d, bakken: [vers] }, b.id, {})), 'Rest klopt zegt hoeveel; Kapot melden op het telscherm');
   const aan = (await K('POST', '/aanvraag', { tekst: 'krijt' })).json;
   T.check(/\d+ \w+ · \d\d:\d\d/.test(KV.aanvragenHtml({ ...d, aanvragen: [{ ...aan, antwoord: '', foto_url: null }] })), 'aanvraag: tijdstip in dezelfde vorm');
 

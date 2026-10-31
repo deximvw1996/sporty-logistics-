@@ -172,7 +172,7 @@ module.exports = function(ctx){
     if(pid){
       // TF3: ook keuringen met een open melding uit de stockage, zonder weekvoorwaarde en inclusief losse meldingen (zonder kampmoment).
       teKeuren=get(`SELECT COUNT(*) AS n FROM nakijk_sessies ns LEFT JOIN kampmomenten km ON km.id=ns.kampmoment_id WHERE (ns.kv_status='ingediend'
-        AND COALESCE(ns.kantoor_status,'') NOT IN ('nagekeken','verwerkt') AND COALESCE(ns.kantoor_afgerond_op,'')='' AND km.periode_id=?)
+        AND COALESCE(ns.kantoor_status,'') NOT IN ('nagekeken','verwerkt') AND (COALESCE(ns.kantoor_afgerond_op,'')='' OR ns.kantoor_status='open') AND km.periode_id=?)
         OR ns.id IN (SELECT sessie_id FROM nakijk_regels WHERE COALESCE(gemeld_soort,'')<>'' AND COALESCE(kantoor_actie,'')='')`,[pid]).n;
       if(teKeuren)nakijken.unshift({id:'tellingen-te-keuren',ico:'🧮',kleur:'blauw',titel:`${teKeuren} telling${teKeuren===1?'':'en'} te keuren`,sub:'ingediend door de KV of gemeld vanuit de stockage',acties:[{label:'Open',primair:true,soort:'link',url:'/nakijken'}]});
       // Bakken van de afgelopen kampweek die niemand telde (ook bakken zonder sessie).

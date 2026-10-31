@@ -132,9 +132,9 @@ try {
   T.check(/<table/.test(pr) && /@media print/.test(pr) && /Aanvullijst Rozenweg/.test(pr), '/aanvullijst-print → 200 met tabel en @media print');
   const NK = require(T.ROOT + '/public/nakijken.js');
   const lijstData = (await A('GET', '/api/nakijken')).json;
-  const st = { filter: 'alle', zoek: '', geselecteerd: new Set([rij('NK01').sessie_id]), open: null, tab: 'telling' };
+  const st = { locOpen: Object.fromEntries(lijstData.locaties.map((l) => [String(l.kampmoment_id), true])), locAlles: Object.fromEntries(lijstData.locaties.map((l) => [String(l.kampmoment_id), true])), filter: 'alle', zoek: '', geselecteerd: new Set([rij('NK01').sessie_id]), open: null, tab: 'telling' };
   const lh = NK.lijstHtml(lijstData, st);
-  T.check(['Te keuren', 'Niet geteld', 'Met tekort', 'Met kapot', 'Nagekeken', 'Week'].every((c) => lh.includes(c)) && lh.includes('NK01') && lh.includes('1 geselecteerd') && lh.includes('Keuring afronden') && lh.includes('Herinnering naar KV'), 'lijst: 6 chips, rijen, bulk-voet met selectie');
+  T.check(['Te keuren', 'Gemeld', 'Nog niet geteld', 'Alles', 'Week'].every((c) => lh.includes(c)) && lh.includes('NK01') && lh.includes('1 geselecteerd') && lh.includes('Keuring afronden') && lh.includes('Herinnering naar KV'), 'lijst: 4 filters, rijen, bulk-voet met selectie');
   console.log('--- DOM-dump lijst ---\n' + tekst(lh).slice(0, 700) + '\n');
   const dh = NK.detailHtml((await A('GET', `/api/nakijken/sessie/${rij('NK02').sessie_id}`)).json, { tab: 'telling' });
   T.check(dh.includes('NK02') && dh.includes('Bak openen') && dh.includes('KV bellen') && dh.includes('Keuring afronden'), 'detail: kop en knoppen');

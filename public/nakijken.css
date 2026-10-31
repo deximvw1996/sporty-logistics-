@@ -41,12 +41,13 @@ input[type=checkbox]{width:20px;height:20px}
 .dlg .knoppen{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 .fotogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}.fotogrid figure{background:#f1f5f9;border-radius:8px;overflow:hidden}.fotogrid img{width:100%;height:130px;object-fit:cover;display:block}.fotogrid figcaption{font-size:12px;padding:6px 8px;font-weight:600}
 
-/* ── MOB2: gsm-weergave (design/mockup-gsm-1.html); boven 768 px blijft alles hetzelfde (#gsm is dan leeg en verborgen) ── */
-#gsm{display:none}
 /* TF12: lijst per locatie */
+.kopr.l{display:none}
 .locatie{border-bottom:1px solid #e2e8f0;padding:2px 0}.locatie.te{border-left:3px solid #d97706;padding-left:4px}
 .locr{display:flex;gap:8px;align-items:center;min-height:44px;cursor:pointer;font-size:13px;padding:0 6px;border-radius:8px}.locr:hover{background:#f8fafc}.locr .pijl{width:14px;color:#64748b}.locr .nm{flex:1;min-width:0}
 .lw{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#b45309;padding:2px 28px 6px}.lng{font-size:12px;color:#7f1d1d;padding:2px 28px 6px}
+/* ── MOB2: gsm-weergave (design/mockup-gsm-1.html); boven 768 px blijft alles hetzelfde (#gsm is dan leeg en verborgen) ── */
+#gsm{display:none}
 @media (max-width:767px){
   body>.top,body>.sub,body>#nk-app{display:none}
   #gsm{display:flex;flex-direction:column;min-height:100vh;background:#f5f5f5;font-size:15px;padding-bottom:76px;box-sizing:border-box}

@@ -32,7 +32,7 @@
   var afwijkend = function (b) { return b.status === 'te_keuren' || b.gemeld > 0 || b.status === 'niet_geleverd'; };
   function locatieLijst(data, st) {
     var locs = (data.locaties || []).slice(), los = (data.bakken || []).filter(function (b) { return b.kampmoment_id == null; });
-    if (los.length) locs.unshift({ kampmoment_id: 'x', locatie: 'Losse meldingen stockage', tekst: los.length + ' gemeld', te_keuren: 0, niet_geteld: 0, niet_geleverd: [] });
+    if (los.length) locs.unshift({ kampmoment_id: 'x', locatie: 'Losse meldingen stockage', tekst: los.length + ' gemeld', te_keuren: los.length, niet_geteld: 0, niet_geleverd: [] });
     return locs.map(function (l) {
       var alle = (data.bakken || []).filter(function (b) { return String(b.kampmoment_id == null ? 'x' : b.kampmoment_id) === String(l.kampmoment_id); });
       return { l: l, alle: alle, zicht: alle.filter(function (b) { return passeert(b, st); }) };

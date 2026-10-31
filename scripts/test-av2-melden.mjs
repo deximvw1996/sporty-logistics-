@@ -24,7 +24,7 @@ try {
   await A('POST', `/api/kampmomenten/${km}/themas`, { thema_id: thema });
   const kvtok = await T.kvToken(srv.base, tok, km);
   const d0 = (await P('GET', `/api/kv/${kvtok}/data`)).json, kb = d0.bakken.find((b) => b.code === 'AW01');
-  for (const it of kb.items) { const tr = await P('POST', `/api/kv/${kvtok}/bakken/${kb.id}/tellen`, { regels: [{ item_id: it.id, aangetroffen: it.gewenst }] }); if (tr.status !== 200) T.info('tel ' + tr.status); }
+  for (const it of kb.items) { const tr = await P('POST', `/api/kv/${kvtok}/bakken/${kb.id}/tellen`, { regels: [{ item_id: it.id, aangetroffen: it.gewenst, notitie: 'blijft te keuren (TF12: een kale klopt gaat automatisch)' }] }); if (tr.status !== 200) T.info('tel ' + tr.status); }
   await P('POST', `/api/kv/${kvtok}/versturen`, {});
   const rij = async () => (await A('GET', '/api/nakijken')).json.bakken.find((b) => b.bak.code === 'AW01' && b.kampmoment_id === km);
   const nk = await rij();

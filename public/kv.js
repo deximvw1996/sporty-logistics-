@@ -109,7 +109,7 @@
         var b = r.ref, eerste = b.items.filter(function (i) { return i.status === 'tekort'; })[0];
         sub = b.aantal + (b.aantal === 1 ? ' soort' : ' soorten') + (eerste ? ' · ⚠ ' + esc(eerste.naam) + ' ' + eerste.aangetroffen + ' van ' + eerste.gewenst : (b.geteld > 0 && !r.klaar ? ' · ' + b.geteld + ' geteld' : ''));
       } else sub = 'attribuut';
-      var rechts = r.status !== 'nog_niet' && PIL[r.status] ? '<span class="pil ' + PIL[r.status][0] + '">' + PIL[r.status][1] + '</span>' : '<span class="knop klein">Tellen</span>';
+      var rechts = r.status !== 'nog_niet' && PIL[r.status] ? '<span class="pil ' + PIL[r.status][0] + '">' + PIL[r.status][1] + '</span>' : '';
       // TF12: een hele bak in één tik; wat klaar is, heeft een zichtbaar Ongedaan maken.
       var snel = r.klaar ? (r.type === 'bak' && r.ref.kan_ongedaan ? '<div class="snel"><button type="button" class="knop licht" data-act="ongedaan" data-a="' + r.id + '">Ongedaan maken</button></div>' : '')
         : '<div class="snel"><button type="button" class="knop" data-act="' + (r.type === 'bak' ? 'klopt-helemaal' : 'attr-zet') + '" data-a="' + r.id + '"' + (r.type === 'bak' ? '' : ' data-b="aanwezig"') + '>Klopt helemaal</button><button type="button" class="knop licht" data-act="' + (r.type === 'bak' ? 'bak' : 'attr') + '" data-a="' + r.id + '">Iets klopt niet</button></div>';
