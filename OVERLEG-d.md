@@ -543,3 +543,48 @@ Bronnen: `TESTVERSLAG-T4-kantoor.md`, `TESTVERSLAG-T4-coordinator.md`. Migratie 
 `test-vc1-nakijken` ("Terug naar voorraad Rozenweg"), `test-av2-melden` ("+ Losse melding"), `test-tb2-tekorten` ("Bestelling plaatsen"), `test-tf6-keten` (N3: tekort en kapot zijn nu twee regels). Eigen fouten onderweg, gevangen door mijn eigen test of live: een commentaar dat de sluitaccolade opat (alleen eerder in TF6), mijn eerste "Aanvullen uit voorraad"-knop zat in een smalle kolom, en na het verwijderen vanuit het taakdetail bleef het detail van de weggehaalde taak staan (opgelost, `taken.js`).
 ### GEVONDEN
 (a) `routes/aanvragen.js` heeft nog steeds geen wisroute; "kampmoment verwijderen" markeert nu aanvragen als afgehandeld (omkeerbaar). (b) Een regel met tekort én kapot waarvan de keuring al is afgerond vóór TF8 houdt de oude combinatie; alleen nieuwe of heropende keuringen krijgen het aparte kapotte deel. (c) Poort 3399 bleef door een oude server bezet; `test-gr1`/`f1` kunnen daardoor botsen. (d) "Bak klaar" is nu bewaard maar kantoor ziet het nergens buiten het aanvulscherm.
+
+## TF10 — Eerste bevindingen Maxim: kleine fixes op Planning en Kampmomenten (chat D, bouw-d)
+Geen migratie, geen nieuwe schermen. Test: `scripts/test-tf10.mjs` (poort 3363, draait met `SPORTY_TESTKLOK=1`) 20 ok. Browser op localhost met de testklok aan (balk "za 31 okt … · echt"), op 1366×768 en 1920×900, ook met schermafdruk.
+### 1 · Sportrooster: + Inplannen werkt niet
+- **Oorzaak.** Niet de testklok, en ook niet de week of de periode: de klik op "+ Inplannen" in een **lege week** deed niets. In de klikafhandeling stond de knop (`leeg-inplannen`, toegevoegd in TF4) ná de regel `if(!D)return;`; in een lege week is er geen sport gekozen, dus `D` is leeg en de functie stopte voordat het venster kon openen. Zonder fout in de console, daarom zo moeilijk te zien. Het speelde dus ook zonder klok.
+- **Fix.** De knop staat vóór die guard (`public/sportrooster.js`). Er zijn twee "+ Inplannen"-knoppen: die in de lege lijst (nu goed) en die in het detail van een sport (`d-inplannen`, stond al goed, vereist een gekozen sport). Beide hebben een afhandeling; de test controleert dat per knop.
+- **Gezien.** Lege week met testklok: knop → venster "Sport inplannen — week 1" → "Inplannen" → toast "Ingepland: A → Abdijschool Vlierbeek", rij "Archery tag 1/2" in de week, API en database kloppen (`sport_planning` +1). Mijn eerste klik zonder fix gaf geen venster en geen fout.
+- Erbij: "‹ wk 0" (week 0 bestaat niet) wordt niet meer getoond in het sportroosterdetail; "wk 7 ›" ook niet voorbij de laatste week.
+### 2 · Kampmomenten, tab Gegevens
+De zin "· beschikbaar in wk 1: …" is weg; de regel Thema toont alleen het gekozen thema (en "wijzig").
+### 3 · Rechterkolom
+Historiek is een eigen kader (`.blok#hist-kader`), los van "Conflicten & aandacht", met 16 px ruimte ertussen (gemeten: 742 → 758).
+### 4 · Aandachtspunten en "let op"
+Per punt exacte uitleg: "Geen thema gekoppeld: zonder thema kan de levering niet samengesteld worden", "Geen KV gekoppeld: de KV telt de bakken en krijgt de link", "Thema X staat die week op meer dan één locatie: dat geeft een materiaaltekort", "Er is een levering die nog op geen rit staat"; andere meldingen (conflicten) staan letterlijk. Zowel in de lijst ("⚠ let op", bij meer dan één met aantal: "let op · 2") als in de kop van het detail. Desktop: hover (`title`, één regel per punt met •). Gsm: tik opent een popover met dezelfde punten; een tweede tik of een tik elders sluit hem. De kop zegt "1 aandachtspunt" in het enkelvoud ("n aandachtspunten" erboven).
+### 5 · De pagina scrolt nooit (met de testklok-balk)
+- **Oorzaak.** `html{padding-top:40px}` van de testklok + `.frame{height:100vh}` = 100vh + 40 px, dus een paginascroll en een afgesneden onderkant. De testklok definieert nu `--tk-h:40px` (alleen met de klok aan); alle desktop-kaders rekenen `calc(100vh - var(--tk-h,0px) …)`. Zonder klok is `--tk-h` niet gedefinieerd en verandert er niets (0 px).
+- **Meer dan de balk.** Twee echte fouten die ook zonder klok speelden, gevonden doordat ik elke pagina meet: (a) op Vandaag nam het verborgen gsm-blok (`#gsm[hidden]`) op desktop toch een scherm hoogte in (`.tel{display:flex}` won van `hidden`); (b) Meldingen en Meer scrolden als pagina. Nu: `.tel[hidden]{display:none}`, Meldingen scrolt in zijn kader, Meer en het gsm-blok van Vandaag (rollen zonder kantoorbalk) scrollen in hun blok.
+- **Meting** (`document.documentElement.scrollHeight / innerHeight`, testklok aan, elke pagina in een venster van die grootte; /vandaag direct geladen):
+
+| Pagina | 1920×900 | 1366×768 | Pagina | 1920×900 | 1366×768 |
+|---|---|---|---|---|---|
+| /vandaag | 900/900 | 768/768 | /nakijken | 900/900 | 768/768 |
+| /kampmomenten | 900/900 | 768/768 | /tekorten | 900/900 | 768/768 |
+| /rooster | 900/900 | 768/768 | /aanvullen | 900/900 | 768/768 |
+| /sportrooster | 900/900 | 768/768 | /personeel | 900/900 | 768/768 |
+| /gedeeld | 900/900 | 768/768 | /logboek | 900/900 | 768/768 |
+| /periodes | 900/900 | 768/768 | /backup | 900/900 | 768/768 |
+| /taken | 900/900 | 768/768 | /instellingen | 900/900 | 768/768 |
+| /voertuigen | 900/900 | 768/768 | /meldingen | 900/900 | 768/768 |
+| /themas | 900/900 | 768/768 | /meer | 900/900 | 768/768 |
+| /bakken | 900/900 | 768/768 | /zoeken | 900/900 | 768/768 |
+| /pool | 900/900 | 768/768 | **/ritplanning** | **940/900** | **808/768** |
+| /catalogus | 900/900 | 768/768 | | | |
+| /locaties | 900/900 | 768/768 | | | |
+
+  De voet ("n kampmomenten · n geselecteerd" e.d.) staat op 1366×768 op 698–738 en is op alle 15 pagina's met een voet zichtbaar.
+- **Ritplanning is niet gemeten als "goed":** `public/ritplanning.css` (chat C) heeft dezelfde `height:100vh` en blijft 40 px te hoog met de klok aan. Ik heb dat bestand niet aangeraakt. Voor chat C: dezelfde vervanging als in de andere css-bestanden (`height:100vh` → `height:calc(100vh - var(--tk-h,0px))`, en `calc(100vh - Npx)` → `calc(100vh - var(--tk-h,0px) - Npx)`), op de regels 4 en 51.
+### 6 · Lijst Kampmomenten, voettekst
+De voettekst ("2 kampmomenten · 0 geselecteerd") stond 40 px te laag en viel onder de rand van het kader; met de klokcorrectie staat ze nu op 698–738 van 768 (1366) en op 1920×900 binnen het kader, zichtbaar in de schermafdruk.
+### Niet gedaan / GEVONDEN
+- Op 1366 breed is de rechterkolom van Kampmomenten (860 px links, rest rechts) te smal: "Thema kiezen" en de knoppen in de detailkop vallen buiten het kader. Dat is een kolombreedte, geen hoogte; het kampmoment-invulscherm komt volgens de opdracht later met een mockup, dus niet aangepast.
+- Gedeelde css (`app-schil.css`, `meldingen.css`) en `testklok.js` zijn geraakt voor punt 5; ze staan niet in mijn leeslijst maar het punt vroeg "alle schermen".
+
+### Volle run
+Run 13: **60/60 groen**. De andere runs vielen uit door omgeving, niet door code: poort 3311 (v3a-keten) werd vastgehouden door een draaiende test van chat C (`D:\Sporty\sporty-c\scripts	est-f1-modules.mjs`, pid 37084), en één keer hing `tf3-rechten` 495 s waarna vijf tests op een time-out liepen; die vijf waren apart allemaal groen (35, 33, 47, 62 en 55 ok). Een tweede aaneengesloten groene run kon ik daardoor niet krijgen; wel is `test-tf10` 20 ok en zijn pl1, pl3, mob2, tf4, tf6, tf8 en ko1 in die groene run groen.
