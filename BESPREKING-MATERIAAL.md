@@ -39,3 +39,13 @@ De app stelt de route voor met uitleg; kantoor beslist (nog door Maxim te bevest
 - **Kleurenborden worden op voorhand gepland** zodat overal de juiste borden liggen; de app helpt daarbij. Aantal groepen per locatie per week is daarvoor bepalend. Bron te bekijken: `Materiaal\Kleurenschema ZOMER TD Sporty 2026.xls`. Sporthal-voorbeeld: 14 borden (rood, geel, groen 2x, blauw, oranje 2x, paars 2x, grijs, wit, zwart, roze, bruin), 14 palen, 14 voeten.
 - Geen aparte standaardlijst bekend: de foto van de Sporthal is de startlijst, Maxim past aan. Andere locatielijsten: onbekend.
 - Kleuren: de KV ziet welke kleuren die week op de locatie beschikbaar zijn en kiest per groep. Totaal per kleur: geschat 15-20 (schatting, geen telling).
+
+## 6. Locaties (Maxim 31/10)
+- Weekkaart per locatie: kamp open / dicht maar toegankelijk / dicht geen toegang. Materiaal mag soms alleen in één ruimte blijven; dan hangt het af van hoe groot die ruimte is (vinkje en notitie, geen rekenwerk).
+- Niet elk lokaal is elke dag bruikbaar: ruimtes per locatie, met beperking per dag als opmerking of melding.
+- Locatiedossier: sleutel of code, wie opent, conciërge, parking of laadzone, leveruren, wifi, oven, binnenruimte, foto's, kuisen. Codes alleen voor kantoor en wie er die dag een stop heeft, nooit in een export. Kantoor vult in, de app toont wat ontbreekt.
+- Leveren hangt af per locatie: Sporthal = openingsuren (openbaar gebouw). School = altijd met sleutels, maar een ander bedrijf dat er kampen geeft mag niet altijd gestoord worden. Week vóór de zomervakantie alleen wat afgesproken is met de school: per locatie een afspraak met periode en tekst.
+
+## Bouwplan (voorstel, wacht op akkoord Maxim)
+1. MT1 stockages en catalogus. 2. MT2 locaties. 3. MT3 routevoorstel. 4. MT4 thema's. 5. MT5 standaardlijst en kleurenborden.
+Voorstellijsten door de hoofdchat, Maxim beslist: dubbels, verbruik/blijvend, thema-info uit de bundels, kandidaat-tienerkampen.
