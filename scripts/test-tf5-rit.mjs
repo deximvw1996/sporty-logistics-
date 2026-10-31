@@ -68,8 +68,8 @@ try {
   const app = RP.createApp({ token: r1.token, fetch: (u, o) => fetch(srv.base + u, o), toast: (t, g, a) => toasts.push({ t, a }), mount: (h) => { html = h; } });
   await app.laad();
   await app.klik('laden', String(ids[0]));
-  T.check(/Staat al op geladen/.test(toasts.at(-1).t) && toasts.at(-1).a.label === 'Ongedaan maken', 'tweede tik: toast met zichtbaar Ongedaan maken');
-  await toasts.at(-1).a.doe();
+  T.check(/Staat al op geladen/.test(app.staat().laatste.tekst) && /Laatste actie ongedaan maken/.test(html), 'TF7: tweede tik: balk met zichtbaar Ongedaan maken');
+  await app.klik('laatste-undo');
   T.check(!app.data().stops[0].regels.find((r) => r.check_id === ids[0]).geladen, 'Ongedaan maken werkt');
   await app.klik('lossen', String(ids[0]));
   T.check(app.staat().sheet && app.staat().sheet.type === 'toch' && /Toch lossen/.test(html), 'lossen vóór laden: venster met knop Toch lossen');
@@ -84,7 +84,7 @@ try {
   await A('POST', '/api/transport-taken', { type: 'levering', datum: DAG, tijd: '10:30', van_locatie_id: R, naar_locatie_id: AB, rit_id: r1.id, regels: [{ naam: 'Extra', qty: 1 }] });
   app.klik('probleem-open', String(r1.taak)); app.zet('tekst', 'lopend werk');
   await app.ververs();
-  T.check(app.data().stops.length === n0 + 1 && app.staat().balk.includes('stop toegevoegd'), 'verversen ziet de nieuwe stop');
+  T.check(app.data().stops.length === n0 + 1 && /stop toegevoegd/.test(app.staat().balk), 'verversen ziet de nieuwe stop');
   T.check(app.staat().sheet && app.staat().sheet.tekst === 'lopend werk', 'lopend werk gaat niet verloren');
   await app.klik('sluit');
   T.check(/Kantoor wijzigde deze rit: stop toegevoegd/.test(html), 'zichtbare balk');
@@ -111,9 +111,9 @@ try {
   const r3 = await maak([{ naam: 'Bak Cap (CP01)', qty: 1, soort: 'thema', bak_id: bak }, { naam: '50 × ' + (bulk ? bulk.naam : 'x'), qty: 50, soort: 'pool', bak_id: bulk ? bulk.id : null }]);
   await A('PUT', `/api/ritten/${r3.id}`, { voertuig: 'Tf5 busje', voertuig_capaciteit: 2 });
   const kz = (await A('POST', `/api/ritten/${r3.id}/klaarzet`, {})).json;
-  T.check(bulk ? kz.bezetting === 2 && kz.over_capaciteit === false : true, `klaarzetten telt plaatsen, geen stuks: 1 bak + bulk 50 = ${kz.bezetting} van ${kz.capaciteit} (bulk: ${bulk ? bulk.naam : 'geen'})`);
+  T.check(kz.lading && /1 bak \+ 50 losse stuks/.test(kz.lading.tekst), `TF7: klaarzetten zegt wat erop staat: ${kz.lading && kz.lading.tekst}`);
   const vd = (await C('GET', '/api/vandaag?mijn=1')).json;
-  T.check(/2\/2 bakken/.test(JSON.stringify(vd)) && !/52\/2/.test(JSON.stringify(vd)), 'Vandaag: "2/2 bakken"');
+  T.check(/1 bak \+ 50 losse stuks/.test(JSON.stringify(vd)), 'TF7: Vandaag dezelfde telling');
 
   // ── Weergave ──
   const dv = { rit: { datum: DAG, chauffeur: 'x', voertuig: '', status: 'onderweg' }, voortgang: { stops: 1, stuks: 3, geladen: 0, huidige_stop: 1 }, stops: [{ taak_id: 1, volgorde: 1, type: 'levering', status: 'gepland', van: { naam: 'Rozenweg' }, naar: { naam: 'A' }, locatie: { naam: 'A' }, regels: [{ check_id: 1, naam: 'Blazer', qty: 1, is_bulk: true, aantal_geladen: 0 }, { check_id: 2, naam: 'Blazer', qty: 2, is_bulk: true, aantal_geladen: 0 }, { check_id: 3, naam: 'Bak', code: 'B1', bak_id: 9, qty: 1, rek: 'B' }] }] };

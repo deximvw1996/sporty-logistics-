@@ -157,6 +157,6 @@ try {
   T.check(/ritlink/.test(rp) && /data-act="kopieer"/.test(rp), 'G19: rit-link blijft staan met een kopieerknop');
   T.check(/gel \+ ' van ' \+ tot \+ ' stuks geladen'/.test(ritJs), 'G20: de rit-kop telt stuks');
   T.check(/'rit':'ritten'/.test(rp), 'G29: "1 rit" in enkelvoud');
-  T.check(/r\.status==='gedaan'&&\/plaatsen\//.test(rp), 'T1-G12: geen capaciteitswaarschuwing op een gedane rit');
+  T.check(!/\/plaatsen\//.test(rp), 'TF7: geen capaciteitswaarschuwing meer');
 } catch (e) { T.fout('uitzondering: ' + (e && e.stack || e)); }
 await T.einde(srv);

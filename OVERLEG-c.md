@@ -2118,3 +2118,38 @@ Melding: `Telling bijgewerkt · Abdijschool Vlierbeek: TF51: Politiepet 1 → 0,
 6. Samengevoegde dubbele regels: Past niet geldt voor de eerste rij van de groep.
 7. Aanvragen: geen wisroute in `routes/aanvragen.js`; statuswijziging wordt gelogd. Alleen "volledig verwijderen" van een kampmoment wist ze nog (omkeerbaar via het log). Dat bestand stond niet in mijn lijst.
 8. Natellingen van de monitor-link gaan pas naar kantoor als de KV verstuurt.
+
+## TF7 — Geen capaciteitsgok, rit afwerken, KV, voertuigen en aanhangwagens, hoe vol (31/10)
+
+**Tests.** Nieuw: `test-tf7-rit` 50 ok, `test-tf7-kv` 30 ok, `test-tf7-voertuigen` 24 ok. Volle run 2× na de rebase op TF8: 56 en 56 van 58 groen; **niet volledig groen**: rood `v3c-fotos` (2) en `veiligheid` (3), dezelfde fouten als vóór TF5.
+
+**Punt 1, capaciteit.** Weg: waarschuwing, `over_capaciteit`, bevestiging bij klaarzetten, "reed met", Let op bij Voertuigen, rode cijfers. Overal `_ritLading`: "14 bakken + 36 losse stuks". Telling: bak (niet bulk) en attribuut = bakken; bulk en regels zonder bak = losse stuks. Veld heet "Past ongeveer (bakken, alleen info)"; waarden niet gewist. Teller "⚠ n past niet · taak voor kantoor" bovenaan de ritplanning, desktop en gsm, link naar `/taken`.
+
+**Punt 2, rit.**
+- Vroeger: nooit geblokkeerd; kleine tekst "gepland voor di 3/11".
+- Meldingen: alleen "is gewijzigd" voegt samen; "staat weer klaar"; meldingen en balk noemen de stop; "rijd je niet meer" zegt wat er met het geladene moet.
+- **Keuze ongedaan op een afgeronde stop: de stop en de rit gaan weer open.** `_zetTaakTerug` draait bakken en bulk terug, regels krijgen hun stand terug, stop `aangekomen`, rit `onderweg`, bak `onderweg`. Reden: de chauffeur kan zo echt herstellen en scherm en data blijven gelijk.
+- "Laatste actie ongedaan maken" is een balk bovenaan het scherm tot de volgende actie of tot je weggaat; geen toast met knop meer. Korte toasts staan bovenaan, over de kop.
+- Eén telling "(12 regels · 42 stuks)" op knop, vraag en balk; blok per echte plaats, knop voor het hele blok, per regel "voor <stop>", herladen blijft op het blok, Naar Vandaag, Ritten op tijd, vertrektijd, Bel kantoor wit, uitleg bij wissel.
+- Knop Terugzetten in de ritplanning. `PUT /api/transport-taken/:id` met enkel `wie`: 200. Eerste stop meer dan 2 uur na het vertrek: waarschuwing (grens is mijn keuze).
+
+**Punt 3, KV.** Tekort weg na een beslissing: vraag in Nakijken (desktop en gsm), één melding, beslissing wijzigt niet. Annuleren: `tekort_status=genegeerd`, weg van de aanvullijst, actie bewaard; echte lopende bestelling in `tekort_bestellingen`: 409 met uitleg. Tabel toont de laatst verstuurde telling. Identieke natelling geen versie; geen "52 → 52"; notitie blijft bij haar telling. Overzicht, tabteller, "komt … met de rit", kamp zonder bak, lezen-stand, kapot-sheet, "+n", begonnen bakken, welke wijzigingen, levering-hint, kantoornummer op de afgelopen pagina: gedaan.
+
+**Punt 4, voertuigen.** Migratie 93: kolommen `aard`, `trekhaak`, `laadklep`, `transport_ritten.aanhangwagen_id`, 5 voertuigen en 4 aanhangwagens. Merk staat in de notitie. Rijbewijs alleen bij de camion ingevuld (Maxim gaf het alleen daar); aanhangwagens zonder standplaats (niet opgegeven). Voorbeeldvoertuigen: patroon "Camion n" / "Camionette n", zonder komende rit inactief, met komende rit blijven staan; **welke dat op prod zijn staat na de deploy in het activiteitenlog** ("blijft staan"). Gelogd via `activiteiten_log`, niet via `wijzigingen`: de migratie heeft geen sessie. Aanhangwagen op de rit: desktop, gsm, Nieuwe rit, ritscherm "met Aanhangwagen 1". Waarschuwingen: geen trekhaak, dubbel op dezelfde dag, onderhoud.
+
+**Punt 5, hoe vol.** Migratie 94: `rit_vol_antwoorden`, triggers weigeren wijzigen en wissen. Eindscherm drie knoppen (44 px), één keer wijzigen, daarna 409. Kantoor: "Net vol volgens Jeroen" in het ritdetail. Wie = de chauffeursnaam op de rit, want de rit-link heeft geen login. Niet bij een rit met alleen verhuistaken zonder bakken.
+
+**Browser (element.click, geen vinger).** 390: rit laden, Alles geladen, ongedaan, Alles gelost, Rit afgerond, Net vol, voertuigenlijst met twee blokken, ritdetail gsm met aanhangkeuze en "volgens Jeroen", KV-tellen en kapot-sheet: geen horizontale scroll, knoppen ≥ 44 px; vinkje voertuigen 24 px met marge samen 44. 1920: ritplanning en Terugzetten geklikt, voertuigen geladen vóór Punt 4.
+**Niet in de browser:** Punt 4 op 1920, aanhangkeuze echt wijzigen en de trekhaakwaarschuwing op het scherm, Nieuwe rit met aanhangwagen, voertuig bewerken in het venster, de vraag "Tekort weg" klikken, uitklap Eerdere tellingen op gsm, lezen-stand, verversbalk, Toch lossen. Die zijn via API of HTML-opbouw getest.
+
+**Aangepaste tests, met reden.** `rp1`, `tf1`, `tf5-rit`, `tf4`, `tb1`: geen capaciteit, telling is `lading`, ongedaan via de balk. `tf1` G10: nieuwe levering-tekst. `vt1`: maakt Camion 1 en Camionette 1 zelf aan; zijn tellers tellen nu ook de 9 nieuwe.
+
+**GEVONDEN**
+1. **Chat D:** `public/taken.js:92` en `routes/taken.js` tonen nog "n/m bakken". Niet mijn bestanden. Capaciteit daar weghalen; `info.lading.tekst` staat klaar.
+2. **Chat D:** G12: kantoorlinks in de HTML van de ploeg staan in `public/vandaag.html`.
+3. `info.bezetting` blijft als veld voor Taken. `_ritBezetting` kan weg als punt 1 hier af is.
+4. `routes/vandaag.js:146` "capaciteitsconflict" gaat over materiaal, niet over voertuigen; ongemoeid.
+5. Bij "te veel" op een beslissing komt geen nieuwe regel, alleen melding en historiek.
+6. Een rit die vóór de deploy niet klaargezet en niet gestart is, verdwijnt bij de chauffeur tot klaarzetten (al gemeld bij TF5).
+7. De lijst Voertuigen toont op de gsm nog een kolom "—" voor plaatsen.
+8. Migratienummers botsten bij de rebase met TF8 (91): de mijne zijn nu 92 (opgelost tekort), 93 (voertuigen), 94 (hoe vol).

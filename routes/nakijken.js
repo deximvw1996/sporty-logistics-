@@ -216,8 +216,12 @@ module.exports = function(ctx){
       afwijkingen:{tekort:items.filter(i=>i.afwijking==='tekort').length,te_veel:0,kapot:items.filter(i=>i.afwijking==='kapot').length},items,foto_s:items.filter(i=>i.foto_url).map(i=>({url:i.foto_url,stuk:i.naam})),vorige_tellingen:[],historiek:[],contact:{kv_naam:'',kv_telefoon:''}};
     // TF5: alle tellingen per stuk, nieuwste eerst, uit de onwisbare kv_telling_versies.
     const _tv=sessie?all('SELECT * FROM kv_telling_versies WHERE sessie_id=? ORDER BY id DESC',[sessie.id]):[];
+    const _tot=km&&km.id?((get('SELECT tot_versie FROM kv_verstuurd WHERE kampmoment_id=? ORDER BY id DESC LIMIT 1',[km.id])||{}).tot_versie||0):0;
     const _tvUit=v=>({op:fmtDatumTijd(v.op),wie:v.wie||'',via:v.via||'',geteld:v.geteld,kapot:v.kapot||0,te_veel:v.te_veel||0,status:v.status||'',notitie:v.notitie||'',foto_url:v.foto_path?'/uploads/'+v.foto_path:null});
-    items.forEach(i=>{if(i.gemeld_door)return;const eig=_tv.filter(v=>bak.soort==='attribuut'?true:v.item_id===i.item_id).map(_tvUit);i.laatste_telling=eig[0]||null;i.eerdere_tellingen=eig.slice(1);});
+    items.forEach(i=>{if(i.gemeld_door)return;const eig=_tv.filter(v=>bak.soort==='attribuut'?true:v.item_id===i.item_id).map(_tvUit);i.laatste_telling=eig[0]||null;i.eerdere_tellingen=eig.slice(1);
+      // TF7 N1: de tabel toont de laatst verstuurde telling, niet de stand waarop besloten is. De beslissing zelf blijft staan.
+      const sv=_tv.find(v=>(bak.soort==='attribuut'||v.item_id===i.item_id)&&v.id<=_tot);if(sv&&bak.soort!=='attribuut'){i.aangetroffen=sv.geteld;i.te_veel=Math.max(0,sv.geteld-(i.verwacht||0));}
+      const rg=i.regel_id?get('SELECT opgelost_vraag,opgelost_keuze FROM nakijk_regels WHERE id=?',[i.regel_id]):null;i.opgelost_vraag=!!(rg&&rg.opgelost_vraag);i.opgelost_keuze=(rg&&rg.opgelost_keuze)||'';});
     // Vorige tellingen van dezelfde bak in andere kampmomenten.
     const veld=bak.soort==='attribuut'?'attribuut_id':bak.soort==='thema'?'thema_bak_id':'vaste_bak_id';
     const andere=all(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veld}=? ${sessie?'AND id<>?':''} ORDER BY id DESC LIMIT 12`,sessie?[bak.soort,bak.id,sessie.id]:[bak.soort,bak.id]);
@@ -320,6 +324,23 @@ module.exports = function(ctx){
     res.json(get('SELECT * FROM nakijk_regels WHERE id=?',[r.id]));
   });
 
+  // TF7: "Dit tekort is weg. Bestelling nog nodig?" Annuleren stopt een nog niet geplaatste bestelling; loopt ze al, dan uitleg.
+  app.post('/api/nakijken/regel/:id/opgelost',alleenKantoor,(req,res)=>{
+    const r=get('SELECT * FROM nakijk_regels WHERE id=?',[req.params.id]);
+    if(!r)return res.status(404).json({error:'Deze regel bestaat niet (meer).'});
+    const k=req.body?.keuze;if(!['nodig','annuleren'].includes(k))return res.status(400).json({error:"keuze moet 'nodig' of 'annuleren' zijn"});
+    if(!r.opgelost_vraag)return res.status(409).json({error:'Hier staat geen vraag meer open.'});
+    if(k==='nodig'){updateMetLog(req,'nakijk_regels',r.id,{opgelost_vraag:0,opgelost_keuze:'nog_nodig'},'tekort weg: bestelling nog nodig');logAct('nakijken','tekort weg',`${r.item_naam}: tekort weg, bestelling blijft nodig volgens ${wie(req)}`,null,null);return res.json({ok:true});}
+    if(r.aangevuld||(r.gedaan_aantal||0)>0||r.tekort_status==='binnen'||(r.binnen_aantal||0)>0)return res.status(409).json({error:'Dit is al binnen of aangevuld: annuleren kan niet meer. Zet het eventueel terug via Tekorten.'});
+    const it=r.item_id?(get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id])||get('SELECT item_type_id FROM vaste_bak_items WHERE id=?',[r.item_id])):null;
+    const best=it&&it.item_type_id?get("SELECT * FROM tekort_bestellingen WHERE item_type_id=? AND COALESCE(los,0)=0 AND COALESCE(besteld_op,'')<>'' AND COALESCE(binnen_op,'')='' ORDER BY id DESC LIMIT 1",[it.item_type_id]):null;
+    if(best)return res.status(409).json({error:`Dit is al besteld op ${best.besteld_op}${best.besteld_door?' door '+best.besteld_door:''}. Annuleer het bij de leverancier en zet het op Tekorten op negeren.`});
+    updateMetLog(req,'nakijk_regels',r.id,{opgelost_vraag:0,opgelost_keuze:'geannuleerd',tekort_status:'genegeerd',besteld:0},'tekort weg: bestelling geannuleerd');
+    all("SELECT id FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort='weg' AND lower(item_naam)=lower(?) AND COALESCE(kantoor_actie,'')=''",[r.sessie_id,r.item_naam]).forEach(g=>updateMetLog(req,'nakijk_regels',g.id,{kantoor_actie:'aanvaarden',tekort_status:'genegeerd'},'tekort weg: melding afgesloten'));
+    logAct('nakijken','tekort weg',`${r.item_naam}: tekort weg, bestelling geannuleerd door ${wie(req)}`,null,null);
+    res.json({ok:true});
+  });
+
   // Keuring afronden: standaardactie per afwijking invullen, sessie op nagekeken, bestellen → bestaande "besteld"-markering.
   function _afronden(req,s){
     const km=s.kampmoment_id?get('SELECT * FROM kampmomenten WHERE id=?',[s.kampmoment_id]):null;
@@ -342,7 +363,7 @@ module.exports = function(ctx){
       }
       if(actie==='bestellen'||actie==='afschrijven_bestellen'){
         // Bestaande tekorten/bestel-logica (routes/voorraad.js): tekort_status 'besteld' + besteld=1. TF4: alleen de nieuwe tellen mee.
-        if(!r.besteld){updateMetLog(req,'nakijk_regels',r.id,{besteld:1,tekort_status:r.tekort_status==='binnen'?'binnen':'besteld'},'nakijken');bestel++;if(actie==='afschrijven_bestellen')afschrijf++;}
+        if(!r.besteld&&r.tekort_status!=='genegeerd'){updateMetLog(req,'nakijk_regels',r.id,{besteld:1,tekort_status:r.tekort_status==='binnen'?'binnen':'besteld'},'nakijken');bestel++;if(actie==='afschrijven_bestellen')afschrijf++;}
       }
     });
     updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'nagekeken',kantoor_afgerond_op:isoNu(),kantoor_door:wie(req),kantoor_wie:wie(req),kantoor_tijdstip:now()},'nakijken');
