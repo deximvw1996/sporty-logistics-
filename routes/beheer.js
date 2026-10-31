@@ -23,7 +23,7 @@ module.exports = function(ctx){
     if(Array.isArray(data.personeel)) data.personeel=data.personeel.map(p=>{const{pincode,...rest}=p;return rest;});
     // CH1 (DRAAIBOEK 3.7): telefoon van locatiecontacten en sleutel-info nooit in een export.
     if(Array.isArray(data.locaties)) data.locaties=data.locaties.map(l=>{const{contact_tel,contact_telefoon,sleutel_info,...rest}=l;return rest;});
-    res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new Date().toISOString().split('T')[0] + '.json"');
+    res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + new (require('../lib/testklok').EchteDate)().toISOString().split('T')[0] + '.json"');
     res.setHeader('Content-Type', 'application/json');
     res.json(data);
   });
@@ -55,7 +55,7 @@ module.exports = function(ctx){
   app.get('/api/backup-db', alleenKantoor, (req, res) => {
     try {
       const data = Buffer.from(db.export());
-      const ts = new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,16);
+      const ts = new (require('../lib/testklok').EchteDate)().toISOString().replace('T','_').replace(/:/g,'-').slice(0,16);
       res.setHeader('Content-Disposition', 'attachment; filename="sporty-backup-' + ts + '.db"');
       res.setHeader('Content-Type', 'application/octet-stream');
       res.send(data);

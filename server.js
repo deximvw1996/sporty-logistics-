@@ -1,4 +1,5 @@
 process.env.TZ = 'Europe/Brussels'; // TF2 G2: alle server-tijden (now(), getHours…) in Belgische tijd; opslag blijft ISO/UTC
+const testklok = require('./lib/testklok'); // TK1: vóór alle andere code; zonder SPORTY_TESTKLOK=1 doet ze niets
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -34,6 +35,7 @@ process.on('unhandledRejection', (reason) => {
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+app.use(testklok.middleware(fs)); // TK1: zet de klok in elke HTML-pagina, alleen met de variabele
 
 // ── BEVEILIGING: wachtwoord via HTTP Basic Auth ──
 // Stel APP_PASSWORD in als omgevingsvariabele in Railway om de app te beveiligen.
@@ -45,7 +47,7 @@ if (!APP_PASSWORD) {
 // Werklijst 70 (Maxim 29/10, optie b): de link-pagina's voor chauffeur en KV staan BUITEN de Basic-muur.
 // De token in de URL is daar de toegang (lange willekeurige tokens; foutieve token = 403/404, nooit data).
 // Ook hun statische bestanden en de foto's (willekeurige bestandsnamen, nosniff) zijn zonder wachtwoord bereikbaar.
-const TOKENPADEN = ['/rit/', '/kv/', '/tel/', '/api/rit-token/', '/api/kv/', '/uploads/', '/public/'];
+const TOKENPADEN = ['/api/testklok', '/rit/', '/kv/', '/tel/', '/api/rit-token/', '/api/kv/', '/uploads/', '/public/'];
 app.use((req, res, next) => {
   if (!APP_PASSWORD) return next();              // geen wachtwoord ingesteld = open
   if (TOKENPADEN.some((p) => req.path.startsWith(p))) return next();
@@ -118,6 +120,7 @@ async function startServer() {
 
   // ── SCHEMA MIGRATIONS (lib/migraties.js) ──
   require('./lib/migraties')(dbx, ctx);
+  testklok.laad({ get });
 
   // ── S3.2: LOGIN / SESSIES + auth-poort (lib/auth.js) — publieke routes, dan de poort, dan de rest ──
   Object.assign(ctx, require('./lib/auth')(ctx));
@@ -128,6 +131,7 @@ async function startServer() {
   // ── Routegebieden, in de volgorde van de oorspronkelijke kopjes ──
   for (const naam of ['locaties','kv','themas','planning','aanvragen','voorraad','transport','bakken','beheer','personeel','sport','conflicten','vandaag','ritplanning','taken','nakijken','kampmomenten','bakken-overzicht','personeel-overzicht','locaties-overzicht','themas-overzicht','pool-overzicht','catalogus-overzicht','voertuigen','sportrooster','tekorten-overzicht','rooster','periodes-overzicht','instellingen','meldingen'])
     require('./routes/' + naam)(ctx);
+  if (testklok.AAN) require('./routes/testklok')(ctx);
 
   // Testhaak (ALLEEN met env SPORTY_TESTHOOK=1, nooit in productie): laat een testscript de SIGTERM-handler
   // uitlokken, want op Windows is child.kill('SIGTERM') een harde TerminateProcess zonder handler.
