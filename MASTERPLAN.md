@@ -464,3 +464,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — TK1 testklok (C) gekeurd: tk1 32 ok, volle run 59/59. SPORTY_TESTKLOK=1 op prod voor Maxims test; MOET UIT voor echte ingebruikname.
 - 2026-10-31 — Mockup-opdracht-kampmoment goedgekeurd door Maxim (5 schermen). Bouw na TF10/TF11. Groepschat geparkeerd tot daarna.
 - 2026-10-31 — Maxim: materiaal staat in Rozenweg, Kantoor en Marco; opstart = stockage A -> stockage B -> locatie, of aparte wagens per stockage. Meenemen in bouw opdracht.
+- 2026-10-31 — TF10 (D) en TF11 (C) gekeurd en live; migratie TF11 hernummerd naar 98 (96 botste met leegmaken). Volle run 58/61: lk1, vc1 los groen, v3a poort 3311 bezet door chat C.
