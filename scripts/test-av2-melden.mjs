@@ -90,7 +90,7 @@ try {
   const ov = AV.meldOverlay({ soort: 'kapot', aantal: 1, stuk: 'Av2 Kegel', naam: '', notitie: '', foto: '' }, g);
   T.check(/role="dialog"/.test(ov) && ov.includes('data-av="meld-stuk"') && ov.includes('data-av="meld-soort" data-a="kapot"') && ov.includes('data-av="meld-soort" data-a="weg"') && ov.includes('data-av="meld-aantal"') && ov.includes('capture="environment"') && ov.includes('data-av="meld-notitie"') && ov.includes('verplicht bij kapot'), 'overlay: stuk, Kapot/Weg, aantal, foto (verplicht bij kapot), notitie');
   T.check(AV.meldOverlay({ soort: 'weg', aantal: 1, stuk: '__vrij' }, g).includes('mag, helpt kantoor'), 'bij Weg is de foto optioneel');
-  T.check(AV.lijst(data, { vandaag: '2026-11-10' }).includes('+ Melding zonder bak'), 'lijst: knop "+ Melding zonder bak"');
+  T.check(AV.lijst(data, { vandaag: '2026-11-10' }).includes('+ Losse melding'), 'lijst: knop "+ Losse melding"');
   const hs = AV.bak({ ...g, handelingen: [g.handelingen.find((x) => x.soort !== 'melding') || { ...hk, soort: 'uit_pool', wacht_op_kantoor: false, kan_afvinken: true, aangevuld: 0, regel_id: 9999 }] }, {});
   T.check(/data-av="meld-open" data-stuk=/.test(hs), 'ook bij een stuk staat een kleine ⚠-knop');
 

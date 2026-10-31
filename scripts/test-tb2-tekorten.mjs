@@ -180,7 +180,7 @@ try {
   const t = (h) => h.replace(/<[^>]+>/g, '\n').replace(/&amp;/g, '&').replace(/\n\s*\n+/g, '\n').trim().split('\n').join(' | ');
   T.check(/Ballonnen TB2/.test(rijHtml) && /2 bakken · 2 locaties/.test(rijHtml) && /uit voorraad/.test(rijHtml), `rij: ${t(rijHtml)}`);
   const dh = TB.detail(det, 'tekort');
-  T.check(/Aanvullen uit voorraad/.test(dh) && /Negeren/.test(dh) && /Bestellen/.test(dh) && /Waar ontbreekt het/.test(dh) && /Na levering/.test(dh) && /Catalogus ›/.test(dh), `detail: ${t(dh).slice(0, 400)}`);
+  T.check(/Aanvullen uit voorraad/.test(dh) && /Negeren/.test(dh) && /Bestelling plaatsen/.test(dh) && /Waar ontbreekt het/.test(dh) && /Na levering/.test(dh) && /Catalogus ›/.test(dh), `detail: ${t(dh).slice(0, 400)}`);
   const chips = TB.chips(o.tellers, 'open');
   T.check(/Open/.test(chips) && /Te beslissen/.test(chips) && /href="\/nakijken"/.test(chips) && /Afgehandeld/.test(chips), `chips: ${t(chips)}`);
   T.info('gsm-maten: zie de browsermeting in het verslag');

@@ -66,7 +66,7 @@
     // TF6 N1: duidelijk welke periode je ziet, met een knop om te wisselen tussen "Alles" en "Deze week".
     const bk=O.bereik||{},dtxt=s=>s?new Date(s+'T12:00:00').toLocaleDateString('nl-BE',{day:'numeric',month:'short'}).replace(/\./g,''):'';
     let zicht=$('taken-zicht');
-    if(!zicht){zicht=document.createElement('div');zicht.id='taken-zicht';zicht.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px;font-size:13px;color:#475569';const l=$('lijst');l.parentNode.insertBefore(zicht,l);}
+    if(!zicht){zicht=document.createElement('div');zicht.id='taken-zicht';zicht.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin:0 0 6px;min-height:44px;font-size:13px;color:#475569;border-bottom:1px solid #e2e8f0;position:relative;z-index:1';const l=$('lijst'),kp=l.previousElementSibling&&/kopr/.test(l.previousElementSibling.className)?l.previousElementSibling:l;kp.parentNode.insertBefore(zicht,kp);} // TF8 G16: boven de kolomkoppen, niet ertussen
     zicht.innerHTML=bk.alle?`<span>Je ziet <b>alle taken</b>${bk.van?' · '+esc(dtxt(bk.van))+' – '+esc(dtxt(bk.tot)):''}</span><a href="/taken?week=${esc(iso0())}" class="knop licht klein" id="zicht-wissel">Alleen deze week</a>`:`<span>Je ziet <b>week ${esc(dtxt(O.week.start))} – ${esc(dtxt(O.week.eind))}</b></span><a href="/taken?alle=1" class="knop licht klein" id="zicht-wissel">Alles tonen</a>`;
     const wk=document.querySelector('.chip[data-f="deze_week"]');if(wk&&wk.firstChild)wk.firstChild.textContent=bk.alle?'Alle taken ':'Deze week ';
     $('n-sel').textContent=`${SEL.size} geselecteerd`;
@@ -199,7 +199,8 @@
     if(!r.ok)return toast(r.json.error||'Verwijderen mislukt','error');
     let extra='';
     if(aanv.length){const o=await api('POST','/api/taken/aanvraag-opruimen',{aanvraag_ids:aanv,ook_aanvullijst:ook});extra=o.ok&&ook?` · ${o.json.regels} stuk${o.json.regels===1?'':'ken'} van de aanvullijst gehaald, KV verwittigd`:(aanv.length?' · het stuk blijft op de aanvullijst':'');}
-    toast(`${ids.length} taak${ids.length===1?'':'en'} verwijderd${extra}`,'success');if(D&&ids.includes(D.taak.id))D=null;SEL.clear();laad();
+    toast(`${ids.length} taak${ids.length===1?'':'en'} verwijderd${extra}`,'success');if(D&&ids.includes(D.taak.id)){D=null;$('detail').innerHTML='<div class="leegd">Klik een taak in de lijst voor het detail.</div>';} // TF8: het detail van een weggehaalde taak blijft niet staan
+    SEL.clear();laad();
   }
   $('b-weg').onclick=()=>wegHalen([...SEL]);
 

@@ -140,7 +140,7 @@ try {
   T.check(dh.includes('NK02') && dh.includes('Bak openen') && dh.includes('KV bellen') && dh.includes('Keuring afronden'), 'detail: kop en knoppen');
   const det2 = (await A('GET', `/api/nakijken/sessie/${sid}`)).json;
   const th = NK.detailHtml(det2, { tab: 'telling' });
-  T.check(th.includes('<select') && th.includes('Terug naar pool') && th.includes('Afschrijven (2) + bestellen') && th.includes('Notitie aan KV') && /bestelling/.test(th), 'detail-tabel: select per afwijking + onderregel + Notitie aan KV');
+  T.check(th.includes('<select') && th.includes('Terug naar voorraad Rozenweg') && th.includes('Afschrijven (2) + bestellen') && th.includes('Notitie aan KV') && /bestelling/.test(th), 'detail-tabel: select per afwijking + onderregel + Notitie aan KV');
   console.log('--- DOM-dump detail ---\n' + tekst(th).slice(0, 900) + '\n');
   const ph = NK.printRijenHtml((await A('GET', `/api/aanvullijst?datum=${iso}`)).json);
   T.check(ph.includes('NK01') && ph.includes('☐') && ph.includes('rek N'), 'printlijst-rijen: vakje, bak, rek');

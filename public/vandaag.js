@@ -82,7 +82,8 @@
       $('l-'+k).innerHTML=nu.length?nu.map(([x,i])=>item(x,i,k)).join(''):`<div class="leeg">${LEEG[k]}</div>`;
     }
     // TF8 G2: één regel die zegt wat onder "Later" zit, zodat je niet hoeft uit te klappen om te weten of er iets dringends in zit.
-    const laterRegel=l=>{const n={};l.forEach(([x])=>{const s=/^taak-/.test(x.id)?'taken zonder rit':/^rit-/.test(x.id)?'ritten zonder bestuurder':x.id==='tekorten'?'tekorten':x.sub==='planning'?'planningsmeldingen':x.sub==='capaciteitsconflict'?'capaciteitsmeldingen':'conflicten';n[s]=(n[s]||0)+1;});return Object.keys(n).map(k=>n[k]+' '+k).join(' · ')+(l.length?' · niets dringends':'');};
+    const ENK={'taken zonder rit':'taak zonder rit','ritten zonder bestuurder':'rit zonder bestuurder',tekorten:'tekort',planningsmeldingen:'planningsmelding',capaciteitsmeldingen:'capaciteitsmelding',conflicten:'conflict'};
+    const laterRegel=l=>{const n={};l.forEach(([x])=>{const s=/^taak-/.test(x.id)?'taken zonder rit':/^rit-/.test(x.id)?'ritten zonder bestuurder':x.id==='tekorten'?'tekorten':x.sub==='planning'?'planningsmeldingen':x.sub==='capaciteitsconflict'?'capaciteitsmeldingen':'conflicten';n[s]=(n[s]||0)+1;});return Object.keys(n).map(k=>n[k]+' '+(n[k]===1?ENK[k]:k)).join(' · ')+(l.length?' · niets dringends':'');};
     let lb=$('later-blok');
     if(!lb){lb=document.createElement('details');lb.id='later-blok';lb.style.cssText='margin:12px 0;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc';const kols=document.querySelector('.kols');kols.parentNode.insertBefore(lb,kols.nextSibling);}
     const open=lb.open;
