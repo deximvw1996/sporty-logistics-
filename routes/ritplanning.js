@@ -53,11 +53,12 @@ module.exports = function(ctx){
           const q=regelsQ(t.id),kv=kvVan(t);
           return {taak_id:t.id,volgorde:t.volgorde,tijd:t.tijd||'',slot:t.slot==='vrij'?'vrij':'vast',locatie:locNaam(stopLoc(t)),
             wat:[t.type+(q.n?' '+q.q:''),kv?kvL(kv):null].filter(Boolean).join(' · '),bakken:q.q,status:t.status,
-            geladen:!!get('SELECT 1 AS x FROM verhuis_checks WHERE taak_id=? AND geladen=1 AND COALESCE(gelost,0)=0 LIMIT 1',[t.id])};
+            geladen:!!get('SELECT 1 AS x FROM verhuis_checks WHERE taak_id=? AND geladen=1 AND COALESCE(gelost,0)=0 LIMIT 1',[t.id]),
+            regels:all('SELECT id,naam,qty FROM transport_regels WHERE taak_id=? ORDER BY id',[t.id])};
         });
         return {id:r.id,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
           voertuig:{id:r.voertuig_id||null,naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},aanhangwagen_id:r.aanhangwagen_id||null,vol_tekst:ctx.volTekst?ctx.volTekst(r.id):'',
-          lading:info.lading,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:!r.personeel_id&&naam&&!['gedaan','geannuleerd'].includes(r.status)&&ctx.persoonOpNaam&&!ctx.persoonOpNaam(naam)?[...info.waarschuwingen,'⚠ bestuurder niet gekoppeld']:info.waarschuwingen,notitie:info.notitie||'',stops,
+          lading:info.lading,meting:info.meting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:!r.personeel_id&&naam&&!['gedaan','geannuleerd'].includes(r.status)&&ctx.persoonOpNaam&&!ctx.persoonOpNaam(naam)?[...info.waarschuwingen,'⚠ bestuurder niet gekoppeld']:info.waarschuwingen,notitie:info.notitie||'',stops,
           laatste_wijziging:ctx._laatsteRitWijziging?ctx._laatsteRitWijziging(r.id):null};
       }).sort((a,b)=>(a.vertrek||'99').localeCompare(b.vertrek||'99'));
       const open=all("SELECT * FROM transport_taken WHERE datum=? AND (rit_id IS NULL OR rit_id=0) AND status='gepland' ORDER BY tijd,id",[datum]).map(t=>{
@@ -80,7 +81,7 @@ module.exports = function(ctx){
     const aanhangwagens=all("SELECT id,naam FROM voertuigen WHERE actief=1 AND aard='aanhangwagen' ORDER BY naam COLLATE NOCASE");
     // TF7: Past niet bij het laden is de echte controle; wat zo overblijft staat als teller bovenaan.
     const past_niet=get("SELECT COUNT(*) AS n FROM transport_taken WHERE rest_van_rit_id IS NOT NULL AND (rit_id IS NULL OR rit_id=0) AND status='gepland'").n;
-    return {week:{start,eind,nummer,kampweek},past_niet,dagen:dagObj,personen,voertuigen,aanhangwagens,
+    return {week:{start,eind,nummer,kampweek},past_niet,locaties:all('SELECT id,name AS naam,type FROM locaties WHERE parent_id IS NULL OR parent_id=0 ORDER BY name COLLATE NOCASE'),dagen:dagObj,personen,voertuigen,aanhangwagens,
       alle_personeel:personeel.map(p=>({personeel_id:p.id,naam:p.naam,rol:p.rol,kleur:kleur(p.id,p.naam)}))};
   }
   app.get('/api/ritplanning',alleenKantoor,(req,res)=>res.json({...planning(req),standaard_vertrek:(get("SELECT waarde FROM app_vlaggen WHERE naam='tijd_vertrek_ritten'")||{}).waarde||''})); // ME1
