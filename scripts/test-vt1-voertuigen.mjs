@@ -20,8 +20,9 @@ try {
   const s0 = await T.startServer({ poort: 3353, dbBron: tmp });
   const tok0 = await T.login(s0.base);
   const p0 = (await T.api(s0.base, tok0, 'GET', `/api/ritplanning?week=${MA}`)).json;
-  const camion = p0.voertuigen.find((v) => v.naam === 'Camion 1'), camionette = p0.voertuigen.find((v) => v.naam === 'Camionette 1');
-  T.check(camion && camion.plaatsen === 40 && camionette && camionette.plaatsen === 20 && p0.voertuigen.length === 2, `migratie: uit voertuig_types ontstaan ${p0.voertuigen.map((v) => v.naam + ' (' + v.plaatsen + ')').join(', ')}`);
+  await new Promise((r) => setTimeout(r, 600)); const v0 = await T.leesDb(s0.dbPad, 'SELECT * FROM voertuigen'); // TF7: Camion 1 en Camionette 1 blijven bestaan, mogelijk inactief (migratie 92)
+  const camion = v0.find((v) => v.naam === 'Camion 1'), camionette = v0.find((v) => v.naam === 'Camionette 1');
+  T.check(camion && camion.plaatsen === 40 && camionette && camionette.plaatsen === 20, `migratie: uit voertuig_types ontstaan ${v0.map((v) => v.naam).join(', ')}`);
   const ritten0 = p0.dagen.flatMap((d) => d.ritten);
   const oud1 = ritten0.find((r) => r.voertuig.naam === 'Camion'), oud2 = ritten0.find((r) => r.voertuig.naam === 'Rare wagen');
   T.check(oud1 && oud1.voertuig.id === camion.id, 'bestaande rit met "Camion" kreeg voertuig_id van Camion 1');
@@ -47,6 +48,8 @@ try {
 
   // voertuigen van de ritplanning
   const plan = (week = MA) => A('GET', `/api/ritplanning?week=${week}`);
+  // TF7: de voorbeeldvoertuigen zijn door migratie 92 inactief; deze test bouwt ze zelf opnieuw op.
+  await A('POST', '/api/voertuigen', { naam: 'Camionette 1', plaatsen: 20, trekhaak: true }); await A('POST', '/api/voertuigen', { naam: 'Camion 1', plaatsen: 40 });
   let pl = (await plan()).json;
   const vt = (n) => pl.voertuigen.find((v) => v.naam === n);
   const cn = vt('Camionette 1'), cm = vt('Camion 1');

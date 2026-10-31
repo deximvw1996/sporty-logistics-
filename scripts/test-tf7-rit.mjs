@@ -127,6 +127,34 @@ try {
   await A('PUT', `/api/ritten/${r4.id}`, { personeel_id: ander.id });
   T.check((await meld()).some((m) => m.startsWith(`Rit #${r4.id} `) && /rijd je niet meer.*zet het terug in de stockage of bel kantoor/.test(m)), '"rijd je niet meer" zegt wat er moet gebeuren');
 
+  // ── Punt 5: hoe vol ──
+  const vr = (await A('POST', '/api/ritten', { datum: dag(0), vertrek: '16:00', chauffeur: 'Jeroen', voertuig: 'Bus' })).json;
+  const vt = (await A('POST', '/api/transport-taken', { type: 'ophaling', datum: dag(0), tijd: '16:30', van_locatie_id: AB, naar_locatie_id: R, rit_id: vr.id, regels: [{ naam: 'Bak Een (TA01)', qty: 1, soort: 'thema', bak_id: b1 }, { naam: 'Stoel', qty: 4 }] })).json;
+  await A('POST', `/api/ritten/${vr.id}/klaarzet`, {});
+  const vk2 = (await A('POST', `/api/ritten/${vr.id}/token`)).json.token, V = (m, p, b) => T.api(srv.base, null, m, `/api/rit-token/${vk2}${p}`, b);
+  T.check((await V('POST', '/vol', { antwoord: 'net_vol' })).status === 409, 'vóór afronden: geen antwoord');
+  let dv = (await V('GET', '/data')).json;
+  await V('POST', '/alles', { actie: 'laden', check_ids: dv.stops[0].regels.map((q) => q.check_id) });
+  await V('POST', '/alles', { actie: 'lossen', check_ids: dv.stops[0].regels.map((q) => q.check_id) });
+  dv = (await V('GET', '/data')).json;
+  T.check(dv.rit.status === 'gedaan' && dv.vol.vraag && !dv.vol.antwoord, 'ophaling: overslaan rondt de rit toch af, vraag staat er');
+  const ev = RP.dagHtml(dv);
+  T.check(/Hoe vol zat de wagen\?/.test(ev) && ['Ruimte over', 'Net vol', 'Paste niet'].every((q) => ev.includes(q)), 'eindscherm met drie knoppen');
+  T.check((await V('POST', '/vol', { antwoord: 'iets' })).status === 400 && (await V('POST', '/vol', { antwoord: 'net_vol' })).status === 200, 'antwoord bewaard');
+  const planV = async () => JSON.stringify((await A('GET', `/api/ritplanning?week=${dag(0)}`)).json);
+  T.check(/Net vol volgens Jeroen/.test(await planV()), 'kantoor: "Net vol volgens Jeroen"');
+  T.check((await V('POST', '/vol', { antwoord: 'paste_niet' })).status === 200 && (await V('POST', '/vol', { antwoord: 'ruimte' })).status === 409, 'één keer wijzigen, daarna 409');
+  await new Promise((q) => setTimeout(q, 600));
+  const rij = await T.leesDb(srv.dbPad, 'SELECT * FROM rit_vol_antwoorden WHERE rit_id=? ORDER BY id', [vr.id]);
+  T.check(rij.length === 2 && rij[0].antwoord === 'net_vol' && rij[1].antwoord === 'paste_niet' && rij[0].wie === 'Jeroen' && rij[0].chauffeur === 'Jeroen' && rij[0].voertuig === 'Bus' && rij[0].bakken === 1 && rij[0].losse === 4 && rij[0].past_niet === 0 && rij[0].op, 'beide antwoorden bewaard met de juiste gegevens');
+  const alle = await planV() + JSON.stringify((await A('GET', '/api/personeel')).json) + JSON.stringify((await V('GET', '/data')).json);
+  T.check(!/score/i.test(alle), 'geen chauffeursscore in een API-antwoord');
+  const rv = (await A('POST', '/api/ritten', { datum: dag(0), vertrek: '17:00', chauffeur: 'Jeroen' })).json;
+  await A('POST', '/api/transport-taken', { type: 'verhuis', datum: dag(0), tijd: '17:30', van_locatie_id: AB, naar_locatie_id: BE, rit_id: rv.id, regels: [{ naam: 'Set', qty: 1 }] });
+  await A('POST', `/api/ritten/${rv.id}/klaarzet`, {});
+  const tv = (await A('POST', `/api/ritten/${rv.id}/token`)).json.token;
+  T.check((await T.api(srv.base, null, 'GET', `/api/rit-token/${tv}/data`)).json.vol.vraag === false, 'niet bij een verhuistaak zonder bakken');
+
   // ── Rest ──
   const pw = await A('PUT', `/api/transport-taken/${nt.id}`, { wie: 'Iemand' });
   T.check(pw.status === 200, `PUT met enkel wie: ${pw.status}`);

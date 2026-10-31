@@ -911,10 +911,14 @@ module.exports = function(ctx){
       if(b.voertuig_id===null||b.voertuig_id==='')v.voertuig_id=null;
       else{
         const vv=get('SELECT * FROM voertuigen WHERE id=?',[b.voertuig_id]);
-        if(!vv)return {fout:'Dat voertuig bestaat niet'};
+        if(!vv||vv.aard==='aanhangwagen')return {fout:'Dat voertuig bestaat niet'};
         v.voertuig_id=vv.id;v.voertuig=vv.naam;v.voertuig_soort=vv.soort==='eigen'?'pool':vv.soort==='huur'?'huur':'eigen';v.voertuig_capaciteit=vv.plaatsen||null;
       }
-    }else if(b.voertuig!==undefined&&rit&&rit.voertuig_id&&b.voertuig!==rit.voertuig)v.voertuig_id=null; // een andere vrije naam: niet langer dat voertuig
+    }else if(b.voertuig!==undefined&&rit&&rit.voertuig_id&&b.voertuig!==rit.voertuig)v.voertuig_id=null;
+    if(b.aanhangwagen_id!==undefined){ // TF7 punt 4: optioneel, vrije keuze; problemen zijn waarschuwingen, geen verbod
+      if(b.aanhangwagen_id===null||b.aanhangwagen_id==='')v.aanhangwagen_id=null;
+      else{const a=get("SELECT id FROM voertuigen WHERE id=? AND aard='aanhangwagen'",[b.aanhangwagen_id]);if(!a)return {fout:'Die aanhangwagen bestaat niet'};v.aanhangwagen_id=a.id;}
+    } // een andere vrije naam: niet langer dat voertuig
     // Pool-voertuig zonder opgegeven capaciteit: die van het voertuigtype.
     const soort=v.voertuig_soort||(rit&&rit.voertuig_soort)||'pool', naam=b.voertuig!==undefined?b.voertuig:(rit&&rit.voertuig);
     if(soort==='pool'&&v.voertuig_capaciteit===undefined&&(b.voertuig!==undefined||v.voertuig_soort)){
@@ -957,6 +961,15 @@ module.exports = function(ctx){
     if(nogTeRijden&&rit.vertrek){const tm=all("SELECT tijd FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[rit.id]).map(t=>_min(t.tijd)).filter(x=>x!=null);
       let best=null,a=0;for(let i=1;i<=tm.length;i++){if(i<tm.length&&tm[i]-tm[i-1]<STOP_STAP_MIN)continue;if(i-a>1&&(!best||i-a>best.n))best={n:i-a,m:tm[i-1]-tm[a]};a=i;}
       if(best)w.push(`stops samengedrukt: ${best.n} stops binnen ${best.m} min`);}
+    // TF7 punt 4: aanhangwagen. Waarschuwingen, nooit een verbod; ze verdwijnen na oplossen.
+    if(nogTeRijden&&rit.aanhangwagen_id&&rit.datum){
+      const ah=get('SELECT * FROM voertuigen WHERE id=?',[rit.aanhangwagen_id]),vm=rit.voertuig_id?get('SELECT naam,trekhaak FROM voertuigen WHERE id=?',[rit.voertuig_id]):null;
+      if(ah){
+        if(vm&&!vm.trekhaak)w.push(`aanhangwagen: ${vm.naam} heeft geen trekhaak`);
+        all("SELECT id FROM transport_ritten WHERE datum=? AND id<>? AND status<>'geannuleerd' AND aanhangwagen_id=?",[rit.datum,rit.id,ah.id]).forEach(o=>w.push(`aanhangwagen dubbel: ${ah.naam} ook op rit #${o.id}`));
+        if(get('SELECT id FROM voertuig_onderhoud WHERE voertuig_id=? AND datum_van<=? AND datum_tot>=?',[ah.id,rit.datum,rit.datum]))w.push(`aanhangwagen in onderhoud: ${ah.naam}`);
+      }
+    }
     // VT1: één bepaald voertuig kan niet op twee ritten tegelijk (zelfde overlap-logica als bij de bestuurder), onderhoud en huurperiode.
     if(nogTeRijden&&rit.voertuig_id&&rit.datum){
       const vt=get('SELECT * FROM voertuigen WHERE id=?',[rit.voertuig_id]);
@@ -1528,7 +1541,7 @@ module.exports = function(ctx){
         regels};
     });
     const huidige=stops.find(s=>s.status!=='gedaan');
-    return {rit:{id:rit.id,datum:rit.datum,chauffeur:rit.chauffeur||'',voertuig:rit.voertuig||'',status:rit.status||'gepland',vertrek:_ritTijden(rit).vertrek},
+    return {rit:{id:rit.id,datum:rit.datum,chauffeur:rit.chauffeur||'',voertuig:rit.voertuig||'',status:rit.status||'gepland',vertrek:_ritTijden(rit).vertrek,aanhangwagen:rit.aanhangwagen_id?(get('SELECT naam FROM voertuigen WHERE id=?',[rit.aanhangwagen_id])||{}).naam||'':''},
       voortgang:{stops:stops.length,stops_gedaan:stops.filter(s=>s.status==='gedaan').length,huidige_stop:huidige?huidige.volgorde:null,stuks,geladen,gelost},
       stops};
   }
@@ -1538,7 +1551,26 @@ module.exports = function(ctx){
     // TF5: meldingenteller van de bestuurder op de rit.
     const _p=rit.personeel_id?get('SELECT id,rol FROM personeel WHERE id=?',[rit.personeel_id]):ctx.persoonOpNaam&&ctx.persoonOpNaam(rit.chauffeur);
     const _rol=_p?(_p.rol||(get('SELECT rol FROM personeel WHERE id=?',[_p.id])||{}).rol):'';
-    res.json({..._ritData(rit),kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
+    const _vol=_volVan(rit.id);
+    res.json({..._ritData(rit),vol:{vraag:_volVraag(rit.id),antwoord:_vol.length?_vol[_vol.length-1].antwoord:'',n:_vol.length},kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
+  });
+
+  // TF7 punt 5: "Hoe vol zat de wagen?" Hint per rit: één antwoord, één keer wijzigen, alles bewaard. Geen berekening en geen score.
+  const _VOL={ruimte:'Ruimte over',net_vol:'Net vol',paste_niet:'Paste niet'};
+  const _volVan=id=>all('SELECT * FROM rit_vol_antwoorden WHERE rit_id=? ORDER BY id',[id]);
+  ctx.volTekst=id=>{const l=_volVan(id).pop();return l?`${_VOL[l.antwoord]||l.antwoord} volgens ${l.wie||'de bestuurder'}`:'';};
+  const _volVraag=id=>!!get("SELECT 1 AS x FROM transport_taken t WHERE t.rit_id=? AND t.status<>'geannuleerd' AND (NOT(t.type='verhuis' OR COALESCE(t.categorie,'') LIKE 'sv:%') OR EXISTS(SELECT 1 FROM transport_regels r WHERE r.taak_id=t.id AND r.bak_id IS NOT NULL)) LIMIT 1",[id]);
+  app.post('/api/rit-token/:token/vol',(req,res)=>{
+    const rit=_ritVanToken(req.params.token);
+    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
+    const a=req.body?.antwoord;if(!_VOL[a])return res.status(400).json({error:'Kies Ruimte over, Net vol of Paste niet'});
+    if(rit.status!=='gedaan')return res.status(409).json({error:'De rit is nog niet afgerond'});
+    if(!_volVraag(rit.id))return res.status(409).json({error:'Bij deze rit hoort deze vraag niet'});
+    const oud=_volVan(rit.id);if(oud.length>=2)return res.status(409).json({error:'Je antwoord is al één keer gewijzigd'});
+    const l=_ritLading(rit.id),pn=get('SELECT COUNT(*) AS n FROM verhuis_checks WHERE rit_id=? AND niet_mee_reden IS NOT NULL',[rit.id]).n,ah=rit.aanhangwagen_id?(get('SELECT naam FROM voertuigen WHERE id=?',[rit.aanhangwagen_id])||{}).naam||'':'';
+    ins('INSERT INTO rit_vol_antwoorden (rit_id,antwoord,wie,op,voertuig,aanhangwagen,chauffeur,bakken,losse,past_niet) VALUES (?,?,?,?,?,?,?,?,?,?)',[rit.id,a,rit.chauffeur||'',new Date().toISOString(),rit.voertuig||'',ah,rit.chauffeur||'',l.bakken,l.losse,pn]);
+    logAct('transport','hoe vol',`Rit #${rit.id}: ${_VOL[a]} volgens ${rit.chauffeur||'de bestuurder'}${oud.length?' (gewijzigd)':''}`,null,null);
+    res.json({ok:true});
   });
 
   // Punt 3: "past niet / niet gevonden / kapot" per stuk → rest-taak (zonder rit, slot vrij) voor kantoor.

@@ -90,3 +90,5 @@ button{font:inherit;cursor:pointer;border:0;-webkit-tap-highlight-color:transpar
 .stuk .voor{display:block;font-size:11px;color:#475569;font-weight:600}
 .toast{top:12px;bottom:auto}
 .blokknop.alleskop{margin-bottom:4px;min-height:48px}
+
+.volvraag{margin-top:12px;color:#14532d;font-size:14px}.volknop{display:flex;gap:6px;margin-top:8px}.volknop button{flex:1;min-width:0;min-height:44px;border-radius:10px;background:#fff;color:#15803d;font-weight:700;font-size:13px;border:1px solid #86efac}.volknop button:disabled{background:#15803d;color:#fff}

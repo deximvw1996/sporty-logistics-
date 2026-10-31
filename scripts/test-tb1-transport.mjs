@@ -26,7 +26,7 @@ try {
   const reg = (naam, qty, bak) => ({ naam, qty, soort: 'thema', bak_id: bak });
   const taak = async (id) => (await db('SELECT * FROM transport_taken WHERE id=?', [id]))[0];
   const nRegels = async (id) => (await db('SELECT COUNT(*) AS n FROM transport_regels WHERE taak_id=?', [id]))[0].n;
-  const vind = (o, id) => { if (!o || typeof o !== 'object') return null; if (o.id === id && 'bezetting' in o) return o; for (const k of Object.keys(o)) { const g = vind(o[k], id); if (g) return g; } return null; };
+  const vind = (o, id) => { if (!o || typeof o !== 'object') return null; if (o.id === id && 'lading' in o) return o; for (const k of Object.keys(o)) { const g = vind(o[k], id); if (g) return g; } return null; };
   const bz = async (ritId) => { const j = (await A('GET', `/api/ritplanning?week=${DAG}`)).json; const r = vind(j, ritId); return r ? r.lading.tekst : undefined; };
 
   // ── Punt 1: bundelen ──

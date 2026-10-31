@@ -105,14 +105,15 @@ const RITGSM=(function(){
       const o=((v.bezet_op_dag||{})[r.datum]||[]).find(x=>x.rit_id!==r.id);
       return `<option value="${v.id}" ${v.id===huidig?'selected':''}>${esc(v.naam)}${v.plaatsen?' (± '+v.plaatsen+' bakken)':''}${o?` (ook op rit #${o.rit_id})`:''}</option>`;}).join('')}</optgroup>`:'';}).join('')+'<option value="nieuw">Ander voertuig…</option>';
   };
+  const aanhangOpties=(P,h)=>'<option value="">Geen aanhangwagen</option>'+(P.aanhangwagens||[]).map(a=>`<option value="${a.id}" ${String(a.id)===String(h||'')?'selected':''}>${esc(a.naam)}</option>`).join('');
   // Ritdetail als volgend scherm: waarschuwingen, bestuurder + voertuig, stops met ▲▼ (geen slepen op gsm), Goedkeuren.
   function detail(P,r){
     const w=r.waarschuwingen.filter(x=>!/^weekend · bevestigd/.test(x)&&true);
     const ws=w.length?`<div class="sec" style="border-left:4px solid #dc2626"><h3>Waarschuwingen</h3>${w.map(x=>`<div class="rij" style="min-height:40px;color:#b91c1c;font-weight:600">⚠ ${esc(x)}</div>`).join('')}</div>`:'';
     const wie=`<div class="sec"><h3>Wie en wat</h3><label class="vl">Bestuurder<select data-g="bsel" data-id="${r.id}">${P.alle_personeel.map(p=>`<option value="${p.personeel_id}" ${p.personeel_id===r.bestuurder.personeel_id?'selected':''}>${esc(p.naam)}${p.rol==='chauffeur'?'':' ('+esc(p.rol)+')'}</option>`).join('')}</select></label>
-      <label class="vl">Voertuig<select data-g="vsel" data-vsel="${r.id}">${voertuigOpties(P,r)}</select></label></div>`;
+      <label class="vl">Voertuig<select data-g="vsel" data-vsel="${r.id}">${voertuigOpties(P,r)}</select></label><label class="vl">Aanhangwagen<select data-asel="${r.id}" aria-label="Aanhangwagen">${aanhangOpties(P,r.aanhangwagen_id)}</select></label></div>`;
     const stops=`<div class="sec"><h3>Stops <span>${esc(bezTekst(r))}</span></h3>${r.stops.length?r.stops.map((s,i)=>`<div class="it ${s.geladen?'groen':''}"><div class="stp"><button data-g="wissel" data-taak="${s.taak_id}" data-r="omhoog" aria-label="Omhoog" ${i===0?'disabled':''}>▲</button><button data-g="wissel" data-taak="${s.taak_id}" data-r="omlaag" aria-label="Omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><div class="nm">${esc(s.locatie)}<b>${esc([s.tijd,s.wat,s.status!=='gepland'?s.status:''].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" data-g="uit" data-taak="${s.taak_id}" aria-label="Van de rit halen">✕</button></div>`).join(''):'<div class="hint" style="padding:10px 0">Nog geen stops — zet een open taak op deze rit</div>'}</div>`;
-    return `<div class="kop2"><a data-g="terug">‹ Ritplanning</a><div style="flex:1"><b>Rit #${r.id} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(kort(r.datum))} · ${esc(r.bestuurder.naam||'geen bestuurder')} · ${esc(r.voertuig.naam||'geen voertuig')}</span></div></div>
+    return `<div class="kop2"><a data-g="terug">‹ Ritplanning</a><div style="flex:1"><b>Rit #${r.id} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${esc(kort(r.datum))} · ${esc(r.bestuurder.naam||'geen bestuurder')} · ${esc(r.voertuig.naam||'geen voertuig')}${r.vol_tekst?' · '+esc(r.vol_tekst):''}</span></div></div>
       <div class="body">${ws}${wie}${typeof LINK!=='undefined'&&LINK&&LINK.rit===r.id?`<div class="sec"><h3>Rit-link</h3><div class="rij" style="min-height:48px"><input readonly value="${esc(LINK.url)}" aria-label="Rit-link" style="flex:1;min-width:0;height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 8px;font:inherit"><button type="button" class="knop licht klein" data-g="kopieer">Kopieer</button></div></div>`:''}${stops}</div><div class="voet"><button class="knop licht" data-g="link">Rit-link</button>${r.klaarzet_status==='klaar'&&(!r.status||r.status==='gepland')?'<button class="knop licht" data-g="klaar-terug">Terugzetten</button>':''}<button class="knop" data-g="klaar">${r.klaarzet_status==='klaar'?'Klaargezet ✓':'Klaarzetten'}</button></div>`;
   }
   // + Nieuwe rit: overlay van volle hoogte.
@@ -123,7 +124,7 @@ const RITGSM=(function(){
     const vts=['eigen','huur','prive'].map(s=>{const l=P.voertuigen.filter(v=>v.soort===s);return l.length?`<optgroup label="${GR[s]}">${l.map(v=>`<option value="${v.id}">${esc(v.naam)}${v.plaatsen?' (± '+v.plaatsen+' bakken)':''}</option>`).join('')}</optgroup>`:'';}).join('')+'<option value="">Ander voertuig…</option>';
     return `<div class="kop2"><a data-g="annuleer">‹ Annuleren</a><div style="flex:1"><b>Nieuwe rit</b><span>${opt.taak_ids?'met taak #'+opt.taak_ids.join(', #'):'bestuurder = elke medewerker'}</span></div></div>
       <form class="body" id="gnf" onsubmit="return false"><label class="vl">Datum<input type="date" name="datum" value="${esc(datum)}"></label><label class="vl">Vertrek<input type="time" name="vertrek" value="${esc(opt.vertrek||(P&&P.standaard_vertrek)||'08:00')}"></label>
-      <label class="vl">Bestuurder<select name="personeel_id">${bst}</select></label><label class="vl">Voertuig<select name="voertuig">${vts}</select></label>
+      <label class="vl">Bestuurder<select name="personeel_id">${bst}</select></label><label class="vl">Voertuig<select name="voertuig">${vts}</select></label><label class="vl">Aanhangwagen<select name="aanhang">${aanhangOpties(P,'')}</select></label>
       <label class="vl" id="gnf-n" hidden>Naam van het voertuig<input name="vnaam" value="Eigen wagen"></label><label class="vl" id="gnf-c" hidden>Capaciteit (bakken)<input type="number" min="1" name="cap" value="6"></label></form>
       <div class="voet"><button class="knop licht" data-g="annuleer">Annuleren</button><button class="knop" data-g="maak">Rit maken</button></div>`;
   }
@@ -254,7 +255,7 @@ if(typeof window!=='undefined')(function(){
       return;
     }
     const r=ritVan(RIT),dt=d0(DAG),wv=echteW(r);
-    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${bestuurderKeuze(r)}${coord(r)?' (coördinator rijdt mee)':''} · ${voertuigKeuze(r)} · <i>${esc(bez(r))}</i>${r.notitie?' · '+esc(r.notitie):''}</span></div>${
+    el.innerHTML=`<div class="ritkop"><div><b>Rit #${r.id} · ${esc(d.dag.split(' ')[0])} ${dt.getDate()} ${MAAND[dt.getMonth()].slice(0,3)} · ${esc(r.vertrek||'?')}–${esc(r.einde||'?')}</b><span>${bestuurderKeuze(r)}${coord(r)?' (coördinator rijdt mee)':''} · ${voertuigKeuze(r)} · ${aanhangKeuze(r)} · <i>${esc(bez(r))}</i>${r.notitie?' · '+esc(r.notitie):''}${r.vol_tekst?' · '+esc(r.vol_tekst):''}</span></div>${
       wv.length?`<div class="waarsch">⚠ ${esc(wv.join(' · '))}</div>`:r.waarschuwingen.includes('weekend')?(()=>{const b=r.waarschuwingen.find(w=>/^weekend · /.test(w));return '<div class="waarsch">'+(b&&/bevestigd door/.test(b)?'✓ '+esc(b):'⚠ '+esc(b||'weekend: uitzondering'))+'</div>';})():''}<div class="acties"><button class="knop licht klein" data-act="splits">Splitsen</button><button class="knop licht klein" data-act="link">Rit-link</button>${r.klaarzet_status==='klaar'&&(!r.status||r.status==='gepland')?'<button class="knop licht klein" data-act="klaar-terug">Terugzetten</button>':''}<button class="knop klein" data-act="klaar">${r.klaarzet_status==='klaar'?'Klaargezet ✓':'Klaarzetten'}</button></div></div><div class="scroll">${ritLinkBlok(r)}${
       r.stops.length?r.stops.map((s,i)=>`<div class="stop ${s.slot} ${s.geladen?'geladen':'sleepbaar'}" data-taak="${s.taak_id}" data-i="${i}"><div class="t">${esc(s.tijd)}</div><div class="nm">${esc(s.locatie)}<b>${esc(s.wat)}${s.status!=='gepland'?' · '+esc(s.status):''}</b></div><span class="pil ${s.slot==='vrij'?'oranje':''}" data-slot="${s.taak_id}" title="Tik om te wisselen tussen vast en vrij">${s.slot==='vrij'?'vrij':'🔒 vast'}</span><div class="pijl"><button data-wissel="${s.taak_id}" data-r="omhoog" ${i===0?'disabled':''}>▲</button><button data-wissel="${s.taak_id}" data-r="omlaag" ${i===r.stops.length-1?'disabled':''}>▼</button></div><button class="knop licht klein" data-uit="${s.taak_id}">✕</button></div>`).join('')
       :'<div class="leegtxt">Nog geen stops — zet een taak op deze rit via "N open" in de dagkop</div>'}</div>`;
@@ -287,6 +288,7 @@ if(typeof window!=='undefined')(function(){
     const vrij=!huidig&&r.voertuig.naam?`<option value="" selected>${esc(r.voertuig.naam)} (vrije naam)</option>`:'';
     return `<select class="vsel" data-vsel="${r.id}" aria-label="Voertuig van rit #${r.id}">${vrij}${groepen}<option value="nieuw">Ander voertuig…</option></select>`;
   }
+  const aanhangKeuze=r=>`<select class="vsel" data-asel="${r.id}" aria-label="Aanhangwagen van rit #${r.id}"><option value="">geen aanhangwagen</option>${(P.aanhangwagens||[]).map(a=>`<option value="${a.id}" ${a.id===r.aanhangwagen_id?'selected':''}>${esc(a.naam)}</option>`).join('')}</select>`;
   async function voertuigWissel(sel){
     const ritId=parseInt(sel.dataset.vsel);let body;
     if(sel.value==='nieuw'){
@@ -299,6 +301,7 @@ if(typeof window!=='undefined')(function(){
     toast('Voertuig gewijzigd','success');RIT=ritId;await laad();
   }
   document.addEventListener('change',e=>{const s=e.target.closest&&e.target.closest('select[data-vsel]');if(s)voertuigWissel(s);});
+  document.addEventListener('change',async e=>{const s=e.target.closest&&e.target.closest('select[data-asel]');if(!s)return;const r=await api('PUT',`/api/ritten/${s.dataset.asel}`,{aanhangwagen_id:s.value?+s.value:null});if(!r.ok)toast(r.json.error||'Aanhangwagen wisselen mislukt','error');laad();});
 
   function opties(){
     const vast=P.personen.filter(p=>p.vast);
@@ -311,6 +314,7 @@ if(typeof window!=='undefined')(function(){
       <label>Vertrek<input type="time" name="vertrek" value="${esc(NIEUW.vertrek||(P&&P.standaard_vertrek)||'08:00')}"></label>
       <label>Bestuurder<select name="personeel_id">${opties()}</select></label>
       <label>Voertuig<select name="voertuig"></select></label>
+      <label>Aanhangwagen<select name="aanhang"><option value="">Geen aanhangwagen</option>${(P.aanhangwagens||[]).map(a=>`<option value="${a.id}">${esc(a.naam)}</option>`).join('')}</select></label>
       <label id="nf-cap" style="display:none">Naam van het voertuig<input name="vnaam" value="Eigen wagen"></label>
       <label id="nf-cap2" style="display:none">Capaciteit (bakken)<input type="number" min="1" name="cap" value="6"></label>
       <div class="knoppen"><button class="knop licht klein" data-act="annuleer">Annuleren</button><button class="knop klein" data-act="maak">Rit maken</button></div></form></div>`;
@@ -338,7 +342,7 @@ if(typeof window!=='undefined')(function(){
     if([0,6].includes(d0(datum).getDay())){
       if(!await vraag({titel:'Rit in het weekend?',tekst:'Weekendritten zijn een uitzondering, geen verbod. Toch inplannen?',ok:'Ja, inplannen'}))return;
     }
-    const body={datum,vertrek:f.vertrek.value,personeel_id:pid,taak_ids:NIEUW.taak_ids||[]};
+    const body={datum,vertrek:f.vertrek.value,personeel_id:pid,taak_ids:NIEUW.taak_ids||[],aanhangwagen_id:f.aanhang.value?+f.aanhang.value:null};
     if(vid)body.voertuig_id=vid;
     else{body.voertuig=f.vnaam.value.trim()||'Eigen wagen';body.voertuig_soort='eigen';body.voertuig_capaciteit=parseInt(f.cap.value)||null;}
     const r=await api('POST','/api/ritten',body);
@@ -571,7 +575,7 @@ if(typeof window!=='undefined')(function(){
       const wk=[0,6].includes(d0(datum).getDay());
       if(wk&&!await vraag({titel:'Rit in het weekend?',tekst:'Weekendritten zijn een uitzondering, geen verbod. Toch inplannen?',ok:'Ja, inplannen'}))return;
       const taakIds=(GS.nieuw&&GS.nieuw.taak_ids)||[];
-      const body={datum,vertrek:f.vertrek.value,personeel_id:pid,taak_ids:taakIds};
+      const body={datum,vertrek:f.vertrek.value,personeel_id:pid,taak_ids:taakIds,aanhangwagen_id:f.aanhang&&f.aanhang.value?+f.aanhang.value:null};
       if(vid)body.voertuig_id=vid;else{body.voertuig=f.vnaam.value.trim()||'Eigen wagen';body.voertuig_soort='eigen';body.voertuig_capaciteit=parseInt(f.cap.value)||null;}
       const r=await api('POST','/api/ritten',body);if(!r.ok)return toast(r.json.error||'Rit maken mislukt','error');
       if(wk)for(const tid of taakIds){const wb=await api('POST',`/api/transport-taken/${tid}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
