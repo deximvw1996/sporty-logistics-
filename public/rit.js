@@ -315,7 +315,7 @@
       }
     }
     // TF5 G2: verversen zonder iets weg te gooien; een open venster blijft staan. Wat kantoor wijzigde komt in een balk.
-    root.addEventListener('sporty-live', function () { ververs(); }); // RT1
+    if (root.addEventListener) root.addEventListener('sporty-live', function () { ververs(); }); // RT1
     async function ververs() {
       var oud = data;
       try {

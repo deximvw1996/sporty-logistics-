@@ -43,7 +43,11 @@ try {
   T.check(r.status === 200 && rest.datum === DAG && rest.week >= 1 && rest.rit_id === null && rest.slot === 'vrij', `rest-taak #${rest.id}: datum ${rest.datum}, week ${rest.week}, zonder rit, slot vrij`);
   const tk = (await A('GET', `/api/taken-overzicht?week=${DAG}`)).json;
   T.check(tk.taken.some((t) => t.id === rest.id), 'de rest-taak staat in /taken (taken-overzicht van die week)');
+  // RT1: eerst in Nu oplossen, na Toch inplannen in Inplannen
   let v = (await A('GET', `/api/vandaag?datum=${DAG}`)).json;
+  T.check(!v.inplannen.some((i) => i.taak_id === rest.id), 'open: nog niet in Inplannen');
+  for (const rr of v.nu_oplossen) for (const x of rr.items) await A('POST', `/api/nu-oplossen/${x.id}`, { actie: 'inplannen' });
+  v = (await A('GET', `/api/vandaag?datum=${DAG}`)).json;
   T.check(v.inplannen.some((i) => i.taak_id === rest.id && i.ico === '🚚'), 'de rest-taak staat op Vandaag › Inplannen (🚚)');
   // de migratie vult oude rest-taken zonder datum uit hun rit (zelfde afleiding): gecontroleerd op de broncode en op een nieuwe taak zonder datum
   const migr = require('node:fs').readFileSync(T.ROOT + '/lib/migraties.js', 'utf8');

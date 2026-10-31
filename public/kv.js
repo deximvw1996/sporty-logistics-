@@ -449,7 +449,7 @@
     host.addEventListener('input', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-f'); if (f) app.zet(f, e.target.value); });
     host.addEventListener('change', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-f'); if (f === 'stuk') app.zet(f, e.target.value); });
     var m = /^#(bak|attr)-(\d+)/.exec(root.location.hash || ''), t = /^#(overzicht|tellen|aanvragen|info)/.exec(root.location.hash || '');
-    root.addEventListener('sporty-live', function () { app.laad(); }); // RT1
+    if (root.addEventListener) root.addEventListener('sporty-live', function () { app.laad(); }); // RT1
     root.addEventListener('testklok-wissel', function () { app.laad(); }); // TK1: tekent opnieuw uit de staat, een open venster en getypte tekst blijven
     app.laad().then(function () { if (m) app.ga(m[1], +m[2]); else if (t && !monitor) app.ga(t[1]); });
   }
