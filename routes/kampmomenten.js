@@ -272,10 +272,28 @@ module.exports = function(ctx){
   });
 
   // Verwijderen met bewaking: staat er al iets geladen, dan 409 en blijft alles staan (de oude DELETE-route kent die bewaking niet).
+  // TF8 G6: wat blijft er na het verwijderen van kampmomenten staan? Aanvullijst-regels, open of goedgekeurde aanvragen en ritten die leeg raken.
+  // Tellingen en historiek blijven altijd bewaard (alles bewaren en loggen).
+  function restVan(kms){
+    const ids=kms.map(k=>k.id);if(!ids.length)return {aanvullijst:0,aanvragen:0,ritten:[],tellingen:0,regel_ids:[],aanvraag_ids:[]};
+    const ph=ids.map(()=>'?').join(',');
+    const sessies=all(`SELECT id FROM nakijk_sessies WHERE kampmoment_id IN (${ph})`,ids).map(s=>s.id);
+    const regelIds=sessies.length?all(`SELECT id FROM nakijk_regels WHERE sessie_id IN (${sessies.map(()=>'?').join(',')}) AND COALESCE(kantoor_actie,'')<>'' AND COALESCE(aangevuld,0)=0 AND COALESCE(tekort_status,'')<>'genegeerd'`,sessies).map(r=>r.id):[];
+    const aanvraagIds=all(`SELECT id FROM aanvragen WHERE kampmoment_id IN (${ph}) AND status IN ('nieuw','goedgekeurd')`,ids).map(a=>a.id);
+    const ritIds=[...new Set(all(`SELECT rit_id FROM transport_taken WHERE kampmoment_id IN (${ph}) AND rit_id IS NOT NULL`,ids).map(t=>t.rit_id))];
+    const ritten=ritIds.filter(rid=>!get(`SELECT id FROM transport_taken WHERE rit_id=? AND COALESCE(kampmoment_id,0) NOT IN (${ph})`,[rid,...ids])).map(rid=>get('SELECT id,datum,chauffeur FROM transport_ritten WHERE id=?',[rid])).filter(Boolean);
+    return {aanvullijst:regelIds.length,aanvragen:aanvraagIds.length,ritten,tellingen:sessies.length,regel_ids:regelIds,aanvraag_ids:aanvraagIds};
+  }
+  app.post('/api/kampmomenten/verwijder-voorbeeld',alleenKantoor,(req,res)=>{
+    const kms=(Array.isArray(req.body?.ids)?req.body.ids:[]).map(Number).filter(Boolean).map(id=>get('SELECT * FROM kampmomenten WHERE id=?',[id])).filter(Boolean);
+    const {regel_ids,aanvraag_ids,...rest}=restVan(kms);
+    res.json(rest);
+  });
   app.post('/api/kampmomenten/verwijderen',alleenKantoor,(req,res)=>{
     const ids=(Array.isArray(req.body?.ids)?req.body.ids:[]).map(Number).filter(Boolean);
     if(!ids.length)return res.status(400).json({error:'Kies eerst een of meer kampmomenten.'});
     const kms=ids.map(id=>get('SELECT * FROM kampmomenten WHERE id=?',[id])).filter(Boolean);
+    const rest=restVan(kms),opruim=req.body?.opruimen||{};
     for(const km of kms){
       const n=get('SELECT COUNT(*) AS n FROM verhuis_checks vc JOIN transport_taken t ON t.id=vc.taak_id WHERE t.kampmoment_id=? AND vc.geladen=1',[km.id]).n;
       if(n)return res.status(409).json({error:`${locNaam(km.locatie_id)} week ${km.week}: ${n} stuk${n===1?' is':'ken zijn'} al geladen — verwijderen kan pas als dat teruggedraaid is. Er is niets verwijderd.`});
@@ -286,7 +304,13 @@ module.exports = function(ctx){
       delMetLog(req,'DELETE FROM kampmomenten WHERE id=?',[km.id],'planning');
       logAct('kampmoment','verwijderd',`Week ${km.week} — ${locNaam(km.locatie_id)} verwijderd door ${wie(req)||'kantoor'}`,km.locatie_id,locNaam(km.locatie_id));
     });
-    res.json({ok:true,verwijderd:kms.length});
+    // Opruimen op verzoek: niets gaat stil weg. Regels van de aanvullijst worden genegeerd (omkeerbaar), aanvragen afgehandeld, lege ritten verwijderd; alles gelogd.
+    const over={aanvullijst:rest.aanvullijst,aanvragen:rest.aanvragen,ritten:rest.ritten.length};
+    if(opruim.aanvullijst){rest.regel_ids.forEach(id=>{const r=get('SELECT kantoor_notitie FROM nakijk_regels WHERE id=?',[id]);updateMetLog(req,'nakijk_regels',id,{tekort_status:'genegeerd',kantoor_notitie:[(r&&r.kantoor_notitie)||'','kampmoment verwijderd'].filter(Boolean).join(' · ')},'kampmoment verwijderd');});over.aanvullijst=0;}
+    if(opruim.aanvragen){rest.aanvraag_ids.forEach(id=>updateMetLog(req,'aanvragen',id,{status:'afgehandeld',reden:'Dit kampmoment is verwijderd; de aanvraag vervalt.'},'kampmoment verwijderd'));over.aanvragen=0;}
+    if(opruim.ritten){rest.ritten.forEach(r=>{delMetLog(req,'DELETE FROM verhuis_checks WHERE rit_id=?',[r.id],'kampmoment verwijderd');delMetLog(req,'DELETE FROM transport_ritten WHERE id=?',[r.id],'kampmoment verwijderd');});over.ritten=0;}
+    if(rest.aanvullijst||rest.aanvragen||rest.ritten.length)logAct('kampmoment','verwijderd (rest)',`Na verwijderen: ${rest.aanvullijst} aanvullijst-regel(s), ${rest.aanvragen} aanvraag/aanvragen, ${rest.ritten.length} lege rit(ten) ${opruim.aanvullijst||opruim.aanvragen||opruim.ritten?'opgeruimd volgens keuze':'bleven staan'} — ${wie(req)||'kantoor'}`,null,null);
+    res.json({ok:true,verwijderd:kms.length,blijft:over,tellingen_bewaard:rest.tellingen});
   });
 
   app.get('/kampmomenten',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','kampmomenten.html')));

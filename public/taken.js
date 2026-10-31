@@ -101,7 +101,7 @@
     const histDeel=`<h4 style="margin-top:14px">Historiek (alles gelogd, omkeerbaar)</h4>`+(historiek.map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc([tijdTekst(h.t),h.wie].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" disabled title="Terugdraaien bestaat nog niet als route (GEVONDEN in OVERLEG-c.md)">↶ Terug</button></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>');
     const grid=TAB==='regels'?blokRegels+`<div class="blok">${ritDeel}${kmDeel}${histDeel}</div>`
       :TAB==='checks'?`<div class="blok">${ritDeel}</div>`:TAB==='kampmoment'?`<div class="blok">${kmDeel.replace(' style="margin-top:14px"','')}</div>`:`<div class="blok">${histDeel.replace(' style="margin-top:14px"','')}</div>`;
-    $('detail').innerHTML=`<div class="dkop"><div><h2>Taak #${t.id} · ${esc(t.type)} · ${esc(loc)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-splits">Splitsen</button><button class="knop licht" id="d-van" ${rit?'':'disabled'}>Van rit halen</button>${rit?`<button class="knop" id="d-open">Open rit #${rit.id}</button>`:'<button class="knop" id="op-rit2">Op een rit zetten</button>'}</div></div>
+    $('detail').innerHTML=`<div class="dkop"><div><h2>Taak #${t.id} · ${esc(t.type)} · ${esc(loc)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-weg">Verwijderen</button><button class="knop licht" id="d-splits">Splitsen</button><button class="knop licht" id="d-van" ${rit?'':'disabled'}>Van rit halen</button>${rit?`<button class="knop" id="d-open">Open rit #${rit.id}</button>`:'<button class="knop" id="op-rit2">Op een rit zetten</button>'}</div></div>
       <div class="dtabs">${[['regels',`Regels ${regels.length}`],['checks','Checks'],['kampmoment','Kampmoment'],['historiek',`Historiek ${historiek.length}`]].map(([k,l])=>`<a class="${TAB===k?'act':''}" data-tab="${k}">${l}</a>`).join('')}</div>
       <div class="dgrid">${grid}</div>`;
   }
@@ -145,6 +145,7 @@
     if(t.id==='d-open')return location.href='/ritplanning?rit='+D.rit.id;
     if(t.id==='op-rit'||t.id==='op-rit2')return opRit([id]);
     if(t.id==='d-van'){const r=await api('POST',`/api/ritten/${D.rit.id}/taken/${id}/ontkoppel`);if(!r.ok)return toast(r.json.error||'Van rit halen mislukt','error');toast('Taak van de rit gehaald','success');return laad();}
+    if(t.id==='d-weg')return wegHalen([id]);
     if(t.id==='d-bewerk'){const v=await taakForm(`Taak #${id} bewerken`,{...D.taak},'Opslaan');if(!v)return;
       const r=await api('PUT',`/api/transport-taken/${id}`,{...volleTaak(D),...v});if(!r.ok)return toast(r.json.error||'Opslaan mislukt','error');toast('Taak opgeslagen','success');return laad();}
     if(t.id==='d-splits'){
@@ -184,12 +185,23 @@
     if(!r.ok)return toast(r.json.error||'Bundelen mislukt','error');
     toast(`${SEL.size} taken gebundeld in #${r.json.taak.id} (${r.json.taak.regels.length} regels)`,'success');SEL.clear();await laad();laadDetail(r.json.taak.id);
   };
-  $('b-weg').onclick=async()=>{
-    if(!await vraag({titel:`${SEL.size} taken verwijderen?`,tekst:'Taken waarvan al iets geladen is, worden niet verwijderd (dan gebeurt er niets).',ok:'Verwijderen'}))return;
-    const r=await api('POST','/api/transport-taken/bulk-delete',{ids:[...SEL]});
+  // TF8 G5: bij taken uit een goedgekeurde aanvraag vraagt het scherm wat er met het stuk op de aanvullijst gebeurt.
+  async function wegHalen(ids){
+    const aanv=ids.map(id=>O.taken.find(x=>x.id===id)||(D&&D.taak.id===id?D.taak:null)).filter(t=>t&&t.aanvraag_id).map(t=>t.aanvraag_id);
+    let ook=false;
+    if(aanv.length){
+      const v=await vraag({titel:'Ook het stuk van de aanvullijst halen en de KV laten weten?',tekst:`${ids.length===1?'Deze taak komt':'Deze taken komen'} uit een goedgekeurde aanvraag van een KV.`,ok:'Verwijderen',
+        html:'<label class="chk"><input type="radio" name="ook" value="1" checked> Ja: het stuk gaat van de aanvullijst en de KV ziet dat het niet meer komt</label><label class="chk"><input type="radio" name="ook" value="0"> Nee: het stuk blijft op de aanvullijst staan</label>',
+        lees:f=>({ook:f.ook.value==='1'})});
+      if(!v)return;ook=v.ook;
+    }else if(!await vraag({titel:`${ids.length} taak${ids.length===1?'':'en'} verwijderen?`,tekst:'Taken waarvan al iets geladen is, worden niet verwijderd (dan gebeurt er niets).',ok:'Verwijderen'}))return;
+    const r=await api('POST','/api/transport-taken/bulk-delete',{ids});
     if(!r.ok)return toast(r.json.error||'Verwijderen mislukt','error');
-    toast(`${SEL.size} taken verwijderd`,'success');if(D&&SEL.has(D.taak.id))D=null;SEL.clear();laad();
-  };
+    let extra='';
+    if(aanv.length){const o=await api('POST','/api/taken/aanvraag-opruimen',{aanvraag_ids:aanv,ook_aanvullijst:ook});extra=o.ok&&ook?` · ${o.json.regels} stuk${o.json.regels===1?'':'ken'} van de aanvullijst gehaald, KV verwittigd`:(aanv.length?' · het stuk blijft op de aanvullijst':'');}
+    toast(`${ids.length} taak${ids.length===1?'':'en'} verwijderd${extra}`,'success');if(D&&ids.includes(D.taak.id))D=null;SEL.clear();laad();
+  }
+  $('b-weg').onclick=()=>wegHalen([...SEL]);
 
   // ── subbalk ──
   $('export').onclick=async()=>{

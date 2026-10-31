@@ -321,10 +321,19 @@
   $('b-thema').onclick = function () { kiesThema(Array.from(ST.sel)); };
   $('b-weg').onclick = async function () {
     var ids = Array.from(ST.sel);
-    if (!await vraag({ titel: ids.length + ' kampmoment' + (ids.length === 1 ? '' : 'en') + ' verwijderen?', tekst: 'Ook de taken van die kampmomenten verdwijnen. Staat er al iets geladen, dan gebeurt er niets.', ok: 'Verwijderen', lees: function () { return {}; } })) return;
-    var r = await aanroep('POST', '/api/kampmomenten/verwijderen', { ids: ids });
+    // TF8 G6: eerst tonen wat er na het verwijderen zou blijven staan, met een keuze per soort. Tellingen en historiek blijven altijd bewaard.
+    var vb = await aanroep('POST', '/api/kampmomenten/verwijder-voorbeeld', { ids: ids }); vb = vb.ok ? vb.json : { aanvullijst: 0, aanvragen: 0, ritten: [], tellingen: 0 };
+    var vink = function (naam, tekst) { return '<label class="chk"><input type="checkbox" name="' + naam + '" checked> ' + tekst + '</label>'; };
+    var restHtml = (vb.aanvullijst ? vink('aanvullijst', 'Ook de ' + vb.aanvullijst + ' regel' + (vb.aanvullijst === 1 ? '' : 's') + ' van de aanvullijst halen') : '')
+      + (vb.aanvragen ? vink('aanvragen', 'Ook de ' + vb.aanvragen + ' open of goedgekeurde aanvra' + (vb.aanvragen === 1 ? 'ag' : 'gen') + ' afhandelen') : '')
+      + (vb.ritten.length ? vink('ritten', 'Ook ' + vb.ritten.length + ' rit' + (vb.ritten.length === 1 ? '' : 'ten') + ' zonder taken verwijderen (' + vb.ritten.map(function (x) { return '#' + x.id; }).join(', ') + ')') : '');
+    var keuze = await vraag({ titel: ids.length + ' kampmoment' + (ids.length === 1 ? '' : 'en') + ' verwijderen?', tekst: 'Ook de taken van die kampmomenten verdwijnen. Staat er al iets geladen, dan gebeurt er niets. Tellingen en historiek blijven bewaard (' + vb.tellingen + ' telling' + (vb.tellingen === 1 ? '' : 'en') + ').' + (restHtml ? ' Wat anders blijft staan, kies je hieronder.' : ''), ok: 'Verwijderen', html: restHtml,
+      lees: function (f) { return { opruimen: { aanvullijst: !!(f.aanvullijst && f.aanvullijst.checked), aanvragen: !!(f.aanvragen && f.aanvragen.checked), ritten: !!(f.ritten && f.ritten.checked) } }; } });
+    if (!keuze) return;
+    var r = await aanroep('POST', '/api/kampmomenten/verwijderen', { ids: ids, opruimen: keuze.opruimen });
     if (!r.ok) return toast(r.json.error || 'Verwijderen mislukt', 'error');
-    toast('✓ ' + r.json.verwijderd + ' verwijderd', 'success'); if (D && ST.sel.has(D.id)) { D = null; ST.open = null; tekenDetail(); } ST.sel.clear(); await laad();
+    var bl = r.json.blijft || {}, blijft = [bl.aanvullijst ? bl.aanvullijst + ' aanvullijst-regel(s)' : '', bl.aanvragen ? bl.aanvragen + ' aanvraag/aanvragen' : '', bl.ritten ? bl.ritten + ' lege rit(ten)' : ''].filter(Boolean);
+    toast('✓ ' + r.json.verwijderd + ' verwijderd' + (blijft.length ? ' · blijft staan: ' + blijft.join(', ') : ''), blijft.length ? 'warn' : 'success'); if (D && ST.sel.has(D.id)) { D = null; ST.open = null; tekenDetail(); } ST.sel.clear(); await laad();
   };
   $('export').onclick = async function () {
     var r = await root.fetch('/api/export', { headers: { 'x-auth-token': TOKEN } });

@@ -4,7 +4,7 @@
 'use strict';
 module.exports = function(ctx){
   const {kvL}=require('../lib/tijd');
-  const {app,get,all,run,ins,now,logAct,updateMetLog,insMetLog,alleenKantoor,_kvVerwacht,_kvNaam,_bakItems,path,ROOT_DIR} = ctx;
+  const {app,get,all,run,ins,now,logAct,updateMetLog,insMetLog,delMetLog,alleenKantoor,_kvVerwacht,_kvNaam,_bakItems,path,ROOT_DIR} = ctx;
   const fotos=require('../lib/fotos')(ctx.UPLOADS_DIR);
   const {fmtDatumTijd,zonderHaakjes}=require('../lib/tijd');
 
@@ -100,17 +100,20 @@ module.exports = function(ctx){
       if(sessie&&sessie.kv_status==='bezig'&&geteld>0)tekst='KV is bezig · '+geteld+'/'+totaal+' geteld';
     }
     const gemeld=sessie?all("SELECT * FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort<>''",[sessie.id]):[];
-    const gemeldOpen=gemeld.length&&!_nagekeken(sessie);
+    const onbeslist=gemeld.filter(g=>!g.kantoor_actie);
+    // TF8 G3: een gemelde regel zonder besluit houdt de bak in "Te keuren" en "Gemeld", ook na afronden (Vandaag telt hetzelfde).
+    const gemeldOpen=(gemeld.length&&!_nagekeken(sessie))||onbeslist.length>0;
     let status='niet_geteld';
     // KD1: de KV is nog niet aan deze bak begonnen (geen sessie) → eigen status, zodat kantoor het verschil ziet met "sessie zonder tellingen".
     if(!sessie){status='nog_niet';tekst='nog niet geteld';}
+    else if(onbeslist.length&&sessie.kv_status==='ingediend')status='te_keuren';
     else if(_nagekeken(sessie))status='nagekeken';
     else if(sessie&&sessie.kv_status==='ingediend'&&(geteld>0||gemeldOpen))status='te_keuren';
     if(bak.soort==='melding'&&!gemeldOpen)tekst='✓ afgehandeld';
     if(gemeldOpen){kapot+=gemeld.filter(g=>g.gemeld_soort==='kapot').length;tekort+=gemeld.filter(g=>g.gemeld_soort==='weg').length;tekst=(geteld?tekst+' · ':'')+gemeld.length+' gemeld door stockage';}
     return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id,locatie:loc,week:km.week,kv_naam:kvNaam,
       bak:{id:bak.id,code:bak.code||'',naam:bak.naam||bak.label||'',soort:bak.soort},geteld,totaal,uitslag_tekst:tekst,
-      met_tekort:tekort>0,met_kapot:kapot>0,status,gemeld:gemeldOpen?gemeld.length:0,gemeld_op:bak.soort==='melding'&&sessie?(sessie.datum||''):'',
+      met_tekort:tekort>0,met_kapot:kapot>0,status,gemeld:gemeldOpen?(_nagekeken(sessie)?onbeslist.length:gemeld.length):0,gemeld_op:bak.soort==='melding'&&sessie?(sessie.datum||''):'',
       ingediend_op:sessie&&sessie.kv_status==='ingediend'?(sessie.kv_tijdstip||''):'',nagekeken_op:sessie&&_nagekeken(sessie)?(sessie.kantoor_afgerond_op||sessie.kantoor_tijdstip||''):''};
   }
 
@@ -145,6 +148,23 @@ module.exports = function(ctx){
   });
 
   // Detail van één bak: ?sessie=ID (via pad) of ?kampmoment_id=&bak=<soort>:<id> voor een bak zonder sessie.
+  // TF8 G4: tekort én kapot op één stuk: het kapotte deel wordt een eigen regel (deel_van) met een eigen actie en aantal. De oorspronkelijke
+  // regel houdt het tekort. Dit gebeurt zodra kantoor de bak opent of afrondt; een al afgeronde keuring blijft zoals ze was. Zolang het deel
+  // geen actie heeft volgt het de telling van de KV (meer of minder kapot); met een actie blijft het staan.
+  function _zorgDeel(req,s){
+    if(!s||s.bak_type==='melding'||s.bak_type==='attribuut'||_nagekeken(s))return;
+    all('SELECT * FROM nakijk_regels WHERE sessie_id=? AND deel_van IS NULL AND item_id IS NOT NULL',[s.id]).forEach(r=>{
+      const kind=get('SELECT * FROM nakijk_regels WHERE deel_van=?',[r.id]);
+      const kapot=r.kapot_aantal||0,tekortEnKapot=r.aangetroffen!=null&&r.aangetroffen<(r.verwacht||0)&&kapot>0;
+      if(tekortEnKapot&&!kind){
+        insMetLog(req,'nakijk_regels',['sessie_id','item_naam','item_id','verwacht','aangetroffen','ontbreekt','kapot_aantal','is_kapot','notitie','foto_path','deel_van','kantoor_actie','kantoor_aantal'],
+          [s.id,r.item_naam,null,0,0,0,kapot,1,r.notitie||'',r.foto_path||'',r.id,'',kapot],'nakijken: kapot deel');
+      }else if(kind&&!kind.kantoor_actie){
+        if(!tekortEnKapot)delMetLog(req,'DELETE FROM nakijk_regels WHERE id=?',[kind.id],'nakijken: kapot deel vervalt');
+        else if((kind.kapot_aantal||0)!==kapot)updateMetLog(req,'nakijk_regels',kind.id,{kapot_aantal:kapot,kantoor_aantal:kapot},'nakijken: kapot deel');
+      }
+    });
+  }
   function _detail(km,bak,sessie){
     const loc=_locNaam(km.locatie_id),kvNaam=_kvNaam(km);
     const kvP=km.kv_persoon_id?get('SELECT telefoon FROM personeel WHERE id=?',[km.kv_persoon_id]):null;
@@ -165,10 +185,7 @@ module.exports = function(ctx){
         const r=regels.find(x=>x.item_id===it.id);
         const afw=_afwijking(r,it.qty);
         const aantal=afw==='tekort'?it.qty-r.aangetroffen:afw==='te_veel'?r.aangetroffen-it.qty:afw==='kapot'?(r.kapot_aantal||0):0;
-        let opties=ACTIES[afw]||[];
-        // TF6 N3: tekort én kapot op één regel: alle acties van beide, elk met het aantal van zijn eigen deel.
-        const kapotN=r?(r.kapot_aantal||0):0;
-        if(afw==='tekort'&&kapotN>0)opties=[...ACTIES.tekort.map(([w,l])=>[w,l+(w==='aanvaarden'?'':' · '+aantal+' tekort')]),...ACTIES.kapot.filter(([w])=>w!=='aanvaarden').map(([w,l])=>[w,l+' · '+kapotN+' kapot'])];
+        const opties=ACTIES[afw]||[];
         // MOB2: voorraad van dit artikel (gsm toont "Rozenweg 40 · minimum 100" bij de regel)
         const vrd=it.item_type_id?all('SELECT l.name,s.qty,s.minimum FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? AND (s.qty>0 OR s.minimum>0) ORDER BY l.name',[it.item_type_id]):[];
         const voorraad_tekst=vrd.map(x=>`${x.name} ${Math.round(x.qty*100)/100}${x.minimum>0?' · minimum '+x.minimum:''}`).join(' · ');
@@ -179,6 +196,14 @@ module.exports = function(ctx){
           acties:opties.map(([waarde,label])=>({waarde,label}))};
       });
     }
+    // TF8 G4: het kapotte deel van een stuk met ook een tekort staat direct onder dat stuk, met een eigen actie en aantal.
+    if(sessie)all('SELECT * FROM nakijk_regels WHERE sessie_id=? AND deel_van IS NOT NULL ORDER BY id',[sessie.id]).forEach(r=>{
+      const n=r.kapot_aantal||0,kleur=items.findIndex(i=>i.regel_id===r.deel_van);
+      const e={regel_id:r.id,naam:r.item_naam,verwacht:0,aangetroffen:null,te_veel:0,kapot_aantal:n,notitie:r.notitie||'',foto_url:r.foto_path?'/uploads/'+r.foto_path:null,
+        afwijking:'kapot',kantoor_actie:r.kantoor_actie||'',kantoor_aantal:r.kantoor_aantal||n,kantoor_notitie:r.kantoor_notitie||'',aangevuld:r.aangevuld||0,tekort_status:r.tekort_status||'',aantal_afwijking:n,
+        herkomst:'kapot deel van dit stuk',voorraad_tekst:'',acties:ACTIES.kapot.map(([waarde,label])=>({waarde,label}))};
+      if(kleur>=0)items.splice(kleur+1,0,e);else items.push(e);
+    });
     // AV2: wat de aanvuller zelf meldde (kapot of weg) staat als extra regel met herkomst; kantoor beslist hier.
     if(sessie)all("SELECT * FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort<>'' ORDER BY id",[sessie.id]).forEach(r=>{
       const kapot=r.gemeld_soort==='kapot',n=r.kantoor_aantal||0;
@@ -266,6 +291,7 @@ module.exports = function(ctx){
     if(s.bak_type==='attribuut'){const a=get('SELECT * FROM attributen WHERE id=?',[s.attribuut_id]);bak=a?{...a,soort:'attribuut'}:null;}
     else bak=get('SELECT * FROM bakken WHERE id=?',[s.bak_type==='thema'?s.thema_bak_id:s.vaste_bak_id]);
     if(!bak)return res.status(404).json({error:'De bak van deze telling bestaat niet meer.'});
+    _zorgDeel(req,s);
     res.json(_detail(km,bak,s));
   });
   app.get('/api/nakijken/bak',alleenKantoor,(req,res)=>{
@@ -273,7 +299,8 @@ module.exports = function(ctx){
     if(!km)return res.status(404).json({error:'Kampmoment niet gevonden'});
     const bak=_bakUit(km,req.query.bak);
     if(!bak)return res.status(404).json({error:'Deze bak hoort niet bij dit kampmoment'});
-    res.json(_detail(km,bak,_sessieVan(km,bak)));
+    const s0=_sessieVan(km,bak);_zorgDeel(req,s0);
+    res.json(_detail(km,bak,s0));
   });
 
   app.put('/api/nakijken/regel/:id',alleenKantoor,(req,res)=>{
@@ -285,10 +312,7 @@ module.exports = function(ctx){
     // TF1 G14: zonder kantoor_aantal het afwijkingsaantal van de actie (zoals _afronden), niet stil 0.
     const AFW={bestellen:'tekort',uit_pool:'tekort',naar_pool:'te_veel',laten_staan:'te_veel',afschrijven_bestellen:'kapot',herstellen:'kapot'};
     const afwAantal=soort=>soort==='tekort'?Math.max(0,(r.verwacht||0)-(r.aangetroffen||0)):soort==='te_veel'?Math.max(0,(r.aangetroffen||0)-(r.verwacht||0)):soort==='kapot'?(r.kapot_aantal||0):0;
-    // TF6 N3: hoort de actie bij een ander deel van de regel (kapot terwijl er ook een tekort is), dan geldt het aantal van dat deel.
-    const eigenSoort=AFW[actie],hoofdSoort=_afwijking(r,r.verwacht||0);
-    const ander=b.kantoor_actie!==undefined&&actie&&eigenSoort&&r.aangetroffen!=null&&!r.gemeld_soort&&['tekort','kapot','te_veel'].includes(hoofdSoort)&&eigenSoort!==hoofdSoort&&(eigenSoort==='kapot'?(r.kapot_aantal||0)>0:eigenSoort==='tekort'&&hoofdSoort==='kapot'&&(r.verwacht||0)>(r.aangetroffen||0));
-    const aantal=ander?afwAantal(eigenSoort):b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
+    const aantal=b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
       :(b.kantoor_actie!==undefined&&actie?afwAantal(AFW[actie]||_afwijking(r,r.verwacht||0)):(r.kantoor_aantal||0));
     if(isNaN(aantal)||aantal<0)return res.status(400).json({error:'Het aantal moet 0 of meer zijn.'});
     const notitie=b.kantoor_notitie===undefined?(r.kantoor_notitie||''):String(b.kantoor_notitie||'').slice(0,500);
@@ -303,6 +327,7 @@ module.exports = function(ctx){
     if(s.bak_type==='attribuut')bak=get('SELECT * FROM attributen WHERE id=?',[s.attribuut_id]);
     else bak=get('SELECT * FROM bakken WHERE id=?',[s.bak_type==='thema'?s.thema_bak_id:s.vaste_bak_id]);
     const items=bak&&s.bak_type!=='attribuut'?_bakItems(bak):[];
+    _zorgDeel(req,s);
     let bestel=0,afschrijf=0,onbeslist=0;
     all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[s.id]).forEach(r=>{
       const it=items.find(x=>x.id===r.item_id);

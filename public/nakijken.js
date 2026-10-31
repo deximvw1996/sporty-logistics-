@@ -66,8 +66,9 @@
   function actieCel(it) {
     if (it.afwijking === 'klopt') return '<span class="pil groen">✓</span>';
     if (it.afwijking === 'niet_geteld' || !it.acties.length) return '<span class="not">—</span>';
-    var gekozen = it.kantoor_actie || it.acties[0].waarde, n = it.kantoor_aantal || it.aantal_afwijking;
-    return '<select data-act="actie" data-a="' + (it.regel_id || '') + '" data-n="' + esc(it.aantal_afwijking) + '" aria-label="Actie kantoor voor ' + esc(it.naam) + '"' + (it.regel_id ? '' : ' disabled') + '>' + it.acties.map(function (o) { return '<option value="' + esc(o.waarde) + '"' + (o.waarde === gekozen ? ' selected' : '') + '>' + esc(actieLabel(o.waarde, n)) + '</option>'; }).join('') + '</select>' + binnenCel(it);
+    var leeg = it.gemeld_door && !it.kantoor_actie; // TF8 G3: een gemelde regel zonder besluit toont geen actie die niet bewaard is
+    var gekozen = it.kantoor_actie || (leeg ? '' : it.acties[0].waarde), n = it.kantoor_aantal || it.aantal_afwijking;
+    return '<select data-act="actie" data-a="' + (it.regel_id || '') + '" data-n="' + esc(it.aantal_afwijking) + '" aria-label="Actie kantoor voor ' + esc(it.naam) + '"' + (it.regel_id ? '' : ' disabled') + '>' + (leeg ? '<option value="" selected>— kies een actie —</option>' : '') + it.acties.map(function (o) { return '<option value="' + esc(o.waarde) + '"' + (o.waarde === gekozen ? ' selected' : '') + '>' + esc(actieLabel(o.waarde, n)) + '</option>'; }).join('') + '</select>' + binnenCel(it);
   }
   // AF1: een bestelling is pas af te vinken in de aanvullijst als kantoor ze op "binnen" zet.
   function binnenCel(it) {
@@ -353,7 +354,7 @@
   });
   document.addEventListener('change', async function (e) {
     var el = e.target; if (el.getAttribute && el.getAttribute('data-act') === 'actie') {
-      var id = +el.getAttribute('data-a'); if (!id) return;
+      var id = +el.getAttribute('data-a'); if (!id || !el.value) return;
       var r = await aanroep('PUT', '/api/nakijken/regel/' + id, { kantoor_actie: el.value, kantoor_aantal: +el.getAttribute('data-n') || 0 });
       if (!r.ok) { toast(r.json.error || 'Opslaan mislukt', 'error'); await laadDetail(ST.open); return; }
       toast('✓ Opgeslagen', 'success'); await laadDetail(ST.open);
