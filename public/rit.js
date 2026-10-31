@@ -493,6 +493,7 @@
     root.addEventListener('popstate', function () { var h = /^#stop-(\d+)/.exec(root.location.hash || ''), hb = /^#blok-([\w:]+)/.exec(root.location.hash || ''); var st0 = app.staat(); st0.sheet = null; st0.laatste = null; if (h) { st0.scherm = 'stop'; st0.taakId = +h[1]; } else if (hb) { st0.scherm = 'blok'; st0.taakId = hb[1]; } else { st0.scherm = 'dag'; st0.taakId = null; } app.ververs(); });
     setInterval(function () { if (!document.hidden) app.ververs(); }, 30000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) app.ververs(); });
+    root.addEventListener('testklok-wissel', function () { app.ververs(); }); // TK1
     var m = /^#stop-(\d+)/.exec(root.location.hash || ''), mb = /^#blok-([\w:]+)/.exec(root.location.hash || ''); // TF7 G8
     app.laad().then(function () { if (m) app.ga('stop', +m[1]); else if (mb) app.ga('blok', mb[1]); });
   }
