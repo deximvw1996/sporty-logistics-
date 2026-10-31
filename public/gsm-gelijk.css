@@ -15,6 +15,7 @@
   .gsm-scroll{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
   .gsm-scroll.gsm-eind{-webkit-mask-image:none;mask-image:none}
   /* aanraakmaat */
+  body.heeft-tabs button:not(.x),body.heeft-tabs .knop,body.heeft-tabs .chip,body.heeft-tabs input[type=search],body.heeft-tabs input[type=text],body.heeft-tabs input[type=number],body.heeft-tabs input[type=time],body.heeft-tabs input[type=date]{min-height:44px}
   .frame button:not(.x),.frame select,.frame .chip,.frame .tab,.frame .dagknop,.frame .dag{min-height:44px}
   .frame a:not(.logo){min-height:44px;display:inline-flex;align-items:center}
   .frame input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]),.frame textarea{min-height:44px}
