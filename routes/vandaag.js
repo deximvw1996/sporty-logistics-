@@ -275,7 +275,7 @@ module.exports = function(ctx){
       });
       const lijst=_roep('/api/aanvullijst',{datum},req);
       const basis={mijn:true,gebruiker:{naam:req.persoon.naam,rol:req.persoon.rol},datum,datum_tekst:datumLang(datum),
-        ritten_vandaag:rit(datum),ritten_morgen:rit(plus(datum,1)),aanvullen:{open:lijst&&lijst.tellers?lijst.tellers.totaal:0,bakken:lijst&&lijst.tellers?lijst.tellers.bakken:0}};
+        ritten_vandaag:rit(datum).sort((a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99'))),ritten_morgen:rit(plus(datum,1)).sort((a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99'))),aanvullen:{open:lijst&&lijst.tellers?lijst.tellers.totaal:0,bakken:lijst&&lijst.tellers?lijst.tellers.bakken:0}};
       return res.json({...basis,...gsmVandaag(req,basis,datum)});
     }
     return alleenKantoor(req,res,()=>res.json(vandaagData(req)));

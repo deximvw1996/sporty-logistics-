@@ -68,8 +68,8 @@ try {
   const app = RP.createApp({ token: r1.token, fetch: (u, o) => fetch(srv.base + u, o), toast: (t, g, a) => toasts.push({ t, a }), mount: (h) => { html = h; } });
   await app.laad();
   await app.klik('laden', String(ids[0]));
-  T.check(/Staat al op geladen/.test(toasts.at(-1).t) && toasts.at(-1).a.label === 'Ongedaan maken', 'tweede tik: toast met zichtbaar Ongedaan maken');
-  await toasts.at(-1).a.doe();
+  T.check(/Staat al op geladen/.test(app.staat().laatste.tekst) && /Laatste actie ongedaan maken/.test(html), 'TF7: tweede tik: balk met zichtbaar Ongedaan maken');
+  await app.klik('laatste-undo');
   T.check(!app.data().stops[0].regels.find((r) => r.check_id === ids[0]).geladen, 'Ongedaan maken werkt');
   await app.klik('lossen', String(ids[0]));
   T.check(app.staat().sheet && app.staat().sheet.type === 'toch' && /Toch lossen/.test(html), 'lossen vóór laden: venster met knop Toch lossen');
@@ -84,7 +84,7 @@ try {
   await A('POST', '/api/transport-taken', { type: 'levering', datum: DAG, tijd: '10:30', van_locatie_id: R, naar_locatie_id: AB, rit_id: r1.id, regels: [{ naam: 'Extra', qty: 1 }] });
   app.klik('probleem-open', String(r1.taak)); app.zet('tekst', 'lopend werk');
   await app.ververs();
-  T.check(app.data().stops.length === n0 + 1 && app.staat().balk.includes('stop toegevoegd'), 'verversen ziet de nieuwe stop');
+  T.check(app.data().stops.length === n0 + 1 && /stop toegevoegd/.test(app.staat().balk), 'verversen ziet de nieuwe stop');
   T.check(app.staat().sheet && app.staat().sheet.tekst === 'lopend werk', 'lopend werk gaat niet verloren');
   await app.klik('sluit');
   T.check(/Kantoor wijzigde deze rit: stop toegevoegd/.test(html), 'zichtbare balk');

@@ -596,6 +596,8 @@ module.exports = function(ctx){
       if(rit&&rit.status==='gedaan')updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[taak.rit_id]);}
     return {taak:get('SELECT * FROM transport_taken WHERE id=?',[taakId])};
   }
+  const _stopN=t=>_locNaamT(t.type==='ophaling'?(t.van_locatie_id||t.naar_locatie_id):(t.naar_locatie_id||t.van_locatie_id));
+  const _locNaamT=id=>(id?get('SELECT name FROM locaties WHERE id=?',[id])||{}:{}).name||'stockage';
   // TB1: ÉÉN ontkoppel-functie voor alle wegen (ritplanning ✕, taken bulk, PUT /rit met null): datum en tijd blijven staan
   // (de taak komt terug in "open" op dezelfde dag) en wat al geladen is, houdt de taak op zijn rit (409). Controleert enkel; schrijft niet.
   function _ontkoppelFout(t){
@@ -618,7 +620,7 @@ module.exports = function(ctx){
     if(!Array.isArray(ids)||!ids.length)return res.status(400).json({error:'ids vereist'});
     const taken=ids.map(id=>get('SELECT * FROM transport_taken WHERE id=?',[id])).filter(Boolean);
     for(const t of taken){const f=_ontkoppelFout(t);if(f)return res.status(409).json({error:f});}
-    taken.forEach(t=>{const van=t.rit_id;_ontkoppelTaak(req,t,'bulk-ontkoppel');if(van&&ctx.meldRitGewijzigd)ctx.meldRitGewijzigd(req,van,'stop van de rit gehaald');}); // TF3
+    taken.forEach(t=>{const van=t.rit_id;_ontkoppelTaak(req,t,'bulk-ontkoppel');if(van&&ctx.meldRitGewijzigd)ctx.meldRitGewijzigd(req,van,'stop weggehaald: '+_stopN(t));}); // TF3
     res.json({ok:true,count:taken.length});
   });
   // Koppel een taak aan een rit (getal), of ontkoppel (null). (Verhuisd uit locaties.js; ontkoppelen wist geen datum meer.)
@@ -629,7 +631,7 @@ module.exports = function(ctx){
     if(rit_id===null||rit_id===undefined||rit_id===''){
       const r=_ontkoppelTaak(req,t,'taak-rit');
       if(r.fout)return res.status(r.status).json({error:r.fout});
-      if(t.rit_id&&ctx.meldRitGewijzigd)ctx.meldRitGewijzigd(req,t.rit_id,'stop van de rit gehaald'); // TF3
+      if(t.rit_id&&ctx.meldRitGewijzigd)ctx.meldRitGewijzigd(req,t.rit_id,'stop weggehaald: '+_stopN(t)); // TF3
     } else {
       const rit=get('SELECT * FROM transport_ritten WHERE id=?',[rit_id]);
       if(!rit) return res.status(404).json({error:'Rit niet gevonden'});
@@ -642,7 +644,7 @@ module.exports = function(ctx){
       if(req.body.volgorde){const ids=_takenVanRit(rit.id).map(x=>x.id).filter(x=>x!==t.id);ids.splice(Math.max(0,parseInt(req.body.volgorde)-1),0,t.id);_zetVolgorde(req,rit.id,ids,ctxt,false);}
       _stoptijdenNaarVertrek(req,rit.id,ctxt); // TF1 G6: "→ aan rit" in de Ritplanning
       _syncChecksRit(parseInt(rit_id));if(vanRit)_syncChecksRit(vanRit);
-      if(ctx.meldRitGewijzigd){const zelfde=String(vanRit||'')===String(rit_id);ctx.meldRitGewijzigd(req,rit.id,zelfde?'volgorde van de stops aangepast':'stop toegevoegd');if(vanRit&&!zelfde)ctx.meldRitGewijzigd(req,vanRit,'stop van de rit gehaald');} // TF3
+      if(ctx.meldRitGewijzigd){const zelfde=String(vanRit||'')===String(rit_id);ctx.meldRitGewijzigd(req,rit.id,zelfde?'volgorde van de stops aangepast':'stop toegevoegd: '+_stopN(t));if(vanRit&&!zelfde)ctx.meldRitGewijzigd(req,vanRit,'stop weggehaald: '+_stopN(t));} // TF3
     }
     const taak=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);
     const regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[req.params.id]);
@@ -658,7 +660,7 @@ module.exports = function(ctx){
       const van=(get('SELECT rit_id FROM transport_taken WHERE id=?',[id])||{}).rit_id;
       updateMetLog(req,'UPDATE transport_taken SET rit_id=?,datum=?,wie=? WHERE id=?',
         [rit_id||null,rit?rit.datum:'',rit?rit.chauffeur:'',id]);
-      if(ctx.meldRitGewijzigd){if(van&&String(van)!==String(rit_id||''))ctx.meldRitGewijzigd(req,van,'stop van de rit gehaald');if(rit&&String(van||'')!==String(rit_id))ctx.meldRitGewijzigd(req,rit.id,'stop toegevoegd');} // TF3
+      if(ctx.meldRitGewijzigd){if(van&&String(van)!==String(rit_id||''))ctx.meldRitGewijzigd(req,van,'stop weggehaald: '+_stopN(t));if(rit&&String(van||'')!==String(rit_id))ctx.meldRitGewijzigd(req,rit.id,'stop toegevoegd: '+_stopN(t));} // TF3
     });
     if(rit)_stoptijdenNaarVertrek(req,rit.id); // TF1 G6
     res.json({ok:true,count:ids.length});
@@ -1369,6 +1371,19 @@ module.exports = function(ctx){
   function _zetGelost(req,rit,check,gezet,toch){
     const nieuw=(gezet===undefined?!check.gelost:!!gezet)?1:0;
     if(nieuw===(check.gelost?1:0))return {check};
+    // TF7 G3: gelost terugzetten op een afgeronde stop: _zetTaakTerug draait bakken en bulk terug, daarna krijgen de regels hun stand terug en staat de stop op aangekomen, de rit op onderweg.
+    if(!nieuw&&check.taak_id){
+      const tk=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
+      if(tk&&tk.status==='gedaan'){
+        const stand=all('SELECT * FROM verhuis_checks WHERE taak_id=?',[tk.id]);
+        const tz=_zetTaakTerug(req,tk.id);if(tz.fout)return {fout:tz.fout,status:tz.status};
+        stand.forEach(c=>updateMetLog(req,'UPDATE verhuis_checks SET geladen=?,geladen_door=?,geladen_op=?,gelost=?,gelost_door=?,gelost_op=? WHERE id=?',[c.geladen,c.geladen_door||'',c.geladen_op||'',c.id===check.id?0:c.gelost,c.id===check.id?'':(c.gelost_door||''),c.id===check.id?'':(c.gelost_op||''),c.id],'rit-link: ongedaan'));
+        updateMetLog(req,"UPDATE transport_taken SET status='aangekomen' WHERE id=?",[tk.id],'rit-link: ongedaan');
+        const g2=all('SELECT * FROM verhuis_checks WHERE taak_id=? AND (niet_mee_reden IS NULL OR rest_gesplitst=1)',[tk.id]);
+        if(g2.length&&g2.every(c=>c.geladen))_pasBakAttribuutStatusToe(g2,'onderweg',rit,req);
+        return {check:get('SELECT * FROM verhuis_checks WHERE id=?',[check.id])};
+      }
+    }
     if(nieuw&&check.niet_mee_reden&&!check.rest_gesplitst)return {fout:'Dit stuk staat op "niet mee": het is niet meegegaan. Draai dat eerst terug.',status:409,code:'niet_mee'};
     if(nieuw&&!check.geladen){
       if(!toch)return {fout:'Dit stuk staat nog niet op geladen.',status:409,code:'niet_geladen'};

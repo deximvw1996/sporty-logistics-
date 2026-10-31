@@ -32,6 +32,7 @@
   function kopSub(data) {
     var r = data.rit, v = data.voortgang;
     var delen = [r.chauffeur, r.voertuig].filter(Boolean);
+    if (r.vertrek) delen.push('vertrek ' + r.vertrek);
     delen.push(v.stops + ' ' + (v.stops === 1 ? 'stop' : 'stops'));
     var st = data.stops || [], tot = st.reduce(function (a, s) { return a + meeStuks(s); }, 0), gel = st.reduce(function (a, s) { return a + s.regels.filter(function (r) { return !isNietMee(r); }).reduce(function (b, r) { return b + eenheden(r); }, 0); }, 0);
     if (!st.length) { tot = v.stuks; gel = v.geladen; }
@@ -43,8 +44,13 @@
     return '<span class="pil' + cls + '">' + esc(String(status || '').toUpperCase()) + '</span>';
   }
 
+  // TF7: vroeger mag; alleen een kleine tekst.
+  function geplandTekst(data) {
+    var n = new Date(), v = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+    return data.rit && data.rit.datum > v ? '<div class="gepland">gepland voor ' + datumKort(data.rit.datum) + '</div>' : '';
+  }
   // ── Dag-scherm ──
-  function dagHtml(data) {
+  function dagHtml(data, st0) {
     var stops = data.stops, huidig = data.voortgang.huidige_stop;
     var tl = stops.map(function (s, i) {
       var klaar = s.status === 'gedaan', nu = s.volgorde === huidig && !klaar;
@@ -63,17 +69,17 @@
     }).join('');
     var vasten = stops.filter(function (s) { return s.slot !== 'vrij'; }), heeftVrij = stops.some(function (s) { return s.slot === 'vrij'; });
     var uitleg = !stops.length ? '<div class="uitleg leeg">Geen stops gepland.</div>'
-      : heeftVrij ? '<div class="uitleg">▲▼ wisselt alleen met een aangrenzende vrije stop' + (vasten.length ? ' · ' + esc(vasten.map(stopNaam).join(', ')) + (vasten.length === 1 ? ' staat' : ' staan') + ' vast door kantoor' : '') + '</div>' : '';
+      : heeftVrij ? '<div class="uitleg">▲▼ wisselt met een aangrenzende vrije stop; de stop neemt dan het uur van zijn nieuwe plaats over' + (vasten.length ? ' · ' + esc(vasten.map(stopNaam).join(', ')) + (vasten.length === 1 ? ' staat' : ' staan') + ' vast door kantoor' : '') + '</div>' : '';
     var h = stops.filter(function (s) { return s.volgorde === huidig && s.status !== 'gedaan'; })[0];
     var nr = h ? stops.indexOf(h) + 1 : 0;
     var prim = h ? '<button type="button" class="prim" data-act="stop" data-a="' + h.taak_id + '">Open stop ' + nr + ': ' + esc(stopNaam(h)) + ' →</button>'
       : '<button type="button" disabled>' + (stops.length ? 'Rit afgerond ✓' : 'Geen stops') + '</button>';
     var probleemStop = h || stops[0];
-    var laad = laadRegels(data), los = losRegels(data), blok = '';
-    if (laad.regels.length && laad.open) blok += '<button type="button" class="blokknop" data-act="blok" data-a="laden">📦 Laden in ' + esc(laad.plek) + ' · ' + laad.gedaan + ' van ' + laad.totaal + '</button>';
+    var los = losRegels(data), blok = '';
+    laadBlokken(data).forEach(function (b) { if (b.regels.length && b.open) blok += '<button type="button" class="blokknop" data-act="blok" data-a="' + b.sleutel + '">📦 Laden in ' + esc(b.plek) + ' · ' + b.gedaan + ' van ' + stuksWoord(b.totaal) + '</button>'; });
     if (los.regels.length) blok += '<button type="button" class="blokknop licht" data-act="blok" data-a="lossen">📥 Lossen in ' + esc(los.plek) + ' · ' + los.regels.length + ' nog te lossen</button>';
     var einde = stops.length && !h ? '<div class="einde"><h2>✓ Rit afgerond</h2><div>' + stops.length + (stops.length === 1 ? ' stop' : ' stops') + ' · ' + stuksWoord(stops.reduce(function (a, x) { return a + meeStuks(x); }, 0)) + '</div><a href="/vandaag">Terug naar Vandaag</a></div>' : '';
-    return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span>' + pilRit(data.rit.status) + '</div><div class="s">' + esc(kopSub(data)) + '</div>' + (data.kantoor && data.kantoor.telefoon ? '<a class="belkantoor" href="tel:' + esc(data.kantoor.telefoon.replace(/[^+0-9]/g, '')) + '" style="display:inline-flex;align-items:center;min-height:44px;font-weight:700;color:#1d4ed8">📞 Bel kantoor · ' + esc(data.kantoor.telefoon) + '</a>' : '') + meldTeller(data) + '</div>' + einde + blok
+    return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span>' + pilRit(data.rit.status) + '</div><div class="s">' + esc(kopSub(data)) + '</div>' + (data.kantoor && data.kantoor.telefoon ? '<a class="belkantoor" href="tel:' + esc(data.kantoor.telefoon.replace(/[^+0-9]/g, '')) + '" style="display:inline-flex;align-items:center;min-height:44px;font-weight:700">📞 Bel kantoor · ' + esc(data.kantoor.telefoon) + '</a>' : '') + meldTeller(data) + '</div>' + (st0 && st0.balkLaatste || '') + geplandTekst(data) + einde + blok
       + '<div class="legenda"><span>🔒 <b>vast</b> door kantoor</span><span>▲▼ <b>vrij</b>: wissel van plaats</span></div>'
       + '<div class="tl">' + tl + '</div>' + uitleg + '<div style="height:12px"></div></div>'
       + '<div class="nav"><button type="button" class="rood" data-act="probleem-open" data-a="' + (probleemStop ? probleemStop.taak_id : '') + '" aria-label="Probleem melden"' + (probleemStop ? '' : ' disabled') + '>⚠</button>' + prim + '</div>';
@@ -81,37 +87,48 @@
 
   function meldTeller(data) { return data.meldingen_ongelezen ? '<a class="belmeld" href="/meldingen">🔔 ' + data.meldingen_ongelezen + ' ' + (data.meldingen_ongelezen === 1 ? 'melding' : 'meldingen') + '</a>' : ''; }
   // TF5 G9: één blok over alle stops: eerst laden in de stockage, bij een ophaling op het einde lossen in de stockage.
-  function laadRegels(data) {
-    var st = data.stops.filter(function (s) { return s.type !== 'ophaling' && s.status !== 'gedaan'; }), regels = [];
-    st.forEach(function (s) { s.regels.forEach(function (r) { if (!r.gelost) regels.push(r); }); });
-    var som = function (l) { return l.reduce(function (n, r) { return n + (r.qty || 1); }, 0); }, gedaan = som(regels.filter(function (r) { return r.geladen || isNietMee(r); })), totaal = som(regels);
-    return { regels: regels, gedaan: gedaan, totaal: totaal, open: totaal - gedaan, plek: st[0] && st[0].van && st[0].van.naam || 'de stockage' };
+  // TF7 N2: per echte plaats: een set op een kamp staat niet onder de Rozenweg. Eén telling: niet-mee telt niet, wat al gelost is telt als geladen.
+  function stuksVan(l) { return l.reduce(function (n, r) { return n + (r.qty || 1); }, 0); }
+  function laadBlokken(data) {
+    var uit = [];
+    data.stops.filter(function (s) { return s.type !== 'ophaling'; }).forEach(function (s) {
+      var id = s.van && s.van.id || 0, b = uit.filter(function (x) { return x.id === id; })[0];
+      if (!b) { b = { id: id, plek: s.van && s.van.naam || 'de stockage', regels: [] }; uit.push(b); }
+      s.regels.forEach(function (r) { if (isNietMee(r)) return; var c = {}; Object.keys(r).forEach(function (k) { c[k] = r[k]; }); c.voor = stopNaam(s); b.regels.push(c); });
+    });
+    uit.forEach(function (b) { b.totaal = stuksVan(b.regels); b.gedaan = stuksVan(b.regels.filter(function (r) { return r.geladen; })); b.open = b.totaal - b.gedaan; b.sleutel = 'laden:' + b.id; });
+    return uit;
   }
+  function laadRegels(data) { return laadBlokken(data)[0] || { regels: [], gedaan: 0, totaal: 0, open: 0, plek: 'de stockage' }; }
   function losRegels(data) {
     var st = data.stops.filter(function (s) { return s.type === 'ophaling'; }), regels = [];
     st.forEach(function (s) { s.regels.forEach(function (r) { if (r.geladen && !r.gelost && !isNietMee(r)) regels.push(r); }); });
     return { regels: regels, plek: st[0] && st[0].naar && st[0].naar.naam || 'de stockage' };
   }
-  function allesKnop(actie, regels, label) {
+  function telling(regels, stuks) { return regels + (regels === 1 ? ' regel' : ' regels') + ' · ' + stuks + (stuks === 1 ? ' stuk' : ' stuks'); }
+  function allesKnop(actie, regels, label, kl) {
     var ids = regels.filter(function (r) { return !isNietMee(r) && (actie === 'laden' ? !r.geladen : r.geladen && !r.gelost); }).map(function (r) { return r.check_id; });
-    return ids.length ? '<button type="button" class="alles" data-act="alles-open" data-a="' + actie + '" data-b="' + ids.join(',') + '">' + label + ' (' + ids.length + ')</button>' : '';
+    var n = regels.filter(function (r) { return ids.indexOf(r.check_id) >= 0; });
+    return ids.length ? '<button type="button" class="' + (kl || 'alles') + '" data-act="alles-open" data-a="' + actie + '" data-b="' + ids.join(',') + '">' + label + ' (' + telling(ids.length, stuksVan(n)) + ')</button>' : '';
   }
-  function blokHtml(data, actie) {
-    var b = actie === 'laden' ? laadRegels(data) : losRegels(data);
+  function blokHtml(data, sleutel, st0) {
+    var actie = /^laden/.test(sleutel) ? 'laden' : 'lossen';
+    var b = actie === 'lossen' ? losRegels(data) : (laadBlokken(data).filter(function (x) { return x.sleutel === sleutel; })[0] || laadRegels(data));
     var groepen = rekGroepen(b.regels).map(function (g) {
       return '<div class="rek"><span>' + esc(g.naam) + '</span>' + allesKnop(actie, g.regels, actie === 'laden' ? 'Alles geladen' : 'Alles gelost') + '</div>' + combineer(g.regels).map(function (r) { return stukHtml(r, actie); }).join('');
     }).join('') || '<div class="uitleg leeg">Niets meer te doen hier.</div>';
-    return '<div class="scherm"><div class="kop"><div class="t"><button type="button" class="terug" data-act="dag">← Dag</button><span class="pil">' + (actie === 'laden' ? 'LADEN' : 'LOSSEN') + '</span></div><div class="s">' + (actie === 'laden' ? 'Laden in ' : 'Lossen in ') + esc(b.plek) + ' · alle stops samen</div></div>'
-      + groepen + '<div style="height:12px"></div></div><div class="nav"><button type="button" class="prim" data-act="dag">Klaar, naar de rit</button></div>';
+    return '<div class="scherm"><div class="kop"><div class="t"><button type="button" class="terug" data-act="dag">← Dag</button><span class="pil">' + (actie === 'laden' ? 'LADEN' : 'LOSSEN') + '</span></div><div class="s">' + (actie === 'laden' ? 'Laden in ' : 'Lossen in ') + esc(b.plek) + ' · alle stops samen' + (actie === 'laden' ? ' · ' + b.gedaan + ' van ' + b.totaal + ' stuks geladen' : '') + '</div></div>'
+      + (st0 && st0.balkLaatste || '') + geplandTekst(data) + allesKnop(actie, b.regels, actie === 'laden' ? 'Alles geladen' : 'Alles gelost', 'blokknop alleskop') + groepen + '<div style="height:12px"></div></div><div class="nav"><button type="button" class="prim" data-act="dag">Klaar, naar de rit</button></div>';
   }
   // TF5 G15: dezelfde losse regel meermaals in één lijst staat als één rij; een bak blijft altijd apart.
   function combineer(regels) {
     var uit = [], bij = {};
     regels.forEach(function (r) {
-      var k = !r.bak_id || r.is_bulk ? r.naam + '|' + (r.code || '') + '|' + !!r.geladen + '|' + !!r.gelost : '';
+      var kaal = String(r.naam || '').replace(/^\s*\d+\s*[×x]\s*/i, ''); // TF7 G6: de naam zonder het aantal van de eerste regel
+      var k = !r.bak_id || r.is_bulk ? kaal + '|' + (r.code || '') + '|' + !!r.geladen + '|' + !!r.gelost : '';
       if (!k || isNietMee(r) || isGesplitst(r)) { uit.push(r); return; }
       if (bij[k]) { bij[k].qty += r.qty || 1; bij[k].ids.push(r.check_id); if (bij[k].aantal_geladen != null) bij[k].aantal_geladen += r.aantal_geladen || 0; return; }
-      var c = {}; Object.keys(r).forEach(function (x) { c[x] = r[x]; }); c.ids = [r.check_id]; bij[k] = c; uit.push(c);
+      var c = {}; Object.keys(r).forEach(function (x) { c[x] = r[x]; }); c.ids = [r.check_id]; c.naam = kaal; bij[k] = c; uit.push(c);
     });
     return uit;
   }
@@ -142,12 +159,12 @@
     var k1 = nietMee ? '<button type="button" class="k rood" data-act="nietmee-terug" data-a="' + r.check_id + '" aria-label="Terugdraaien"><span>✕</span>' + esc(REDEN_TEKST[r.niet_mee.reden] || 'niet mee') + '</button>'
       : '<button type="button" class="k' + (r.geladen ? ' aan' : '') + '" data-act="laden" data-a="' + (r.ids ? r.ids.join(',') : r.check_id) + '"><span>' + (r.geladen ? (r.is_bulk ? eenheden(r) : '✓') : '↑') + '</span>' + (r.geladen ? 'geladen' : 'laden') + '</button>';
     var k2 = '<button type="button" class="k' + (r.gelost ? ' aan' : '') + '" data-act="lossen" data-a="' + (r.ids ? r.ids.join(',') : r.check_id) + '"><span>' + (r.gelost ? '✓' : '↓') + '</span>' + (r.gelost ? 'gelost' : 'lossen') + '</button>';
-    return '<div class="stuk' + (nietMee ? ' past' : '') + '">' + ph + '<div class="nm">' + esc(nm) + '<b>' + sub + '</b>' + melding + (nietMee || r.geladen || modus === 'lossen' ? '' : '<button type="button" class="pn" data-act="nietmee-open" data-a="' + r.check_id + '">Past niet / niet gevonden</button>') + '</div>' + (modus === 'lossen' ? '' : k1) + (modus === 'laden' || nietMee ? '' : k2) + '</div>';
+    return '<div class="stuk' + (nietMee ? ' past' : '') + '">' + ph + '<div class="nm">' + esc(nm) + '<b>' + sub + '</b>' + (r.voor ? '<span class="voor">voor ' + esc(r.voor) + '</span>' : '') + melding + (nietMee || r.geladen || modus === 'lossen' ? '' : '<button type="button" class="pn" data-act="nietmee-open" data-a="' + r.check_id + '">Past niet / niet gevonden</button>') + '</div>' + (modus === 'lossen' ? '' : k1) + (modus === 'laden' || nietMee ? '' : k2) + '</div>';
   }
-  function stopHtml(data, taakId) {
+  function stopHtml(data, taakId, st0) {
     var idx = -1;
     data.stops.forEach(function (s, i) { if (s.taak_id === taakId) idx = i; });
-    if (idx < 0) return dagHtml(data);
+    if (idx < 0) return dagHtml(data, st0);
     var s = data.stops[idx], r = data.rit, n = data.stops.length;
     var sub = [r.chauffeur, r.voertuig].filter(Boolean);
     var soort = soortLabel(s).replace(/^./, function (c) { return c.toUpperCase(); }) + (s.tijd ? ' · ' + esc(s.tijd) : '') + ' · ' + (s.slot === 'vrij' ? '↕ vrij' : '🔒 vast');
@@ -174,7 +191,7 @@
       : '<button type="button" class="prim" data-act="dag">Terug naar dag</button>';
     return '<div class="scherm"><div class="kop"><div class="t"><button type="button" class="terug" data-act="dag">← Dag</button><span class="pil">STOP ' + (idx + 1) + ' VAN ' + n + '</span></div>'
       + '<div class="s">Rit ' + datumKort(r.datum) + (sub.length ? ' · ' + esc(sub.join(' · ')) : '') + '</div></div>'
-      + kaart + groot + (function () { var k = allesKnop('lossen', s.regels, 'Alles gelost'); return k ? '<div class="rek"><span>Deze stop</span>' + k + '</div>' : ''; })() + groepen + '<div style="height:12px"></div></div>'
+      + (st0 && st0.balkLaatste || '') + geplandTekst(data) + kaart + groot + (function () { var k = allesKnop('lossen', s.regels, 'Alles gelost'); return k ? '<div class="rek"><span>Deze stop</span>' + k + '</div>' : ''; })() + groepen + '<div style="height:12px"></div></div>'
       + '<div class="nav"><button type="button" class="rood" data-act="probleem-open" data-a="' + s.taak_id + '" aria-label="Probleem melden">⚠</button>'
       + prim + '</div>';
   }
@@ -220,13 +237,15 @@
       + '<div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="prim" data-act="probleem-ok"' + (sheet.bezig ? ' disabled' : '') + '>Versturen</button></div></div></div>';
   }
   function schermHtml(data, st) {
-    if (data.niet_klaargezet) return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span></div></div><div class="uitleg leeg" style="padding:24px;font-size:16px">Deze rit is nog niet klaargezet. Kantoor werkt er nog aan; je krijgt een melding zodra ze klaarstaat.</div></div>';
-    var basis = st.scherm === 'stop' ? stopHtml(data, st.taakId) : st.scherm === 'blok' ? blokHtml(data, st.taakId) : dagHtml(data);
+    if (data.niet_klaargezet) return '<div class="scherm"><div class="kop"><div class="t"><span>Rit ' + datumKort(data.rit.datum) + '</span></div></div><div class="uitleg leeg" style="padding:24px;font-size:16px">Deze rit is nog niet klaargezet. Kantoor werkt er nog aan; je krijgt een melding zodra ze klaarstaat.<br><a class="knop" href="/vandaag" style="display:inline-flex;align-items:center;min-height:44px;margin-top:12px;padding:0 14px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;text-decoration:none">Naar Vandaag</a></div></div>';
+    // TF7 G7: de laatste actie blijft boven aan het scherm ongedaan te maken tot de volgende actie of tot je weggaat; geen toast over de regels.
+    var st1 = { balkLaatste: st.laatste ? '<div class="laatste"><span>' + esc(st.laatste.tekst) + '</span><button type="button" data-act="laatste-undo">Laatste actie ongedaan maken</button></div>' : '' };
+    var basis = st.scherm === 'stop' ? stopHtml(data, st.taakId, st1) : st.scherm === 'blok' ? blokHtml(data, st.taakId, st1) : dagHtml(data, st1);
     if (st.balk) basis = '<div class="wijzig"><span style="flex:1">Kantoor wijzigde deze rit: ' + esc(st.balk) + '</span><button type="button" data-act="balk-weg" aria-label="Sluiten">✕</button></div>' + basis;
     var sheet = '';
     if (st.sheet && st.sheet.type === 'nietmee') sheet = pastNietHtml(data, st.sheet);
     else if (st.sheet && st.sheet.type === 'probleem') sheet = probleemHtml(data, st.sheet);
-    else if (st.sheet && st.sheet.type === 'alles') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (st.sheet.actie === 'laden' ? 'Alles geladen' : 'Alles gelost') + ': ' + stuksWoord(st.sheet.stuks) + '?</h3><p>Wat op "past niet" staat, slaat dit over. Je kan het daarna ongedaan maken.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="prim" data-act="alles-ok">Ja, ' + st.sheet.stuks + (st.sheet.actie === 'laden' ? ' geladen' : ' gelost') + '</button></div></div></div>';
+    else if (st.sheet && st.sheet.type === 'alles') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (st.sheet.actie === 'laden' ? 'Alles geladen' : 'Alles gelost') + ': ' + telling(st.sheet.ids.length, st.sheet.stuks) + '?</h3><p>Wat op "past niet" staat, slaat dit over. Je kan het daarna ongedaan maken.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="prim" data-act="alles-ok">Ja, ' + telling(st.sheet.ids.length, st.sheet.stuks) + '</button></div></div></div>';
     else if (st.sheet && st.sheet.type === 'toch') sheet = '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>Nog niet geladen</h3><p>Dit stuk staat nog niet op geladen. Toch lossen zet het op geladen én gelost.</p><div class="knoppen"><button type="button" data-act="sluit">Annuleren</button><button type="button" class="rood" data-act="toch-ok">Toch lossen</button></div></div></div>';
     return basis + sheet;
   }
@@ -235,8 +254,8 @@
   function verschil(o, n) {
     if (o.niet_klaargezet || n.niet_klaargezet || !o.rit || !n.rit) return [];
     var w = [], oi = o.stops.map(function (s) { return s.taak_id; }), ni = n.stops.map(function (s) { return s.taak_id; });
-    if (ni.some(function (x) { return oi.indexOf(x) < 0; })) w.push('stop toegevoegd');
-    if (oi.some(function (x) { return ni.indexOf(x) < 0; })) w.push('stop weggehaald');
+    n.stops.filter(function (x) { return oi.indexOf(x.taak_id) < 0; }).forEach(function (x) { w.push('stop toegevoegd: ' + stopNaam(x)); });
+    o.stops.filter(function (x) { return ni.indexOf(x.taak_id) < 0; }).forEach(function (x) { w.push('stop weggehaald: ' + stopNaam(x)); });
     if ((o.rit.voertuig || '') !== (n.rit.voertuig || '')) w.push('ander voertuig');
     if ((o.rit.chauffeur || '') !== (n.rit.chauffeur || '')) w.push('andere bestuurder');
     if ((o.rit.vertrek || '') !== (n.rit.vertrek || '') || (o.rit.datum || '') !== (n.rit.datum || '')) w.push('nieuwe vertrektijd');
@@ -298,8 +317,9 @@
         if (!st.sheet) teken();
       } catch (e) { /* geen verbinding: volgende keer opnieuw */ }
     }
-    function undo(actie, ids) { return function () { return (ids.length === 1 ? post('/checks/' + ids[0] + '/' + actie, { gezet: false }) : post('/alles', { actie: actie, check_ids: ids, gezet: false })).then(function (j) { if (j) { deps.toast('✓ Ongedaan gemaakt', true); return laad(); } }); }; }
-    function ga(scherm, taakId) { st.scherm = scherm; st.taakId = taakId || null; st.sheet = null; if (deps.onNav) deps.onNav(scherm, st.taakId); teken(); }
+    function undo(actie, ids) { return function () { return (ids.length === 1 ? post('/checks/' + ids[0] + '/' + actie, { gezet: false }) : post('/alles', { actie: actie, check_ids: ids, gezet: false })).then(function (j) { if (j) { st.laatste = null; deps.toast('✓ Ongedaan gemaakt', true); return laad(); } }); }; }
+    function onthoud(tekst, actie, ids) { st.laatste = { tekst: tekst, doe: undo(actie, ids) }; }
+    function ga(scherm, taakId) { st.laatste = null; if (deps.toastWeg) deps.toastWeg(); st.scherm = scherm; st.taakId = taakId || null; st.sheet = null; if (deps.onNav) deps.onNav(scherm, st.taakId); teken(); }
     async function klik(act, a, b) {
       var id = a === '' || a == null ? null : (isNaN(+a) ? a : +a);
       switch (act) {
@@ -319,11 +339,13 @@
           // TF5 G6: een tweede tik draait niet stil terug: toast met Ongedaan maken.
           var lijst = String(a).split(',').map(Number), f0 = vindRegel(data, lijst[0]);
           var alGezet = f0 && (act === 'laden' ? f0.regel.geladen : f0.regel.gelost);
-          if (alGezet) { deps.toast('Staat al op ' + (act === 'laden' ? 'geladen' : 'gelost'), true, { label: 'Ongedaan maken', doe: undo(act, lijst) }); return; }
+          if (alGezet) { onthoud('Staat al op ' + (act === 'laden' ? 'geladen' : 'gelost'), act, lijst); return teken(); }
+          st.laatste = null;
+          var voorAankomst = act === 'lossen' && f0 && f0.stop.status === 'gepland';
           var jl = lijst.length > 1 ? await post('/alles', { actie: act, check_ids: lijst }) : await post('/checks/' + lijst[0] + '/' + act, { gezet: true }, true);
           if (jl && jl._code === 'niet_geladen') { st.sheet = { type: 'toch', id: lijst[0] }; return teken(); }
           if (jl && jl._code) { deps.toast('Dit stuk staat op niet mee: draai dat eerst terug.', false); return; }
-          if (jl) { await laad(); }
+          if (jl) { onthoud(schoonNaam(f0.regel.naam, f0.regel.code) + (act === 'laden' ? ' geladen' : ' gelost'), act, lijst); await laad(); if (voorAankomst) deps.toast('Aankomst ook doorgegeven', true); }
           return;
         }
         case 'toch-ok': {
@@ -333,11 +355,18 @@
         }
         case 'blok': return ga('blok', a);
         case 'balk-weg': st.balk = ''; return teken();
+        case 'laatste-undo': if (st.laatste) await st.laatste.doe(); return;
         case 'alles-open': { var aIds = String(b).split(',').map(Number); st.sheet = { type: 'alles', actie: a, ids: aIds, stuks: aIds.reduce(function (n, x) { var v = vindRegel(data, x); return n + (v ? v.regel.qty || 1 : 0); }, 0) }; return teken(); }
         case 'alles-ok': {
           var al = st.sheet; st.sheet = null;
+          var vrk = al.actie === 'lossen' && al.ids.some(function (x) { var v = vindRegel(data, x); return v && v.stop.status === 'gepland'; });
           var ja2 = await post('/alles', { actie: al.actie, check_ids: al.ids });
-          if (ja2) { await laad(); deps.toast((al.actie === 'laden' ? 'Geladen: ' : 'Gelost: ') + stuksWoord(ja2.verwerkt.length) + (ja2.overgeslagen ? ' · ' + ja2.overgeslagen + ' overgeslagen' : '') + (ja2.fout ? ' · ' + ja2.fout : ''), !ja2.fout, ja2.verwerkt.length ? { label: 'Ongedaan maken', doe: undo(al.actie, ja2.verwerkt) } : null); } else teken();
+          if (ja2) {
+            var nS = ja2.verwerkt.reduce(function (n, x) { var v = vindRegel(data, x); return n + (v ? v.regel.qty || 1 : 0); }, 0);
+            var tks = (al.actie === 'laden' ? 'Geladen: ' : 'Gelost: ') + telling(ja2.verwerkt.length, nS) + (ja2.overgeslagen ? ' · ' + ja2.overgeslagen + ' overgeslagen' : '') + (ja2.fout ? ' · ' + ja2.fout : '');
+            st.laatste = null; if (ja2.verwerkt.length) onthoud(tks, al.actie, ja2.verwerkt);
+            await laad(); if (vrk) deps.toast('Aankomst ook doorgegeven', true); else if (ja2.fout) deps.toast(ja2.fout, false);
+          } else teken();
           return;
         }
         case 'nietmee-open': {
@@ -451,10 +480,10 @@
       if (el) { e.preventDefault(); el.click(); }
     });
     host.addEventListener('input', function (e) { var f = e.target.getAttribute && e.target.getAttribute('data-f'); if (f) app.zet(f, e.target.value); });
-    root.addEventListener('popstate', function () { var h = /^#stop-(\d+)/.exec(root.location.hash || ''); var st0 = app.staat(); st0.sheet = null; if (h) { st0.scherm = 'stop'; st0.taakId = +h[1]; } else { st0.scherm = 'dag'; st0.taakId = null; } app.ververs(); });
+    root.addEventListener('popstate', function () { var h = /^#stop-(\d+)/.exec(root.location.hash || ''), hb = /^#blok-([\w:]+)/.exec(root.location.hash || ''); var st0 = app.staat(); st0.sheet = null; st0.laatste = null; if (h) { st0.scherm = 'stop'; st0.taakId = +h[1]; } else if (hb) { st0.scherm = 'blok'; st0.taakId = hb[1]; } else { st0.scherm = 'dag'; st0.taakId = null; } app.ververs(); });
     setInterval(function () { if (!document.hidden) app.ververs(); }, 30000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) app.ververs(); });
-    var m = /^#stop-(\d+)/.exec(root.location.hash || '');
-    app.laad().then(function () { if (m) app.ga('stop', +m[1]); });
+    var m = /^#stop-(\d+)/.exec(root.location.hash || ''), mb = /^#blok-([\w:]+)/.exec(root.location.hash || ''); // TF7 G8
+    app.laad().then(function () { if (m) app.ga('stop', +m[1]); else if (mb) app.ga('blok', mb[1]); });
   }
 })(typeof window !== 'undefined' ? window : globalThis);

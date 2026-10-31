@@ -321,7 +321,7 @@
         }
         case 'opslaan': {
           var bk3 = vindBak(st.bakId); if (!bk3 || st.open == null || !st.draft) return;
-          var rij = { item_id: st.open, aangetroffen: st.draft.geteld, kapot_aantal: st.draft.kapot, notitie: st.draft.notitie };
+          var rij = { item_id: st.open, aangetroffen: st.draft.geteld, kapot_aantal: st.draft.kapot, notitie: (function () { var it0 = bk3.items.filter(function (i) { return i.id === st.open; })[0]; return it0 && st.draft.notitie === it0.notitie && st.draft.geteld !== it0.aangetroffen ? '' : st.draft.notitie; })() }; // TF7 N7
           if (st.draft.foto) rij.foto_data = st.draft.foto;
           st.bezig = true; teken();
           var ok = await stuur(bk3, [rij]);

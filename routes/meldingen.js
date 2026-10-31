@@ -42,8 +42,8 @@ module.exports = function(ctx){
     const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritOfId&&ritOfId.id||ritOfId]);
     if(!r||(r.klaarzet_status!=='klaar'&&r.status!=='onderweg')||['gedaan','geannuleerd'].includes(r.status))return; // TF5 G4: een gestarte rit krijgt altijd een melding
     const pid=pidVan(r);if(zelf(req,pid))return;
-    const prefix=`Rit #${r.id} `,recent=all('SELECT * FROM meldingen WHERE voor_persoon_id=? AND gelezen_op IS NULL ORDER BY id DESC LIMIT 20',[pid]).find(m=>m.tekst.startsWith(prefix)&&Date.now()-new Date(m.created_at).getTime()<SAMEN_MS);
-    const oud=recent&&recent.tekst.includes(' is gewijzigd: ')?recent.tekst.split(' is gewijzigd: ')[1].split(', '):[];
+    const prefix=`Rit #${r.id} `,recent=all('SELECT * FROM meldingen WHERE voor_persoon_id=? AND gelezen_op IS NULL ORDER BY id DESC LIMIT 20',[pid]).find(m=>m.tekst.startsWith(prefix)&&m.tekst.includes(' is gewijzigd: ')&&Date.now()-new Date(m.created_at).getTime()<SAMEN_MS);
+    const oud=recent?recent.tekst.split(' is gewijzigd: ')[1].split(', '):[];
     const tekst=`${ritKop(r)} is gewijzigd: ${[...new Set([...oud,wat])].join(', ')}`;
     try{
       if(recent)updateMetLog(req,'meldingen',recent.id,{tekst,created_at:isoNu()},'melding bijgewerkt');
@@ -53,7 +53,7 @@ module.exports = function(ctx){
   function ritKlaar(req,ritId){
     const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritId]);if(!r)return;
     const pid=pidVan(r);if(zelf(req,pid))return;
-    melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst:`${ritKop(r)} staat voor je klaar`,link:ritLink(r)});
+    melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst:`${ritKop(r)} ${all('SELECT id FROM meldingen WHERE voor_persoon_id=? AND tekst LIKE ?',[pid,`Rit #${r.id} %staat niet meer klaar%`]).length?'staat weer klaar':'staat voor je klaar'}`,link:ritLink(r)});
   }
   function ritNietKlaar(req,r){const pid=pidVan(r);if(!zelf(req,pid))melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst:`${ritKop(r)} staat niet meer klaar: kantoor past ze nog aan`,link:'/vandaag?tab=ritten'});}
   // Bestuurderswissel na klaarzetten: de oude én de nieuwe krijgen er één. Geeft true als er gewisseld is.
@@ -61,7 +61,7 @@ module.exports = function(ctx){
     const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritId]);if(!r)return false;
     const oud=pidVan(voor),nw=pidVan(r);
     if(oud===nw||(r.klaarzet_status!=='klaar'&&r.status!=='onderweg'))return false;
-    if(!zelf(req,oud))melding(req,{voor_persoon_id:oud,van_naam:'Kantoor',tekst:`${ritKop(r)} rijd je niet meer: een andere bestuurder neemt ze over`,link:'/vandaag?tab=ritten'});
+    if(!zelf(req,oud))melding(req,{voor_persoon_id:oud,van_naam:'Kantoor',tekst:`${ritKop(r)} rijd je niet meer: een andere bestuurder neemt ze over. ${(get('SELECT COUNT(*) AS n FROM verhuis_checks WHERE rit_id=? AND geladen=1 AND COALESCE(gelost,0)=0',[r.id])||{}).n?'Wat je al geladen hebt: zet het terug in de stockage of bel kantoor.':'Je hoeft niets meer te doen.'}`,link:'/vandaag?tab=ritten'});
     if(!zelf(req,nw))melding(req,{voor_persoon_id:nw,van_naam:'Kantoor',tekst:`${ritKop(r)} is aan jou toegewezen`,link:ritLink(r)});
     return true;
   }

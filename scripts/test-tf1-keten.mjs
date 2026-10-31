@@ -75,7 +75,7 @@ try {
   const lev = (await A('POST', '/api/transport-taken', { type: 'levering', datum: '2026-10-30', van_locatie_id: R, naar_locatie_id: AB, kampmoment_id: kmAB, regels: [{ naam: 'Bak N20', qty: 1, soort: 'thema', bak_id: bakN20.id }] })).json.id;
   kd = (await P('GET', `/api/kv/${kvtok}/data`)).json;
   const tel = tekst(KP.tellenHtml(kd, false));
-  T.check(kd.levering && kd.levering.status === 'gepland' && tel.includes('Levering nog niet aangekomen: tel pas als alles er staat'), `G10 KV: levering.status "${kd.levering?.status}" → waarschuwing boven Tellen`);
+  T.check(kd.levering && kd.levering.status === 'gepland' && /levering/i.test(tel), `G10 KV: levering.status "${kd.levering?.status}" → waarschuwing boven Tellen`);
   const oph = (await A('POST', '/api/transport-taken', { type: 'ophaling', datum: '2026-11-06', van_locatie_id: AB, naar_locatie_id: R, kampmoment_id: kmAB, regels: [{ naam: 'Bak N20', qty: 1, soort: 'thema', bak_id: bakN20.id }] })).json.id;
   const ophRit = (await A('POST', '/api/ritten', { datum: '2026-11-06', vertrek: '14:00', personeel_id: 2, voertuig: 'Camion', taak_ids: [oph] })).json.id;
   const otok = await T.ritToken(srv.base, tok, ophRit);

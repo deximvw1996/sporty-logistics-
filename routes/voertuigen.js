@@ -43,7 +43,7 @@ module.exports = function(ctx){
         if(a0==null||b0==null||(a0<=b1&&b0<=a1)){dubbel=true;dubbelPaar.push({datum,a:dr[i],b:dr[j]});}
       }
       const status=dubbel?'dubbel':ond?'onderhoud':dr.length?'rit':'vrij';
-      return {datum,dag:DAG[d0(datum).getDay()],status,onderhoud:ond?ond.reden||'onderhoud':'',ritten:dr.map(r=>({id:r.id,van:r.van,tot:r.tot,bestuurder:r.bestuurder}))};
+      return {datum,dag:DAG[d0(datum).getDay()],status,onderhoud:ond?ond.reden||'onderhoud':'',ritten:dr.map(r=>({id:r.id,van:r.van,tot:r.tot,bestuurder:r.bestuurder,lading:r.lading}))};
     });
     return {week,ritten,dubbelPaar,onderhoud};
   }
