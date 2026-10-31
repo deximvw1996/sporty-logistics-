@@ -466,3 +466,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — Maxim: materiaal staat in Rozenweg, Kantoor en Marco; opstart = stockage A -> stockage B -> locatie, of aparte wagens per stockage. Meenemen in bouw opdracht.
 - 2026-10-31 — TF10 (D) en TF11 (C) gekeurd en live; migratie TF11 hernummerd naar 98 (96 botste met leegmaken). Volle run 58/61: lk1, vc1 los groen, v3a poort 3311 bezet door chat C.
 - 2026-10-31 — RT1 (C) gekeurd en live: rt1 46 ok, volle run 62/62. TF12 nog niet gedaan.
+- 2026-10-31 — TF12 (C) gekeurd en live: tf12 35 ok, volle run 63/63. Volgende: BW1 (D) kampmoment, themakeuze, standaardmateriaal; BW2 (C) opdracht, afspraak, feedback.
