@@ -111,9 +111,9 @@ try {
   const r3 = await maak([{ naam: 'Bak Cap (CP01)', qty: 1, soort: 'thema', bak_id: bak }, { naam: '50 × ' + (bulk ? bulk.naam : 'x'), qty: 50, soort: 'pool', bak_id: bulk ? bulk.id : null }]);
   await A('PUT', `/api/ritten/${r3.id}`, { voertuig: 'Tf5 busje', voertuig_capaciteit: 2 });
   const kz = (await A('POST', `/api/ritten/${r3.id}/klaarzet`, {})).json;
-  T.check(bulk ? kz.bezetting === 2 && kz.over_capaciteit === false : true, `klaarzetten telt plaatsen, geen stuks: 1 bak + bulk 50 = ${kz.bezetting} van ${kz.capaciteit} (bulk: ${bulk ? bulk.naam : 'geen'})`);
+  T.check(kz.lading && /1 bak \+ 50 losse stuks/.test(kz.lading.tekst), `TF7: klaarzetten zegt wat erop staat: ${kz.lading && kz.lading.tekst}`);
   const vd = (await C('GET', '/api/vandaag?mijn=1')).json;
-  T.check(/2\/2 bakken/.test(JSON.stringify(vd)) && !/52\/2/.test(JSON.stringify(vd)), 'Vandaag: "2/2 bakken"');
+  T.check(/1 bak \+ 50 losse stuks/.test(JSON.stringify(vd)), 'TF7: Vandaag dezelfde telling');
 
   // ── Weergave ──
   const dv = { rit: { datum: DAG, chauffeur: 'x', voertuig: '', status: 'onderweg' }, voortgang: { stops: 1, stuks: 3, geladen: 0, huidige_stop: 1 }, stops: [{ taak_id: 1, volgorde: 1, type: 'levering', status: 'gepland', van: { naam: 'Rozenweg' }, naar: { naam: 'A' }, locatie: { naam: 'A' }, regels: [{ check_id: 1, naam: 'Blazer', qty: 1, is_bulk: true, aantal_geladen: 0 }, { check_id: 2, naam: 'Blazer', qty: 2, is_bulk: true, aantal_geladen: 0 }, { check_id: 3, naam: 'Bak', code: 'B1', bak_id: 9, qty: 1, rek: 'B' }] }] };

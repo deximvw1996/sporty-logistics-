@@ -34,7 +34,13 @@
       return { type: 'attr', id: a.id, code: a.code, naam: a.naam, status: a.uitslag === 'nog_niet' ? 'nog_niet' : a.uitslag, klaar: a.uitslag !== 'nog_niet', ref: a };
     }));
   }
-  function telStand(data) { var r = rijen(data); return { klaar: r.filter(function (x) { return x.klaar; }).length, totaal: r.length, rijen: r }; }
+  function telStand(data) { var r = rijen(data); return { klaar: r.filter(function (x) { return x.klaar; }).length, begonnen: r.filter(function (x) { return !x.klaar && x.type === 'bak' && x.ref.geteld > 0; }).length, totaal: r.length, rijen: r }; }
+  // TF7: de waarschuwing volgt de rit: geen levering, op komst of voorbij maar nog niet afgewerkt.
+  function leveringHint(data) {
+    var l = data.levering; if (!l || l.status === 'gedaan' || !telStand(data).totaal || data.link_stand === 'lezen') return '';
+    var n = new Date(), v = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0');
+    return '<div class="hint">' + (l.datum && l.datum > v ? '⚠ Levering komt ' + esc(dagLang(l.datum)) + ': tel pas als alles er staat.' : '⚠ De levering staat nog niet op afgewerkt. Staat alles er? Dan mag je tellen.') + '</div>';
+  }
 
   // ── Kop + tabbalk ──
   function kopOverzicht(data, titel, sub) {
@@ -43,17 +49,17 @@
   function tabsHtml(data, actief, monitor) {
     var ts = telStand(data);
     var items = monitor ? [['tellen', '🧮', 'Tellen ' + ts.klaar + '/' + ts.totaal]]
-      : [['overzicht', '🏠', 'Overzicht'], ['tellen', '🧮', 'Tellen ' + ts.klaar + '/' + ts.totaal], ['aanvragen', '📩', 'Aanvragen' + ((data.aanvragen || []).length ? ' ' + data.aanvragen.length : '')], ['info', 'ℹ️', 'Info']];
+      : [['overzicht', '🏠', 'Overzicht'], ['tellen', '🧮', 'Tellen ' + ts.klaar + '/' + ts.totaal], ['aanvragen', '📩', 'Aanvragen' + ((data.aanvragen || []).filter(function (a) { return a.status === 'nieuw'; }).length ? ' ' + (data.aanvragen || []).filter(function (a) { return a.status === 'nieuw'; }).length : '')], ['info', 'ℹ️', 'Info']];
     return '<div class="tabs">' + items.map(function (t) { return '<button type="button" class="' + (actief === t[0] ? 'act' : '') + '" data-act="tab" data-a="' + t[0] + '">' + t[1] + '<span>' + esc(t[2]) + '</span></button>'; }).join('') + '</div>';
   }
 
   // ── Overzicht ──
   function afwijkingTekst(b) {
     var d = [];
-    var t = b.items.filter(function (i) { return i.status === 'tekort'; })[0];
-    if (t) d.push('tekort ' + String(t.naam).toLowerCase());
-    var v = b.items.filter(function (i) { return i.aangetroffen != null && i.aangetroffen > i.gewenst; })[0];
-    if (v) d.push('te veel ' + String(v.naam).toLowerCase());
+    var t = b.items.filter(function (i) { return i.aangetroffen != null && i.aangetroffen < i.gewenst; });
+    if (t.length) d.push('tekort ' + String(t[0].naam).toLowerCase() + (t.length > 1 ? ' +' + (t.length - 1) : ''));
+    var v = b.items.filter(function (i) { return i.aangetroffen != null && i.aangetroffen > i.gewenst; });
+    if (v.length) d.push('te veel ' + String(v[0].naam).toLowerCase() + (v.length > 1 ? ' +' + (v.length - 1) : ''));
     var k = b.items.filter(function (i) { return i.kapot_aantal > 0; });
     if (k.length) d.push(k.reduce(function (a, i) { return a + i.kapot_aantal; }, 0) + ' ' + String(k[0].naam).toLowerCase() + ' kapot');
     return d.join(', ');
@@ -67,11 +73,13 @@
   }
   function overzichtHtml(data) {
     var ts = telStand(data);
-    var afw = (data.bakken || []).filter(function (b) { return afwijkingTekst(b); }).slice(0, 2).map(function (b) { return (b.code || b.naam) + ': ' + afwijkingTekst(b); });
+    var alleAfw = (data.bakken || []).filter(function (b) { return afwijkingTekst(b); }).map(function (b) { return (b.code || b.naam) + ': ' + afwijkingTekst(b); });
+    var afw = alleAfw.slice(0, 2).concat(alleAfw.length > 2 ? ['+' + (alleAfw.length - 2) + ' bakken'] : []);
     var nog = ts.totaal - ts.klaar;
     var tellenS = afw.concat(nog ? [nog + ' ' + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? (nog === 1 ? 'stuk' : 'stuks') : (nog === 1 ? 'bak' : 'bakken')) + ' nog te tellen'] : []).join(' · ') || 'Alles geteld';
     var av = data.aanvragen || [], nieuw = av.filter(function (a) { return a.status === 'nieuw'; }).length;
-    var avS = av.slice(0, 2).map(function (a) { return esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + (a.antwoord ? ' — ' + esc(a.antwoord) : ''); }).join(' · ') || 'Nog geen aanvragen';
+    var telSt = function (st) { return av.filter(function (a) { return a.status === st; }).length; }, antw = [telSt('goedgekeurd') ? telSt('goedgekeurd') + ' goedgekeurd' : '', telSt('afgewezen') ? telSt('afgewezen') + ' afgewezen' : ''].filter(Boolean).join(', ');
+    var avS = (antw ? antw + ' · ' : '') + av.slice(0, 2).map(function (a) { return esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + (a.antwoord ? ' — ' + esc(a.antwoord) : ''); }).join(' · ') || 'Nog geen aanvragen';
     // TF1 G9: een herinnering of notitie van kantoor staat bovenaan de kaart Aanvragen.
     var mk = data.meldingen_kantoor || [];
     if (mk.length) avS = '<b>Bericht van kantoor: ' + esc(mk[0].tekst) + '</b>' + (av.length ? ' · ' + avS : '');
@@ -109,10 +117,11 @@
     var tel = data.kantoor && data.kantoor.telefoon;
     if (!lijst) lijst = '<div class="leeg">Voor dit kamp staan er geen bakken op jouw lijst, dus er is niets te tellen. Klopt dat niet? Laat het kantoor weten.' + (tel ? '<br><a class="knop licht klein" style="margin-top:8px" href="tel:' + esc(String(tel).replace(/[^\d+]/g, '')) + '">📞 Bel kantoor · ' + esc(tel) + '</a>' : '') + '</div>';
     var nv = data.niet_verstuurd || 0;
-    var stand = monitor ? '' : (data.verstuurd ? '<div class="hint" style="margin-top:8px">✓ Verstuurd om ' + esc(tijdVorm(data.verstuurd.op)) + '</div>' : '') + (nv ? '<div class="hint" style="margin-top:8px;color:#c2410c;font-weight:700">' + nv + (nv === 1 ? ' wijziging' : ' wijzigingen') + ' nog niet verstuurd</div>' : '');
+    var lst = (data.niet_verstuurd_lijst || []).slice(0, 5).map(esc).join('<br>');
+    var stand = monitor ? '' : (data.verstuurd ? '<div class="hint" style="margin-top:8px">✓ Verstuurd om ' + esc(tijdVorm(data.verstuurd.op)) + '</div>' : '') + (nv ? '<div class="hint" style="margin-top:8px;color:#c2410c;font-weight:700">' + nv + (nv === 1 ? ' wijziging' : ' wijzigingen') + ' nog niet verstuurd' + (lst ? '<br><span style="font-weight:400">' + lst + '</span>' : '') + '</div>' : '');
     var versturen = monitor || !ts.totaal ? '' : stand + '<button type="button" class="knop breed" data-act="versturen">Telling versturen (' + ts.klaar + '/' + ts.totaal + ')</button><div class="hint" style="margin-top:8px">Versturen kan ook als nog niet alles geteld is; kantoor ziet wat ontbreekt. Je mag altijd natellen en opnieuw versturen; alles blijft bewaard.</div>';
-    return kopOverzicht(data, 'Tellen · ' + ts.klaar + '/' + ts.totaal + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? ' stuks' : ' bakken'), 'tik een bak om te tellen · natellen mag de hele week')
-      + '<div class="body">' + (!data.levering || data.levering.status !== 'gedaan' ? '<div class="hint">⚠ Levering nog niet aangekomen: tel pas als alles er staat.</div>' : '') + lijst + versturen + '</div>' + tabsHtml(data, 'tellen', monitor);
+    return kopOverzicht(data, 'Tellen · ' + ts.klaar + '/' + ts.totaal + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? ' stuks' : ' bakken'), data.link_stand === 'lezen' || !ts.totaal ? '' : 'tik een bak om te tellen · natellen mag de hele week' + (ts.begonnen ? ' · ' + ts.begonnen + ' begonnen' : ''))
+      + '<div class="body">' + leveringHint(data) + lijst + versturen + '</div>' + tabsHtml(data, 'tellen', monitor);
   }
 
   // ── Telscherm ──
@@ -170,7 +179,7 @@
   function aanvragenHtml(data) {
     var av = (data.aanvragen || []).map(function (a) {
       var p = AV_PIL[a.status] || AV_PIL.nieuw;
-      return '<div class="rij"><div class="nm">' + esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + '<b>' + esc(tijdVorm(a.created_at)) + ' · ' + esc(a.antwoord || (a.status === 'nieuw' ? 'wacht op kantoor' : p[1])) + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
+      return '<div class="rij"><div class="nm">' + esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + '<b>' + esc(tijdVorm(a.created_at)) + ' · ' + esc(a.antwoord || (a.status === 'nieuw' ? 'wacht op kantoor' : p[1])) + (a.komt ? ' · ' + esc(a.komt.gedaan ? 'geleverd' : a.komt.onderweg ? 'onderweg' : a.komt.datum ? 'komt ' + dagLang(a.komt.datum) + (a.komt.rit ? ' met de rit' : '') : 'nog niet ingepland') : '') + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
     }).join('') || '<div class="leeg">Nog geen aanvragen.</div>';
     var mc = (data.meldingen_chauffeur || []).map(function (m) {
       return '<div class="rij"><div class="nm">' + esc(m.tekst) + '<b>' + esc(tijdVorm(m.created_at)) + ' · ' + (m.status === 'afgehandeld' ? 'afgehandeld door kantoor' : m.status === 'nieuw' ? 'wacht op kantoor' : esc(m.status || '')) + '</b></div></div>';
@@ -186,8 +195,9 @@
   }
   function sheetHtml(data, sh) {
     var kapot = sh.soort === 'kapot';
-    var stukken = [];
-    (data.bakken || []).forEach(function (b) { b.items.forEach(function (i) { stukken.push(i.naam + ' · ' + (b.code || '(geen code)')); }); });
+    var stukken = [], eerst = sh.stuk ? String(sh.stuk).split(' · ').pop() : '';
+    // TF7 N8: de bak waarin je zit staat bovenaan en is voorgekozen.
+    (data.bakken || []).slice().sort(function (x, y) { return ((y.code || '(geen code)') === eerst) - ((x.code || '(geen code)') === eerst); }).forEach(function (b) { b.items.forEach(function (i) { stukken.push(i.naam + ' · ' + (b.code || '(geen code)')); }); });
     return '<div class="dim" data-act="sluit-bg"><div class="sheet" role="dialog" aria-modal="true"><h3>' + (kapot ? 'Kapot melden' : 'Materiaal vragen') + '</h3>'
       + '<p>' + (kapot ? 'Kies het stuk uit een bak of typ het zelf. Kantoor ziet het meteen.' : 'Wat heb je nodig? Kantoor ziet je aanvraag meteen.') + '</p>'
       + (kapot && stukken.length ? '<select data-f="stuk" aria-label="Stuk uit een bak"><option value="">— zelf typen —</option>' + stukken.map(function (s) { return '<option value="' + esc(s) + '"' + (sh.stuk === s ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select>' : '')
@@ -221,7 +231,7 @@
     else if (st.scherm === 'aanvragen') basis = aanvragenHtml(data);
     else if (st.scherm === 'info') basis = infoHtml(data, hostUrl);
     else basis = overzichtHtml(data);
-    if (data.link_stand === 'lezen') return '<div class="alleenlezen"><style>.alleenlezen .ja,.alleenlezen .voet,.alleenlezen .twee,.alleenlezen [data-act=versturen],.alleenlezen [data-act=sheet-open]{display:none}</style><div class="hint" style="background:#fff7ed;color:#9a3412;padding:12px;font-weight:700">Dit kamp is afgelopen. Je kan alles nog lezen, maar niets meer wijzigen. Je tellingen blijven bewaard.</div>' + basis + '</div>';
+    if (data.link_stand === 'lezen') return '<div class="alleenlezen"><style>.alleenlezen .ja,.alleenlezen .voet,.alleenlezen .twee,.alleenlezen [data-act=versturen],.alleenlezen [data-act=sheet-open],.alleenlezen .body>.hint{display:none}</style><div class="hint" style="background:#fff7ed;color:#9a3412;padding:12px;font-weight:700">Dit kamp is afgelopen. Je kan alles nog lezen, maar niets meer wijzigen. Je tellingen blijven bewaard.</div>' + basis + '</div>';
     return basis + (st.sheet && !mon ? sheetHtml(data, st.sheet) : '');
   }
 
@@ -338,7 +348,7 @@
           if (jv) { deps.toast(jv.verstuurd_op ? '✓ Telling verstuurd naar kantoor' : 'Niets nieuws: kantoor heeft dit al', true); await laad(); }
           return;
         }
-        case 'sheet-open': st.sheet = { soort: a, tekst: '', aantal: '', foto: '', stuk: '', bezig: false }; return teken();
+        case 'sheet-open': { var bk8 = st.scherm === 'bak' && a === 'kapot' ? vindBak(st.bakId) : null; st.sheet = { soort: a, tekst: '', aantal: '', foto: '', stuk: bk8 && bk8.items[0] ? bk8.items[0].naam + ' · ' + (bk8.code || '(geen code)') : '', bezig: false }; return teken(); }
         case 'sheet-sluit': case 'sluit-bg': st.sheet = null; return teken();
         case 'sheet-foto': {
           if (!deps.kiesFoto || !st.sheet) return;

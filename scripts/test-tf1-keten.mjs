@@ -97,18 +97,17 @@ try {
   const zwaar = (await A('POST', '/api/transport-taken', { type: 'levering', datum: '2026-10-29', tijd: '09:00', van_locatie_id: R, naar_locatie_id: BE, regels: [{ naam: 'Vaste bak sport', qty: 25, soort: 'vast' }] })).json.id;
   const zRit = (await A('POST', '/api/ritten', { datum: '2026-10-29', vertrek: '08:00', personeel_id: 1, voertuig: 'Camionette', taak_ids: [zwaar] })).json.id;
   wk = (await A('GET', '/api/ritten?week=2026-10-29')).json.find((x) => x.id === zRit);
-  T.check(wk.waarschuwingen.includes('25 bakken op 20 plaatsen'), 'G12 geplande rit boven capaciteit: waarschuwing');
-  r = await A('POST', `/api/ritten/${zRit}/klaarzet`, { bevestigd_over_capaciteit: true });
-  const kl = await db("SELECT beschrijving FROM activiteiten_log WHERE actie='klaargezet boven capaciteit' ORDER BY id DESC LIMIT 1");
-  T.check(r.status === 200 && r.json.over_capaciteit === true && /25 bakken op 20 plaatsen — bevestigd door Claude \(API\)/.test(kl[0]?.beschrijving || ''), `G12 klaarzetten boven capaciteit gelogd: "${kl[0]?.beschrijving}"`);
+  T.check(!wk.waarschuwingen.some((x) => /plaatsen/.test(x)), 'TF7: geen capaciteitswaarschuwing meer');
+  r = await A('POST', `/api/ritten/${zRit}/klaarzet`, {});
+  T.check(r.status === 200 && r.json.over_capaciteit === undefined, 'TF7: klaarzetten zonder berekening');
   const ztok = await T.ritToken(srv.base, tok, zRit);
   const zd = (await P('GET', `/api/rit-token/${ztok}/data`)).json;
   for (const s of zd.stops) { for (const g2 of s.regels) await P('POST', `/api/rit-token/${ztok}/checks/${g2.check_id}/laden`); await P('POST', `/api/rit-token/${ztok}/taken/${s.taak_id}/aangekomen`); for (const g2 of s.regels) await P('POST', `/api/rit-token/${ztok}/checks/${g2.check_id}/lossen`); }
   wk = (await A('GET', '/api/ritten?week=2026-10-29')).json.find((x) => x.id === zRit);
   const zp = (await A('GET', '/api/ritplanning?week=2026-10-29')).json.dagen.flatMap((d) => d.ritten).find((x) => x.id === zRit);
-  T.check(wk.status === 'gedaan' && !wk.waarschuwingen.some((x) => /bakken op/.test(x)) && zp.notitie === 'reed met 25/20', `G12 gedane rit: waarschuwingen ${JSON.stringify(wk.waarschuwingen)}, notitie "${zp.notitie}"`);
+  T.check(wk.status === 'gedaan' && !wk.waarschuwingen.some((x) => /bakken op/.test(x)) && !zp.notitie, 'TF7: gedane rit zonder capaciteitsnotitie');
   const rpJs = require('node:fs').readFileSync(T.ROOT + '/public/ritplanning.js', 'utf8');
-  T.check(/Rit boven capaciteit klaarzetten\?/.test(rpJs) && /bevestigd_over_capaciteit:true/.test(rpJs), 'G12 ritplanning-pagina vraagt bevestiging en stuurt ze mee');
+  T.check(!/capaciteit klaarzetten|bevestigd_over_capaciteit/.test(rpJs), 'TF7: ritplanning vraagt geen bevestiging meer');
 
   // ── G13: stuks i.p.v. regels; KV-lijst toont alle afwijkingen ──
   kd = (await P('GET', `/api/kv/${kvtok}/data`)).json;

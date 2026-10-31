@@ -47,7 +47,7 @@ module.exports = function(ctx){
   }
   const _waarde=v=>!v?'—':v.status||(v.geteld==null?'—':String(v.geteld));
   const _wijzigTekst=w=>{const v=w.nieuw,n=w.oud,kap=(v.kapot||0)!==((n&&n.kapot)||0)&&v.kapot?', '+v.kapot+' kapot':'';
-    return (v.code?v.code+': ':'')+zonderHaakjes(v.item_naam)+' '+_waarde(n)+' → '+_waarde(v)+kap+(v.notitie&&(!n||n.notitie!==v.notitie)?", '"+v.notitie+"'":'');};
+    return (v.code?v.code+': ':'')+zonderHaakjes(v.item_naam)+(n&&_waarde(n)===_waarde(v)?'':' '+_waarde(n)+' → '+_waarde(v))+kap+(v.notitie&&(!n||n.notitie!==v.notitie)?", '"+v.notitie+"'":'');};
   const _nagekeken=s=>['nagekeken','verwerkt'].includes(s.kantoor_status)||(!!s.kantoor_afgerond_op&&s.kantoor_status!=='open');
   // Een regel waarop kantoor al besliste blijft staan zoals hij is. Is het tekort of het aantal kapot groter dan waarop besloten is, dan komt het verschil
   // als gemelde regel (dezelfde weg als de melding van de aanvuller), opgeteld bij een open regel van dat stuk. Afwijkingen die kleiner worden, staan alleen in de historiek en de melding.
@@ -57,6 +57,7 @@ module.exports = function(ctx){
     else insMetLog(req,'INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,kapot_aantal,kantoor_aantal,gemeld_soort,gemeld_door,tekort_status) VALUES (?,?,?,?,?,?,?,?,?,?)',
       [sessieId,naam,null,0,null,soort==='kapot'?n:0,n,soort,kvNaam?kvNaam+' (KV)':'KV','open'],'KV natelling');
   }
+  let _opgelost=[];
   // Geeft true als dit een afwijking is die kantoor nog moet zien.
   function _pasNatellingToe(req,s,v,kvNaam){
     if(v.attribuut_id){
@@ -74,6 +75,13 @@ module.exports = function(ctx){
     const r=get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_id=?',[s.id,v.item_id]);
     const verwacht=v.verwacht||0,tekort=Math.max(0,verwacht-v.geteld),teVeel=Math.max(0,v.geteld-verwacht),kapot=v.kapot||0;
     if(r&&r.kantoor_actie){
+      // TF7: het tekort waarover beslist is, is weg. De beslissing wijzigt niet vanzelf; kantoor krijgt in Nakijken de vraag.
+      const basisT=Math.max(0,(r.verwacht||0)-(r.aangetroffen||0));
+      if(basisT>0&&tekort===0&&!r.opgelost_keuze&&!r.aangevuld&&r.tekort_status!=='genegeerd'){
+        updateMetLog(req,'nakijk_regels',r.id,{opgelost_vraag:1},'KV natelling: tekort weg');
+        _opgelost.push(zonderHaakjes(r.item_naam));return true;
+      }
+      if(tekort>0&&r.opgelost_vraag)updateMetLog(req,'nakijk_regels',r.id,{opgelost_vraag:0},'KV natelling: tekort terug');
       const som=soort=>(get("SELECT COALESCE(SUM(kantoor_aantal),0) AS n FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort=? AND lower(item_naam)=lower(?)",[s.id,soort,r.item_naam])||{}).n||0;
       const erbijT=tekort-Math.max(0,(r.verwacht||0)-(r.aangetroffen||0))-som('weg'),erbijK=kapot-(r.kapot_aantal||0)-som('kapot');
       if(erbijT>0)_gemeldErbij(req,s.id,r.item_naam,'weg',erbijT,kvNaam);
@@ -152,14 +160,18 @@ module.exports = function(ctx){
       kampNaam:(loc?loc.name:'?')+' — week '+km.week,
       kampLocatie:loc?loc.name:'', week:km.week, dagen, kvNaam:_kvNaam(km), monitor,
       bakken:bakkenOut, attributen:attributenOut, link_stand:linkStand, einde:_kvEinde(km),
-      verstuurd:(l=>l?{op:l.op,wie:l.wie}:null)(_laatsteVerstuurd(km.id)), niet_verstuurd:_wijzigingen(km.id).length
+      verstuurd:(l=>l?{op:l.op,wie:l.wie}:null)(_laatsteVerstuurd(km.id)), niet_verstuurd:_wijzigingen(km.id).length,niet_verstuurd_lijst:_wijzigingen(km.id).map(_wijzigTekst)
     };
     if(monitor)return res.json(basis); // monitor-stand: enkel het telscherm
     // Monitor-link voor dit kampmoment (lazy aangemaakt, zelfde opzet als kv_token).
     let mtok=km.monitor_token;
     if(!mtok){mtok=_genToken(12);run('UPDATE kampmomenten SET monitor_token=? WHERE id=?',[mtok,km.id]);saveDb();}
     const aanvragen=all("SELECT * FROM aanvragen WHERE kampmoment_id=? AND soort IN ('materiaal','kapot') ORDER BY id DESC",[km.id])
-      .map(a=>({...a,antwoord:a.reden||'',foto_url:a.foto_data||null}));
+      .map(a=>{
+        // TF7 N3: wanneer komt het, uit de gekoppelde taak en rit.
+        const tk=a.status==='goedgekeurd'?get("SELECT * FROM transport_taken WHERE aanvraag_id=? AND status<>'geannuleerd' ORDER BY id LIMIT 1",[a.id]):null,ritK=tk&&tk.rit_id?get('SELECT datum,status FROM transport_ritten WHERE id=?',[tk.rit_id]):null;
+        return {...a,antwoord:a.reden||'',foto_url:a.foto_data||null,komt:tk?{datum:(ritK&&ritK.datum)||tk.datum||'',rit:!!ritK,gedaan:tk.status==='gedaan',onderweg:!!ritK&&ritK.status==='onderweg'}:null};
+      });
     // S4.8: KV-boodschappenlijst — "KV: "-regels van de gekoppelde thema's.
     const ktsKm=all('SELECT thema_id FROM kampmoment_themas WHERE kampmoment_id=?',[km.id]);
     const themaIdsKm=[...new Set(ktsKm.map(k=>k.thema_id))];
@@ -234,11 +246,13 @@ module.exports = function(ctx){
       const bestaand=get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_id=?',[sessieId,item.id]);
       const vorige=get('SELECT * FROM kv_telling_versies WHERE sessie_id=? AND item_id=? ORDER BY id DESC LIMIT 1',[sessieId,item.id]);
       const kapot=rin.kapot_aantal!=null?Math.max(0,parseFloat(rin.kapot_aantal)||0):(vorige?(vorige.kapot||0):bestaand?(bestaand.kapot_aantal||0):0);
-      const notitie=rin.notitie!=null?String(rin.notitie).slice(0,500):(vorige?(vorige.notitie||''):bestaand?(bestaand.notitie||''):'');
+      // TF7 N7: een notitie hoort bij de telling waarop ze gezegd werd; een ander aantal zonder notitie begint leeg.
+      const notitie=rin.notitie!=null?String(rin.notitie).slice(0,500):(vorige?(vorige.geteld===aangetroffen?(vorige.notitie||''):''):bestaand&&bestaand.aangetroffen===aangetroffen?(bestaand.notitie||''):'');
       // TF5: een oude foto blijft op schijf: eerdere versies wijzen ernaar.
       let fotoPad=vorige?(vorige.foto_path||''):bestaand?(bestaand.foto_path||''):'';
       if(fotoPaden.has(item.id))fotoPad=fotoPaden.get(item.id);
       else if(rin.foto_data==='')fotoPad='';
+      if(!_zelfde(vorige,{geteld:aangetroffen,kapot,status:'',notitie,foto_path:fotoPad})) // TF7: een identieke natelling is geen nieuwe versie
       ins("INSERT INTO kv_telling_versies (kampmoment_id,sessie_id,item_id,code,item_naam,verwacht,geteld,kapot,te_veel,notitie,foto_path,wie,via,op) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         [km.id,sessieId,item.id,bak.code||'',item.naam,item.qty,aangetroffen,kapot,teVeel,notitie,fotoPad,req.persoon.naam,_toegang(req.params.token).monitor?'monitor-link':'kv-link',isoNu()]);
       if(sessie&&sessie.kv_status==='ingediend')return; // natelling: telt pas in Nakijken bij het volgende versturen
@@ -264,7 +278,7 @@ module.exports = function(ctx){
     let sessie=get("SELECT * FROM nakijk_sessies WHERE bak_type='attribuut' AND attribuut_id=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend')",
       [attr.id,km.id]);
     let sessieId;
-    const _versie=sid=>ins("INSERT INTO kv_telling_versies (kampmoment_id,sessie_id,attribuut_id,code,item_naam,verwacht,geteld,kapot,status,wie,via,op) VALUES (?,?,?,?,?,1,1,?,?,?,?,?)",
+    const _versie=sid=>(get('SELECT status FROM kv_telling_versies WHERE sessie_id=? AND attribuut_id=? ORDER BY id DESC LIMIT 1',[sid,attr.id])||{}).status===status?0:ins("INSERT INTO kv_telling_versies (kampmoment_id,sessie_id,attribuut_id,code,item_naam,verwacht,geteld,kapot,status,wie,via,op) VALUES (?,?,?,?,?,1,1,?,?,?,?,?)",
       [km.id,sid,attr.id,attr.code||'',attr.naam,status==='beschadigd'?1:0,status,req.persoon.naam,_toegang(req.params.token).monitor?'monitor-link':'kv-link',isoNu()]);
     if(sessie&&sessie.kv_status==='ingediend'){_versie(sessie.id);return res.json({ok:true,status});} // TF5: natelling telt bij het volgende versturen
     if(sessie){ _upd(req,'UPDATE nakijk_sessies SET notities=?,kv_wie=?,kv_tijdstip=? WHERE id=?',[status,kvNaam,now(),sessie.id]); sessieId=sessie.id; }
@@ -301,6 +315,7 @@ module.exports = function(ctx){
     const _kvLoc=(get('SELECT name FROM locaties WHERE id=?',[km.locatie_id])||{}).name||'';
     // TF5: natellingen in al verstuurde sessies gaan nu naar Nakijken; een afgeronde keuring heropent bij een afwijking. Wat kantoor besliste blijft staan.
     const wijz=_wijzigingen(km.id),vorigeKeer=_laatsteVerstuurd(km.id),nieuweBak=!!get("SELECT id FROM nakijk_sessies WHERE kampmoment_id=? AND kv_status='bezig' LIMIT 1",[km.id]);
+    _opgelost=[];
     wijz.forEach(w=>{
       const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[w.nieuw.sessie_id]);
       if(!s||s.kv_status!=='ingediend')return;
@@ -310,7 +325,8 @@ module.exports = function(ctx){
     if(ctx.melding&&(wijz.length||nieuweBak)){
       const lijst=vorigeKeer?wijz.map(_wijzigTekst):[];
       const tekst=lijst.length?`Telling bijgewerkt · ${_kvLoc}: ${lijst.slice(0,5).join(' · ')}${lijst.length>5?` · en ${lijst.length-5} meer`:''}`:`Telling verstuurd · ${_kvLoc}`;
-      ctx.melding(req,{voor_rol:'kantoor',van_naam:kvNaam||'KV',tekst,link:'/nakijken'}); // ME1
+      const opg=_opgelost.length?` · Tekort weg bij ${_opgelost.join(', ')}: bestelling nog nodig? Beslis in Nakijken`:'';
+      ctx.melding(req,{voor_rol:'kantoor',van_naam:kvNaam||'KV',tekst:tekst+opg,link:'/nakijken'}); // ME1
     }
     _upd(req,"UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE kampmoment_id=? AND kv_status='bezig'",
       [kvNaam,now(),km.id]);
@@ -400,17 +416,17 @@ module.exports = function(ctx){
       .replace('{{JS}}',()=>veilig(_kvBestand('kv.js'))));
   }
   const _kvFoutPagina='<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Link niet gevonden</title></head><body><h2 style="font-family:system-ui;padding:2rem">Link niet gevonden of verlopen.</h2></body></html>';
-  const _kvDichtPagina='<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kamp afgelopen</title></head><body style="font-family:system-ui;padding:2rem;max-width:480px;margin:0 auto"><h2>Dit kamp is afgelopen</h2><p>De link is gesloten. Je tellingen en aanvragen blijven bewaard bij Sporty. Heb je nog een vraag? Neem contact op met kantoor.</p></body></html>';
+  const _kvDichtPagina=()=>{const t=(get("SELECT waarde FROM app_vlaggen WHERE naam='kantoor_telefoon'")||{}).waarde||'';const veilig=String(t).replace(/[^\d+ ()/.-]/g,'');return '<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kamp afgelopen</title></head><body style="font-family:system-ui;padding:2rem;max-width:480px;margin:0 auto"><h2>Dit kamp is afgelopen</h2><p>De link is gesloten. Je tellingen en aanvragen blijven bewaard bij Sporty. Heb je nog een vraag? Neem contact op met kantoor'+(veilig?': <a href="tel:'+veilig.replace(/[^\d+]/g,'')+'">'+veilig+'</a>':'')+'.</p></body></html>';};
   app.get('/kv/:token',(req,res)=>{
     const km0=_kvKampmoment(req.params.token);
     if(!km0)return res.status(404).send(_kvFoutPagina);
-    if(_kvLinkStand(km0)==='dicht')return res.status(410).send(_kvDichtPagina);
+    if(_kvLinkStand(km0)==='dicht')return res.status(410).send(_kvDichtPagina());
     _kvPagina(res,req.params.token,false);
   });
   app.get('/tel/:token',(req,res)=>{
     const t=_toegang(req.params.token);
     if(!t||!t.monitor)return res.status(404).send(_kvFoutPagina);
-    if(_kvLinkStand(t.km)==='dicht')return res.status(410).send(_kvDichtPagina);
+    if(_kvLinkStand(t.km)==='dicht')return res.status(410).send(_kvDichtPagina());
     _kvPagina(res,req.params.token,true);
   });
 
