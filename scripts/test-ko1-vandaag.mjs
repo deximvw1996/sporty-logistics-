@@ -106,7 +106,7 @@ try {
   // ── pagina ──
   const p = await fetch(srv.base + '/vandaag', { headers: { authorization: BASIC } });
   const html = await p.text();
-  T.check(p.status === 200 && ['Beslissen', 'Inplannen', 'Nakijken'].every((k) => html.includes(k)), 'GET /vandaag → 200 met de drie kolomkoppen');
+  T.check(p.status === 200 && ['Beslissen', 'Inplannen', 'Controles'].every((k) => html.includes(k)), 'GET /vandaag → 200 met de drie kolomkoppen (TF6 N2: Nakijken heet daar Controles)');
   T.check(html.includes('▦ Groot') && html.includes('☰ Compact'), 'schakelaar Groot / Compact in de HTML');
   const js = await fetch(srv.base + '/public/vandaag.js', { headers: { authorization: BASIC } });
   T.check(js.status === 200 && (await js.text()).includes('/api/vandaag'), 'vandaag.js wordt geserveerd');

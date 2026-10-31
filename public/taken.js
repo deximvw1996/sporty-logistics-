@@ -51,6 +51,7 @@
     tekenLijst();
     if(D)await laadDetail(D.taak.id);
   }
+  const iso0=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   function status(t){
     if(t.status==='gedaan')return '<span class="pil groen">gedaan</span>';
     if(t.rit&&t.rit.status==='onderweg')return '<span class="pil blauw">onderweg</span>';
@@ -62,6 +63,12 @@
     $('lijst').innerHTML=lijst.length?lijst.map(t=>`<div class="r ${D&&D.taak.id===t.id?'act':''}" data-id="${t.id}"><span><input type="checkbox" data-sel="${t.id}" ${SEL.has(t.id)?'checked':''} aria-label="Selecteer taak #${t.id}"></span><span><b>#${t.id}</b> ${esc(t.soort)}${t.pil?` <span class="pil ${pilKlas[t.pil]}">${t.pil}</span>`:''}</span><span>${esc(t.wanneer_tekst)}</span><span>${esc(t.route)}</span><span>${esc(t.wat)}</span><span>${t.rit?`rit #${t.rit.id} · ${esc(t.rit.chauffeur||'geen chauffeur')}`:'— zonder rit'}</span><span>${status(t)}</span></div>`).join('')
       :'<div class="leeg">Geen taken voor deze filter</div>';
     $('n-taken').textContent=`${lijst.length} taken`;
+    // TF6 N1: duidelijk welke periode je ziet, met een knop om te wisselen tussen "Alles" en "Deze week".
+    const bk=O.bereik||{},dtxt=s=>s?new Date(s+'T12:00:00').toLocaleDateString('nl-BE',{day:'numeric',month:'short'}).replace(/\./g,''):'';
+    let zicht=$('taken-zicht');
+    if(!zicht){zicht=document.createElement('div');zicht.id='taken-zicht';zicht.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px;font-size:13px;color:#475569';const l=$('lijst');l.parentNode.insertBefore(zicht,l);}
+    zicht.innerHTML=bk.alle?`<span>Je ziet <b>alle taken</b>${bk.van?' · '+esc(dtxt(bk.van))+' – '+esc(dtxt(bk.tot)):''}</span><a href="/taken?week=${esc(iso0())}" class="knop licht klein" id="zicht-wissel">Alleen deze week</a>`:`<span>Je ziet <b>week ${esc(dtxt(O.week.start))} – ${esc(dtxt(O.week.eind))}</b></span><a href="/taken?alle=1" class="knop licht klein" id="zicht-wissel">Alles tonen</a>`;
+    const wk=document.querySelector('.chip[data-f="deze_week"]');if(wk&&wk.firstChild)wk.firstChild.textContent=bk.alle?'Alle taken ':'Deze week ';
     $('n-sel').textContent=`${SEL.size} geselecteerd`;
     $('voet').classList.toggle('sel',SEL.size>0);
     $('b-bundel').disabled=SEL.size<2; // TB1

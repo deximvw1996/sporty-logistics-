@@ -14,6 +14,16 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde
 .a4 td{padding:9px 6px;border-bottom:1px solid #ddd;vertical-align:top}.a4 td.box{font-size:18px;width:28px}.a4 td.c{text-align:center;font-weight:700}.a4 td.lijn{width:90px;border-bottom:1px solid #999}.a4 small{color:#555}
 .a4 tr{break-inside:avoid}
 .a4 .pv{margin-top:18px;font-size:11px;color:#444;border-top:1px solid #999;padding-top:8px}
+/* TF6 G8: op een gsm geen horizontale scroll — kleine marges, de kolom "Gedaan door" valt weg, knoppen minstens 44 px */
+@media (max-width:640px){
+  body{padding:8px}
+  .balk a,.balk button{height:44px}
+  .a4{padding:16px 12px;min-height:0}
+  .a4 table{table-layout:fixed}
+  .a4 th:nth-child(7),.a4 td:nth-child(7),.a4 th:nth-child(5),.a4 td:nth-child(5){display:none}
+  .a4 th:nth-child(1),.a4 td:nth-child(1){width:26px}.a4 th:nth-child(4),.a4 td:nth-child(4){width:44px}
+  .a4 td,.a4 th{word-break:break-word;overflow-wrap:anywhere}
+}
 @page{size:A4 portrait;margin:14mm 12mm 16mm;@bottom-right{content:"pagina " counter(page) " van " counter(pages);font-size:9pt;color:#444}}
 @media print{
   body{background:#fff;padding:0}
@@ -22,7 +32,7 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#d9dde
   .a4 thead{display:table-header-group}
 }
 </style></head><body>
-<div class="balk"><a href="/nakijken">‹ Terug naar Nakijken</a><span id="aantal"></span><button type="button" id="print-knop">🖨 Afdrukken</button></div>
+<div class="balk"><a href="/nakijken" id="terug-knop">‹ Terug naar Nakijken</a><span id="aantal"></span><button type="button" id="print-knop">🖨 Afdrukken</button></div>
 <div class="a4" id="print-blad">
 <div class="pk"><b>Sporty logistiek · Aanvullijst Rozenweg</b><span id="pk-sub">Lijst laden…</span></div>
 <table><thead><tr><th>✓</th><th>Bak · plaats</th><th>Stuk</th><th>Aantal</th><th>Wat</th><th>Waar / opmerking</th><th>Gedaan door</th></tr></thead><tbody id="rijen"></tbody></table>

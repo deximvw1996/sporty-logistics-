@@ -85,7 +85,7 @@ module.exports = function(ctx){
       return {artikel_id:g.artikel_id,item_type_id:g.item_type_id,naam:g.naam,eenheid:g.eenheid,tekort,n_bakken:new Set(basis.filter(r=>r.bak_type!=='melding').map(r=>r.sessie_id)).size,n_locaties:locs.length,
         waar_tekst:locs.length>2?`${locs.length} locaties`:locs.map(kort).join(' · '),voorraad:v,stand,stand_voorstel:vs.stand,bestel_voorstel:vs.bestel_voorstel,
         stand_bron:b&&b.stand_kantoor&&!b.besteld_op?'kantoor':'voorstel',
-        bestelling:b&&(b.besteld_op||b.aantal)?{aantal:b.aantal||0,waar_kopen:b.waar_kopen||'',besteld_op:b.besteld_op||'',binnen_op:b.binnen_op||'',besteld_door:b.besteld_door||'',extra:!!b.extra,leveren_aan:locNaam(b.leveren_aan_id)||'Rozenweg'}:null,
+        bestelling:b&&(b.besteld_op||b.aantal)?{aantal:b.aantal||0,binnen_aantal:b.binnen_aantal||0,waar_kopen:b.waar_kopen||'',besteld_op:b.besteld_op||'',binnen_op:b.binnen_op||'',besteld_door:b.besteld_door||'',extra:!!b.extra,leveren_aan:locNaam(b.leveren_aan_id)||'Rozenweg'}:null,
         open_regels:open.length,regel_ids:basis.map(r=>r.id),
         zoek:norm([g.naam,locs.join(' '),...basis.map(r=>{const bk=bakVan(r);return bk.code+' '+bk.naam;})].join(' '))};
     }).sort((a,b)=>{const o=['te_bestellen','besteld','binnen','uit_voorraad','afgehandeld'];return o.indexOf(a.stand)-o.indexOf(b.stand)||b.tekort-a.tekort||a.naam.localeCompare(b.naam);});
@@ -94,7 +94,7 @@ module.exports = function(ctx){
       const t=b.item_type_id?get('SELECT naam,eenheid FROM item_types WHERE id=?',[b.item_type_id]):null;
       lijst.push({artikel_id:'b:'+b.id,item_type_id:b.item_type_id,naam:(t&&t.naam)||b.naam,eenheid:(t&&t.eenheid)||'stuk',tekort:0,n_bakken:0,n_locaties:0,
         waar_tekst:'bestelling zonder tekort'+(b.reden?' · '+b.reden:''),voorraad:voorraadVan(b.item_type_id),stand:b.binnen_op?'binnen':'besteld',stand_voorstel:'te_bestellen',bestel_voorstel:b.aantal,stand_bron:'kantoor',los:true,
-        bestelling:{aantal:b.aantal,waar_kopen:b.waar_kopen||'',besteld_op:b.besteld_op||'',binnen_op:b.binnen_op||'',besteld_door:b.besteld_door||'',leveren_aan:locNaam(b.leveren_aan_id)||'Rozenweg',reden:b.reden||''},
+        bestelling:{aantal:b.aantal,binnen_aantal:b.binnen_aantal||0,waar_kopen:b.waar_kopen||'',besteld_op:b.besteld_op||'',binnen_op:b.binnen_op||'',besteld_door:b.besteld_door||'',leveren_aan:locNaam(b.leveren_aan_id)||'Rozenweg',reden:b.reden||''},
         open_regels:0,regel_ids:[],zoek:norm([(t&&t.naam)||b.naam,b.waar_kopen,b.reden].join(' '))});
     });
     const tel=s=>lijst.filter(a=>a.stand===s).length;
@@ -130,7 +130,7 @@ module.exports = function(ctx){
     const v=a.voorraad,na=v?v.rozenweg-a.tekort:null;
     const open=regelsUit.filter(r=>r.status!=='aangevuld'&&r.status!=='genegeerd');
     const besteldAantal=a.bestelling?a.bestelling.aantal:a.bestel_voorstel;
-    const naLevering={aanvullijst:open.length?`${open.length} handeling${open.length===1?'':'en'} (${open.map(r=>r.code||r.bak||'#'+r.regel_id).join(', ')}) ${uitV?'nu al afvinkbaar (uit voorraad)':'worden afvinkbaar zodra "binnen"'}`:'niets meer open',
+    const naLevering={aanvullijst:open.length?`${open.length} handeling${open.length===1?'':'en'} (${open.map(r=>r.code||r.bak||'#'+r.regel_id).join(', ')}) ${uitV?'nu al afvinkbaar (uit voorraad)':(open.length===1?'wordt':'worden')+' afvinkbaar zodra "binnen"'}`:'niets meer open',
       rest:!uitV&&besteldAantal>a.tekort?`${fmt(besteldAantal-a.tekort)} naar voorraad Rozenweg`:'—'};
     // Historiek: wijzigingen op de bestelling en op de regels van dit artikel.
     const b=bestellingVan(a.artikel_id,per);
@@ -178,6 +178,12 @@ module.exports = function(ctx){
     if(s)updateMetLog(req,'item_type_stock',s.id,{qty:Math.max(0,(s.qty||0)+delta)},context);
     else insMetLog(req,'item_type_stock',['item_type_id','locatie_id','qty','minimum'],[typeId,l.id,Math.max(0,delta),0],context);
   }
+  // TF6 G11: "Bestelling binnen" gaat naar de andere kant dan wie het zelf deed (coördinator → kantoor, kantoor → coördinatoren), nooit naar jezelf.
+  function meldBinnen(req,tekst){
+    if(!ctx.melding)return;
+    const rol=(req.persoon&&req.persoon.rol)||'';
+    ctx.melding(req,{voor_rol:rol==='coordinator'?'kantoor':'coordinator',van_naam:wie(req),tekst,link:'/tekorten'}); // ME1
+  }
   const ACTIE={
     stand(req,per,a,regels,b){
       const stand=b.stand;if(!['uit_voorraad','te_bestellen'].includes(stand))return {status:400,error:'stand moet uit_voorraad of te_bestellen zijn'};
@@ -200,31 +206,45 @@ module.exports = function(ctx){
       logAct('tekorten','besteld',`${a.naam}: ${fmt(aantal)} besteld${b.waar_kopen?' bij '+b.waar_kopen:''}${extra?' (extra, aanvullen blijft uit voorraad)':''} — ${wie(req)}`,null,null);
       return {ok:true};
     },
-    binnen(req,per,a,regels){
+    // TF6 (T2-G13): "Bestelling binnen" vraagt een aantal (standaard wat er nog te verwachten is). De voorraad stijgt met dat aantal;
+    // de rest blijft open ("3 van 5 binnen"). Pas als alles binnen is, wordt de bestelling "binnen".
+    binnen(req,per,a,regels,body){
       const b0=bestellingVan(a.artikel_id,per);
       if(b0&&b0.binnen_op)return {status:409,error:'Deze bestelling is al binnen (de voorraad werd al verhoogd)'};
       if(a.stand==='afgehandeld'&&!(b0&&b0.besteld_op))return {status:409,error:'Er staat geen bestelling open voor dit artikel'};
-      const best=bestellingVan(a.artikel_id,per);
-      const aantal=best&&best.aantal?best.aantal:(a.bestel_voorstel||a.tekort);
+      const best=b0;
+      const totaal=best&&best.aantal?best.aantal:(a.bestel_voorstel||a.tekort);
+      const eerder=(best&&best.binnen_aantal)||0,rest=Math.max(0,totaal-eerder);
+      const gevraagd=body&&body.aantal!=null&&body.aantal!==''?parseFloat(body.aantal):rest;
+      if(!(gevraagd>0))return {status:400,error:'Het aantal dat binnen is moet groter dan 0 zijn.'};
+      if(gevraagd>rest+1e-9)return {status:409,error:`Er is nog maar ${fmt(rest)} te verwachten (besteld ${fmt(totaal)}, al binnen ${fmt(eerder)}).`};
+      const n=gevraagd,nieuwBinnen=eerder+n,volledig=nieuwBinnen>=totaal-1e-9;
+      const tekst=`Bestelling binnen: ${fmt(n)} × ${a.naam}${volledig?'':` (${fmt(nieuwBinnen)} van ${fmt(totaal)})`}`;
       if(best&&(best.los||best.extra)){
-        updateMetLog(req,'tekort_bestellingen',best.id,{binnen_op:isoNu(),binnen_door:wie(req)},'tekorten');
-        stockPlus(req,best.item_type_id,aantal,'tekorten: bestelling binnen',best.leveren_aan_id);
+        updateMetLog(req,'tekort_bestellingen',best.id,{binnen_aantal:nieuwBinnen,...(volledig?{binnen_op:isoNu(),binnen_door:wie(req)}:{})},'tekorten');
+        stockPlus(req,best.item_type_id,n,'tekorten: bestelling binnen',best.leveren_aan_id);
         // TF4 G4: een extra bestelling (artikel stond op "uit voorraad") zet de nakijk-regels met actie bestellen ook op binnen, anders blijft Bak klaar eeuwig op "wacht op levering".
-        if(best.extra)openRegels(regels,a).filter(r=>BESTEL_ACTIE(r.kantoor_actie)&&r.tekort_status!=='binnen').forEach(r=>updateMetLog(req,'nakijk_regels',r.id,{tekort_status:'binnen'},'tekorten'));
-        logAct('tekorten','binnen',`${a.naam}: bestelling binnen (${fmt(aantal)} → voorraad ${locNaam(best.leveren_aan_id)||'Rozenweg'}) — ${wie(req)}`,null,null);
-        if(ctx.melding)ctx.melding(req,{voor_rol:'coordinator',van_naam:wie(req),tekst:`Bestelling binnen: ${fmt(aantal)} × ${a.naam}`,link:'/tekorten'}); // ME1
-        return {ok:true};
+        if(best.extra&&volledig)openRegels(regels,a).filter(r=>BESTEL_ACTIE(r.kantoor_actie)&&r.tekort_status!=='binnen').forEach(r=>updateMetLog(req,'nakijk_regels',r.id,{tekort_status:'binnen'},'tekorten'));
+        logAct('tekorten','binnen',`${a.naam}: ${fmt(n)} binnen${volledig?'':` (${fmt(nieuwBinnen)} van ${fmt(totaal)})`} → voorraad ${locNaam(best.leveren_aan_id)||'Rozenweg'} — ${wie(req)}`,null,null);
+        meldBinnen(req,tekst);
+        return {ok:true,binnen:nieuwBinnen,totaal,volledig};
       }
-      zetBestelling(req,per,a,{stand_kantoor:'te_bestellen',aantal,besteld_op:(best&&best.besteld_op)||isoNu(),besteld_door:(best&&best.besteld_door)||wie(req),binnen_op:isoNu(),binnen_door:wie(req)},'tekorten');
-      if(ctx.melding)ctx.melding(req,{voor_rol:'coordinator',van_naam:wie(req),tekst:`Bestelling binnen: ${fmt(aantal)} × ${a.naam}`,link:'/tekorten'}); // ME1
+      zetBestelling(req,per,a,{stand_kantoor:'te_bestellen',aantal:totaal,besteld_op:(best&&best.besteld_op)||isoNu(),besteld_door:(best&&best.besteld_door)||wie(req),binnen_aantal:nieuwBinnen,...(volledig?{binnen_op:isoNu(),binnen_door:wie(req)}:{})},'tekorten');
+      meldBinnen(req,tekst);
       // Zelfde logica als POST /api/nakijken/regel/:id/binnen (G15): tekort_status 'binnen' → de aanvullijst-handeling wordt afvinkbaar.
+      // Deels binnen: het binnengekomen aantal wordt over de open regels verdeeld; een regel is "binnen" als zijn eigen aantal gedekt is.
+      let over=n;
       openRegels(regels,a).forEach(r=>{
-        const v={tekort_status:'binnen'};if(!BESTEL_ACTIE(r.kantoor_actie))v.kantoor_actie='bestellen';
-        updateMetLog(req,'nakijk_regels',r.id,v,'tekorten');
+        const v={};if(!BESTEL_ACTIE(r.kantoor_actie))v.kantoor_actie='bestellen';
+        const totR=(r.kantoor_aantal||0)+(r.gedaan_aantal||0),nodig=Math.max(0,totR-(r.binnen_aantal||0)),geef=volledig?nodig:Math.min(nodig,over);
+        over-=geef;
+        if(geef>0||volledig)v.binnen_aantal=(r.binnen_aantal||0)+geef;
+        if(volledig||(r.binnen_aantal||0)+geef>=totR-1e-9)v.tekort_status='binnen';
+        if(Object.keys(v).length)updateMetLog(req,'nakijk_regels',r.id,v,'tekorten');
       });
-      stockPlus(req,a.item_type_id,aantal,'tekorten: bestelling binnen');
-      logAct('tekorten','binnen',`${a.naam}: bestelling binnen (${fmt(aantal)} → voorraad Rozenweg) — ${wie(req)}`,null,null);
-      return {ok:true};
+      stockPlus(req,a.item_type_id,n,'tekorten: bestelling binnen');
+      logAct('tekorten','binnen',`${a.naam}: ${fmt(n)} binnen${volledig?'':` (${fmt(nieuwBinnen)} van ${fmt(totaal)})`} → voorraad Rozenweg — ${wie(req)}`,null,null);
+      return {ok:true,binnen:nieuwBinnen,totaal,volledig};
     },
     negeren(req,per,a,regels,b){
       const reden=String(b.reden||'').trim().slice(0,300);
@@ -236,14 +256,14 @@ module.exports = function(ctx){
   function doe(soort,req,artikelIds){
     const per=periodeVan(parseInt(req.query.periode_id||req.body?.periode_id));
     const {lijst,regels}=artikels(per);
-    const gedaan=[],fouten=[];
+    const gedaan=[],fouten=[],res=[];
     artikelIds.forEach(id=>{
       const a=lijst.find(x=>x.artikel_id===String(id));
       if(!a){fouten.push({artikel_id:id,error:'niet gevonden'});return;}
       const r=ACTIE[soort](req,per,a,regels,req.body||{});
-      if(r.error)fouten.push({artikel_id:id,status:r.status,error:r.error});else gedaan.push(id);
+      if(r.error)fouten.push({artikel_id:id,status:r.status,error:r.error});else{gedaan.push(id);res.push(r);}
     });
-    return {gedaan,fouten};
+    return {gedaan,fouten,res};
   }
   app.put('/api/tekorten/:artikel_id/stand',kantoorOfCoord,(req,res)=>{const r=doe('stand',req,[req.params.artikel_id]);if(r.fouten.length)return res.status(r.fouten[0].status||404).json({error:r.fouten[0].error});res.json({ok:true});});
   ['besteld','binnen','negeren'].forEach(soort=>{
@@ -253,7 +273,7 @@ module.exports = function(ctx){
       if(!ids.length)return res.status(400).json({error:'Kies eerst een of meer artikels.'});
       res.json({ok:true,...doe(soort,req,ids)});
     });
-    app.post(`/api/tekorten/:artikel_id/${soort}`,mag,(req,res)=>{const r=doe(soort,req,[req.params.artikel_id]);if(r.fouten.length)return res.status(r.fouten[0].status||404).json({error:r.fouten[0].error});res.json({ok:true});});
+    app.post(`/api/tekorten/:artikel_id/${soort}`,mag,(req,res)=>{const r=doe(soort,req,[req.params.artikel_id]);if(r.fouten.length)return res.status(r.fouten[0].status||404).json({error:r.fouten[0].error});res.json({...(r.res[0]||{}),ok:true});});
   });
   // Bulk "Op bestellijst" = stand te bestellen.
   app.post('/api/tekorten/bulk/stand',kantoorOfCoord,(req,res)=>{

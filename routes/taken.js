@@ -42,15 +42,20 @@ module.exports = function(ctx){
     const basis=/^\d{4}-\d{2}-\d{2}$/.test(req.query.week||'')?d0(req.query.week):d0(iso(new Date()));
     basis.setDate(basis.getDate()-((basis.getDay()+6)%7));
     const ma=iso(basis);basis.setDate(basis.getDate()+6);const zo=iso(basis);
-    const per=get('SELECT * FROM vakantieperiodes WHERE actief=1');
-    const van=req.query.alle==='1'&&per?per.start_datum:ma, tot=req.query.alle==='1'&&per?per.eind_datum:zo;
     const ritten=new Map(all('SELECT * FROM transport_ritten').map(r=>[r.id,r]));
     const sel=d=>all("SELECT * FROM transport_taken WHERE status<>'geannuleerd' AND datum>=? AND datum<=? ORDER BY datum,tijd,id",[d[0],d[1]]);
+    // TF6 N1: "Alles" toont álle taken (ook leveringen vóór de periode of zonder datum). Staat er deze week niets en is er wel werk,
+    // dan opent het scherm meteen op "Alles", zodat wat net gegenereerd is niet "verdwenen" lijkt.
+    const alleTaken=()=>all("SELECT * FROM transport_taken WHERE status<>'geannuleerd' ORDER BY CASE WHEN COALESCE(datum,'')='' THEN '9999' ELSE datum END,COALESCE(tijd,''),id").map(t=>rij(t,ritten));
     const week=sel([ma,zo]).map(t=>rij(t,ritten));
-    const taken=req.query.alle==='1'?sel([van,tot]).map(t=>rij(t,ritten)):week;
-    const n=f=>week.filter(f).length;
-    res.json({week:{start:ma,eind:zo},bereik:{van,tot,alle:req.query.alle==='1'},
-      tellers:{deze_week:week.length,zonder_rit:n(t=>!t.rit&&t.status!=='gedaan'),levering:n(t=>t.type==='levering'),ophaling:n(t=>t.type==='ophaling'),
+    let toonAlle=req.query.alle==='1',auto=false;
+    if(!toonAlle&&!/^\d{4}-\d{2}-\d{2}$/.test(req.query.week||'')&&!week.length){const nAll=get("SELECT COUNT(*) AS n FROM transport_taken WHERE status<>'geannuleerd'").n;if(nAll){toonAlle=true;auto=true;}}
+    const taken=toonAlle?alleTaken():week;
+    const datums=taken.map(t=>t.datum).filter(Boolean).sort();
+    const van=toonAlle?(datums[0]||ma):ma,tot=toonAlle?(datums[datums.length-1]||zo):zo;
+    const n=f=>taken.filter(f).length;
+    res.json({week:{start:ma,eind:zo},bereik:{van,tot,alle:toonAlle,auto},
+      tellers:{deze_week:taken.length,zonder_rit:n(t=>!t.rit&&t.status!=='gedaan'),levering:n(t=>t.type==='levering'),ophaling:n(t=>t.type==='ophaling'),
         rest:n(t=>t.soort==='rest'),weekend:n(t=>t.pil==='weekend'),gedaan:n(t=>t.status==='gedaan')},
       taken});
   });

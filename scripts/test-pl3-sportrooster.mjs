@@ -168,12 +168,12 @@ try {
   T.check((r8.match(/class="vk ov"/g) || []).length === 2 && !/class="vk ov"[^]*class="vk ov"[^]*class="vk ov"/.test(r8), `rij: alleen de twee tekortdagen zijn rood (${h8.dagen.map((d) => d.in_gebruik + '/' + d.sets).join(' ')})`);
   const full = (await A('GET', `/api/sportrooster/soort/${encodeURIComponent(H.soort)}?${q(8)}`)).json;
   const dh = BOUW.detail(full, 'week', 'week');
-  T.check(dh.includes('class="tw d5"') && dh.includes('>totaal<') && dh.includes('class="ovt"') && dh.includes('Let op') && dh.includes('data-toepassen=') && dh.includes('Toepassen') && dh.includes('+ Inplannen') && dh.includes('Hele zomer') && dh.includes(`Sets ${N}`), 'detail Week: raster, totaalrij met rode dagen, Let op met Toepassen, + Inplannen, drie tabs');
+  T.check(dh.includes('class="tw d5"') && dh.includes('>totaal<') && dh.includes('class="ovt"') && dh.includes('Let op') && dh.includes('data-toepassen=') && dh.includes('Toepassen') && dh.includes('+ Inplannen') && dh.includes('Hele periode') && dh.includes(`Sets ${N}`), 'detail Week: raster, totaalrij met rode dagen, Let op met Toepassen, + Inplannen, drie tabs');
   T.check(dh.includes('Verhuis midden in de week') && dh.includes('wk 7') && dh.includes('wk 9'), 'detail Week: blok Verhuis en knoppen ‹ wk 7 / wk 9 ›');
   const tw = BOUW.detail(full, 'zomer', 'week');
   T.check(tw.includes('Oplossen') && tw.includes('Per week'), 'detail Hele zomer: tekortweek heeft Oplossen');
   const dz = BOUW.detail(full, 'week', 'seizoen');
-  T.check(dz.includes('hele zomer') && dz.includes('Naar weekbeeld') && dz.includes('Per week') && dz.includes('Materiaal › Pool ›'), 'detail Seizoen: Per week, Naar weekbeeld, Sets met Pool-link');
+  T.check(dz.includes('hele periode') && dz.includes('Naar weekbeeld') && dz.includes('Per week') && dz.includes('Materiaal › Pool ›'), 'detail Seizoen: Per week, Naar weekbeeld, Sets met Pool-link');
   const szD = (await A('GET', `/api/sportrooster/seizoen?periode_id=${PER}`)).json;
   const gr = BOUW.seizoen(szD, { lijst: szD.sporten.filter((s) => s.ingepland), sel: { soort: H.soort, week: 8 } });
   T.check(gr.includes('class="sgrid"') && gr.includes('wk 9') && /class="c dub sel"/.test(gr) && /class="c leeg"/.test(gr), 'seizoen-raster: 9 weken, rode cel geselecteerd, lege cellen');

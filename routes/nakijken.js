@@ -165,7 +165,10 @@ module.exports = function(ctx){
         const r=regels.find(x=>x.item_id===it.id);
         const afw=_afwijking(r,it.qty);
         const aantal=afw==='tekort'?it.qty-r.aangetroffen:afw==='te_veel'?r.aangetroffen-it.qty:afw==='kapot'?(r.kapot_aantal||0):0;
-        const opties=ACTIES[afw]||[];
+        let opties=ACTIES[afw]||[];
+        // TF6 N3: tekort én kapot op één regel: alle acties van beide, elk met het aantal van zijn eigen deel.
+        const kapotN=r?(r.kapot_aantal||0):0;
+        if(afw==='tekort'&&kapotN>0)opties=[...ACTIES.tekort.map(([w,l])=>[w,l+(w==='aanvaarden'?'':' · '+aantal+' tekort')]),...ACTIES.kapot.filter(([w])=>w!=='aanvaarden').map(([w,l])=>[w,l+' · '+kapotN+' kapot'])];
         // MOB2: voorraad van dit artikel (gsm toont "Rozenweg 40 · minimum 100" bij de regel)
         const vrd=it.item_type_id?all('SELECT l.name,s.qty,s.minimum FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? AND (s.qty>0 OR s.minimum>0) ORDER BY l.name',[it.item_type_id]):[];
         const voorraad_tekst=vrd.map(x=>`${x.name} ${Math.round(x.qty*100)/100}${x.minimum>0?' · minimum '+x.minimum:''}`).join(' · ');
@@ -282,7 +285,10 @@ module.exports = function(ctx){
     // TF1 G14: zonder kantoor_aantal het afwijkingsaantal van de actie (zoals _afronden), niet stil 0.
     const AFW={bestellen:'tekort',uit_pool:'tekort',naar_pool:'te_veel',laten_staan:'te_veel',afschrijven_bestellen:'kapot',herstellen:'kapot'};
     const afwAantal=soort=>soort==='tekort'?Math.max(0,(r.verwacht||0)-(r.aangetroffen||0)):soort==='te_veel'?Math.max(0,(r.aangetroffen||0)-(r.verwacht||0)):soort==='kapot'?(r.kapot_aantal||0):0;
-    const aantal=b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
+    // TF6 N3: hoort de actie bij een ander deel van de regel (kapot terwijl er ook een tekort is), dan geldt het aantal van dat deel.
+    const eigenSoort=AFW[actie],hoofdSoort=_afwijking(r,r.verwacht||0);
+    const ander=b.kantoor_actie!==undefined&&actie&&eigenSoort&&r.aangetroffen!=null&&!r.gemeld_soort&&['tekort','kapot','te_veel'].includes(hoofdSoort)&&eigenSoort!==hoofdSoort&&(eigenSoort==='kapot'?(r.kapot_aantal||0)>0:eigenSoort==='tekort'&&hoofdSoort==='kapot'&&(r.verwacht||0)>(r.aangetroffen||0));
+    const aantal=ander?afwAantal(eigenSoort):b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
       :(b.kantoor_actie!==undefined&&actie?afwAantal(AFW[actie]||_afwijking(r,r.verwacht||0)):(r.kantoor_aantal||0));
     if(isNaN(aantal)||aantal<0)return res.status(400).json({error:'Het aantal moet 0 of meer zijn.'});
     const notitie=b.kantoor_notitie===undefined?(r.kantoor_notitie||''):String(b.kantoor_notitie||'').slice(0,500);
@@ -297,13 +303,14 @@ module.exports = function(ctx){
     if(s.bak_type==='attribuut')bak=get('SELECT * FROM attributen WHERE id=?',[s.attribuut_id]);
     else bak=get('SELECT * FROM bakken WHERE id=?',[s.bak_type==='thema'?s.thema_bak_id:s.vaste_bak_id]);
     const items=bak&&s.bak_type!=='attribuut'?_bakItems(bak):[];
-    let bestel=0,afschrijf=0;
+    let bestel=0,afschrijf=0,onbeslist=0;
     all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[s.id]).forEach(r=>{
       const it=items.find(x=>x.id===r.item_id);
       const afw=r.gemeld_soort==='kapot'?'kapot':r.gemeld_soort==='weg'?'tekort':_afwijking(r,it?it.qty:(r.verwacht||0));
       let actie=r.kantoor_actie||'';
       let aantal=r.kantoor_aantal||0;
-      if(!actie&&ACTIES[afw]){
+      if(!actie&&r.gemeld_soort){onbeslist++;} // TF6 G5: een gemelde regel waar kantoor nog niet over besliste blijft open; nooit stil "bestellen"
+      else if(!actie&&ACTIES[afw]){
         actie=ACTIES[afw][0][0];
         aantal=r.gemeld_soort?(r.kantoor_aantal||0):afw==='tekort'?(r.verwacht||0)-r.aangetroffen:afw==='te_veel'?r.aangetroffen-(r.verwacht||0):(r.kapot_aantal||0);
         updateMetLog(req,'nakijk_regels',r.id,{kantoor_actie:actie,kantoor_aantal:aantal},'nakijken');
@@ -315,7 +322,7 @@ module.exports = function(ctx){
     });
     updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'nagekeken',kantoor_afgerond_op:isoNu(),kantoor_door:wie(req),kantoor_wie:wie(req),kantoor_tijdstip:now()},'nakijken');
     logAct('nakijken','afgerond',`Keuring afgerond: ${(bak&&(bak.code||bak.naam))||'bak'} · ${km?_locNaam(km.locatie_id):''} (${bestel} bestelling${bestel===1?'':'en'}, ${afschrijf} afschrijving${afschrijf===1?'':'en'}) door ${wie(req)||'kantoor'}`,km?km.locatie_id:null,km?_locNaam(km.locatie_id):null);
-    return {sessie_id:s.id,bestellingen:bestel,afschrijvingen:afschrijf};
+    return {sessie_id:s.id,bestellingen:bestel,afschrijvingen:afschrijf,onbeslist};
   }
   app.post('/api/nakijken/sessie/:id/afronden',alleenKantoor,(req,res)=>{
     const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]);
@@ -355,8 +362,18 @@ module.exports = function(ctx){
   const WAAR={
     // MA1: pool-stukken met hun vaste plaats (item_types.pool_plaats, bv. 'rek P · bak P-03') als die gekend is.
     uit_pool:r=>'uit de pool'+_poolPlaats(r),naar_pool:r=>'terug naar de pool'+_poolPlaats(r),afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
-    bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
+    bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':(r.binnen_aantal||0)-(r.gedaan_aantal||0)>0?`bestelling · ${r.binnen_aantal} van ${(r.kantoor_aantal||0)+(r.gedaan_aantal||0)} binnen`:'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
   };
+  // TF6 G5: bij een bestelling die nog op levering wacht: is er genoeg voorraad om meteen uit voorraad aan te vullen?
+  function _uitVoorraadInfo(r,aantal){
+    const bi=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
+    const typeId=(bi&&bi.item_type_id)||((get('SELECT id FROM item_types WHERE lower(naam)=lower(?) ORDER BY id LIMIT 1',[zonderHaakjes(r.item_naam||'').trim()])||{}).id);
+    const roz=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
+    if(!typeId||!roz)return {};
+    const st=get('SELECT qty FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[typeId,roz.id]);
+    const qty=st?(st.qty||0):0;
+    return {artikel_id:String(typeId),voorraad:qty,uit_voorraad_mogelijk:qty>=aantal&&aantal>0};
+  }
   function _aanvullijst(datum,alles){
     const sessies=all("SELECT * FROM nakijk_sessies WHERE (kantoor_afgerond_op<>'' AND kantoor_afgerond_op IS NOT NULL) OR id IN (SELECT sessie_id FROM nakijk_regels WHERE gemeld_soort<>'' AND COALESCE(kantoor_actie,'')='') ORDER BY kantoor_afgerond_op,id");
     const groepen=[];
@@ -384,8 +401,9 @@ module.exports = function(ctx){
         else return;
         if(r.aangevuld&&!alles)return;
         if(r.tekort_status==='genegeerd')return; // TB2: genegeerd op Tekorten → niet meer op de aanvullijst
-        const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
+        const besch=Math.max(0,(r.binnen_aantal||0)-gedaanN); // TF6: deels binnen — afvinkbaar tot wat er binnen is
+        const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld||besch>0; // G15: een bestelling is pas af te vinken als ze binnen is
+        handelingen.push({...(soort==='bestelling'&&!binnen?_uitVoorraadInfo(r,aantal):{}),max_nu:soort==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld&&besch>0?besch:undefined,regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
@@ -399,7 +417,7 @@ module.exports = function(ctx){
     });
     const alle=groepen.flatMap(g=>g.handelingen).filter(h=>!h.wacht_op_kantoor); // TF4 G26: een melding die op kantoor wacht is nog geen handeling
     const alleMeld=groepen.flatMap(g=>g.handelingen).filter(h=>h.wacht_op_kantoor);
-    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,gemeld:alleMeld.length,bakken:groepen.filter(g=>!g.leeg).length},bakken:groepen};
+    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,gemeld:alleMeld.length,bakken:groepen.filter(g=>!g.leeg&&g.bak.soort!=='melding').length,losse:groepen.filter(g=>g.bak.soort==='melding'&&!g.leeg).length},bakken:groepen};
   }
   app.get('/api/aanvullijst',(req,res)=>{
     const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoLokaal(new Date());
@@ -494,13 +512,20 @@ module.exports = function(ctx){
     if(!s||!s.kantoor_afgerond_op)return res.status(409).json({error:'Deze keuring is nog niet afgerond door kantoor.'});
     const aan=req.body?.aangevuld===false||req.body?.aangevuld===0||req.body?.aangevuld==='0'?0:1;
     if(aan&&r.gemeld_soort&&!r.kantoor_actie)return res.status(409).json({error:'Dit is gemeld en wacht op kantoor — kantoor beslist eerst in Nakijken.'});
-    if(aan&&SOORT[r.kantoor_actie]==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld)return res.status(409).json({error:'Deze bestelling is nog niet binnen — zet ze eerst op "Bestelling binnen".'});
+    // TF6: een bestelling die deels binnen is, kan tot dat aantal afgevinkt worden; de rest blijft open.
+    let bodyAantal=req.body?req.body.aantal:undefined;
+    if(aan&&!r.aangevuld&&SOORT[r.kantoor_actie]==='bestelling'&&r.tekort_status!=='binnen'){
+      const besch=(r.binnen_aantal||0)-(r.gedaan_aantal||0);
+      if(besch<=0)return res.status(409).json({error:'Deze bestelling is nog niet binnen — zet ze eerst op "Bestelling binnen".'});
+      if(bodyAantal===undefined||bodyAantal===null||bodyAantal==='')bodyAantal=besch;
+      else if(parseInt(bodyAantal)>besch)return res.status(409).json({error:`Er is nog maar ${besch} binnen van deze bestelling.`});
+    }
     // AV1: afschrijven vraagt altijd een foto van het kapotte stuk (bewijs); zonder foto geen afvinken.
     const heeftFoto=typeof req.body?.foto_data==='string'&&!!req.body.foto_data;
     if(aan&&!r.aangevuld&&r.kantoor_actie==='afschrijven_bestellen'&&!heeftFoto)return res.status(400).json({error:'Afschrijven vraagt een foto van het kapotte stuk.'});
     // AV1: minder gevonden dan nodig → alleen dat aantal telt nu (voorraad daalt met dat aantal), de rest blijft open en wordt gelogd.
-    const gedaan=parseInt(req.body?.aantal),totaalN=r.kantoor_aantal||0;
-    if(aan&&!r.aangevuld&&gedaan>=0&&Number.isFinite(gedaan)&&totaalN>0&&gedaan<totaalN&&req.body&&req.body.aantal!==undefined){
+    const gedaan=parseInt(bodyAantal),totaalN=r.kantoor_aantal||0;
+    if(aan&&!r.aangevuld&&gedaan>=0&&Number.isFinite(gedaan)&&totaalN>0&&gedaan<totaalN&&bodyAantal!==undefined){
       if(gedaan<1)return res.status(400).json({error:'Vul in hoeveel je aangevuld hebt (minstens 1), of laat het vakje leeg.'});
       let fp='';
       if(heeftFoto){try{fp=fotos.bewaarFoto(req.body.foto_data,'aanvullen');}catch(e){return res.status(e.status||400).json({error:e.status?e.message:'Foto opslaan mislukt'});}}

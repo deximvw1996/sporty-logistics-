@@ -56,10 +56,10 @@
     detail(D,tab,mode,opt){
       const b=BOUW.detailWeek(D,tab,opt);
       if(mode==='seizoen'){
-        return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(D.soort)} · hele zomer</h2><span>${esc(D.samenvatting.zomer)}</span></div><div class="acts">${knop('d-naarweek','Naar weekbeeld',false)}</div></div>
+        return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(D.soort)} · hele periode</h2><span>${esc(D.samenvatting.zomer)}</span></div><div class="acts">${knop('d-naarweek','Naar weekbeeld',false)}</div></div>
           <div class="dgrid"><div class="blok vol"><h4>Per week</h4>${BOUW.zomerRijen(D)}</div>${BOUW.setsBlok(D)}</div>`;
       }
-      const tabs=[['week','Week'],['zomer','Hele zomer'],['sets',`Sets ${D.sets}`]];
+      const tabs=[['week','Week'],['zomer','Hele periode'],['sets',`Sets ${D.sets}`]];
       const inhoud=tab==='zomer'?`<div class="blok vol"><h4>Per week</h4>${BOUW.zomerRijen(D)}</div>`:tab==='sets'?BOUW.setsBlok(D):b.raster+b.letOp+b.verhuis;
       return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(D.soort)} · week ${D.week}</h2><span>${esc(D.samenvatting.week)}</span></div><div class="acts">${knop('d-vorige',`‹ wk ${D.week-1}`)}${knop('d-volgende',`wk ${D.week+1} ›`)}${knop('d-inplannen','+ Inplannen',false)}</div></div>
         <div class="dtabs">${tabs.map(([k,x])=>`<a class="${tab===k?'act':''}" data-tab="${k}">${x}</a>`).join('')}</div>
@@ -94,7 +94,7 @@
   }
   const Q=new URLSearchParams(location.search);
   const PER=Q.get('periode_id')||'';
-  let MODE=Q.get('modus')==='seizoen'?'seizoen':'week',WEEK=parseInt(Q.get('week'))||0,FILTER='ingepland',ZOEK='',TAB='week',SOORT=Q.get('soort')||'';
+  let MODE=(Q.get('modus')==='seizoen'||Q.get('zicht')==='seizoen')?'seizoen':'week',WEEK=parseInt(Q.get('week'))||0,FILTER='ingepland',ZOEK='',TAB='week',SOORT=Q.get('soort')||'';
   let W=null,S=null,D=null,SEL=new Set();
   const pq=()=>PER?`periode_id=${PER}&`:'';
 
@@ -117,7 +117,7 @@
     const l=lijstNu();
     if(MODE==='week'){
       $('kopr-plek').innerHTML=BOUW.kop();$('lijst').className='scroll';
-      $('lijst').innerHTML=l.length?l.map(s=>BOUW.rij(s,{act:SOORT===s.soort,sel:SEL.has(s.soort)})).join(''):`<div class="leeg">${FILTER==='ingepland'?'Deze week is nog geen sport ingepland. Kies "Alle" of "+ Inplannen".':'Geen sporten voor deze filter'}</div>`;
+      $('lijst').innerHTML=l.length?l.map(s=>BOUW.rij(s,{act:SOORT===s.soort,sel:SEL.has(s.soort)})).join(''):`<div class="leeg">${FILTER==='ingepland'?'Deze week is nog geen sport ingepland. Plan er een in met de knop hieronder, of kies "Alle".':'Geen sporten voor deze filter'}${FILTER==='ingepland'?'<div style="margin-top:10px"><button class="knop" id="leeg-inplannen">+ Inplannen</button></div>':''}</div>`;
       $('voet').innerHTML=`<span><span id="n-tot">${l.length} sport${l.length===1?'':'en'}</span> · <span class="n">${SEL.size} geselecteerd</span></span><span>vakje = sets in gebruik / sets van die sport · sets zijn uitwisselbaar</span>${BOUW.legende()}`;
       const al=$('alles');if(al)al.checked=l.length>0&&l.every(x=>SEL.has(x.soort));
     }else{
@@ -191,6 +191,7 @@
     if(t.closest('[data-act="terug"]')){$('body').classList.remove('toon-detail');return;}
     if(!D)return;
     if(t.id==='d-vorige'||t.id==='d-volgende'){WEEK=Math.max(1,Math.min(D.weken,WEEK+(t.id==='d-vorige'?-1:1)));MODE==='week'&&(W=null);return laad();}
+    if(t.id==='leeg-inplannen')return inplannen('');
     if(t.id==='d-inplannen')return inplannen(D.soort);
     if(t.id==='d-naarweek'){MODE='week';TAB='week';FILTER='alle';return laad();}
     const nw=t.closest('[data-naarweek],[data-oplossen]');if(nw){WEEK=+(nw.dataset.naarweek||nw.dataset.oplossen);MODE='week';TAB='week';FILTER='alle';return laad();}

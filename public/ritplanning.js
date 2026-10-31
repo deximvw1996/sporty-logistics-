@@ -211,7 +211,7 @@ if(typeof window!=='undefined')(function(){
     $('leg').innerHTML=P.personen.map(p=>`<i style="background:${p.kleur}"></i>${esc(p.naam)}${p.bestuurder_rol!=='chauffeur'?' <em>coörd.</em>':''}`).join('');
     const per=P.dagen.map(d=>({d,...banen(SLEEP&&SLEEP.doel&&SLEEP.doel.datum===d.datum?[...d.ritten.filter(r=>SLEEP.soort!=='rit'||r.id!==SLEEP.rit.id),{id:'schaduw',vertrek:SLEEP.doel.vertrek,einde:SLEEP.doel.einde,schaduw:true}]:d.ritten.filter(r=>!(SLEEP&&SLEEP.doel&&SLEEP.soort==='rit'&&r.id===SLEEP.rit.id)))}));
     const flex=x=>x.d.weekend&&!x.d.ritten.length?0.55:x.n;
-    $('dagkop').innerHTML='<div class="tk"><button class="dagnav" data-dagnav="-1" aria-label="Vorige dag">‹</button><button class="dagnav" data-dagnav="1" aria-label="Volgende dag">›</button></div>'+per.map(x=>`<div class="${x.d.weekend?'wk':''} ${x.d.datum===DAG?'act':''}" style="flex:${flex(x)}" data-dag="${x.d.datum}">${esc(x.d.dag)}${x.d.weekend?'<i>weekend</i>':''}${x.d.ritten.length?`<span class="pil">${x.d.ritten.length} ritten</span>`:''}${x.d.open.length?`<span class="pil oranje" data-open="${x.d.datum}">${x.d.open.length} open</span>`:''}</div>`).join('');
+    $('dagkop').innerHTML='<div class="tk"><button class="dagnav" data-dagnav="-1" aria-label="Vorige dag">‹</button><button class="dagnav" data-dagnav="1" aria-label="Volgende dag">›</button></div>'+per.map(x=>`<div class="${x.d.weekend?'wk':''} ${x.d.datum===DAG?'act':''}" style="flex:${flex(x)}" data-dag="${x.d.datum}">${esc(x.d.dag)}${x.d.weekend?'<i>weekend</i>':''}${x.d.ritten.length?`<span class="pil">${x.d.ritten.length} ${x.d.ritten.length===1?'rit':'ritten'}</span>`:''}${x.d.open.length?`<span class="pil oranje" data-open="${x.d.datum}">${x.d.open.length} open</span>`:''}</div>`).join('');
     const uren=['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'];
     $('raster').innerHTML=`<div class="tk">${uren.map(u=>`<span>${u}</span>`).join('')}</div>`+per.map(x=>{
       const blokken=x.lijst.map(({r,a,b,baan})=>{
@@ -347,7 +347,9 @@ if(typeof window!=='undefined')(function(){
     if(!r.ok)return toast(r.json.error||'Rit maken mislukt','error');
     if([0,6].includes(d0(datum).getDay()))for(const tid of (NIEUW.taak_ids||[])){const wb=await api('POST',`/api/transport-taken/${tid}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
     toast(`Rit #${r.json.id} gemaakt`,'success');
-    MODUS='rit';RIT=r.json.id;NIEUW={};
+    // TF6 N15: staan er die dag nog andere taken zonder rit, dan blijft de lijst open staan (geen extra tik per taak).
+    const nogOpen=(dagVan(DAG)&&dagVan(DAG).open?dagVan(DAG).open.length:0)-(NIEUW.taak_ids||[]).length;
+    if(nogOpen>0){MODUS='open';RIT=null;}else{MODUS='rit';RIT=r.json.id;}NIEUW={};
     if(datum<P.week.start||datum>P.week.eind)WEEK=datum;
     DAG=datum;laad();
   }
@@ -363,7 +365,10 @@ if(typeof window!=='undefined')(function(){
     const r=await api('PUT',`/api/transport-taken/${taakId}/rit`,{rit_id:parseInt(keuze.rit)});
     if(r.ok&&d.weekend){const wb=await api('POST',`/api/transport-taken/${taakId}/weekend-bevestig`);if(!wb.ok)toast(wb.json.error||'Bevestiging bewaren mislukt','warn');}
     if(!r.ok)return toast(r.json.error||'Op rit zetten mislukt','error');
-    toast(`Taak op rit #${keuze.rit} gezet`,'success');RIT=parseInt(keuze.rit);MODUS='rit';laad();
+    toast(`Taak op rit #${keuze.rit} gezet`,'success');
+    const nogOpen=(dagVan(DAG)&&dagVan(DAG).open?dagVan(DAG).open.length:0)-1; // TF6 N15
+    if(nogOpen>0){MODUS='open';RIT=null;}else{RIT=parseInt(keuze.rit);MODUS='rit';}
+    laad();
   }
   async function splits(){
     const g=await api('GET',`/api/ritten/${RIT}`);
@@ -602,6 +607,16 @@ if(typeof window!=='undefined')(function(){
     if(ritQ){const g=await api('GET','/api/ritten/'+ritQ);if(g.ok&&g.json.datum){WEEK=g.json.datum;DAG=g.json.datum;RIT=ritQ;GS.scherm='detail';}}
     else if(taakQ){const g=await api('GET','/api/transport-taken');const t=g.ok?g.json.find(x=>x.id===taakQ):null;
       if(t&&t.datum){WEEK=t.datum;DAG=t.datum;if(t.rit_id)RIT=t.rit_id;else MODUS='open';}}
+    else if(!Q.get('week')){
+      // TF6 N1: staat er deze week niets te plannen, open dan op de eerste week met taken zonder rit (net gegenereerd werk).
+      await laad();
+      if(P&&P.dagen.every(d=>!d.open.length&&!d.ritten.length)){
+        const g=await api('GET','/api/transport-taken');
+        const vandaag=iso(new Date()),open=g.ok?g.json.filter(x=>!x.rit_id&&x.datum&&x.status==='gepland').map(x=>x.datum).sort():[];
+        const eerste=open.find(d=>d>=vandaag)||open[0];
+        if(eerste){WEEK=eerste;DAG=null;}
+      }
+    }
     await laad();kop();
   })();
 })();
