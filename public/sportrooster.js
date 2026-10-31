@@ -189,9 +189,9 @@
     const rij=t.closest('.r[data-soort]');if(rij)return laadDetail(rij.dataset.soort);
     const tab=t.closest('[data-tab]');if(tab){TAB=tab.dataset.tab;return laadDetail(SOORT,true);}
     if(t.closest('[data-act="terug"]')){$('body').classList.remove('toon-detail');return;}
+    if(t.id==='leeg-inplannen')return inplannen(''); // TF10: werkt ook zonder gekozen sport (lege week); stond eerder achter de guard `if(!D)return`
     if(!D)return;
     if(t.id==='d-vorige'||t.id==='d-volgende'){WEEK=Math.max(1,Math.min(D.weken,WEEK+(t.id==='d-vorige'?-1:1)));MODE==='week'&&(W=null);return laad();}
-    if(t.id==='leeg-inplannen')return inplannen('');
     if(t.id==='d-inplannen')return inplannen(D.soort);
     if(t.id==='d-naarweek'){MODE='week';TAB='week';FILTER='alle';return laad();}
     const nw=t.closest('[data-naarweek],[data-oplossen]');if(nw){WEEK=+(nw.dataset.naarweek||nw.dataset.oplossen);MODE='week';TAB='week';FILTER='alle';return laad();}
