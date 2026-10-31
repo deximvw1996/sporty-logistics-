@@ -67,16 +67,26 @@
   let DATA=null;
   const item=(x,i,kol)=>`<div class="it ${x.kleur}"><span class="ico">${esc(x.ico)}</span><span class="nm">${esc(x.titel)}<b>${esc(x.sub)}</b></span><span class="acts">${
     x.acties.map((a,j)=>`<button class="knop ${a.primair?'':'licht'}" data-k="${kol}" data-i="${i}" data-j="${j}">${esc(a.label)}</button>`).join('')}</span></div>`;
-  const LEEG={beslissen:'Niets te beslissen',inplannen:'Niets in te plannen',nakijken:'Niets na te kijken'};
+  const LEEG={beslissen:'Niets te beslissen',inplannen:'Niets in te plannen',nakijken:'Niets te controleren'};
   function teken(){
     const v=DATA;
     $('per-naam').textContent=v.periode?v.periode.naam:'geen periode';
     $('wie').textContent=(v.gebruiker.naam||'')+' · kantoor';
-    $('kop-sub').textContent=[v.datum_tekst,v.week?'kampweek '+v.week:null,'alleen wat vandaag of deze week moet'].filter(Boolean).join(' · ');
+    $('kop-sub').textContent=[v.datum_tekst,v.week?'kampweek '+v.week:null,'bovenaan wat vandaag moet · planning voor later staat eronder'].filter(Boolean).join(' · ');
+    // TF6 N2: wat vandaag/morgen moet staat in de kolommen; planning voor later gaat in het ingeklapte blok "Later deze periode".
+    const later=[];
     for(const k of ['beslissen','inplannen','nakijken']){
-      $('n-'+k).textContent=v[k].length;
-      $('l-'+k).innerHTML=v[k].length?v[k].map((x,i)=>item(x,i,k)).join(''):`<div class="leeg">${LEEG[k]}</div>`;
+      const nu=v[k].map((x,i)=>[x,i]).filter(([x])=>x.dringend!==false);
+      v[k].forEach((x,i)=>{if(x.dringend===false)later.push([x,i,k]);});
+      $('n-'+k).textContent=nu.length;
+      $('l-'+k).innerHTML=nu.length?nu.map(([x,i])=>item(x,i,k)).join(''):`<div class="leeg">${LEEG[k]}</div>`;
     }
+    let lb=$('later-blok');
+    if(!lb){lb=document.createElement('details');lb.id='later-blok';lb.style.cssText='margin:12px 0;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc';const kols=document.querySelector('.kols');kols.parentNode.insertBefore(lb,kols.nextSibling);}
+    const open=lb.open;
+    lb.hidden=!later.length;
+    lb.innerHTML=`<summary style="cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center">Later deze periode · ${later.length}</summary><div style="margin-top:6px">${later.map(([x,i,k])=>item(x,i,k)).join('')}</div>`;
+    lb.open=open;
     const tel=(id,n)=>{const b=$(id);b.textContent=n;b.hidden=!n;};
     tel('b-vandaag',v.beslissen.length);tel('b-transport',v.inplannen.length);
     $('c-onderweg').textContent=v.cijfers.ritten_onderweg;$('c-open').textContent=v.cijfers.locaties_open;

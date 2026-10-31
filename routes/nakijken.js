@@ -165,7 +165,10 @@ module.exports = function(ctx){
         const r=regels.find(x=>x.item_id===it.id);
         const afw=_afwijking(r,it.qty);
         const aantal=afw==='tekort'?it.qty-r.aangetroffen:afw==='te_veel'?r.aangetroffen-it.qty:afw==='kapot'?(r.kapot_aantal||0):0;
-        const opties=ACTIES[afw]||[];
+        let opties=ACTIES[afw]||[];
+        // TF6 N3: tekort én kapot op één regel: alle acties van beide, elk met het aantal van zijn eigen deel.
+        const kapotN=r?(r.kapot_aantal||0):0;
+        if(afw==='tekort'&&kapotN>0)opties=[...ACTIES.tekort.map(([w,l])=>[w,l+(w==='aanvaarden'?'':' · '+aantal+' tekort')]),...ACTIES.kapot.filter(([w])=>w!=='aanvaarden').map(([w,l])=>[w,l+' · '+kapotN+' kapot'])];
         // MOB2: voorraad van dit artikel (gsm toont "Rozenweg 40 · minimum 100" bij de regel)
         const vrd=it.item_type_id?all('SELECT l.name,s.qty,s.minimum FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? AND (s.qty>0 OR s.minimum>0) ORDER BY l.name',[it.item_type_id]):[];
         const voorraad_tekst=vrd.map(x=>`${x.name} ${Math.round(x.qty*100)/100}${x.minimum>0?' · minimum '+x.minimum:''}`).join(' · ');
@@ -278,7 +281,10 @@ module.exports = function(ctx){
     // TF1 G14: zonder kantoor_aantal het afwijkingsaantal van de actie (zoals _afronden), niet stil 0.
     const AFW={bestellen:'tekort',uit_pool:'tekort',naar_pool:'te_veel',laten_staan:'te_veel',afschrijven_bestellen:'kapot',herstellen:'kapot'};
     const afwAantal=soort=>soort==='tekort'?Math.max(0,(r.verwacht||0)-(r.aangetroffen||0)):soort==='te_veel'?Math.max(0,(r.aangetroffen||0)-(r.verwacht||0)):soort==='kapot'?(r.kapot_aantal||0):0;
-    const aantal=b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
+    // TF6 N3: hoort de actie bij een ander deel van de regel (kapot terwijl er ook een tekort is), dan geldt het aantal van dat deel.
+    const eigenSoort=AFW[actie],hoofdSoort=_afwijking(r,r.verwacht||0);
+    const ander=b.kantoor_actie!==undefined&&actie&&eigenSoort&&eigenSoort!==hoofdSoort&&(eigenSoort==='kapot'?(r.kapot_aantal||0)>0:eigenSoort==='tekort');
+    const aantal=ander?afwAantal(eigenSoort):b.kantoor_aantal!==undefined&&b.kantoor_aantal!==null&&b.kantoor_aantal!==''?parseFloat(b.kantoor_aantal)
       :(b.kantoor_actie!==undefined&&actie?afwAantal(AFW[actie]||_afwijking(r,r.verwacht||0)):(r.kantoor_aantal||0));
     if(isNaN(aantal)||aantal<0)return res.status(400).json({error:'Het aantal moet 0 of meer zijn.'});
     const notitie=b.kantoor_notitie===undefined?(r.kantoor_notitie||''):String(b.kantoor_notitie||'').slice(0,500);

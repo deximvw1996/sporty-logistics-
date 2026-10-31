@@ -101,7 +101,9 @@
     D=r.json;tekenDetail();tekenLijst();$('body').classList.add('detail-open');
     history.replaceState(null,'',`/tekorten?id=${encodeURIComponent(id)}`);
   }
-  function tekenDetail(){$('detail').innerHTML=BOUW.detail(D,TAB);const n=$('d-negeer');if(n)n.hidden=ROL!=='kantoor';}
+  function tekenDetail(){$('detail').innerHTML=BOUW.detail(D,TAB);const n=$('d-negeer');if(n)n.hidden=ROL!=='kantoor';
+    const c=document.querySelector('#detail [data-cat]');if(c&&ROL!=='kantoor')c.remove(); // TF6 G6: de Catalogus is voor kantoor; een coördinator krijgt geen dode link
+  }
   const pad=(id,x)=>`/api/tekorten/${encodeURIComponent(id)}/${x}`;
   async function besteld(ids,a){
     const een=ids.length===1&&a;
@@ -159,7 +161,7 @@
     const chip=t.closest('.chip[data-f]');if(chip){FILTER=chip.dataset.f;return tekenLijst();}
     const rij=t.closest('.r[data-id]');if(rij){TAB='tekort';return laadDetail(rij.dataset.id);}
     const tab=t.closest('[data-tab]');if(tab){TAB=tab.dataset.tab;return tekenDetail();}
-    if(t.closest('[data-cat]')&&!D.artikel.item_type_id){e.preventDefault();location.href='/#catalogus';return;}
+    if(t.closest('[data-cat]')&&!D.artikel.item_type_id){e.preventDefault();location.href='/catalogus';return;}
     if(t.id==='d-terug'){$('body').classList.remove('detail-open');return;}
     const ids=SEL.size?[...SEL]:[];
     const a=D&&D.artikel;

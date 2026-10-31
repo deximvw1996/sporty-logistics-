@@ -65,8 +65,14 @@
     D=r.json;teken();tekenLijst();if(!stil)$('body').classList.add('toon-detail');
   }
   function teken(){$('detail').innerHTML=BOUW.detail(D,TAB,ALLE);}
+  // TF6 N4: einde vóór start wordt geweigerd, met een duidelijke tekst.
+  const geldigePeriode=f=>{
+    if(!(f.naam.value.trim()&&f.start.value&&f.eind.value))return toast('Naam, start en einde zijn verplicht','warn'),null;
+    if(f.eind.value<f.start.value)return toast('Het einde ligt vóór de start. Kies een einddatum op of na de startdatum.','warn'),null;
+    return {naam:f.naam.value.trim(),start_datum:f.start.value,eind_datum:f.eind.value};
+  };
   const periodeForm=(titel,p,ok)=>vraag({titel,ok,html:`<label>Naam<input name="naam" value="${esc(p.naam||'')}"></label><label>Start<input name="start" type="date" value="${esc(p.start_datum||'')}"></label><label>Einde<input name="eind" type="date" value="${esc(p.eind_datum||'')}"></label>`,
-    lees:f=>f.naam.value.trim()&&f.start.value&&f.eind.value?{naam:f.naam.value.trim(),start_datum:f.start.value,eind_datum:f.eind.value}:(toast('Naam, start en einde zijn verplicht','warn'),null)});
+    lees:f=>geldigePeriode(f)});
   document.addEventListener('click',async e=>{
     const t=e.target;if(t.closest('.mbox'))return;
     const chip=t.closest('.chip[data-f]');if(chip){FILTER=chip.dataset.f;return tekenLijst();}
@@ -82,7 +88,7 @@
     if(a==='kopieer'){
       const x=await vraag({titel:`${p.naam} kopiëren`,tekst:'Kampmomenten en thema’s worden gekopieerd, zonder KV’s en ritten. Alles wordt gelogd.',ok:'Kopiëren',
         html:`<label>Naam nieuwe periode<input name="naam" value="${esc(p.naam.replace(/\d{4}/,m=>+m+1))}"></label><label>Start<input name="start" type="date"></label><label>Einde<input name="eind" type="date"></label>`,
-        lees:f=>f.naam.value.trim()&&f.start.value&&f.eind.value?{naam:f.naam.value.trim(),start_datum:f.start.value,eind_datum:f.eind.value}:(toast('Naam, start en einde zijn verplicht','warn'),null)});
+        lees:f=>geldigePeriode(f)});
       if(!x)return;const r=await api('POST',`/api/periodes/${p.id}/kopieer`,x);if(!r.ok)return toast(r.json.error||'Kopiëren mislukt','error');
       toast(`${x.naam}: ${r.json.kampmomenten} kampmomenten en ${r.json.themas} thema’s gekopieerd${r.json.niet_gekopieerd?` (${r.json.niet_gekopieerd} vielen buiten de weken)`:''}`,'success');await laad();return openP(r.json.id,true);
     }

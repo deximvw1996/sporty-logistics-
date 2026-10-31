@@ -277,7 +277,8 @@
     if (!await vraag({ titel: 'Transport genereren', tekst: 'Maakt leveringen en ophalingen aan voor ' + doel + ' (bestaande generator). Wat er al is, wordt niet dubbel gemaakt; de taken staan daarna nog zonder rit in Transport › Taken.', ok: 'Genereren', lees: function () { return {}; } })) return;
     var r = await aanroep('POST', '/api/kampmomenten/genereer-transport', { ids: ids, periode_id: O.periode ? O.periode.id : undefined });
     if (!r.ok) return toast(r.json.error || 'Genereren mislukt', 'error');
-    toast(r.json.aangemaakt ? '✓ ' + r.json.aangemaakt + ' taken aangemaakt voor ' + r.json.kampmomenten + ' kampmoment' + (r.json.kampmomenten === 1 ? '' : 'en') + (r.json.overgeslagen ? ' (' + r.json.overgeslagen + ' bestonden al)' : '') : 'Niets nieuws te genereren' + (r.json.overgeslagen ? ' — ' + r.json.overgeslagen + ' bestonden al' : ''), r.json.aangemaakt ? 'success' : 'info');
+    var tl = function (tekst, type) { toast(tekst, type); if (r.json.aangemaakt) { var t = $('toasts').lastChild; if (t) { var a = document.createElement('a'); a.href = '/taken?alle=1'; a.textContent = ' · Bekijk in Taken ›'; a.style.cssText = 'color:#fff;font-weight:700;margin-left:6px'; a.onclick = function (ev) { ev.stopPropagation(); }; t.appendChild(a); } } };
+    tl(r.json.aangemaakt ? '✓ ' + r.json.aangemaakt + ' taken aangemaakt voor ' + r.json.kampmomenten + ' kampmoment' + (r.json.kampmomenten === 1 ? '' : 'en') + (r.json.overgeslagen ? ' (' + r.json.overgeslagen + ' bestonden al)' : '') : 'Niets nieuws te genereren' + (r.json.overgeslagen ? ' — ' + r.json.overgeslagen + ' bestonden al' : ''), r.json.aangemaakt ? 'success' : 'info');
     await laad();
   }
 

@@ -324,7 +324,7 @@
       if (!r.ok) { toast(r.json.error || 'Versturen mislukt', 'error'); return; }
       $('overlay').innerHTML = ''; toast('✓ Notitie naar de KV verstuurd', 'success'); return;
     }
-    if (act === 'bak-openen') { root.location.href = '/#materiaal?bak=' + DETAIL.bak.id; return; }
+    if (act === 'bak-openen') { root.location.href = '/bakken?id=' + (DETAIL.bak.soort === 'attribuut' ? 'a' : '') + DETAIL.bak.id; return; // TF6 N9: het echte Bakken-scherm, geen dode oude app }
     if (act === 'afronden') {
       var r2 = await aanroep('POST', '/api/nakijken/sessie/' + DETAIL.sessie_id + '/afronden');
       if (!r2.ok) { toast(r2.json.error || 'Afronden mislukt', 'error'); return; }

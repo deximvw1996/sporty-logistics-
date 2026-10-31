@@ -130,7 +130,7 @@ module.exports = function(ctx){
     const v=a.voorraad,na=v?v.rozenweg-a.tekort:null;
     const open=regelsUit.filter(r=>r.status!=='aangevuld'&&r.status!=='genegeerd');
     const besteldAantal=a.bestelling?a.bestelling.aantal:a.bestel_voorstel;
-    const naLevering={aanvullijst:open.length?`${open.length} handeling${open.length===1?'':'en'} (${open.map(r=>r.code||r.bak||'#'+r.regel_id).join(', ')}) ${uitV?'nu al afvinkbaar (uit voorraad)':'worden afvinkbaar zodra "binnen"'}`:'niets meer open',
+    const naLevering={aanvullijst:open.length?`${open.length} handeling${open.length===1?'':'en'} (${open.map(r=>r.code||r.bak||'#'+r.regel_id).join(', ')}) ${uitV?'nu al afvinkbaar (uit voorraad)':(open.length===1?'wordt':'worden')+' afvinkbaar zodra "binnen"'}`:'niets meer open',
       rest:!uitV&&besteldAantal>a.tekort?`${fmt(besteldAantal-a.tekort)} naar voorraad Rozenweg`:'—'};
     // Historiek: wijzigingen op de bestelling en op de regels van dit artikel.
     const b=bestellingVan(a.artikel_id,per);

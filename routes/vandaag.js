@@ -123,7 +123,7 @@ module.exports = function(ctx){
         :t.type==='levering'?`Levering: ${_locNaam(t.naar_locatie_id)}`
         :t.type==='ophaling'?`Ophaling ${_locNaam(t.van_locatie_id)}`
         :`${(t.opmerking||'Transfer').replace(/^🚨\s*/,'')}: ${_locNaam(t.van_locatie_id)} → ${_locNaam(t.naar_locatie_id)}`;
-      inplannen.push({id:'taak-'+t.id,taak_id:t.id,ico,kleur:'oranje',titel,pil:weekend?'weekend':null,
+      inplannen.push({id:'taak-'+t.id,taak_id:t.id,ico,kleur:'oranje',titel,dringend:!t.datum||t.datum<=plus(datum,1),pil:weekend?'weekend':null,
         sub:[t.datum?datumKort(t.datum):null,stuks||null,weekend?'weekend = uitzondering':null,'nog geen rit'].filter(Boolean).join(' · '),
         acties:[{label:'Op een rit zetten',primair:true,soort:'link',url:'/ritplanning?taak='+t.id}]});
     });
@@ -132,7 +132,7 @@ module.exports = function(ctx){
       if(!n)return;
       const geenCh=!(r.chauffeur||'').trim()&&!r.personeel_id, geenVt=!(r.voertuig||'').trim();
       if(!geenCh&&!geenVt)return;
-      inplannen.push({id:'rit-'+r.id,rit_id:r.id,ico:'🚐',kleur:'oranje',
+      inplannen.push({id:'rit-'+r.id,rit_id:r.id,ico:'🚐',kleur:'oranje',dringend:r.datum<=plus(datum,1),
         titel:`Rit #${r.id} heeft nog geen ${geenCh?'chauffeur':'voertuig'}`,
         sub:[datumKort(r.datum),geenCh?null:r.chauffeur,`${n} stop${n===1?'':'s'}`].filter(Boolean).join(' · '),
         acties:[{label:geenCh?'Chauffeur kiezen':'Voertuig kiezen',primair:true,soort:'link',url:'/ritplanning?rit='+r.id}]});
@@ -143,16 +143,16 @@ module.exports = function(ctx){
     const conflicten=(pid&&_roep('/api/conflicten',{periode_id:String(pid)},req))||[];
     conflicten.filter(c=>c.week==null||week==null||c.week===week).forEach((c,i)=>{
       if(c.type==='pool_tekort'){
-        inplannen.push({id:'conflict-'+i,ico:'🔥',kleur:'oranje',titel:c.bericht,sub:'capaciteitsconflict',acties:[link('Open conflict','/rooster',false)]});
+        inplannen.push({id:'conflict-'+i,ico:'🔥',kleur:'oranje',dringend:false,titel:c.bericht,sub:'capaciteitsconflict',acties:[link('Open conflict','/rooster',false)]});
         return;
       }
       const planning=['geen_thema','geen_levering','geen_ophaling','locatieconfig_onvolledig','ontbrekend_transport'].includes(c.type);
-      nakijken.push({id:'conflict-'+i,ico:planning?'📋':'⚠',kleur:'blauw',titel:c.bericht,sub:planning?'planning':'conflict',acties:[link('Open',planning?'/kampmomenten':'/rooster',false)]});
+      nakijken.push({id:'conflict-'+i,dringend:false,ico:planning?'📋':'⚠',kleur:'blauw',titel:c.bericht,sub:planning?'planning':'conflict',acties:[link('Open',planning?'/kampmomenten':'/rooster',false)]});
     });
     const sessies=(pid&&_roep('/api/nakijk-tekorten',{periode_id:String(pid)},req))||[];
     let nOpen=0,nBesteld=0;
     sessies.forEach(s=>(s.tekorten||[]).forEach(r=>{nOpen++;if(r.tekort_status==='besteld')nBesteld++;}));
-    if(nOpen)nakijken.push({id:'tekorten',ico:'🧮',kleur:'blauw',titel:`${nOpen} tekort${nOpen===1?'':'en'} open uit vrijdagcontroles · ${nBesteld} besteld`,sub:'voorraad',acties:[link('Open','/nakijken',false)]});
+    if(nOpen)nakijken.push({id:'tekorten',dringend:false,ico:'🧮',kleur:'blauw',titel:`${nOpen} tekort${nOpen===1?'':'en'} open uit vrijdagcontroles · ${nBesteld} besteld`,sub:'voorraad',acties:[link('Open','/nakijken',false)]});
 
     // ── Ritten vandaag (en morgen: kantoor ziet op donderdag de leveringen van vrijdag) ──
     const rittenVan=(dag,enkelPersoon)=>all(`SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id`,[dag]).filter(r=>!enkelPersoon||(r.personeel_id&&String(r.personeel_id)===String(enkelPersoon))).map(r=>{
@@ -234,7 +234,7 @@ module.exports = function(ctx){
     if(rol==='kantoor'){
       const v=vandaagData(req);
       const rij=(ico,naam,lijst,url)=>({soort:naam.toLowerCase(),ico,tijd:'',titel:`${naam} · ${lijst.length}`,sub:lijst.slice(0,3).map(x=>x.titel).join(' · '),url});
-      const groepen=[v.beslissen.length&&rij('📩','Beslissen',v.beslissen,'/vandaag?tab=beslissen'),v.inplannen.length&&rij('🚚','Inplannen',v.inplannen,'/ritplanning'),v.nakijken.length&&rij('⚠','Nakijken',v.nakijken,'/nakijken'),
+      const groepen=[v.beslissen.length&&rij('📩','Beslissen',v.beslissen,'/vandaag?tab=beslissen'),v.inplannen.length&&rij('🚚','Inplannen',v.inplannen,'/ritplanning'),v.nakijken.length&&rij('⚠','Controles',v.nakijken,'/nakijken'),
         v.ritten_vandaag.length&&{soort:'ritten',ico:'🚐',tijd:v.ritten_vandaag[0].tijd,titel:`Ritten vandaag · ${v.ritten_vandaag.length}`,sub:v.ritten_vandaag.slice(0,4).map(r=>`${r.chauffeur||'geen chauffeur'} ${r.status==='onderweg'?`onderweg (stop ${r.stop_huidig}/${r.stops_totaal})`:r.status}`).join(' · '),url:'/ritplanning'}].filter(Boolean);
       const kies=kiesNuKantoor(groepen);
       const wk=v.deze_week;

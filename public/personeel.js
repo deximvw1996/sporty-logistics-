@@ -75,7 +75,7 @@
     const grid=TAB==='gegevens'?`<div class="dgrid een"><div class="blok">${blokGeg}${blokInzet}</div>${blokLog}</div>`
       :TAB==='inzet'?`<div class="dgrid een"><div class="blok">${blokInzet.replace(' style="margin-top:14px"','')}</div><div></div></div>`
       :`<div class="dgrid een">${blokLog}<div></div></div>`;
-    $('detail').innerHTML=`<div class="dkop"><div><h2>${esc(p.naam)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-reset">Pincode resetten</button><button class="knop licht" id="d-actief">${p.actief?'Deactiveren':'Activeren'}</button><button class="knop" id="d-rol">Rol wijzigen</button></div></div>
+    $('detail').innerHTML=`<div class="dkop"><div><h2>${esc(p.naam)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop" id="d-uitnodig">Uitnodiging sturen</button><button class="knop licht" id="d-reset">Pincode resetten</button><button class="knop licht" id="d-actief">${p.actief?'Deactiveren':'Activeren'}</button><button class="knop" id="d-rol">Rol wijzigen</button></div></div>
       <div class="dtabs">${[['gegevens','Gegevens'],['inzet',`Inzet ${inzet.length}`],['log',`Wat deed ${p.naam.split(' ')[0]} ${logboek.length}`]].map(([k,l])=>`<a class="${TAB===k?'act':''}" data-tab="${k}">${esc(l)}</a>`).join('')}</div>${grid}`;
   }
 
@@ -109,6 +109,7 @@
         <label class="chk"><input type="checkbox" name="meld" ${D.meldingen_aan?'checked':''}> app-meldingen aan</label><label>Notities<input name="notities" value="${esc(p.notities)}"></label>`,
         lees:f=>f.naam.value.trim()?{naam:f.naam.value.trim(),telefoon:f.telefoon.value,email:f.email.value,rijbewijs:f.rijbewijs.value,eigen_wagen_capaciteit:f.cap.value===''?null:+f.cap.value,meldingen_aan:f.meld.checked,notities:f.notities.value}:(toast('Naam is verplicht','warn'),null)});
       if(!v)return;const r=await api('PUT',`/api/personeel/${p.id}/velden`,v);if(!r.ok)return toast(r.json.error||'Opslaan mislukt','error');toast('Opgeslagen','success');return laad();}
+    if(t.id==='d-uitnodig')return uitnodigen([p.id]); // TF6 N7: de uitnodiging staat bij de persoon zelf
     if(t.id==='d-reset'){
       if(!await vraag({titel:`Pincode van ${p.naam} resetten?`,tekst:`De pincode wordt gewist en ${p.naam} wordt uitgelogd. Bij de volgende keer kiest ${p.naam} zelf een nieuwe pincode.`,ok:'Resetten'}))return;
       const r=await api('POST',`/api/personeel/${p.id}/pincode-reset`);if(!r.ok)return toast(r.json.error||'Reset mislukt','error');toast('Pincode gewist','success');laad();return uitnodigen([p.id]);}
