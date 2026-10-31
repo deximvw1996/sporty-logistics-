@@ -185,7 +185,7 @@ module.exports = function(ctx){
     hist.sort((a,b)=>String(b.sorteer).localeCompare(String(a.sorteer)));
     res.json({...rij,
       groep:{kinderen,kleuters,lager:kinderen==null||kleuters==null?null:Math.max(0,kinderen-kleuters),monitoren:km.aantal_monitoren==null?null:km.aantal_monitoren},
-      kookdagen:kook,oven_mee:kook.length>0&&!loc.heeft_eigen_oven,heeft_eigen_oven:!!loc.heeft_eigen_oven,opmerking:km.notities||'',
+      standaard_materiaal:km.standaard_materiaal!==0,kookdagen:kook,oven_mee:kook.length>0&&!loc.heeft_eigen_oven,heeft_eigen_oven:!!loc.heeft_eigen_oven,opmerking:km.notities||'',
       locatie_adres:loc.addr||'',themas_beschikbaar:themasBeschikbaar,themas_bezet:themasBezet,materiaal,transport:taken,aanvragen_open:aanvragen,
       conflicten:conflicten.map(c=>({type:c.type,ernst:c.ernst,bericht:c.bericht})),
       historiek:hist.map(({sorteer,...h})=>h),dagen_datums:_dagen(km,periode).datums});
@@ -211,6 +211,7 @@ module.exports = function(ctx){
     const kin=velden.aantal_kinderen!==undefined?velden.aantal_kinderen:km.aantal_kinderen,kle=velden.aantal_kleuters!==undefined?velden.aantal_kleuters:km.aantal_kleuters;
     if(kin!=null&&kle!=null&&kle>kin)return res.status(400).json({error:'Er kunnen niet meer kleuters zijn dan kinderen.'});
     if(b.opmerking!==undefined)velden.notities=String(b.opmerking||'').slice(0,500);
+    if(b.standaard_materiaal!==undefined)velden.standaard_materiaal=b.standaard_materiaal?1:0; // BW1
     const periode=get('SELECT * FROM vakantieperiodes WHERE id=?',[km.periode_id])||actievePeriode();
     let dagenGewijzigd=0;
     if(b.dagen!==undefined){
