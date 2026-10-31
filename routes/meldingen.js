@@ -11,7 +11,7 @@ module.exports = function(ctx){
   // RT1: drie niveaus. nu = rood, geluid, push; vandaag = teller; info = stil en buiten de teller.
   function niveauVan(t){
     if(/niet gevonden|locatie gesloten|probleem/i.test(t))return 'nu';
-    if(/feedback|bestelling.*binnen|geleverd|staat klaar|toch gevonden/i.test(t)&&!/niet meer klaar/i.test(t))return 'info';
+    if(/feedback|bestelling.*binnen|geleverd|staat (weer |voor je )?klaar|toch gevonden/i.test(t)&&!/niet meer klaar/i.test(t))return 'info';
     return 'vandaag'; // kapot, past niet, telling verstuurd, aanvragen, berichten, de rest
   }
   function melding(req,{voor_rol,voor_persoon_id,van_naam,tekst,link,niveau}){
@@ -55,7 +55,7 @@ module.exports = function(ctx){
     const oud=recent?recent.tekst.split(' is gewijzigd: ')[1].split(', '):[];
     const tekst=`${ritKop(r)} is gewijzigd: ${[...new Set([...oud,wat])].join(', ')}`;
     try{
-      const niv=r.datum===new Date().toISOString().slice(0,10)?'nu':'vandaag'; // RT1: eigen rit vandaag = nu
+      const niv=r.datum===(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date())?'nu':'vandaag'; // RT1: eigen rit vandaag = nu
       if(recent){updateMetLog(req,'meldingen',recent.id,{tekst,created_at:isoNu()},'melding bijgewerkt');run('UPDATE meldingen SET niveau=? WHERE id=?',[niv,recent.id]);if(ctx.meldingLive)ctx.meldingLive(recent.id);}
       else melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst,link:ritLink(r),niveau:niv});
     }catch(e){console.error('Ritmelding mislukt:',e.message);}

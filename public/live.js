@@ -74,7 +74,7 @@
     doc.getElementById('li-gel').onchange = function (e) { geluid = e.target.checked; api('PUT', '/api/meldingen/voorkeur', { geluid: geluid }); };
     doc.getElementById('li-push').onchange = function (e) { v.push = e.target.value; api('PUT', '/api/meldingen/voorkeur', { push: v.push }); pushZet(v.push, v.sleutel); };
   }
-  if (!m && tok) doc.addEventListener('DOMContentLoaded', go); if (!m && tok && doc.readyState !== 'loading') go();
   var gedaan = false;
   function go() { if (gedaan) return; gedaan = true; api('GET', '/api/meldingen/voorkeur').then(function (v) { if (v && v.push) { geluid = !!v.geluid; instellingen(v); } }).catch(function () {}); }
+  if (!m && tok) { if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', go); else go(); }
 })(window);

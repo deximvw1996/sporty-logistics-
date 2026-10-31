@@ -73,7 +73,7 @@ try {
   // eigen rolmelding telt niet voor afzender; zet via chauffeur-sessie niet toegestaan, dus classificatie via lijst
   await A('POST', '/api/meldingen', { voor_persoon_id: ch.id, tekst: 'Bestelling krijt binnen' });
   const c2 = (await T.api(srv.base, chT, 'GET', '/api/meldingen')).json;
-  v(c2.meldingen.some((m) => m.niveau === 'info') && !c2.meldingen.filter((m) => m.niveau === 'info').some((m) => !m.gelezen && false), 'bestelling binnen = info');
+  v(c2.meldingen.some((m) => m.niveau === 'info'), 'bestelling binnen = info');
   const nInfo = c2.meldingen.filter((m) => !m.gelezen && m.niveau !== 'info').length;
   v(c2.ongelezen === nInfo, 'info telt niet in de teller');
   v(t0 === (await kantoorM()).ongelezen, 'kantoorteller onveranderd');
@@ -97,7 +97,8 @@ try {
   v(!nu.some((r) => r.rit_id === r1.id), 'alles afgehandeld: blok weg');
   const mAf = (await kantoorM()).meldingen.find((m) => m.tekst.includes(`rit #${r1.id} ·`));
   v(mAf.gelezen, 'afhandelen maakt gelezen');
-  v((await A('GET', '/api/vandaag')).json.inplannen.some((i) => i.taak_id === tt.id) || true, 'daarna weer in te plannen');
+  v(!(await A('GET', '/api/nu-oplossen')).json.ritten.some((r) => r.rit_id === r1.id) && (await A('GET', '/api/transport-taken')).json.some((t) => t.id === tt.id && t.status === 'gepland'), 'rest-taak blijft na Toch inplannen');
+  const lg = await T.leesDb(srv.dbPad, "SELECT COUNT(*) AS n FROM activiteiten_log WHERE actie='nu oplossen'"); v(lg[0].n >= 3, 'afhandelen gelogd');
   // Bundeltijd: na 10 minuten nieuwe melding
   const r4 = await maakRit(['P', 'Q']);
   await r4.P('POST', `/checks/${r4.checks[0]}/niet-mee`, { reden: 'niet_gevonden' }); await rust();
