@@ -11,6 +11,7 @@ const srv = await T.startServer({ poort: Number(process.env.TEST_POORT) || 3359 
 try {
   const tok = await T.login(srv.base);
   const A = (m, p, b) => T.api(srv.base, tok, m, p, b);
+  let _k2; const K2 = async (m, p) => { if (!_k2) { const x = (await A('POST', '/api/personeel', { naam: 'Tweede kantoor', rol: 'kantoor' })).json; await A('POST', `/api/personeel/${x.id}/pincode`, { pincode: '5861' }); _k2 = await T.login(srv.base, x.id, '5861'); } return T.api(srv.base, _k2, m, p); }; // TF9: een melding gaat niet naar wie de handeling deed
   const P = (m, p, b) => T.api(srv.base, null, m, p, b);
   const pers = async (naam, rol, pin) => { const x = (await A('POST', '/api/personeel', { naam, rol })).json; await A('POST', `/api/personeel/${x.id}/pincode`, { pincode: pin }); const l = await P('POST', '/api/login', { persoon_id: x.id, pincode: pin }); return { id: x.id, tok: l.json && l.json.token, status: l.status }; };
   const R = ijk.locaties.rozenweg, km = ijk.kampmomenten.abdijschool, thema = ijk.themas.alles_op_wieltjes;
@@ -64,7 +65,7 @@ try {
   T.check(r.status === 200 && r.json.dubbel === true && r.json.regel_id === kapotRegel && det.items.filter((i) => i.herkomst).length === 2 && det.items.find((i) => i.regel_id === kapotRegel).kantoor_aantal === 5, `dubbele melding telt op (2 + 3 = 5) in dezelfde regel, geen tweede regel`);
 
   // kantoor krijgt één melding per nieuwe regel
-  const mm = (await A('GET', '/api/meldingen')).json.meldingen;
+  const mm = (await K2('GET', '/api/meldingen')).json.meldingen;
   const kegelM = mm.filter((m) => /Av2 Kegel/.test(m.tekst)), ringM = mm.filter((m) => /Av2 Ring/.test(m.tekst));
   T.check(kegelM.length === 1 && ringM.length === 1 && kegelM[0].link === '/nakijken' && /(5×)/.test(kegelM[0].tekst), `kantoor krijgt één melding per gemelde regel (kegel ${kegelM.length}, ring ${ringM.length}) met link naar Nakijken`);
   const logTekst = JSON.stringify((await A('GET', '/api/logboek')).json);

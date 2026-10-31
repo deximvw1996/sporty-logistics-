@@ -31,7 +31,7 @@ try {
   // ── niet ingelogd → /login?terug= ──
   const navSrc = fs.readFileSync(T.ROOT + '/public/nav.js', 'utf8');
   T.check(/\/login\?terug=/.test(navSrc) && /plaintext/.test(navSrc), 'nav.js: zonder token op gsm → /login?terug= (browser: zie verslag)');
-  T.check(!NAV.magOpGsm('chauffeur', '/rooster') && NAV.magOpGsm('chauffeur', '/meer') && NAV.magOpGsm('coordinator', '/tekorten') && !NAV.magOpGsm('chauffeur', '/tekorten') && NAV.magOpGsm('kantoor', '/rooster'), 'gsm: de ploeg op een kantoorpagina → Vandaag');
+  T.check(!NAV.magOpGsm('chauffeur', '/rooster') && NAV.magOpGsm('chauffeur', '/meer') && !NAV.magOpGsm('chauffeur', '/tekorten') && NAV.magOpGsm('kantoor', '/rooster'), 'gsm: de ploeg op een kantoorpagina → Vandaag');
   // ── /rit en /kv zonder tabbalk ──
   const rit = fs.readFileSync(T.ROOT + '/public/rit.html', 'utf8'), kv = fs.readFileSync(T.ROOT + '/public/kv.html', 'utf8');
   T.check(!/nav\.js/.test(rit) && !/nav\.js/.test(kv), '/rit/<token> en /kv/<token> laden nav.js niet: geen tabbalk');
@@ -39,7 +39,7 @@ try {
   for (const p of ['/login', '/meer']) { const r = await html(p); T.check(r.status === 200 && /<title>/.test(r.t), `GET ${p} 200`); }
   // ── login ──
   const pers = async (naam, rol, pin) => { const x = (await A('POST', '/api/personeel', { naam, rol })).json; await A('POST', `/api/personeel/${x.id}/pincode`, { pincode: pin }); return x.id; };
-  const ch = await pers('Mob Jan', 'chauffeur', '4101'), co = await pers('Mob Lotte', 'coordinator', '4102');
+  const ch = await pers('Mob Jan', 'chauffeur', '4101'), co = await pers('Mob Lotte', 'chauffeur', '4102');
   const lijst = (await P('GET', '/api/personeel-lijst-login')).json;
   T.check(lijst.some((x) => x.id === ch && x.heeft_pincode) && lijst.some((x) => x.id === co), 'personeelslijst voor het loginscherm bevat chauffeur en coördinator');
   const goed = await P('POST', '/api/login', { persoon_id: ch, pincode: '4101' });
@@ -72,7 +72,7 @@ try {
   const open = await html(CH.nu.url); T.check(open.status === 200, 'de knop op de NU-kaart opent de rit-weergave (200)');
   const ctok = (await P('POST', '/api/login', { persoon_id: co, pincode: '4102' })).json.token;
   const CO = (await T.api(srv.base, ctok, 'GET', `/api/vandaag?mijn=1&datum=${datum}`)).json;
-  T.check(CO.gebruiker.rol === 'coordinator' && Array.isArray(CO.daarna) && CO.tellers.meldingen === 0, `coördinator: ${CO.nu ? 'NU "' + CO.nu.titel + '"' : 'geen NU'}, ${CO.daarna.length} daarna`);
+  T.check(CO.gebruiker.rol === 'chauffeur' && Array.isArray(CO.daarna) && CO.tellers.meldingen === 0, `coördinator: ${CO.nu ? 'NU "' + CO.nu.titel + '"' : 'geen NU'}, ${CO.daarna.length} daarna`);
   const KA = (await A('GET', '/api/vandaag?mijn=1')).json;
   T.check(KA.gebruiker.rol === 'kantoor' && 'vandaag' in KA.tellers && 'transport' in KA.tellers && 'voorraad' in KA.tellers && KA.ritten_vandaag !== undefined, `kantoor: tellers ${JSON.stringify(KA.tellers)}`);
   const { kiesNuKantoor } = require(T.ROOT + '/routes/vandaag.js');

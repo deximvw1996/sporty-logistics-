@@ -13,17 +13,16 @@ module.exports = function(ctx){
     logWijziging(req,'personeel',id,'update',zonderPin(oud),zonderPin(get('SELECT * FROM personeel WHERE id=?',[id])),context);
   }
 
-  const ROLLEN=['kantoor','chauffeur','coordinator','monitor'];
+  const ROLLEN=['kantoor','chauffeur','monitor'];
   // Wat elke rol mag (één tabel; de app-schil en dit scherm lezen dezelfde lijst). kv/animator = oude namen.
   const RECHTEN={
-    kantoor:['alles beheren: planning, transport, materiaal, personeel','keuren en beslissen (aanvragen, tellingen)','export en back-up'],
+    kantoor:['alles beheren: planning, transport, materiaal, personeel','ritten rijden en aanvullen in de stockage','keuren en beslissen (aanvragen, tellingen)','export en back-up'],
     chauffeur:['eigen ritten rijden (laden, lossen, stops wisselen als ze vrij zijn)','problemen melden','lezen (geen beheer)'],
-    coordinator:['ritten rijden (eigen of huurwagen)','stockage: aanvullen en klaarzetten','tellen bij ophaling','meldingen lezen en doen'],
     monitor:['enkel het telscherm (monitor-link)'],
     kv:['KV-link: tellen, aanvragen, meldingen (geen login op de app-API)'],
     animator:['geen toegang tot de app (enkel in de planning)']
   };
-  const rolGroep=r=>r==='kv'?'coordinator':r==='animator'?'monitor':r;
+  const rolGroep=r=>r==='coordinator'?'kantoor':r==='animator'?'monitor':r;
   const DAG=['zo','ma','di','wo','do','vr','za'],MND=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const isoNu=()=>{const d=new Date();return `${iso(d)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
@@ -46,13 +45,13 @@ module.exports = function(ctx){
     return `${d.getDate()} ${MND[d.getMonth()]}`;
   }
   const tijdTekst=s=>{const d=alsDatum(s);return d&&!isNaN(d)?`${DAG[d.getDay()]} ${d.getDate()} ${MND[d.getMonth()]} ${uur(d)}`:(s||'');};
-  const stand=p=>p.actief===0?'inactief':!p.pincode&&['kantoor','chauffeur','coordinator'].includes(p.rol)?'geen_pincode':'actief';
+  const stand=p=>p.actief===0?'inactief':!p.pincode&&['kantoor','chauffeur'].includes(p.rol)?'geen_pincode':'actief';
 
   app.get('/api/personeel-overzicht',alleenKantoor,(req,res)=>{
     const lijst=all('SELECT * FROM personeel ORDER BY COALESCE(actief,1) DESC,rol,naam').map(p=>({id:p.id,naam:p.naam,rol:p.rol,rol_groep:rolGroep(p.rol),telefoon:p.telefoon||'',
       email:p.email||'',laatst_actief_tekst:relatief(p.laatst_actief),stand:stand(p),heeft_pincode:!!p.pincode,uitnodiging_op:p.uitnodiging_op||''}));
     const n=f=>lijst.filter(f).length;
-    res.json({tellers:{alle:lijst.length,kantoor:n(p=>p.rol_groep==='kantoor'),chauffeur:n(p=>p.rol_groep==='chauffeur'),coordinator:n(p=>p.rol_groep==='coordinator'),
+    res.json({tellers:{alle:lijst.length,kantoor:n(p=>p.rol_groep==='kantoor'),chauffeur:n(p=>p.rol_groep==='chauffeur'),kv:n(p=>p.rol_groep==='kv'),
       monitor:n(p=>p.rol_groep==='monitor'),zonder_pincode:n(p=>p.stand==='geen_pincode')},personeel:lijst});
   });
 
@@ -123,7 +122,7 @@ module.exports = function(ctx){
   });
   app.put('/api/personeel/:id/rol',alleenKantoor,(req,res)=>{
     const p=persoon(req,res);if(!p)return;
-    const rol=req.body?.rol;
+    const rol=req.body?.rol==='coordinator'?'kantoor':req.body?.rol; // TF9
     if(!ROLLEN.includes(rol))return res.status(400).json({error:`Rol moet ${ROLLEN.join(', ')} zijn`});
     if(p.id===req.persoon.persoon_id&&rol!=='kantoor')return res.status(409).json({error:'Je kan je eigen kantoorrol niet afnemen'});
     wijzigPersoon(req,p.id,{rol},'beheer: rol');
@@ -159,7 +158,7 @@ module.exports = function(ctx){
       const p=get('SELECT * FROM personeel WHERE id=?',[id]);
       if(!p){fouten.push({id,reden:'bestaat niet'});return;}
       if(p.actief===0){fouten.push({id,naam:p.naam,reden:'gedeactiveerd'});return;}
-      if(!['kantoor','chauffeur','coordinator','monitor'].includes(p.rol)){fouten.push({id,naam:p.naam,reden:`rol ${p.rol} logt niet in (KV werkt met de KV-link)`});return;}
+      if(!['kantoor','chauffeur','monitor'].includes(p.rol)){fouten.push({id,naam:p.naam,reden:`rol ${p.rol} logt niet in (KV werkt met de KV-link)`});return;}
       wijzigPersoon(req,p.id,{uitnodiging_op:isoNu()},'beheer: uitnodiging');
       uit.push({id:p.id,naam:p.naam,telefoon:p.telefoon||'',heeft_pincode:!!p.pincode,
         instructie:`Hallo ${p.naam}, open ${adres} op je gsm, kies je naam "${p.naam}" en ${p.pincode?'log in met je pincode':'kies je pincode bij de eerste keer (minstens 4 cijfers)'}. Groeten, kantoor Sporty`});

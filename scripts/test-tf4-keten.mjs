@@ -12,6 +12,7 @@ const srv = await T.startServer({ poort: Number(process.env.TEST_POORT) || 3360 
 try {
   const tok = await T.login(srv.base);
   const A = (m, p, b) => T.api(srv.base, tok, m, p, b);
+  let _k2; const K2 = async (m, p) => { if (!_k2) { const x = (await A('POST', '/api/personeel', { naam: 'Tweede kantoor', rol: 'kantoor' })).json; await A('POST', `/api/personeel/${x.id}/pincode`, { pincode: '5861' }); _k2 = await T.login(srv.base, x.id, '5861'); } return T.api(srv.base, _k2, m, p); }; // TF9: een melding gaat niet naar wie de handeling deed
   const P = (m, p, b) => T.api(srv.base, null, m, p, b);
   const R = ijk.locaties.rozenweg, km = ijk.kampmomenten.abdijschool, thema = ijk.themas.alles_op_wieltjes;
   const AV = require(T.ROOT + '/public/aanvullen.js');
@@ -103,7 +104,7 @@ try {
 
   // ═══ G22 + G26 + G14: melding opgeteld, losse melding, Gemeld-chip ═══
   await A('POST', '/api/aanvullijst/melding', { sessie_id: nk2.sessie_id, item_naam: 'tf4 paal', soort: 'kapot', aantal: 2, foto_data: PNG });
-  const mm = (await A('GET', '/api/meldingen')).json.meldingen.filter((m) => /Tf4 Paal.*gemeld vanuit/i.test(m.tekst)); // TF5: een natelling van de KV geeft nu ook een eigen melding
+  const mm = (await K2('GET', '/api/meldingen')).json.meldingen.filter((m) => /Tf4 Paal.*gemeld vanuit/i.test(m.tekst)); // TF5: een natelling van de KV geeft nu ook een eigen melding
   T.check(mm.length === 1 && /\(3×\)/.test(mm[0].tekst) && mm[0].gelezen === false, `G22: de kantoormelding werd bijgewerkt naar het nieuwe aantal: "${mm[0] && mm[0].tekst}"`);
   r = await A('POST', '/api/aanvullijst/melding', { item_naam: 'Tf4 Losse emmer', soort: 'weg', aantal: 1 });
   const lijst = (await A('GET', '/api/nakijken')).json;

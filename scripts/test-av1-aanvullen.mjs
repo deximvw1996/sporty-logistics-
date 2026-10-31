@@ -108,8 +108,8 @@ try {
   const nav = require(T.ROOT + '/public/nav.js');
   const ploeg = nav.TABS.ploeg.find((t) => t[0] === 'stockage');
   T.check(ploeg[3] === '/aanvullen' && nav.PAGINA['/aanvullen'] === 'voorraad' && nav.SUB.voorraad.some((s) => s[0] === 'Aanvullijst' && s[1] === '/aanvullen'), 'tab Stockage, de PAGINA-tabel en de Voorraad-subbalk wijzen naar /aanvullen');
-  T.check(nav.actieveTab('coordinator', '/aanvullen', '') === 'stockage' && nav.actieveTab('chauffeur', '/aanvullen', '') === 'stockage' && nav.actieveTab('kantoor', '/aanvullen', '') === 'voorraad', 'tab Stockage is actief op /aanvullen (kantoor: Voorraad)');
-  T.check(nav.magOpGsm('coordinator', '/aanvullen') && nav.magOpGsm('chauffeur', '/aanvullen') && nav.magOpGsm('kantoor', '/aanvullen'), 'coördinator, chauffeur en kantoor mogen /aanvullen op de gsm');
+  T.check(nav.actieveTab('chauffeur', '/aanvullen', '') === 'stockage' && nav.actieveTab('kantoor', '/aanvullen', '') === 'voorraad', 'tab Stockage is actief op /aanvullen (kantoor: Voorraad)');
+  T.check(nav.magOpGsm('chauffeur', '/aanvullen') && nav.magOpGsm('kantoor', '/aanvullen'), 'coördinator, chauffeur en kantoor mogen /aanvullen op de gsm');
   const vj = lees('public/vandaag.js');
   T.check(vj.includes("u==='/aanvullijst-print'?'/aanvullen'") && vj.includes('escG(aUrl(n.url))') && vj.includes('location.href=aUrl(a.url)'), 'de NU-kaart "Aanvullen" op Vandaag opent /aanvullen');
   const html = lees('public/aanvullen.html'), css = lees('public/aanvullen.css');

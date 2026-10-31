@@ -2153,3 +2153,23 @@ Melding: `Telling bijgewerkt · Abdijschool Vlierbeek: TF51: Politiepet 1 → 0,
 6. Een rit die vóór de deploy niet klaargezet en niet gestart is, verdwijnt bij de chauffeur tot klaarzetten (al gemeld bij TF5).
 7. De lijst Voertuigen toont op de gsm nog een kolom "—" voor plaatsen.
 8. Migratienummers botsten bij de rebase met TF8 (91): de mijne zijn nu 92 (opgelost tekort), 93 (voertuigen), 94 (hoe vol).
+
+## TF9 — Kantoor en coördinator zijn één rol (31/10)
+
+**Tests.** `test-tf9-rollen` 26 ok. Volle run 2× op de voorlaatste code: 55 van 58, rood `v3c-fotos` en `veiligheid` (zelfde fouten als vóór TF5) en `tf9-rollen` op één laatste tekst in `sportrooster.js`. Die tekst is daarna weg; toen alleen `tf9-rollen` en `pl3-sportrooster` opnieuw gedraaid, beide groen. **Dus niet volledig groen.**
+
+**Punt 1.** Migratie 95: coördinator → kantoor, per persoon in `activiteiten_log`; pincodes en sessies blijven (de sessie leest de rol uit personeel). Meldingen voor `coordinator` naar `kantoor`, een dubbele ongelezen wordt gelezen gezet, niets gewist. Ritten: `bestuurder_rol` mee. `coordinator` in rolMag, sessie, personeel en melding gedraagt zich als kantoor. Rolmeldingen hebben nu `van_persoon_id` en verschijnen niet bij wie de handeling deed; andere kantoormedewerkers zien ze wel. Beslissing op een aanvraag zonder artikel geeft één melding.
+Filter Coördinator in Personeel is nu **KV** (de KV's stonden in die groep). Bestuurder die geen chauffeur of kantoor is (bv. KV): `bestuurder_rol` "anders", label "(rijdt mee)".
+
+**Chauffeur (aanvulling Maxim).** Aanvullen en kapot of weg melden blijven staan; tab Stockage blijft. Vandaag en Ritten eerst. Aanvulwerk staat nooit als NU boven een rit: met rit onder Daarna, zonder rit mag het NU zijn. **Dit is nieuw:** vroeger kreeg een chauffeur aanvulwerk helemaal niet op Vandaag. Monitor ongewijzigd.
+
+**Punt 2.** Kantoor gsm: NU = eigen rit, dan aanvulwerk, tellen bij ophaling, dan wat aandacht vraagt. Meer: Mijn ritten, Aanvullen. `/zoeken`, `/api/opzoeken/*` en `/api/bericht-kantoor` zijn weg (kantoor heeft Bakken, Catalogus, Locaties, Meldingen); `/zoeken` stuurt door naar `/bakken`. `test-tf5-coordinator` is daarom verwijderd. Geen "coördinator" meer in `public/`.
+
+**Browser (localhost).** 390: Vandaag (NU = rit #22, knop 44 px), Meer, Mijn ritten: geen scroll. `/aanvullen` geopend, niet gemeten (browsertool even niet beschikbaar). 1920: Personeel met chips Kantoor, Chauffeur, KV, Monitor. Rit rijden en aanvullen als kantoor via API in de test, niet geklikt.
+
+**Aangepaste tests.** Rolnaam overal gevolgd. `av2`, `tf4`, `tf6` lezen meldingen met een tweede kantoormedewerker; `me1`: kantoorlid krijgt nu chauffeursmeldingen; `pl3`: kantoor mag verhuizen; `tb2`, `tf3-rechten`: checks "coördinator mag niet" weg; `gf1`, `gr1`, `mob1`: rol chauffeur; `rp1`: "anders".
+
+**GEVONDEN**
+1. Werkt er maar één iemand op kantoor, dan ziet die eigen rolmeldingen niet meer, ook niet de herinnering "artikel onbekend". Tekorten toont het blok wel. Volgt de opdracht, maar let erop.
+2. Kantoor ziet alle ophalingen van vandaag als "Tellen" op de gsm, niet alleen eigen ritten (zoals de coördinator had); kan druk worden.
+3. `scripts/generale-repetitie.mjs` noemt nog coordinator; de server zet het om. Niet aangepast.

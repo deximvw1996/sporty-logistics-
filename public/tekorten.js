@@ -102,7 +102,7 @@
     history.replaceState(null,'',`/tekorten?id=${encodeURIComponent(id)}`);
   }
   function tekenDetail(){$('detail').innerHTML=BOUW.detail(D,TAB);const n=$('d-negeer');if(n)n.hidden=ROL!=='kantoor';
-    const c=document.querySelector('#detail [data-cat]');if(c&&ROL!=='kantoor')c.remove(); // TF6 G6: de Catalogus is voor kantoor; een coördinator krijgt geen dode link
+    const c=document.querySelector('#detail [data-cat]');if(c&&ROL!=='kantoor')c.remove(); // TF6 G6: de Catalogus is voor kantoor; een kantoor krijgt geen dode link
   }
   const pad=(id,x)=>`/api/tekorten/${encodeURIComponent(id)}/${x}`;
   async function besteld(ids,a){
@@ -207,9 +207,9 @@
     s.innerHTML=st.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');}).observe(document.body,{childList:true});
   async function kop(){
     const w=await api('GET','/api/wie-ben-ik');
-    if(w.ok){ROL=w.json.rol||(w.json.persoon&&w.json.persoon.rol)||'kantoor';const n=w.json.naam||(w.json.persoon&&w.json.persoon.naam)||'';$('wie').textContent=n+' · '+(ROL==='coordinator'?'coördinator':ROL);
+    if(w.ok){ROL=w.json.rol||(w.json.persoon&&w.json.persoon.rol)||'kantoor';const n=w.json.naam||(w.json.persoon&&w.json.persoon.naam)||'';$('wie').textContent=n+' · '+ROL;
       $('melden').hidden=ROL!=='kantoor';if(O)tekenLijst();if(D)tekenDetail();
-      // TF8 G14: een coördinator heeft hier geen kantoorbalk: eigen terugknop naar Meer.
+      // TF8 G14: een kantoor heeft hier geen kantoorbalk: eigen terugknop naar Meer.
       if(ROL!=='kantoor'&&!document.getElementById('terug-meer')){const a2=document.createElement('a');a2.id='terug-meer';a2.href='/meer';a2.textContent='‹ Meer';a2.style.cssText='display:inline-flex;align-items:center;min-height:44px;padding:0 14px;font-weight:700;color:#1e3a8a;text-decoration:none';document.body.insertBefore(a2,document.body.firstChild);}}
   }
   (async()=>{await kop();await laad();const id=Q.get('id');if(id)laadDetail(id);})();

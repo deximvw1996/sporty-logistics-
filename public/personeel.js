@@ -32,9 +32,9 @@
 
   const Q=new URLSearchParams(location.search);
   let O=null,D=null,SEL=new Set(),FILTER='alle',ZOEK='',TAB='gegevens';
-  const ROLLEN=[['kantoor','kantoor'],['chauffeur','chauffeur'],['coordinator','coördinator'],['monitor','monitor']];
-  const rolTekst=r=>({coordinator:'coördinator',kv:'coördinator (KV)',animator:'monitor (animator)'}[r]||r);
-  const FILTERS={alle:()=>true,kantoor:p=>p.rol_groep==='kantoor',chauffeur:p=>p.rol_groep==='chauffeur',coordinator:p=>p.rol_groep==='coordinator',monitor:p=>p.rol_groep==='monitor',zonder_pincode:p=>p.stand==='geen_pincode'};
+  const ROLLEN=[['kantoor','kantoor'],['chauffeur','chauffeur'],['monitor','monitor']];
+  const rolTekst=r=>({kv:'KV',animator:'monitor (animator)'}[r]||r);
+  const FILTERS={alle:()=>true,kantoor:p=>p.rol_groep==='kantoor',chauffeur:p=>p.rol_groep==='chauffeur',kv:p=>p.rol_groep==='kv',monitor:p=>p.rol_groep==='monitor',zonder_pincode:p=>p.stand==='geen_pincode'};
   const zichtbaar=()=>O.personeel.filter(FILTERS[FILTER]).filter(p=>!ZOEK||[p.naam,p.rol,rolTekst(p.rol),p.telefoon].join(' ').toLowerCase().includes(ZOEK));
   const STAND={actief:['groen','actief'],geen_pincode:['oranje','geen pincode'],inactief:['','inactief']};
 
@@ -126,7 +126,7 @@
 
   $('b-uitn').onclick=()=>uitnodigen([...SEL]);
   $('b-rol').onclick=async()=>{
-    const v=await vraag({titel:`Rol van ${SEL.size} personen wijzigen`,ok:'Wijzigen',html:rolKeuze('coordinator'),lees:f=>({rol:f.rol.value})});if(!v)return;
+    const v=await vraag({titel:`Rol van ${SEL.size} personen wijzigen`,ok:'Wijzigen',html:rolKeuze('chauffeur'),lees:f=>({rol:f.rol.value})});if(!v)return;
     let n=0;for(const p of gekozen()){const r=await api('PUT',`/api/personeel/${p.id}/rol`,v);if(r.ok)n++;else toast(`${p.naam}: ${r.json.error||'mislukt'}`,'error');}
     toast(`${n} rol${n===1?'':'len'} gewijzigd`,'success');SEL.clear();laad();
   };
@@ -140,7 +140,7 @@
     const a=document.createElement('a');a.href=URL.createObjectURL(await r.blob());a.download='sporty-export.json';a.click();URL.revokeObjectURL(a.href);
   };
   $('nieuw').onclick=async()=>{
-    const v=await vraag({titel:'Nieuwe persoon',ok:'Aanmaken',html:`<label>Naam<input name="naam"></label>${rolKeuze('coordinator')}<label>Telefoon<input name="telefoon"></label><label>E-mail<input name="email"></label>`,
+    const v=await vraag({titel:'Nieuwe persoon',ok:'Aanmaken',html:`<label>Naam<input name="naam"></label>${rolKeuze('chauffeur')}<label>Telefoon<input name="telefoon"></label><label>E-mail<input name="email"></label>`,
       lees:f=>f.naam.value.trim()?{naam:f.naam.value.trim(),rol:f.rol.value,telefoon:f.telefoon.value,email:f.email.value}:(toast('Naam is verplicht','warn'),null)});
     if(!v)return;const r=await api('POST','/api/personeel',v);if(!r.ok)return toast(r.json.error||'Aanmaken mislukt','error');
     toast(`${v.naam} aangemaakt — stuur nu een pincode-uitnodiging`,'success');await laad();laadDetail(r.json.id);

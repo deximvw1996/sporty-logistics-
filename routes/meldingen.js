@@ -5,16 +5,16 @@
 'use strict';
 module.exports = function(ctx){
   const {app,get,all,run,now,insMetLog,updateMetLog,alleenKantoor,logAct,path,ROOT_DIR,_genToken} = ctx;
-  const ROLLEN=['kantoor','chauffeur','coordinator','monitor'];
+  const ROLLEN=['kantoor','chauffeur','monitor'];
   const isoNu=()=>new Date().toISOString();
 
   function melding(req,{voor_rol,voor_persoon_id,van_naam,tekst,link}){
     try{
-      const pid=voor_persoon_id||null,rol=pid?'':(voor_rol||'');
+      const pid=voor_persoon_id||null,rol=pid?'':(voor_rol==='coordinator'?'kantoor':voor_rol||''); // TF9
       if(!tekst||(!pid&&!rol))return null;
       const dubbel=get("SELECT id FROM meldingen WHERE tekst=? AND COALESCE(voor_rol,'')=? AND voor_persoon_id IS ? AND gelezen_op IS NULL",[tekst,rol,pid]);
       if(dubbel)return dubbel.id;
-      return insMetLog(req||null,'INSERT INTO meldingen (voor_rol,voor_persoon_id,van_naam,tekst,link,created_at) VALUES (?,?,?,?,?,?)',[rol,pid,van_naam||'',String(tekst),link||'',isoNu()],'melding');
+      return insMetLog(req||null,'INSERT INTO meldingen (voor_rol,voor_persoon_id,van_naam,van_persoon_id,tekst,link,created_at) VALUES (?,?,?,?,?,?,?)',[rol,pid,van_naam||'',(req&&req.persoon&&req.persoon.persoon_id)||null,String(tekst),link||'',isoNu()],'melding');
     }catch(e){console.error('Melding mislukt:',e.message);return null;} // een melding mag de echte actie nooit blokkeren
   }
   // Rit-bestuurder: gekoppeld personeelslid, anders exact één actieve persoon met die naam (hoofdletterongevoelig).
@@ -69,6 +69,7 @@ module.exports = function(ctx){
   function vanPersoon(p,alleenOngelezen){
     const gel=new Set(all('SELECT melding_id FROM meldingen_gelezen WHERE persoon_id=?',[p.persoon_id]).map(r=>r.melding_id));
     return all(`SELECT * FROM meldingen WHERE ${voorWhere} ORDER BY id DESC LIMIT 200`,[p.persoon_id,p.rol])
+      .filter(m=>m.voor_persoon_id||!m.van_persoon_id||m.van_persoon_id!==p.persoon_id) // TF9: een rolmelding gaat niet naar wie de handeling zelf deed
       .map(m=>({id:m.id,van_naam:m.van_naam||'',tekst:m.tekst,titel:(m.van_naam&&!m.tekst.includes(m.van_naam)?m.van_naam+': ':'')+m.tekst,link:m.link||'',created_at:m.created_at,voor_rol:m.voor_rol||'',voor_persoon_id:m.voor_persoon_id,gelezen:!!(m.gelezen_op||gel.has(m.id))}))
       .filter(m=>!alleenOngelezen||!m.gelezen);
   }
@@ -90,7 +91,7 @@ module.exports = function(ctx){
     leesVoor(req,m);res.json({ok:true});
   });
   app.post('/api/meldingen',alleenKantoor,(req,res)=>{
-    const b=req.body||{},tekst=String(b.tekst||'').trim(),pid=parseInt(b.voor_persoon_id)||null,rol=b.voor_rol||'';
+    const b=req.body||{},tekst=String(b.tekst||'').trim(),pid=parseInt(b.voor_persoon_id)||null,rol=b.voor_rol==='coordinator'?'kantoor':b.voor_rol||'';
     if(!tekst)return res.status(400).json({error:'Tekst is verplicht'});
     if(pid){if(!get('SELECT id FROM personeel WHERE id=?',[pid]))return res.status(400).json({error:'Onbekende persoon'});}
     else if(!ROLLEN.includes(rol))return res.status(400).json({error:'Kies een persoon of een rol'});
@@ -99,37 +100,6 @@ module.exports = function(ctx){
     logAct('melding','bericht',`Bericht van ${req.persoon.naam} aan ${pid?(get('SELECT naam FROM personeel WHERE id=?',[pid])||{}).naam:rol}: ${tekst}`,null,null);
     res.json({ok:true,id});
   });
-  // ── TF5 punt 6: coördinator zoekt op. Smalle leesroutes: alleen de velden hieronder, geen personeelsgegevens. Eén schrijfroute: bericht aan kantoor. ──
-  const _zoek=req=>String(req.query.q||'').trim().toLowerCase();
-  const _vandaag=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
-  const _ln=id=>id?(get('SELECT name FROM locaties WHERE id=?',[id])||{}).name||'':'';
-  app.get('/api/opzoeken/bakken',(req,res)=>{
-    const q=_zoek(req);if(q.length<1)return res.json({bakken:[]});
-    res.json({bakken:all('SELECT id,code,naam,huidige_locatie_id,thuislocatie_id,status,rek,plank,is_bulk FROM bakken ORDER BY code,naam').filter(b=>(String(b.code||'')+' '+String(b.naam||'')).toLowerCase().includes(q)).slice(0,30).map(b=>{
-      const rit=get("SELECT tr.id,tr.datum,tr.vertrek,t.type FROM transport_regels r JOIN transport_taken t ON t.id=r.taak_id JOIN transport_ritten tr ON tr.id=t.rit_id WHERE r.bak_id=? AND t.status NOT IN ('gedaan','geannuleerd') AND tr.status NOT IN ('gedaan','geannuleerd') AND tr.datum>=? ORDER BY tr.datum,tr.vertrek LIMIT 1",[b.id,_vandaag()]);
-      const rek=b.rek||(/^[A-Za-z]/.test(b.code||'')?String(b.code)[0].toUpperCase():'');
-      return {id:b.id,code:b.code||'',naam:b.naam||'',locatie:_ln(b.huidige_locatie_id||b.thuislocatie_id),status:b.status||'',plaats:[rek?'rek '+rek:'',b.plank?'plank '+b.plank:''].filter(Boolean).join(' · '),rit:rit?{id:rit.id,datum:rit.datum,vertrek:rit.vertrek||'',type:rit.type||''}:null};
-    })});
-  });
-  app.get('/api/opzoeken/artikelen',(req,res)=>{
-    const q=_zoek(req),id=parseInt(req.query.id)||0;if(!q&&!id)return res.json({artikelen:[]});
-    res.json({artikelen:all('SELECT id,naam,eenheid,pool_plaats FROM item_types ORDER BY naam').filter(a=>id?a.id===id:String(a.naam||'').toLowerCase().includes(q)).slice(0,30).map(a=>({id:a.id,naam:a.naam,eenheid:a.eenheid||'',plaats:a.pool_plaats||'',
-      voorraad:all('SELECT l.name AS stockage,s.qty FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? ORDER BY l.name',[a.id]),
-      bakken:all('SELECT b.code,b.naam FROM bak_items i JOIN bakken b ON b.id=i.bak_id WHERE i.item_type_id=? ORDER BY b.code LIMIT 10',[a.id])}))});
-  });
-  app.get('/api/opzoeken/locaties',(req,res)=>{
-    const q=_zoek(req);if(!q)return res.json({locaties:[]});
-    res.json({locaties:all('SELECT id,name,addr,gemeente,type,contact_naam,contact_tel,sleutel_info,lat,lng FROM locaties ORDER BY name').filter(l=>(String(l.name||'')+' '+String(l.addr||'')+' '+String(l.gemeente||'')).toLowerCase().includes(q)).slice(0,30).map(l=>({id:l.id,naam:l.name,adres:l.addr||'',type:l.type||'',contact_naam:l.contact_naam||'',contact_telefoon:l.contact_tel||'',sleutel_info:l.sleutel_info||'',
-      kaart:l.lat&&l.lng?`https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lng}`:l.addr?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.addr)}`:''}))});
-  });
-  app.get('/api/opzoeken/kantoor',(req,res)=>res.json({telefoon:(get("SELECT waarde FROM app_vlaggen WHERE naam='kantoor_telefoon'")||{}).waarde||''}));
-  app.post('/api/bericht-kantoor',(req,res)=>{
-    const tekst=String(req.body?.tekst||'').trim().slice(0,500);
-    if(!tekst)return res.status(400).json({error:'Schrijf eerst een korte tekst'});
-    const id=melding(req,{voor_rol:'kantoor',van_naam:req.persoon.naam,tekst});
-    logAct('melding','bericht',`Bericht van ${req.persoon.naam} aan kantoor: ${tekst}`,null,null);
-    res.json({ok:true,id});
-  });
-  app.get('/zoeken',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','zoeken.html')));
+  app.get('/zoeken',(req,res)=>res.redirect('/bakken')); // TF9: kantoor heeft Bakken, Catalogus en Locaties
   app.get('/meldingen',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','meldingen.html')));
 };

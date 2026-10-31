@@ -45,7 +45,7 @@ try {
   const { ritId, taakId } = await T.voorstelNaarRit(srv.base, tok, v, { chauffeur: { id: jan.id, naam: 'Me Jan' } });
   const rt = await T.ritToken(srv.base, tok, ritId);
   await P('POST', `/api/rit-token/${rt}/taken/${taakId}/probleem`, { soort: 'gesloten', tekst: 'deur Me1' });
-  T.check((await nieuw(tok, /deur Me1/)).length === 1 && (await nieuw(lot.tok, /deur Me1/)).length === 0, 'chauffeur meldt iets → één melding voor kantoor');
+  T.check((await nieuw(tok, /deur Me1/)).length === 1 && (await nieuw(lot.tok, /deur Me1/)).length === 1, 'chauffeur meldt iets → één melding voor kantoor');
   const ritR = (await A('GET', '/api/ritten')).json.find((r) => r.id === ritId);
   await A('POST', `/api/ritten/${ritId}/klaarzet-terug`, {}); // TF5: T.ritToken zet klaar; hier hoort de rit nog niet klaar te staan
   await A('PUT', `/api/ritten/${ritId}`, { voertuig: 'Me wagen' });

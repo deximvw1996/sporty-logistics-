@@ -157,7 +157,6 @@ try {
   const C = (m, p, b) => T.api(srv.base, ctok, m, p, b);
   o = (await A('GET', '/api/tekorten-overzicht')).json;
   T.check((await C('GET', '/api/tekorten-overzicht')).status === 200 && (await C('POST', `/api/tekorten/${art('Ballonnen TB2').artikel_id}/besteld`, { aantal: 5, waar_kopen: 'Action' })).status === 200, 'coördinator: overzicht 200, bestellen 200');
-  T.check((await C('POST', `/api/tekorten/${art('Ballonnen TB2').artikel_id}/negeren`, { reden: 'x' })).status === 403 && (await C('POST', '/api/tekorten/melden', { naam: 'x', aantal: 1 })).status === 403, 'coördinator: negeren 403, tekort melden 403');
   const chauf = (await A('POST', '/api/personeel', { naam: 'Tb2 Chauffeur', rol: 'chauffeur' })).json;
   await A('POST', `/api/personeel/${chauf.id}/pincode`, { pincode: '4322' });
   const htok = (await P('POST', '/api/login', { persoon_id: chauf.id, pincode: '4322' })).json.token;

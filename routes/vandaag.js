@@ -232,6 +232,13 @@ module.exports = function(ctx){
   const ritItem=r=>({soort:'rit',ico:'🚚',tijd:r.tijd,titel:ritTitel(r),sub:ritSub(r),url:'/rit/'+r.token,onderweg:r.status==='onderweg'});
   // ME1: de ongelezen meldingen uit routes/meldingen.js, in de vorm die de gsm-weergave leest (titel, sub).
   const ongelezen=req=>ctx.meldingenVan(req.persoon,true).map(m=>({...m,sub:m.link?'tik om te openen':'',acties:[]}));
+  // Tellen bij ophaling: ophalingen van vandaag; de telling loopt via de KV-link van dat kampmoment.
+  const tellenVan=datum=>all(`SELECT t.*,r.chauffeur,r.personeel_id,r.id AS rid,km.kv_token FROM transport_taken t JOIN transport_ritten r ON r.id=t.rit_id LEFT JOIN kampmomenten km ON km.id=t.kampmoment_id
+      WHERE r.datum=? AND t.type='ophaling' AND t.status NOT IN ('gedaan','geannuleerd') AND r.status<>'geannuleerd' ORDER BY COALESCE(t.tijd,''),t.id`,[datum]).map(t=>{
+        const n=get('SELECT COUNT(*) AS n FROM transport_regels WHERE taak_id=?',[t.id]).n,ch=t.chauffeur||_persNaam(t.personeel_id);
+        return {soort:'tellen',ico:'📋',tijd:t.tijd||'',titel:`Tellen bij ophaling · ${_locNaam(_stopLoc(t))}`,sub:[`${n} stuks`,ch?`samen met ${ch} (rit #${t.rid})`:`rit #${t.rid}`].join(' · '),url:t.kv_token?'/kv/'+t.kv_token:'/vandaag?tab=ritten'};
+      });
+  const aanvulItem=b=>b.aanvullen.open?{soort:'aanvullen',ico:'🧮',tijd:'',titel:'Aanvullen in de Rozenweg',sub:`${b.aanvullen.bakken} bak${b.aanvullen.bakken===1?'':'ken'} · ${b.aanvullen.open} handeling${b.aanvullen.open===1?'':'en'}`,url:'/aanvullijst-print'}:null;
   function gsmVandaag(req,b,datum){
     const rol=req.persoon.rol;
     if(rol==='kantoor'){
@@ -239,24 +246,23 @@ module.exports = function(ctx){
       const rij=(ico,naam,lijst,url)=>({soort:naam.toLowerCase(),ico,tijd:'',titel:`${naam} · ${lijst.length}`,sub:lijst.slice(0,3).map(x=>x.titel).join(' · '),url});
       const groepen=[v.beslissen.length&&rij('📩','Beslissen',v.beslissen,'/vandaag?tab=beslissen'),v.inplannen.length&&rij('🚚','Inplannen',v.inplannen,'/ritplanning'),v.nakijken.length&&rij('⚠','Controles',v.nakijken,'/nakijken'),
         v.ritten_vandaag.length&&{soort:'ritten',ico:'🚐',tijd:v.ritten_vandaag[0].tijd,titel:`Ritten vandaag · ${v.ritten_vandaag.length}`,sub:v.ritten_vandaag.slice(0,4).map(r=>`${r.chauffeur||'geen chauffeur'} ${r.status==='onderweg'?`onderweg (stop ${r.stop_huidig}/${r.stops_totaal})`:r.status}`).join(' · '),url:'/ritplanning'}].filter(Boolean);
-      const kies=kiesNuKantoor(groepen);
+      // TF9: kantoor rijdt en vult ook aan: eigen ritten en aanvulwerk eerst, daarna wat aandacht vraagt.
+      const eigen=b.ritten_vandaag.filter(r=>r.status!=='gedaan').map(ritItem).sort((x,y)=>(y.onderweg?1:0)-(x.onderweg?1:0)),av=aanvulItem(b);
+      const alle=[...eigen,...(av?[av]:[]),...tellenVan(datum),...groepen];
+      const kies=kiesNuKantoor(alle);
       const wk=v.deze_week;
       const daarna=kies.daarna.concat(wk.length?[{soort:'week',ico:'🏫',tijd:'ma–vr',titel:`Deze week · ${wk.length} locatie${wk.length===1?'':'s'}`,sub:wk.slice(0,5).map(k=>k.locatie).join(', '),url:'/kampmomenten'}]:[]);
       const meldingen=ongelezen(req);
-      return {nu:kies.nu,daarna,n_dingen:groepen.length,meldingen,beslissen:v.beslissen,periode:v.periode,
+      return {nu:kies.nu,daarna,n_dingen:alle.length,meldingen,beslissen:v.beslissen,periode:v.periode,
         tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.nakijken.filter(x=>x.id!=='tellingen-te-keuren').length+v.te_keuren,meldingen:meldingen.length}};
     }
     const naam=req.persoon.naam;
     const meld=ongelezen(req);
-    // Tellen bij ophaling (coördinator): ophalingen van vandaag; de telling loopt via de KV-link van dat kampmoment.
-    const tellen=rol!=='coordinator'?[]:all(`SELECT t.*,r.chauffeur,r.personeel_id,r.id AS rid,km.kv_token FROM transport_taken t JOIN transport_ritten r ON r.id=t.rit_id LEFT JOIN kampmomenten km ON km.id=t.kampmoment_id
-      WHERE r.datum=? AND t.type='ophaling' AND t.status NOT IN ('gedaan','geannuleerd') AND r.status<>'geannuleerd' ORDER BY COALESCE(t.tijd,''),t.id`,[datum]).map(t=>{
-        const n=get('SELECT COUNT(*) AS n FROM transport_regels WHERE taak_id=?',[t.id]).n,ch=t.chauffeur||_persNaam(t.personeel_id);
-        return {soort:'tellen',ico:'📋',tijd:t.tijd||'',titel:`Tellen bij ophaling · ${_locNaam(_stopLoc(t))}`,sub:[`${n} stuks`,ch?`samen met ${ch} (rit #${t.rid})`:`rit #${t.rid}`].join(' · '),url:t.kv_token?'/kv/'+t.kv_token:'/vandaag?tab=ritten'};
-      });
+    const tellen=[];
     const open=b.ritten_vandaag.filter(r=>r.status!=='gedaan');
-    const aanvul=rol==='coordinator'&&b.aanvullen.open?{soort:'aanvullen',ico:'🧮',tijd:'',titel:'Aanvullen in de Rozenweg',sub:`${b.aanvullen.bakken} bak${b.aanvullen.bakken===1?'':'ken'} · ${b.aanvullen.open} handeling${b.aanvullen.open===1?'':'en'}`,url:'/aanvullijst-print'}:null;
-    const kies=kiesNu(open.map(ritItem),aanvul,tellen);
+    // TF9: de chauffeur doet vooral ritten: aanvulwerk staat nooit als NU boven een rit, alleen eronder (of NU als er geen rit is).
+    const kies=kiesNu(open.map(ritItem),null,tellen);const avC=rol==='chauffeur'?aanvulItem(b):null;
+    if(avC){if(kies.nu)kies.daarna=[...kies.daarna,avC];else kies.nu={...avC,knop:'Start ›'};}
     const volgend=kies.nu||!b.ritten_morgen.length?[]:b.ritten_morgen.map(r=>({...ritItem(r),tijd:'morgen '+r.tijd}));
     return {nu:kies.nu,daarna:kies.daarna.concat(volgend),n_dingen:(kies.nu?1:0)+kies.daarna.length,meldingen:meld,tellers:{ritten:open.length,meldingen:meld.length}};
   }

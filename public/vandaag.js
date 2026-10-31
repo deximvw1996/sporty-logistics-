@@ -5,7 +5,7 @@
   // MOB1: gsm-weergave (design/MOBIEL-DEFINITIEF.html, A2). Los van de browser, zodat de test ze met echte data-JSON kan aanroepen.
   const aUrl=u=>u==='/aanvullijst-print'?'/aanvullen':u; // AV1: de NU-kaart Aanvullen opent het aanvullen-scherm
   const escG=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const ROL={kantoor:'kantoor',chauffeur:'chauffeur',coordinator:'coördinator',monitor:'monitor'};
+  const ROL={kantoor:'kantoor',chauffeur:'chauffeur',monitor:'monitor'};
   const GSM={
     kop(v,titel){const d=v.datum_tekst,n=v.n_dingen||0;return `<div class="kopA"><div class="l">${escG(ROL[v.gebruiker.rol]||v.gebruiker.rol)} · ${escG(d)}</div><b>${escG(titel||'Hallo '+v.gebruiker.naam)}</b>${titel?'':`<span>${n===0?'niets meer vandaag':n===1?'1 ding vandaag':n+' dingen vandaag'}</span>`}</div>`;},
     rij(x){return `<a class="rij" href="${escG(aUrl(x.url))}"><div class="ico">${escG(x.ico)}</div><div class="nm">${x.tijd?`<i>${escG(x.tijd)}</i> `:''}${escG(x.titel)}<b>${escG(x.sub)}</b></div><span class="pijl">›</span></a>`;},

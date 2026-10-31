@@ -7,7 +7,7 @@
 module.exports = function(ctx){
   const {app,get,all,now,logAct,updateMetLog,insMetLog,alleenKantoor,vereisRol} = ctx;
   // Aanvulling Maxim 30/10: coördinatoren mogen de pagina zien en bestellen / binnen melden; keuren (Nakijken), negeren en melden blijft kantoor.
-  const kantoorOfCoord=vereisRol('kantoor','coordinator');
+  const kantoorOfCoord=alleenKantoor; // TF9: één rol
   const {zonderHaakjes}=require('../lib/tijd');
 
   const GOED=['uit_pool','bestellen','afschrijven_bestellen'];
@@ -184,7 +184,7 @@ module.exports = function(ctx){
   function meldBinnen(req,tekst){
     if(!ctx.melding)return;
     const rol=(req.persoon&&req.persoon.rol)||'';
-    ctx.melding(req,{voor_rol:rol==='coordinator'?'kantoor':'coordinator',van_naam:wie(req),tekst,link:'/tekorten'}); // ME1
+    ctx.melding(req,{voor_rol:'kantoor',van_naam:wie(req),tekst,link:'/tekorten'}); // ME1
   }
   const ACTIE={
     stand(req,per,a,regels,b){
