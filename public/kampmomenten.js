@@ -37,12 +37,17 @@
       + chip('zonder_thema', '⚠ Zonder thema ' + (t.zonder_thema || 0)) + chip('zonder_kv', '⚠ Zonder KV ' + (t.zonder_kv || 0)) + chip('conflict', 'Conflict ' + (t.conflict || 0));
   }
 
+  // TF10: wat er precies scheelt, per punt. Hover op desktop (title), tik op gsm (popover).
+  var UITLEG = [[/^geen thema$/i, 'Geen thema gekoppeld: zonder thema kan de levering niet samengesteld worden'], [/^geen kv$/i, 'Geen KV gekoppeld: de KV telt de bakken en krijgt de link'], [/^thema dubbel: ?(.*)$/i, function (m) { return 'Thema ' + m[1] + ' staat die week op meer dan één locatie: dat geeft een materiaaltekort'; }], [/^levering zonder rit$/i, 'Er is een levering die nog op geen rit staat']];
+  function aandachtPunten(lijst) { return (lijst || []).map(function (a) { for (var i = 0; i < UITLEG.length; i++) { var m = UITLEG[i][0].exec(a); if (m) return typeof UITLEG[i][1] === 'function' ? UITLEG[i][1](m) : UITLEG[i][1]; } return a.charAt(0).toUpperCase() + a.slice(1); }); }
+  function tipAttr(lijst) { var p = aandachtPunten(lijst); return ' title="' + esc(p.map(function (x) { return '• ' + x; }).join('\n')) + '" tabindex="0" data-tip="' + esc(p.join('\n')) + '"'; }
+  var aantalTekst = function (n) { return n === 1 ? '1 aandachtspunt' : n + ' aandachtspunten'; };
   // ── Lijst ──
   function lijstHtml(O, st) {
     var rijen = zichtbaar(O, st), sel = st.sel || new Set();
     return rijen.map(function (k) {
       var dubbel = k.aandacht.filter(function (a) { return /^thema dubbel/.test(a); })[0];
-      var pil = k.status === 'ok' ? '<span class="pil groen">ok</span>' : '<span class="pil oranje" title="' + esc(k.aandacht.join(' · ')) + '">⚠ let op</span>';
+      var pil = k.status === 'ok' ? '<span class="pil groen">ok</span>' : '<span class="pil oranje"' + tipAttr(k.aandacht) + '>⚠ let op' + (k.aandacht.length > 1 ? ' · ' + k.aandacht.length : '') + '</span>';
       return '<div class="r' + (st.open === k.id ? ' act' : '') + '" role="button" tabindex="0" data-id="' + k.id + '"><span><input type="checkbox" data-sel="' + k.id + '"' + (sel.has(k.id) ? ' checked' : '') + ' aria-label="Selecteer"></span>'
         + '<span><b>' + esc(k.locatie.naam) + '</b></span><span>' + esc(k.dagen_tekst) + '</span><span>' + esc(k.thema_tekst) + '</span><span>' + (k.kv ? esc(k.kv.naam) : '— geen KV') + '</span>'
         + '<span>' + esc(k.transport_tekst) + (dubbel ? '<br><small>⚠ ' + esc(dubbel) + '</small>' : '') + '</span><span>' + pil + '</span></div>';
@@ -83,11 +88,11 @@
       + (D.kookdagen.length ? ' <span style="font-weight:500;color:#64748b;font-size:12px">(oven nodig: eigen oven ' + (D.heeft_eigen_oven ? 'ja' : 'nee' + (D.oven_mee ? ' → oven mee' : '')) + ')</span>' : '');
     return '<div class="dgrid een"><div class="blok"><h4>Kampmoment</h4>'
       + '<div class="kv"><span>Dagen</span><b>' + dagenHtml(D) + '</b></div>'
-      + '<div class="kv"><span>Thema</span><b>' + themaRegel + (besch || bezet ? ' · beschikbaar in wk ' + D.week + ': ' + (besch || '—') + (bezet ? ' (' + bezet + ')' : '') : '') + '</b></div>'
+      + '<div class="kv"><span>Thema</span><b>' + themaRegel + '</b></div>'
       + '<div class="kv"><span>KV</span><b>' + kv + '</b></div><div class="kv"><span>Groep</span><b>' + groepHtml(D) + '</b></div><div class="kv"><span>Kookdagen</span><b>' + kook + '</b></div>'
       + '<div class="kv"><span>Opmerking</span><b style="flex:1"><textarea data-veld="opmerking" placeholder="optioneel">' + esc(D.opmerking) + '</textarea></b></div>'
       + '<h4 style="margin-top:14px">Transport voor dit kampmoment</h4>' + transportRijen(D) + '</div>'
-      + '<div class="blok"><h4>Conflicten &amp; aandacht</h4>' + aandachtHtml(D) + '<div style="margin-top:14px"><h4>Historiek (alles gelogd)</h4>' + histHtml(D) + '</div></div></div>';
+      + '<div class="rechtsKol" style="display:flex;flex-direction:column;gap:16px;min-width:0"><div class="blok"><h4>Conflicten &amp; aandacht</h4>' + aandachtHtml(D) + '</div><div class="blok" id="hist-kader"><h4>Historiek (alles gelogd)</h4>' + histHtml(D) + '</div></div></div>'; // TF10: Historiek is een eigen kader, met ruimte ertussen
   }
   function themaTabHtml(D) {
     return '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Thema &amp; materiaal (alleen lezen)</h4>' + (D.materiaal.map(function (m) {
@@ -98,7 +103,7 @@
     if (!D) return '<div class="leeg">Kies links een kampmoment.</div>';
     var tab = st.tab || 'gegevens';
     var sub = [D.dagen_tekst.replace(/^wk \d+ · /, ''), D.kv ? kvL(D.kv.naam) + (D.kv.telefoon ? ' (' + D.kv.telefoon + ')' : '') : 'geen KV', D.groep.kinderen != null ? D.groep.kinderen + ' kinderen' : '', D.groep.monitoren != null ? D.groep.monitoren + ' monitoren' : ''].filter(Boolean).map(esc).join(' · ');
-    var pil = D.status === 'ok' ? '<span class="pil groen">ok</span>' : '<span class="pil oranje">⚠ ' + esc(D.aandacht.length === 1 && D.aandacht[0].length <= 40 ? D.aandacht[0] : D.aandacht.length + ' aandachtspunten') + '</span>';
+    var pil = D.status === 'ok' ? '<span class="pil groen">ok</span>' : '<span class="pil oranje"' + tipAttr(D.aandacht) + '>⚠ ' + esc(D.aandacht.length === 1 && D.aandacht[0].length <= 40 ? D.aandacht[0] : aantalTekst(D.aandacht.length)) + '</span>';
     var inhoud = tab === 'thema' ? themaTabHtml(D)
       : tab === 'transport' ? '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Transport voor dit kampmoment</h4>' + transportRijen(D) + '</div></div>'
       : tab === 'telling' ? '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Telling door de KV</h4><div class="rij"><div class="nm">Vrijdagcontrole en nakijken<b>de telling van de bakken van dit kampmoment staat in Voorraad &amp; controles › Nakijken</b></div><button type="button" class="knop" data-act="telling">Open Nakijken</button></div></div></div>'
@@ -286,6 +291,18 @@
     await laad();
   }
 
+  // TF10: tik op een "let op" toont de punten (gsm heeft geen hover); een tweede tik of een tik elders sluit ze.
+  document.addEventListener('click', function (e) {
+    var oud = document.getElementById('tip-pop'); if (oud) oud.remove();
+    var pil = e.target.closest && e.target.closest('[data-tip]');
+    if (!pil) return;
+    e.stopPropagation();
+    if (oud && oud.dataset.van === pil.getAttribute('data-tip')) return;
+    var b = pil.getBoundingClientRect(), d = document.createElement('div'); d.id = 'tip-pop'; d.dataset.van = pil.getAttribute('data-tip'); d.setAttribute('role', 'tooltip');
+    d.style.cssText = 'position:fixed;z-index:2000;max-width:320px;background:#1e293b;color:#fff;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.3);left:' + Math.max(8, Math.min(b.left, root.innerWidth - 336)) + 'px;top:' + (b.bottom + 6) + 'px';
+    d.innerHTML = pil.getAttribute('data-tip').split('\n').map(function (x) { return '<div>• ' + esc(x) + '</div>'; }).join('');
+    document.body.appendChild(d);
+  }, true);
   document.addEventListener('click', async function (e) {
     var el = e.target;
     var cb = el.closest('input[data-sel]');

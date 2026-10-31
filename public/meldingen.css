@@ -8,3 +8,6 @@
 .mform .knoppen{display:flex;justify-content:flex-end;gap:8px}
 @media (min-width:768px){.tel{min-height:0;max-width:640px;margin:16px auto;border-radius:12px;overflow:hidden}}
 @media (max-width:767px){#toasts{bottom:84px;left:12px;right:12px}}
+
+/* TF10: desktop — de pagina scrolt nooit, de lijst scrolt in het kader (ook met de testklok-balk) */
+@media (min-width:768px){.tel:not(.r):not(.kopr){min-height:0;max-height:calc(100vh - var(--tk-h,0px) - 100px);display:flex;flex-direction:column}.tel .gbody{overflow-y:auto;min-height:0;flex:1}}

@@ -1,6 +1,6 @@
 /* public/tekorten.css — TB2: exacte kopie van de stijlen in design/mockup-tekorten.html (standaardpatroon), min wat al in patroon.css staat.
    Weggelaten: de demo-balk (.keuze); het frame vult het venster i.p.v. vast 1920×900 (op 1920×900 identiek). Onderaan: aanvullingen + gsm. */
-.frame{display:block;width:100%;max-width:1920px;height:100vh;margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
+.frame{display:block;width:100%;max-width:1920px;height:calc(100vh - var(--tk-h,0px));margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
 button{font:inherit;cursor:pointer;border:0}
 .pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.pil.groen{background:#dcfce7;color:#15803d}.pil.oranje{background:#ffedd5;color:#c2410c}.pil.rood{background:#fee2e2;color:#b91c1c}
 .kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;display:flex;flex-direction:column;min-height:0}
@@ -26,7 +26,7 @@ button{font:inherit;cursor:pointer;border:0}
 .rij .code{font-family:ui-monospace,Consolas,monospace;font-size:12px;font-weight:700;background:#e2e8f0;border-radius:6px;padding:2px 6px}
 .rij .getal{width:70px;text-align:right;font-weight:700}
 .vol{grid-column:1/-1}
-.body{display:grid;grid-template-columns:860px 1fr;gap:16px;padding:16px 28px;height:calc(100vh - 104px)}
+.body{display:grid;grid-template-columns:860px 1fr;gap:16px;padding:16px 28px;height:calc(100vh - var(--tk-h,0px) - 104px)}
 input[type=checkbox]{width:20px;height:20px}
 .voet .bulk{display:none;gap:6px;margin-left:8px}.voet.sel .bulk{display:flex}.voet .n{font-weight:700;color:#1e3a8a}
 .kopr,.r{grid-template-columns:36px 2.1fr 0.7fr 1.6fr 0.9fr 116px}

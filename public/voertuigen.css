@@ -1,6 +1,6 @@
 /* public/voertuigen.css — VT1: exacte kopie van de stijlen in design/mockup-voertuigen.html, min wat al in patroon.css staat.
    Weggelaten: de demo-balk (.keuze); het frame vult het venster i.p.v. vast 1920×900. Onderaan: aanvullingen en de gsm-regels. */
-.frame{display:block;width:100%;max-width:1920px;height:100vh;margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
+.frame{display:block;width:100%;max-width:1920px;height:calc(100vh - var(--tk-h,0px));margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
 button{font:inherit;cursor:pointer;border:0}
 .pil{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.pil.groen{background:#dcfce7;color:#15803d}.pil.oranje{background:#ffedd5;color:#c2410c}
 .kaart{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:14px 16px;display:flex;flex-direction:column;min-height:0}
@@ -23,7 +23,7 @@ button{font:inherit;cursor:pointer;border:0}
 .kv{display:flex;gap:10px;font-size:13px;padding:5px 0}.kv span{width:90px;color:#64748b;flex:none}.kv b{font-weight:600}
 .fotos{display:flex;gap:8px}.f{width:110px;height:80px;border-radius:8px;background:#cbd5e1;display:flex;align-items:flex-end;padding:6px;font-size:11px;font-weight:700;color:#334155}.f.plus{background:#eff6ff;color:#1d4ed8;align-items:center;justify-content:center;cursor:pointer}
 .rij{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 0;border-top:1px solid #eef2f7;font-size:13px}.rij:first-of-type{border-top:0}.rij .nm{flex:1;font-weight:600;line-height:1.3}.rij .nm b{display:block;font-size:11px;color:#64748b;font-weight:500}
-.body{display:grid;grid-template-columns:860px 1fr;gap:16px;padding:16px 28px;height:calc(100vh - 104px)}
+.body{display:grid;grid-template-columns:860px 1fr;gap:16px;padding:16px 28px;height:calc(100vh - var(--tk-h,0px) - 104px)}
 .kopr,.r{grid-template-columns:36px 2.2fr 0.8fr 0.7fr 0.9fr 178px 112px}
 input[type=checkbox]{width:20px;height:20px}
 .voet{justify-content:flex-start}.voet .bulk{display:none;gap:6px;margin-left:8px}.voet.sel .bulk{display:flex}.voet .n{font-weight:700;color:#1e3a8a}
