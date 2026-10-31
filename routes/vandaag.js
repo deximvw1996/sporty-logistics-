@@ -166,7 +166,7 @@ module.exports = function(ctx){
         stop_huidig:taken.length?Math.min(gedaan+1,taken.length):0,stops_totaal:taken.length,
         stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast'}))};
     }).sort((a,b)=>(a.tijd||'99').localeCompare(b.tijd||'99'));
-    const ritten_vandaag=rittenVan(datum),ritten_morgen=rittenVan(plus(datum,1));
+    const ritten_vandaag=rittenVan(datum).map(r=>{const rij=get('SELECT * FROM transport_ritten WHERE id=?',[r.id]);return {...r,meting:rij&&ctx._ritMeting?ctx._ritMeting(rij).tekst:''};}),ritten_morgen=rittenVan(plus(datum,1));
 
     // ── Nakijken: de telling van de KV's (VC1) staat ook op Vandaag ──
     if(pid){

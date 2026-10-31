@@ -98,7 +98,7 @@
     const ritRij=r=>{
       const pil=r.status==='onderweg'?`<span class="pil blauw">stop ${r.stop_huidig}/${r.stops_totaal}</span>`:r.status==='gedaan'?'<span class="pil groen">gedaan</span>':'<span class="pil">gepland</span>';
       const stops=r.stops.map(s=>esc(s.naam)+(s.slot==='vrij'?' <span class="pil oranje">vrij</span>':' 🔒')).join(' → ');
-      return `<div class="rit"><div class="u">${esc(r.tijd)}</div><div class="nm"><b>${esc([r.chauffeur||'geen chauffeur',r.voertuig].filter(Boolean).join(' · '))} ${pil}</b>${stops}</div></div>`;
+      return `<div class="rit"><div class="u">${esc(r.tijd)}</div><div class="nm"><b>${esc([r.chauffeur||'geen chauffeur',r.voertuig].filter(Boolean).join(' · '))} ${pil}</b>${stops}${r.meting?`<div style="font-size:12px;color:#334155">${esc(r.meting)}</div>`:''}</div></div>`;
     };
     // GF1: onder de ritten van vandaag staan die van morgen (zelfde rijstijl), zodat kantoor op donderdag de leveringen van vrijdag ziet.
     const morgen=(v.ritten_morgen||[]);

@@ -32,7 +32,7 @@ button{font:inherit;cursor:pointer;border:0}button:disabled{opacity:.35;cursor:d
 .raster .tk{flex:0 0 52px;display:flex;flex-direction:column;font-size:11px;color:#64748b}.raster .tk span{flex:1;border-top:1px solid #e2e8f0}
 .kolom{position:relative;display:flex;flex-direction:column;border-radius:0 0 8px 8px;background:#fafafa;min-width:0;border:1px solid #cbd5e1;border-top:0}.kolom:nth-child(odd){background:#f3f4f6}.kolom i{flex:1;border-top:1px solid #e2e8f0}.kolom.wk{border-style:dashed}
 .kolom.act{background:#eef4ff;border-color:#1e3a8a;border-width:2px;border-top:0}.kolom .plus{position:absolute;left:6px;top:8px}
-.be{position:absolute;background:#fff;border:2px solid #2563eb;border-radius:8px;padding:3px 5px;font-size:11px;overflow:hidden;line-height:1.3;min-height:40px}
+.be{position:absolute;background:#fff;border:2px solid #2563eb;border-radius:8px;padding:3px 5px;font-size:11px;overflow:hidden;line-height:1.3;min-height:28px}
 .be.gedaan{background:#f0fdf4}.be.onderweg{background:#eff6ff}.be.w{background:#fff5f5}.be.sel{box-shadow:0 0 0 3px #bfdbfe}
 .be b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.be span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.be .vt{color:#64748b}.be span.vrij{color:#c2410c}
 /* inzoom (D) */
@@ -96,6 +96,19 @@ body.sleept{cursor:grabbing;user-select:none}
   .dagkop{height:48px}
 }
 
+/* TF11: kop en kolom even breed; regels en materiaal */
+.kolom,.dagkop>div{box-sizing:border-box}
+.dagkop>div:not(.tk){padding:0}.dagkop>div:not(.tk)::before{content:'';flex:0 0 4px}
+.dagkop>div.act{border-width:2px;border-bottom:0}
+.dagkop>div.wk,.kolom.wk{border-width:1px}
+.stopregel{display:flex;align-items:center;gap:6px;padding:2px 0 2px 54px;font-size:12px;border-left:3px solid #e2e8f0}
+.stopregel input{width:56px;height:30px;border:1px solid #cbd5e1;border-radius:6px;padding:0 4px}.stopregel span{flex:1;min-width:0}
+.mresult{display:flex;align-items:center;gap:8px;min-height:36px;padding:2px 4px;border-top:1px solid #f1f5f9;font-size:13px;cursor:pointer}.mresult small{color:#64748b;margin-left:auto}
+#m-res{max-height:220px;overflow:auto}
+@media (max-width:767px){.stopregel{padding-left:8px;min-height:44px}.stopregel input{height:44px}.mresult{min-height:48px;width:100%;background:#fff;border:0;text-align:left;font:inherit}#m-res{max-height:none}}
+label.mresult{display:flex!important;margin:0!important;font-weight:400}label.mresult input{width:auto!important;height:auto!important;flex:none;margin:0!important}
+/* TF11: de uurkolom volgt de kolomhoogte ook bij een langere dag */
+.raster .tk span,#raster .tk span{flex:1 1 0;min-height:0;overflow:hidden;line-height:1.1}
 /* ── MOB2: gsm-weergave (design/mockup-gsm-1.html); boven 768 px blijft alles hetzelfde (#gsm is dan leeg en verborgen) ── */
 #gsm{display:none}
 @media (max-width:767px){
@@ -128,3 +141,4 @@ body.sleept{cursor:grabbing;user-select:none}
   /* + Nieuwe rit en Op rit: overlay van volle hoogte */
   #gsm form#gnf,#gsm form#gor{background:#f5f5f5}
 }
+
