@@ -73,7 +73,7 @@ try {
   d = await ritData(ritJan.rit_token);
   check(d.voortgang.geladen === d.voortgang.stuks - 1 || d.voortgang.geladen >= d.voortgang.stuks - 1, `geladen ${d.voortgang.geladen}/${d.voortgang.stuks} (1 bak bleef in de Rozenweg)`);
   const tk = (await A('GET', `/api/taken-overzicht?week=${LEVERDAG}`)).json;
-  const restRuw = (await A('GET', '/api/transport-taken')).json.find((t) => t.opmerking === `Rest van rit #${ritJan.id}: past niet` || (t.opmerking || '').startsWith(`Rest van rit #${ritJan.id}:`));
+  const restRuw = (await A('GET', '/api/transport-taken')).json.find((t) => t.opmerking === `Rest van rit #${ritJan.id}: past niet` || t.rest_van_rit_id === ritJan.id);
   check(!!restRuw && restRuw.rest_van_rit_id === ritJan.id, `rest-taak #${restRuw?.id} aangemaakt ("${restRuw?.opmerking}", datum "${restRuw?.datum}", slot ${restRuw?.slot})`);
   const rest = tk.taken.find((t) => t.id === restRuw?.id) || restRuw;
   v = (await A('GET', `/api/vandaag?datum=${LEVERDAG}`)).json;

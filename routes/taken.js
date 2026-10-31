@@ -11,7 +11,7 @@ module.exports = function(ctx){
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const locNaam=id=>id?((get('SELECT name FROM locaties WHERE id=?',[id])||{}).name||'?'):'?';
   const stopLoc=t=>t.type==='ophaling'?(t.van_locatie_id||t.naar_locatie_id):(t.naar_locatie_id||t.van_locatie_id);
-  const isRest=t=>/^Rest van rit/.test(t.opmerking||'');
+  const isRest=t=>/^(Rest van rit|Niet gevonden:|Past niet:|Kapot:|Gevonden:)/.test(t.opmerking||'');
   const isWeekend=t=>!!t.datum&&[0,6].includes(d0(t.datum).getDay());
   const BAKSOORTEN=['thema','vast','bak'];
   function wanneer(t){if(!t.datum)return t.week?`week ${t.week}`:'geen datum';const d=d0(t.datum);

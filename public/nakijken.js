@@ -300,6 +300,7 @@
     if (p.ok && Array.isArray(p.json)) { var a = p.json.filter(function (x) { return x.actief; })[0] || p.json[0]; if (a && $('per-naam')) $('per-naam').textContent = a.naam; }
     try { var u = JSON.parse(root.localStorage.getItem('sporty-auth-user') || '{}'); if ($('wie')) $('wie').textContent = (u.naam || '') + (u.rol ? ' · ' + u.rol : ''); } catch (e) { /* ignore */ }
   }
+  window.addEventListener('sporty-live',()=>ververs()); // RT1
   async function ververs() { var open = ST.open; await laadLijst(); if (open) await laadDetail(open); laadBovenaan(); }
   var weekVan = function (n) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ST.week || ''); if (!m) return ''; var d = new Date(+m[1], +m[2] - 1, +m[3] + 7 * n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 

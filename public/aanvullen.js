@@ -100,6 +100,7 @@
     ST.rol=ROL;
     $('av').innerHTML=g?BOUW.bak(g,ST):DATA?BOUW.lijst(DATA,{filter:FILTER,vandaag:iso(new Date()),meld:ST.meld,rol:ROL}):'<div class="leeg">Laden…</div>';
   }
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad(){
     const r=await api('GET','/api/aanvullijst?alles=1');
     if(r.status===401||r.status===403){location.href='/';return;}

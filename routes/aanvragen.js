@@ -88,7 +88,7 @@ module.exports = function(ctx){
     const id=insMetLog(req,'INSERT INTO aanvragen (kampmoment_id,persoon_id,soort,tekst,foto_data,foto_path,status,created_at) VALUES (?,?,?,?,?,?,?,?)',
       [taak.kampmoment_id||null,rit.personeel_id||null,'probleem_chauffeur',volledig,f.url,f.pad,'nieuw',now()],'rit-link');
     logAct('aanvraag','aangemaakt',`⚠️ ${volledig}`,locId,loc?loc.name:null);
-    if(ctx.melding)ctx.melding(req,{voor_rol:'kantoor',van_naam:rit.chauffeur||'Chauffeur',tekst:volledig,link:'/vandaag?tab=beslissen'}); // ME1
+    if(ctx.nuProbleem)ctx.nuProbleem(req,rit,taak,soortTekst+(tekst?': '+tekst:''),locId); // RT1: gebundeld, niveau nu
     res.json(get('SELECT * FROM aanvragen WHERE id=?',[id]));
   });
   // ── TF6 (T2-G7, besluit Maxim): een goedgekeurde materiaalaanvraag van een KV wordt echt werk ──

@@ -195,6 +195,7 @@ if(typeof window!=='undefined')(function(){
   const Q=new URLSearchParams(location.search);
   let SLEEP=null, FLITS=null, WEEK=Q.get('week')||iso(new Date()), P=null, DAG=null, RIT=null, MODUS='rit', NIEUW={}, LADE=true;
 
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad(){
     const r=await api('GET','/api/ritplanning?week='+WEEK);
     if(r.status===401||r.status===403){location.href='/';return;}
