@@ -2121,7 +2121,7 @@ Melding: `Telling bijgewerkt · Abdijschool Vlierbeek: TF51: Politiepet 1 → 0,
 
 ## TF7 — Geen capaciteitsgok, rit afwerken, KV, voertuigen en aanhangwagens, hoe vol (31/10)
 
-**Tests.** Nieuw: `test-tf7-rit` 50 ok, `test-tf7-kv` 30 ok, `test-tf7-voertuigen` 24 ok. Volle run 2×: telkens 55 van 57 groen; **niet volledig groen**: rood `v3c-fotos` (2) en `veiligheid` (3), dezelfde fouten als vóór TF5. Gedraaid vóór de rebase op de eindcode.
+**Tests.** Nieuw: `test-tf7-rit` 50 ok, `test-tf7-kv` 30 ok, `test-tf7-voertuigen` 24 ok. Volle run 2× na de rebase op TF8: 56 en 56 van 58 groen; **niet volledig groen**: rood `v3c-fotos` (2) en `veiligheid` (3), dezelfde fouten als vóór TF5.
 
 **Punt 1, capaciteit.** Weg: waarschuwing, `over_capaciteit`, bevestiging bij klaarzetten, "reed met", Let op bij Voertuigen, rode cijfers. Overal `_ritLading`: "14 bakken + 36 losse stuks". Telling: bak (niet bulk) en attribuut = bakken; bulk en regels zonder bak = losse stuks. Veld heet "Past ongeveer (bakken, alleen info)"; waarden niet gewist. Teller "⚠ n past niet · taak voor kantoor" bovenaan de ritplanning, desktop en gsm, link naar `/taken`.
 
