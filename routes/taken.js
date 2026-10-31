@@ -3,7 +3,7 @@
 // bestaande routes. Data en weergave gescheiden (MOBIEL-REGEL: de gsm-laag past op dezelfde API).
 'use strict';
 module.exports = function(ctx){
-  const {app,get,all,alleenKantoor,path,ROOT_DIR,_ritPlanInfo} = ctx;
+  const {app,get,all,alleenKantoor,path,ROOT_DIR,_ritPlanInfo,updateMetLog,delMetLog,logAct} = ctx;
 
   const DAG=['zo','ma','di','wo','do','vr','za'];
   const MND=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
@@ -31,7 +31,7 @@ module.exports = function(ctx){
     const regels=all('SELECT naam,qty,soort FROM transport_regels WHERE taak_id=?',[t.id]);
     const soort=isRest(t)?'rest':t.aanvraag_id?'aanvraag':['levering','ophaling'].includes(t.type)?t.type:'transfer';
     const pil=isRest(t)?'rest':isWeekend(t)?'weekend':(rit&&t.slot==='vrij')?'vrij':null;
-    return {id:t.id,type:t.type,soort,pil,datum:t.datum||'',tijd:t.tijd||'',wanneer_tekst:wanneer(t),
+    return {aanvraag_id:t.aanvraag_id||null,id:t.id,type:t.type,soort,pil,datum:t.datum||'',tijd:t.tijd||'',wanneer_tekst:wanneer(t),
       route:`${locNaam(t.van_locatie_id)} → ${locNaam(t.naar_locatie_id)}`,wat:wat(regels),
       rit:rit?{id:rit.id,chauffeur:rit.chauffeur||'',voertuig:rit.voertuig||'',status:rit.status}:null,
       slot:t.slot==='vrij'?'vrij':'vast',status:t.status,kampmoment_id:t.kampmoment_id||null,locatie_id:stopLoc(t)||null,
@@ -115,5 +115,26 @@ module.exports = function(ctx){
       regels,rit,checks,kampmoment,gekoppeld,historiek:historiek(t)});
   });
 
+  // TF8 G5: een taak uit een goedgekeurde KV-aanvraag is weggehaald. Kantoor kiest of het stuk ook van de aanvullijst gaat. Ja: de regel gaat weg
+  // (gelogd, omkeerbaar via de wijzigingen), de aanvraag blijft in de historiek met status "afgehandeld" en een uitleg die de KV in zijn scherm leest.
+  // Nee: alleen de aanvraag krijgt de uitleg niet; de regel blijft staan. Gebeurt pas nadat de taak echt weg is.
+  app.post('/api/taken/aanvraag-opruimen',alleenKantoor,(req,res)=>{
+    const ids=(Array.isArray(req.body?.aanvraag_ids)?req.body.aanvraag_ids:[]).map(Number).filter(Boolean);
+    const ook=req.body?.ook_aanvullijst!==false;
+    let regels=0,aanvragen=0;
+    ids.forEach(id=>{
+      const a=get('SELECT * FROM aanvragen WHERE id=?',[id]);
+      if(!a||get('SELECT id FROM transport_taken WHERE aanvraag_id=?',[id]))return; // de taak moet echt weg zijn
+      if(!ook)return;
+      all('SELECT * FROM nakijk_regels WHERE kantoor_notitie LIKE ? AND COALESCE(aangevuld,0)=0',['%aanvraag #'+id+' van KV%']).forEach(r=>{
+        delMetLog(req,'DELETE FROM nakijk_regels WHERE id=?',[r.id],'taak weggehaald');regels++;
+        if(!get('SELECT COUNT(*) AS n FROM nakijk_regels WHERE sessie_id=?',[r.sessie_id]).n)delMetLog(req,'DELETE FROM nakijk_sessies WHERE id=?',[r.sessie_id],'taak weggehaald');
+      });
+      updateMetLog(req,'aanvragen',id,{status:'afgehandeld',reden:'Kantoor haalde de levering weg: het stuk komt niet meer. Heb je het toch nodig? Vraag het opnieuw aan.'},'taak weggehaald');
+      logAct('aanvraag','taak weggehaald','Aanvraag #'+id+': taak weggehaald, stuk van de aanvullijst gehaald (regels: '+regels+'), KV ziet het',null,null);
+      aanvragen++;
+    });
+    res.json({ok:true,regels,aanvragen});
+  });
   app.get('/taken',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','taken.html')));
 };

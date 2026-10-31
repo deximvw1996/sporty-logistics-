@@ -34,3 +34,11 @@
 .tel:not(.r):not(.kopr) .acts{display:flex;gap:6px;flex-wrap:wrap;padding:0 0 8px}
 .tel:not(.r):not(.kopr) .pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap}.tel:not(.r):not(.kopr) .pil.blauw{background:#dbeafe;color:#1d4ed8}.tel:not(.r):not(.kopr) .pil.groen{background:#dcfce7;color:#15803d}
 .tel:not(.r):not(.kopr) select{height:44px;border:1px solid #cbd5e1;border-radius:10px;font:inherit;background:#fff;max-width:100%}
+
+/* TF8 N18: tikdoelen — zoekvelden en de periodekiezer op gsm minstens 44 px, op desktop minstens 36 px */
+.per{display:inline-flex;align-items:center;min-height:36px}
+.per select{min-height:36px}
+@media (max-width:767px){
+  input[type=search],input[type=text]:not([hidden]),.filters input,#zoek,#q{min-height:44px}
+  .per,.per select{min-height:44px}
+}

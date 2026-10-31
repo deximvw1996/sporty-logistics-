@@ -40,6 +40,7 @@
     const bg=document.createElement('div');bg.style.cssText='position:fixed;inset:0;z-index:1200;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:16px';
     bg.innerHTML='<div role="dialog" aria-modal="true" style="background:#fff;border-radius:16px;padding:16px;width:100%;max-width:360px;font-family:system-ui"><b>Bericht aan kantoor</b><textarea id="ber-t" rows="4" maxlength="500" aria-label="Bericht" style="width:100%;margin:10px 0;padding:10px;font:16px system-ui;border:1px solid #cbd5e1;border-radius:10px"></textarea><div style="display:flex;gap:8px"><button type="button" id="ber-x" class="knop licht" style="flex:1;min-height:44px">Annuleren</button><button type="button" id="ber-ok" class="knop" style="flex:1;min-height:44px">Versturen</button></div></div>';
     document.body.appendChild(bg);
+    bg.querySelector('#ber-t').focus(); // TF8 N8: de cursor staat meteen in het bericht
     bg.querySelector('#ber-x').onclick=()=>bg.remove();
     bg.querySelector('#ber-ok').onclick=async e=>{
       const t=bg.querySelector('#ber-t').value.trim();if(!t)return toast('Schrijf eerst een korte tekst',true);

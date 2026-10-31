@@ -66,7 +66,7 @@
     // TF6 N1: duidelijk welke periode je ziet, met een knop om te wisselen tussen "Alles" en "Deze week".
     const bk=O.bereik||{},dtxt=s=>s?new Date(s+'T12:00:00').toLocaleDateString('nl-BE',{day:'numeric',month:'short'}).replace(/\./g,''):'';
     let zicht=$('taken-zicht');
-    if(!zicht){zicht=document.createElement('div');zicht.id='taken-zicht';zicht.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px;font-size:13px;color:#475569';const l=$('lijst');l.parentNode.insertBefore(zicht,l);}
+    if(!zicht){zicht=document.createElement('div');zicht.id='taken-zicht';zicht.style.cssText='display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 12px;margin:0 0 6px;min-height:44px;font-size:13px;color:#475569;border-bottom:1px solid #e2e8f0;position:relative;z-index:1';const l=$('lijst'),kp=l.previousElementSibling&&/kopr/.test(l.previousElementSibling.className)?l.previousElementSibling:l;kp.parentNode.insertBefore(zicht,kp);} // TF8 G16: boven de kolomkoppen, niet ertussen
     zicht.innerHTML=bk.alle?`<span>Je ziet <b>alle taken</b>${bk.van?' · '+esc(dtxt(bk.van))+' – '+esc(dtxt(bk.tot)):''}</span><a href="/taken?week=${esc(iso0())}" class="knop licht klein" id="zicht-wissel">Alleen deze week</a>`:`<span>Je ziet <b>week ${esc(dtxt(O.week.start))} – ${esc(dtxt(O.week.eind))}</b></span><a href="/taken?alle=1" class="knop licht klein" id="zicht-wissel">Alles tonen</a>`;
     const wk=document.querySelector('.chip[data-f="deze_week"]');if(wk&&wk.firstChild)wk.firstChild.textContent=bk.alle?'Alle taken ':'Deze week ';
     $('n-sel').textContent=`${SEL.size} geselecteerd`;
@@ -101,7 +101,7 @@
     const histDeel=`<h4 style="margin-top:14px">Historiek (alles gelogd, omkeerbaar)</h4>`+(historiek.map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc([tijdTekst(h.t),h.wie].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" disabled title="Terugdraaien bestaat nog niet als route (GEVONDEN in OVERLEG-c.md)">↶ Terug</button></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>');
     const grid=TAB==='regels'?blokRegels+`<div class="blok">${ritDeel}${kmDeel}${histDeel}</div>`
       :TAB==='checks'?`<div class="blok">${ritDeel}</div>`:TAB==='kampmoment'?`<div class="blok">${kmDeel.replace(' style="margin-top:14px"','')}</div>`:`<div class="blok">${histDeel.replace(' style="margin-top:14px"','')}</div>`;
-    $('detail').innerHTML=`<div class="dkop"><div><h2>Taak #${t.id} · ${esc(t.type)} · ${esc(loc)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-splits">Splitsen</button><button class="knop licht" id="d-van" ${rit?'':'disabled'}>Van rit halen</button>${rit?`<button class="knop" id="d-open">Open rit #${rit.id}</button>`:'<button class="knop" id="op-rit2">Op een rit zetten</button>'}</div></div>
+    $('detail').innerHTML=`<div class="dkop"><div><h2>Taak #${t.id} · ${esc(t.type)} · ${esc(loc)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-weg">Verwijderen</button><button class="knop licht" id="d-splits">Splitsen</button><button class="knop licht" id="d-van" ${rit?'':'disabled'}>Van rit halen</button>${rit?`<button class="knop" id="d-open">Open rit #${rit.id}</button>`:'<button class="knop" id="op-rit2">Op een rit zetten</button>'}</div></div>
       <div class="dtabs">${[['regels',`Regels ${regels.length}`],['checks','Checks'],['kampmoment','Kampmoment'],['historiek',`Historiek ${historiek.length}`]].map(([k,l])=>`<a class="${TAB===k?'act':''}" data-tab="${k}">${l}</a>`).join('')}</div>
       <div class="dgrid">${grid}</div>`;
   }
@@ -145,6 +145,7 @@
     if(t.id==='d-open')return location.href='/ritplanning?rit='+D.rit.id;
     if(t.id==='op-rit'||t.id==='op-rit2')return opRit([id]);
     if(t.id==='d-van'){const r=await api('POST',`/api/ritten/${D.rit.id}/taken/${id}/ontkoppel`);if(!r.ok)return toast(r.json.error||'Van rit halen mislukt','error');toast('Taak van de rit gehaald','success');return laad();}
+    if(t.id==='d-weg')return wegHalen([id]);
     if(t.id==='d-bewerk'){const v=await taakForm(`Taak #${id} bewerken`,{...D.taak},'Opslaan');if(!v)return;
       const r=await api('PUT',`/api/transport-taken/${id}`,{...volleTaak(D),...v});if(!r.ok)return toast(r.json.error||'Opslaan mislukt','error');toast('Taak opgeslagen','success');return laad();}
     if(t.id==='d-splits'){
@@ -153,7 +154,7 @@
         html:D.regels.map(r=>`<label class="chk"><input type="checkbox" name="regel" value="${r.id}">${esc(r.naam)} × ${r.qty}</label>`).join('')+`<label>Nieuwe datum<input type="date" name="datum" value="${esc(D.taak.datum)}"></label>`,
         lees:f=>{const ids=[...f.querySelectorAll('[name=regel]:checked')].map(x=>+x.value);if(!ids.length){toast('Kies minstens één regel','warn');return null;}return {ids,datum:f.datum.value};}});
       if(!v)return;const r=await api('POST',`/api/transport-taken/${id}/splits`,{regel_ids:v.ids,datum:v.datum});
-      if(!r.ok)return toast(r.json.error||'Splitsen mislukt','error');toast(`${r.json.verplaatst} regel(s) naar taak #${r.json.nieuwe_taak_id}`,'success');return laad();}
+      if(!r.ok)return toast(r.json.error||'Splitsen mislukt','error');toast(`${r.json.verplaatst} regel${r.json.verplaatst===1?'':'s'} naar taak #${r.json.nieuwe_taak_id}`,'success');return laad();}
     const rw=t.closest('[data-regelweg]');
     if(rw){const rg=D.regels.find(x=>x.id===+rw.dataset.regelweg);
       if(!await vraag({titel:'Regel verwijderen?',tekst:`${rg.naam} × ${rg.qty} van taak #${id}`,ok:'Verwijderen'}))return;
@@ -184,12 +185,24 @@
     if(!r.ok)return toast(r.json.error||'Bundelen mislukt','error');
     toast(`${SEL.size} taken gebundeld in #${r.json.taak.id} (${r.json.taak.regels.length} regels)`,'success');SEL.clear();await laad();laadDetail(r.json.taak.id);
   };
-  $('b-weg').onclick=async()=>{
-    if(!await vraag({titel:`${SEL.size} taken verwijderen?`,tekst:'Taken waarvan al iets geladen is, worden niet verwijderd (dan gebeurt er niets).',ok:'Verwijderen'}))return;
-    const r=await api('POST','/api/transport-taken/bulk-delete',{ids:[...SEL]});
+  // TF8 G5: bij taken uit een goedgekeurde aanvraag vraagt het scherm wat er met het stuk op de aanvullijst gebeurt.
+  async function wegHalen(ids){
+    const aanv=ids.map(id=>O.taken.find(x=>x.id===id)||(D&&D.taak.id===id?D.taak:null)).filter(t=>t&&t.aanvraag_id).map(t=>t.aanvraag_id);
+    let ook=false;
+    if(aanv.length){
+      const v=await vraag({titel:'Ook het stuk van de aanvullijst halen en de KV laten weten?',tekst:`${ids.length===1?'Deze taak komt':'Deze taken komen'} uit een goedgekeurde aanvraag van een KV.`,ok:'Verwijderen',
+        html:'<label class="chk"><input type="radio" name="ook" value="1" checked> Ja: het stuk gaat van de aanvullijst en de KV ziet dat het niet meer komt</label><label class="chk"><input type="radio" name="ook" value="0"> Nee: het stuk blijft op de aanvullijst staan</label>',
+        lees:f=>({ook:f.ook.value==='1'})});
+      if(!v)return;ook=v.ook;
+    }else if(!await vraag({titel:`${ids.length} taak${ids.length===1?'':'en'} verwijderen?`,tekst:'Taken waarvan al iets geladen is, worden niet verwijderd (dan gebeurt er niets).',ok:'Verwijderen'}))return;
+    const r=await api('POST','/api/transport-taken/bulk-delete',{ids});
     if(!r.ok)return toast(r.json.error||'Verwijderen mislukt','error');
-    toast(`${SEL.size} taken verwijderd`,'success');if(D&&SEL.has(D.taak.id))D=null;SEL.clear();laad();
-  };
+    let extra='';
+    if(aanv.length){const o=await api('POST','/api/taken/aanvraag-opruimen',{aanvraag_ids:aanv,ook_aanvullijst:ook});extra=o.ok&&ook?` · ${o.json.regels} stuk${o.json.regels===1?'':'ken'} van de aanvullijst gehaald, KV verwittigd`:(aanv.length?' · het stuk blijft op de aanvullijst':'');}
+    toast(`${ids.length} taak${ids.length===1?'':'en'} verwijderd${extra}`,'success');if(D&&ids.includes(D.taak.id)){D=null;$('detail').innerHTML='<div class="leegd">Klik een taak in de lijst voor het detail.</div>';} // TF8: het detail van een weggehaalde taak blijft niet staan
+    SEL.clear();laad();
+  }
+  $('b-weg').onclick=()=>wegHalen([...SEL]);
 
   // ── subbalk ──
   $('export').onclick=async()=>{
@@ -217,6 +230,7 @@
       $('per-naam').textContent=v.json.periode?v.json.periode.naam:'geen periode';$('wie').textContent=v.json.gebruiker.naam+' · kantoor';}
     const p=await api('GET','/api/periodes');if(!p.ok)return;
     const sel=$('per-kies');sel.innerHTML=p.json.map(x=>`<option value="${x.id}"${x.actief?' selected':''}>${esc(x.naam)}</option>`).join('');
+    sel.title='Let op: dit wisselt de actieve periode voor alle schermen en alle gebruikers, niet alleen voor jou.'; // TF8
     sel.onchange=async()=>{const a=await api('POST','/api/periodes/'+sel.value+'/activeer');if(!a.ok)return toast(a.json.error||'Periode wisselen mislukt','error');location.reload();};
   }
   (async()=>{

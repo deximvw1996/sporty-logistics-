@@ -147,7 +147,10 @@ module.exports = function(ctx){
         return;
       }
       const planning=['geen_thema','geen_levering','geen_ophaling','locatieconfig_onvolledig','ontbrekend_transport'].includes(c.type);
-      nakijken.push({id:'conflict-'+i,dringend:false,ico:planning?'📋':'⚠',kleur:'blauw',titel:c.bericht,sub:planning?'planning':'conflict',acties:[link('Open',planning?'/kampmomenten':'/rooster',false)]});
+      // TF8 G2: een kamp dat binnen 7 dagen start en nog geen levering heeft, is dringend (bovenaan Inplannen), ook als er andere planning onder Later staat.
+      const dring=c.type==='geen_levering'&&periode&&(c.kampmoment_ids||[]).some(id=>{const k=get('SELECT week FROM kampmomenten WHERE id=?',[id]);return k&&k.week&&plus(periode.start_datum,(k.week-1)*7)<=plus(datum,7);});
+      const item={id:'conflict-'+i,dringend:!!dring,ico:dring?'⏰':planning?'📋':'⚠',kleur:dring?'oranje':'blauw',titel:c.bericht,sub:dring?'het kamp start binnen 7 dagen · levering plannen':planning?'planning':'conflict',acties:[link(dring?'Levering plannen':'Open',planning?'/kampmomenten':'/rooster',false)]};
+      if(dring)inplannen.unshift(item);else nakijken.push(item);
     });
     const sessies=(pid&&_roep('/api/nakijk-tekorten',{periode_id:String(pid)},req))||[];
     let nOpen=0,nBesteld=0;

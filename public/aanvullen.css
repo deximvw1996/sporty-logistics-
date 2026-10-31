@@ -44,3 +44,6 @@ button{font:inherit;cursor:pointer;border:0}
 .av .losseKop{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin:16px 4px 6px}
 .av .knop.uitV{min-height:44px;margin-left:8px}
 .av .voetHint{display:block;font-size:12px;color:#64748b;margin-top:4px;text-align:center}
+
+/* TF8: bak klaar zichtbaar */
+.av .klaarTag{color:#15803d;font-weight:700}

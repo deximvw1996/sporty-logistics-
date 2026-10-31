@@ -50,8 +50,8 @@
 
   // ── Detail (rechts) ──
   var LABEL = {
-    bestellen: function (n) { return 'Bestellen (' + n + ')'; }, uit_pool: function () { return 'Uit pool aanvullen'; }, aanvaarden: function () { return 'Aanvaarden'; },
-    naar_pool: function (n) { return 'Terug naar pool (' + n + ')'; }, laten_staan: function () { return 'Laten staan'; },
+    bestellen: function (n) { return 'Bestellen (' + n + ')'; }, uit_pool: function () { return 'Uit voorraad Rozenweg aanvullen'; }, aanvaarden: function () { return 'Aanvaarden'; },
+    naar_pool: function (n) { return 'Terug naar voorraad Rozenweg (' + n + ')'; }, laten_staan: function () { return 'Laten staan'; },
     afschrijven_bestellen: function (n) { return 'Afschrijven (' + n + ') + bestellen'; }, herstellen: function () { return 'Herstellen'; }
   };
   var actieLabel = function (a, n) { return (LABEL[a] || function () { return a; })(n); };
@@ -66,8 +66,9 @@
   function actieCel(it) {
     if (it.afwijking === 'klopt') return '<span class="pil groen">✓</span>';
     if (it.afwijking === 'niet_geteld' || !it.acties.length) return '<span class="not">—</span>';
-    var gekozen = it.kantoor_actie || it.acties[0].waarde, n = it.kantoor_aantal || it.aantal_afwijking;
-    return '<select data-act="actie" data-a="' + (it.regel_id || '') + '" data-n="' + esc(it.aantal_afwijking) + '" aria-label="Actie kantoor voor ' + esc(it.naam) + '"' + (it.regel_id ? '' : ' disabled') + '>' + it.acties.map(function (o) { return '<option value="' + esc(o.waarde) + '"' + (o.waarde === gekozen ? ' selected' : '') + '>' + esc(actieLabel(o.waarde, n)) + '</option>'; }).join('') + '</select>' + binnenCel(it);
+    var leeg = it.gemeld_door && !it.kantoor_actie; // TF8 G3: een gemelde regel zonder besluit toont geen actie die niet bewaard is
+    var gekozen = it.kantoor_actie || (leeg ? '' : it.acties[0].waarde), n = it.kantoor_aantal || it.aantal_afwijking;
+    return '<select data-act="actie" data-a="' + (it.regel_id || '') + '" data-n="' + esc(it.aantal_afwijking) + '" aria-label="Actie kantoor voor ' + esc(it.naam) + '"' + (it.regel_id ? '' : ' disabled') + '>' + (leeg ? '<option value="" selected>— kies een actie —</option>' : '') + it.acties.map(function (o) { return '<option value="' + esc(o.waarde) + '"' + (o.waarde === gekozen ? ' selected' : '') + '>' + esc(actieLabel(o.waarde, n)) + '</option>'; }).join('') + '</select>' + binnenCel(it);
   }
   // AF1: een bestelling is pas af te vinken in de aanvullijst als kantoor ze op "binnen" zet.
   function binnenCel(it) {
@@ -132,7 +133,7 @@
   }
 
   // ── Printlijst (A4) ──
-  var WAT = { uit_pool: 'uit pool', naar_pool: 'naar pool', afschrijven: 'afschrijven', bestelling: 'bestelling', nakijken: 'nakijken' };
+  var WAT = { uit_pool: 'uit voorraad', naar_pool: 'terug in voorraad', afschrijven: 'afschrijven', bestelling: 'bestelling', nakijken: 'nakijken' };
   function printRijenHtml(lijst) {
     var out = '';
     (lijst.bakken || []).forEach(function (g) {
@@ -307,7 +308,7 @@
       if (ga === 'afronden') {
         var r4 = await aanroep('POST', '/api/nakijken/sessie/' + DETAIL.sessie_id + '/afronden');
         if (!r4.ok) { toast(r4.json.error || 'Afronden mislukt', 'error'); return; }
-        toast('✓ Keuring afgerond' + (r4.json.bestellingen ? ' · ' + r4.json.bestellingen + ' bestelling(en)' : '') + (r4.json.onbeslist ? ' · let op: ' + r4.json.onbeslist + ' gemelde regel(s) wachten nog op jouw besluit' : ''), r4.json.onbeslist ? 'warn' : 'success'); ST.gs = 'lijst'; await ververs(); return;
+        toast('✓ Keuring afgerond' + (r4.json.bestellingen ? ' · ' + r4.json.bestellingen + (r4.json.bestellingen === 1 ? ' bestelling' : ' bestellingen') : '') + (r4.json.onbeslist ? ' · let op: ' + (r4.json.onbeslist === 1 ? '1 gemelde regel wacht' : r4.json.onbeslist + ' gemelde regels wachten') + ' nog op jouw besluit' : ''), r4.json.onbeslist ? 'warn' : 'success'); ST.gs = 'lijst'; await ververs(); return;
       }
       return;
     }
@@ -335,7 +336,7 @@
     if (act === 'afronden') {
       var r2 = await aanroep('POST', '/api/nakijken/sessie/' + DETAIL.sessie_id + '/afronden');
       if (!r2.ok) { toast(r2.json.error || 'Afronden mislukt', 'error'); return; }
-      toast('✓ Keuring afgerond' + (r2.json.bestellingen ? ' · ' + r2.json.bestellingen + ' bestelling(en)' : '') + (r2.json.onbeslist ? ' · let op: ' + r2.json.onbeslist + ' gemelde regel(s) wachten nog op jouw besluit' : ''), r2.json.onbeslist ? 'warn' : 'success'); await ververs(); return;
+      toast('✓ Keuring afgerond' + (r2.json.bestellingen ? ' · ' + r2.json.bestellingen + (r2.json.bestellingen === 1 ? ' bestelling' : ' bestellingen') : '') + (r2.json.onbeslist ? ' · let op: ' + (r2.json.onbeslist === 1 ? '1 gemelde regel wacht' : r2.json.onbeslist + ' gemelde regels wachten') + ' nog op jouw besluit' : ''), r2.json.onbeslist ? 'warn' : 'success'); await ververs(); return;
     }
     if (act === 'bulk-afronden') {
       var r3 = await aanroep('POST', '/api/nakijken/afronden', { sessie_ids: Array.from(ST.geselecteerd) });
@@ -353,7 +354,7 @@
   });
   document.addEventListener('change', async function (e) {
     var el = e.target; if (el.getAttribute && el.getAttribute('data-act') === 'actie') {
-      var id = +el.getAttribute('data-a'); if (!id) return;
+      var id = +el.getAttribute('data-a'); if (!id || !el.value) return;
       var r = await aanroep('PUT', '/api/nakijken/regel/' + id, { kantoor_actie: el.value, kantoor_aantal: +el.getAttribute('data-n') || 0 });
       if (!r.ok) { toast(r.json.error || 'Opslaan mislukt', 'error'); await laadDetail(ST.open); return; }
       toast('✓ Opgeslagen', 'success'); await laadDetail(ST.open);
