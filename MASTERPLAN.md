@@ -456,3 +456,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — Prompt T4: tweede rollentest (T, B, C, D) na TF5 en TF6.
 - 2026-10-31 — T4 af: geen blokkers per rol behalve herstart-backfill (T4-G1, hoofdchat gefixt: elke start gaf taken zonder rit een eigen rit). Ook rol-sleutel Aanvullen gefixt.
 - 2026-10-31 — Besluiten: app rekent capaciteit niet uit (past niet bij laden is de controle); vroeger werken altijd toegelaten; opgelost tekort = vraag aan kantoor. Prompts TF7 (C), TF8 (D).
+- 2026-10-31 — TF8 (D) gekeurd en live: tf8 59 ok, volle run 55/55. Open: migratie 47 maakt bij elke start catalogusartikels uit vrije tekst in transport_regels.
