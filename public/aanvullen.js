@@ -87,7 +87,7 @@
     try{return await window.sportyApi(m,url,body,{toast:x=>toast(x,'info'),token:TOKEN});}
     catch(e){return {ok:false,status:0,json:{error:'Geen verbinding, niet bewaard. Probeer het zo opnieuw.'}};}
   }
-  let ROL='';try{ROL=(JSON.parse(localStorage.getItem('sporty-auth-user')||'{}')||{}).rol||'';}catch(x){/* geen gebruiker */}
+  let ROL='';try{ROL=(JSON.parse(localStorage.getItem('sporty-auth-user')||'{}')||{}).rol||localStorage.getItem('sporty-rol')||'';}catch(x){/* geen gebruiker */}
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   let DATA=null,OPEN=null,FILTER='alles',ST={fotos:{},aantal:{},meld:null};
   const groep=()=>DATA&&DATA.bakken.find(g=>g.sessie_id===OPEN);

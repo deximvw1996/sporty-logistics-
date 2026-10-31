@@ -454,3 +454,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — Besluiten Maxim T3: KV natellen onbeperkt, alles bewaard en gelogd; rit pas zichtbaar na klaarzetten; per stuk én Alles geladen; KV-link 14 dagen lezen, dan dicht. Prompts TF5 (C), TF6 (D). Open: rechten coördinator, mockups gsm en raster.
 - 2026-10-31 — TF5 + coördinator (C) en TF6 (D) gekeurd en live: migratie TF6 hernummerd naar 90; volle run 53/54, rp1 afgebroken en los groen. Rest: klaarzet-terug-knop, N6, N13, N16, G9, N5-teller, N4 server, mockups.
 - 2026-10-31 — Prompt T4: tweede rollentest (T, B, C, D) na TF5 en TF6.
+- 2026-10-31 — T4 af: geen blokkers per rol behalve herstart-backfill (T4-G1, hoofdchat gefixt: elke start gaf taken zonder rit een eigen rit). Ook rol-sleutel Aanvullen gefixt.
