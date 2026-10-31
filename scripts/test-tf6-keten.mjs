@@ -121,6 +121,69 @@ try {
   const av4 = r.json.id;
   r = await A('PUT', `/api/aanvragen/${av4}/status`, { status: 'afgewezen', reden: 'Genoeg in de bak' });
   T.check((await T.leesDb(srv.dbPad, 'SELECT COUNT(*) n FROM transport_taken WHERE aanvraag_id=?', [av4]))[0].n === 0 && /Genoeg/.test((await kvAanvragen()).find((a) => a.id === av4).antwoord), 'afwijzen: geen taak, KV ziet de reden');
+
+  // ═══ PUNT 2 — aanvuller en coördinator ═══
+  T.info('Punt 2: aanvuller/coördinator');
+  const AV = require(T.ROOT + '/public/aanvullen.js');
+  const thema = ijk.themas.alles_op_wieltjes;
+  const bakId = (await A('POST', `/api/themas/${thema}/bakken`, { label: 'Tf6 bak', code: 'TF61' })).json.id;
+  for (const [n, q] of [['Tf6 Veer', 4], ['Tf6 Krijt', 5]]) await A('POST', `/api/bakken/${bakId}/items`, { naam: n, qty: q });
+  await A('POST', `/api/kampmomenten/${km}/themas`, { thema_id: thema });
+  const d0 = (await P('GET', `/api/kv/${kvtok}/data`)).json, kb = d0.bakken.find((b) => b.code === 'TF61');
+  const tel = (n, a) => P('POST', `/api/kv/${kvtok}/bakken/${kb.id}/tellen`, { regels: [{ item_id: kb.items.find((i) => i.naam === n).id, aangetroffen: a }] });
+  await tel('Tf6 Veer', 1); await tel('Tf6 Krijt', 5);
+  await P('POST', `/api/kv/${kvtok}/versturen`, {});
+  const nk = (await A('GET', '/api/nakijken')).json.bakken.find((b) => b.bak.code === 'TF61' && b.kampmoment_id === km);
+  const veerType = (await T.leesDb(srv.dbPad, 'SELECT item_type_id AS t FROM bak_items WHERE bak_id=? AND naam=?', [bakId, 'Tf6 Veer']))[0].t;
+  await zetStock(veerType, 20);
+  const det = (await A('GET', `/api/nakijken/sessie/${nk.sessie_id}`)).json;
+  const veerRegel = det.items.find((i) => i.naam === 'Tf6 Veer');
+  await A('PUT', `/api/nakijken/regel/${veerRegel.regel_id}`, { kantoor_actie: 'bestellen', kantoor_aantal: 3 });
+  // een melding van de aanvuller zonder besluit van kantoor
+  let rf = await A('POST', '/api/aanvullijst/melding', { sessie_id: nk.sessie_id, item_naam: 'Tf6 Krijt', soort: 'weg', aantal: 1 });
+  T.check(rf.status === 200, 'aanvuller meldt een stuk als weg');
+  rf = await A('POST', `/api/nakijken/sessie/${nk.sessie_id}/afronden`);
+  T.check(rf.status === 200 && rf.json.onbeslist === 1, 'afronden waarschuwt: 1 gemelde regel wacht op een besluit (' + JSON.stringify(rf.json) + ')');
+  const krijt = (await T.leesDb(srv.dbPad, "SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_naam='Tf6 Krijt'", [nk.sessie_id]))[0];
+  T.check(krijt && !krijt.kantoor_actie, 'de gemelde regel kreeg geen stille actie "bestellen" (actie: "' + (krijt && krijt.kantoor_actie) + '")');
+  let ll = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json;
+  let grp = ll.bakken.find((g) => g.sessie_id === nk.sessie_id);
+  const hVeer = grp.handelingen.find((h) => h.stuk === 'Tf6 Veer');
+  T.check(hVeer && !hVeer.kan_afvinken && hVeer.uit_voorraad_mogelijk === true && hVeer.voorraad === 20, 'bestelling wacht op levering, maar voorraad is genoeg: knop "uit voorraad" mogelijk (voorraad ' + (hVeer && hVeer.voorraad) + ')');
+  // G3: Bak klaar met open melding
+  const grpKlaarVoor = AV.bakKlaar(grp);
+  T.check(!grpKlaarVoor, 'bak nog niet klaar: Veer wacht nog');
+  r = await A('POST', `/api/tekorten/${veerType}/stand`, {});
+  r = await A('PUT', `/api/tekorten/${veerType}/stand`, { stand: 'uit_voorraad' });
+  T.check(r.status === 200, 'Aanvullen uit voorraad (stand) lukt voor kantoor/coördinator');
+  ll = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json; grp = ll.bakken.find((g) => g.sessie_id === nk.sessie_id);
+  const hVeer2 = grp.handelingen.find((h) => h.stuk === 'Tf6 Veer');
+  T.check(hVeer2.kan_afvinken && hVeer2.soort === 'uit_pool', 'handeling is nu meteen af te vinken (uit voorraad)');
+  await A('POST', `/api/aanvullijst/${hVeer2.regel_id}/aangevuld`, {});
+  ll = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json; grp = ll.bakken.find((g) => g.sessie_id === nk.sessie_id);
+  T.check(AV.bakKlaar(grp), 'Bak klaar kan, ook met een open eigen melding bij kantoor');
+  const bakHtml = AV.bak(grp, {});
+  T.check(bakHtml.includes('klaar (1/1)') && !bakHtml.includes('data-av="klaar" disabled'), 'knop "Bak klaar (1/1)": teller n/m telt de melding niet mee');
+  T.check(/1 melding ligt bij kantoor/.test(bakHtml), 'uitleg onder de knop over de melding');
+  // lijst: losse melding apart
+  await A('POST', '/api/aanvullijst/melding', { item_naam: 'Los ding', soort: 'weg', aantal: 1 });
+  ll = (await A('GET', `/api/aanvullijst?datum=${vandaag}&alles=1`)).json;
+  const bakkenZonderLos = ll.bakken.filter((g) => g.bak.soort !== 'melding' && !g.leeg).length;
+  T.check(ll.tellers.bakken === bakkenZonderLos, 'tellers.bakken telt geen losse meldingen (' + ll.tellers.bakken + ' = ' + bakkenZonderLos + ')');
+  const lijstHtml = AV.lijst(ll, { filter: 'alles', vandaag });
+  T.check(/Losse meldingen en aanvragen/.test(lijstHtml), 'losse meldingen staan in een eigen blok');
+  const vd = (await A('GET', `/api/vandaag?datum=${vandaag}`)).json;
+  T.check(vd && vd.mijn !== undefined || vd, 'vandaag geladen');
+  // G13: deelaantal na afvinken
+  const hGedaan = { regel_id: 1, stuk: 'Krijt', aantal: 2, totaal: 5, gedaan: 3, aangevuld: 1, soort: 'uit_pool', kan_afvinken: true, binnen: true, waar_tekst: '' };
+  T.check(/× 5/.test(AV.handeling(hGedaan, {})), 'afgevinkte handeling toont het totaal (× 5), niet het restant');
+  // G4 netfout: de bron vangt een mislukte fetch af en toont een melding
+  const src = lees('public/aanvullen.js');
+  T.check(src.includes("error:'Geen verbinding, niet bewaard"), 'netfout bij afvinken geeft "Geen verbinding, niet bewaard" (geen stille fout)');
+  // G8 print
+  const nak = require(T.ROOT + '/public/nakijken.js');
+  const html = lees('public/aanvullijst-print.html');
+  T.check(/max-width:640px/.test(html) && /id="terug-knop"/.test(html), 'printlijst: gsm-opmaak en terugknop per rol');
   // G11: melding "bestelling binnen" gaat niet naar wie het zelf deed
   const ml = (await T.leesDb(srv.dbPad, "SELECT voor_rol,tekst FROM meldingen WHERE tekst LIKE 'Bestelling binnen:%' ORDER BY id"));
   T.check(ml.length >= 2 && ml.every((m) => m.voor_rol === 'coordinator'), '"Bestelling binnen" van kantoor gaat naar coördinatoren');

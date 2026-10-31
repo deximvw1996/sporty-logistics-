@@ -293,13 +293,14 @@ module.exports = function(ctx){
     if(s.bak_type==='attribuut')bak=get('SELECT * FROM attributen WHERE id=?',[s.attribuut_id]);
     else bak=get('SELECT * FROM bakken WHERE id=?',[s.bak_type==='thema'?s.thema_bak_id:s.vaste_bak_id]);
     const items=bak&&s.bak_type!=='attribuut'?_bakItems(bak):[];
-    let bestel=0,afschrijf=0;
+    let bestel=0,afschrijf=0,onbeslist=0;
     all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[s.id]).forEach(r=>{
       const it=items.find(x=>x.id===r.item_id);
       const afw=r.gemeld_soort==='kapot'?'kapot':r.gemeld_soort==='weg'?'tekort':_afwijking(r,it?it.qty:(r.verwacht||0));
       let actie=r.kantoor_actie||'';
       let aantal=r.kantoor_aantal||0;
-      if(!actie&&ACTIES[afw]){
+      if(!actie&&r.gemeld_soort){onbeslist++;} // TF6 G5: een gemelde regel waar kantoor nog niet over besliste blijft open; nooit stil "bestellen"
+      else if(!actie&&ACTIES[afw]){
         actie=ACTIES[afw][0][0];
         aantal=r.gemeld_soort?(r.kantoor_aantal||0):afw==='tekort'?(r.verwacht||0)-r.aangetroffen:afw==='te_veel'?r.aangetroffen-(r.verwacht||0):(r.kapot_aantal||0);
         updateMetLog(req,'nakijk_regels',r.id,{kantoor_actie:actie,kantoor_aantal:aantal},'nakijken');
@@ -311,7 +312,7 @@ module.exports = function(ctx){
     });
     updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'nagekeken',kantoor_afgerond_op:isoNu(),kantoor_door:wie(req),kantoor_wie:wie(req),kantoor_tijdstip:now()},'nakijken');
     logAct('nakijken','afgerond',`Keuring afgerond: ${(bak&&(bak.code||bak.naam))||'bak'} · ${km?_locNaam(km.locatie_id):''} (${bestel} bestelling${bestel===1?'':'en'}, ${afschrijf} afschrijving${afschrijf===1?'':'en'}) door ${wie(req)||'kantoor'}`,km?km.locatie_id:null,km?_locNaam(km.locatie_id):null);
-    return {sessie_id:s.id,bestellingen:bestel,afschrijvingen:afschrijf};
+    return {sessie_id:s.id,bestellingen:bestel,afschrijvingen:afschrijf,onbeslist};
   }
   app.post('/api/nakijken/sessie/:id/afronden',alleenKantoor,(req,res)=>{
     const s=get('SELECT * FROM nakijk_sessies WHERE id=?',[req.params.id]);
@@ -353,6 +354,16 @@ module.exports = function(ctx){
     uit_pool:r=>'uit de pool'+_poolPlaats(r),naar_pool:r=>'terug naar de pool'+_poolPlaats(r),afschrijven_bestellen:r=>[r.notitie,'afschrijven · nieuwe via bestelling'].filter(Boolean).join(' · '),
     bestellen:r=>r.tekort_status==='binnen'?'bestelling · binnen, klaar om te plaatsen':(r.binnen_aantal||0)-(r.gedaan_aantal||0)>0?`bestelling · ${r.binnen_aantal} van ${(r.kantoor_aantal||0)+(r.gedaan_aantal||0)} binnen`:'bestelling · wacht op levering',herstellen:r=>[r.notitie,'herstellen'].filter(Boolean).join(' · ')
   };
+  // TF6 G5: bij een bestelling die nog op levering wacht: is er genoeg voorraad om meteen uit voorraad aan te vullen?
+  function _uitVoorraadInfo(r,aantal){
+    const bi=r.item_id?get('SELECT item_type_id FROM bak_items WHERE id=?',[r.item_id]):null;
+    const typeId=(bi&&bi.item_type_id)||((get('SELECT id FROM item_types WHERE lower(naam)=lower(?) ORDER BY id LIMIT 1',[zonderHaakjes(r.item_naam||'').trim()])||{}).id);
+    const roz=get("SELECT id FROM locaties WHERE name='Rozenweg' AND (parent_id IS NULL OR parent_id=0) ORDER BY id LIMIT 1");
+    if(!typeId||!roz)return {};
+    const st=get('SELECT qty FROM item_type_stock WHERE item_type_id=? AND locatie_id=?',[typeId,roz.id]);
+    const qty=st?(st.qty||0):0;
+    return {artikel_id:String(typeId),voorraad:qty,uit_voorraad_mogelijk:qty>=aantal&&aantal>0};
+  }
   function _aanvullijst(datum,alles){
     const sessies=all("SELECT * FROM nakijk_sessies WHERE (kantoor_afgerond_op<>'' AND kantoor_afgerond_op IS NOT NULL) OR id IN (SELECT sessie_id FROM nakijk_regels WHERE gemeld_soort<>'' AND COALESCE(kantoor_actie,'')='') ORDER BY kantoor_afgerond_op,id");
     const groepen=[];
@@ -382,7 +393,7 @@ module.exports = function(ctx){
         if(r.tekort_status==='genegeerd')return; // TB2: genegeerd op Tekorten → niet meer op de aanvullijst
         const besch=Math.max(0,(r.binnen_aantal||0)-gedaanN); // TF6: deels binnen — afvinkbaar tot wat er binnen is
         const binnen=soort!=='bestelling'||r.tekort_status==='binnen'||!!r.aangevuld||besch>0; // G15: een bestelling is pas af te vinken als ze binnen is
-        handelingen.push({max_nu:soort==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld&&besch>0?besch:undefined,regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
+        handelingen.push({...(soort==='bestelling'&&!binnen?_uitVoorraadInfo(r,aantal):{}),max_nu:soort==='bestelling'&&r.tekort_status!=='binnen'&&!r.aangevuld&&besch>0?besch:undefined,regel_id:r.id,stuk:zonderHaakjes(r.item_naam||''),aantal,soort,waar_tekst:waar,aangevuld:r.aangevuld?1:0,binnen,kan_afvinken:binnen,actie:r.kantoor_actie||'',gedaan:gedaanN,totaal:gedaanN+aantal,gemeld:r.gemeld_soort?1:0,gemeld_door:r.gemeld_door||''});
       });
       if(s.bak_type==='attribuut'&&s.notities==='beschadigd'&&!alles){
         // attribuut kapot: geen regel; toon één handeling zonder vinkje-regel (alleen informatief).
@@ -396,7 +407,7 @@ module.exports = function(ctx){
     });
     const alle=groepen.flatMap(g=>g.handelingen).filter(h=>!h.wacht_op_kantoor); // TF4 G26: een melding die op kantoor wacht is nog geen handeling
     const alleMeld=groepen.flatMap(g=>g.handelingen).filter(h=>h.wacht_op_kantoor);
-    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,gemeld:alleMeld.length,bakken:groepen.filter(g=>!g.leeg).length},bakken:groepen};
+    return {datum,tellers:{totaal:alle.length,uit_pool:alle.filter(h=>h.soort==='uit_pool').length,bestelling:alle.filter(h=>h.soort==='bestelling').length,klaar:alle.filter(h=>h.aangevuld).length,gemeld:alleMeld.length,bakken:groepen.filter(g=>!g.leeg&&g.bak.soort!=='melding').length,losse:groepen.filter(g=>g.bak.soort==='melding'&&!g.leeg).length},bakken:groepen};
   }
   app.get('/api/aanvullijst',(req,res)=>{
     const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.datum||'')?req.query.datum:isoLokaal(new Date());

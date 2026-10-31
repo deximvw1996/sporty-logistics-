@@ -129,7 +129,7 @@
   function printRijenHtml(lijst) {
     var out = '';
     (lijst.bakken || []).forEach(function (g) {
-      g.handelingen.forEach(function (h, i) {
+      g.handelingen.filter(function (h) { return !h.wacht_op_kantoor; }).forEach(function (h, i) {
         out += '<tr><td class="box">☐</td><td>' + (i === 0 ? '<b>' + esc(g.bak.code) + '</b><br><small>' + esc(g.plaats && g.plaats.tekst ? g.plaats.tekst : '') + (g.locatie ? ' · ' + esc(g.locatie) + ' wk ' + esc(g.week) : '') + '</small>' : '') + '</td><td>' + esc(h.stuk) + '</td><td class="c">' + esc(h.aantal) + '</td><td>' + esc(WAT[h.soort] || h.soort) + '</td><td>' + esc(h.waar_tekst) + '</td><td class="lijn"></td></tr>';
       });
     });
@@ -139,7 +139,7 @@
     var nu = new Date(), uur = String(nu.getHours()).padStart(2, '0') + ':' + String(nu.getMinutes()).padStart(2, '0');
     var dagen = {}; (lijst.bakken || []).forEach(function (g) { if (g.afgerond_op) dagen[g.afgerond_op.slice(0, 10)] = 1; });
     var uit = Object.keys(dagen).sort().map(dagLang).join(', ');
-    return dagLang(lijst.datum) + (uit ? ' · uit Nakijken ' + uit : '') + ' · afgedrukt ' + uur + (naam ? ' door ' + naam : '') + ' · ' + (lijst.tellers ? lijst.tellers.totaal : 0) + ' handelingen';
+    return dagLang(lijst.datum) + (uit ? ' · uit Nakijken ' + uit : '') + ' · afgedrukt ' + uur + (naam ? ' door ' + naam : '') + ' · ' + (lijst.tellers ? lijst.tellers.totaal : 0) + (lijst.tellers && lijst.tellers.totaal === 1 ? ' handeling' : ' handelingen');
   }
 
 
@@ -221,6 +221,8 @@
       $('pk-sub').textContent = printSubtekst(r.json, r.json.afgedrukt_door); $('rijen').innerHTML = printRijenHtml(r.json);
       var kt = r.json.kantoor; if (kt && (kt.telefoon || kt.gsm)) { var pv = document.createElement('div'); pv.className = 'pv'; pv.id = 'kantoor-regel'; pv.textContent = 'Kantoor: ' + [kt.telefoon, kt.gsm && 'gsm ' + kt.gsm].filter(Boolean).join(' · '); $('print-blad').appendChild(pv); } // BH2
       $('print-knop').onclick = function () { root.print(); };
+      // TF6 G8: de terugknop en de slottekst horen bij de rol (een coördinator mag Nakijken niet openen).
+      try { var w = await aanroep('GET', '/api/wie-ben-ik'); var rol = w.ok ? (w.json.rol || (w.json.persoon && w.json.persoon.rol)) : ''; if (rol && rol !== 'kantoor') { var t = $('terug-knop'); if (t) { t.href = '/aanvullen'; t.textContent = '‹ Terug naar Aanvullen'; } var pv2 = document.querySelector('.pv'); if (pv2 && !pv2.id) pv2.textContent = 'Na afloop: vink in de app af (Aanvullen) of geef dit blad aan kantoor. Afschrijvingen met foto in de app.'; } } catch (e) { /* standaard terugknop blijft */ }
     })();
     return;
   }
@@ -298,7 +300,7 @@
       if (ga === 'afronden') {
         var r4 = await aanroep('POST', '/api/nakijken/sessie/' + DETAIL.sessie_id + '/afronden');
         if (!r4.ok) { toast(r4.json.error || 'Afronden mislukt', 'error'); return; }
-        toast('✓ Keuring afgerond' + (r4.json.bestellingen ? ' · ' + r4.json.bestellingen + ' bestelling(en)' : ''), 'success'); ST.gs = 'lijst'; await ververs(); return;
+        toast('✓ Keuring afgerond' + (r4.json.bestellingen ? ' · ' + r4.json.bestellingen + ' bestelling(en)' : '') + (r4.json.onbeslist ? ' · let op: ' + r4.json.onbeslist + ' gemelde regel(s) wachten nog op jouw besluit' : ''), r4.json.onbeslist ? 'warn' : 'success'); ST.gs = 'lijst'; await ververs(); return;
       }
       return;
     }
@@ -326,7 +328,7 @@
     if (act === 'afronden') {
       var r2 = await aanroep('POST', '/api/nakijken/sessie/' + DETAIL.sessie_id + '/afronden');
       if (!r2.ok) { toast(r2.json.error || 'Afronden mislukt', 'error'); return; }
-      toast('✓ Keuring afgerond' + (r2.json.bestellingen ? ' · ' + r2.json.bestellingen + ' bestelling(en)' : ''), 'success'); await ververs(); return;
+      toast('✓ Keuring afgerond' + (r2.json.bestellingen ? ' · ' + r2.json.bestellingen + ' bestelling(en)' : '') + (r2.json.onbeslist ? ' · let op: ' + r2.json.onbeslist + ' gemelde regel(s) wachten nog op jouw besluit' : ''), r2.json.onbeslist ? 'warn' : 'success'); await ververs(); return;
     }
     if (act === 'bulk-afronden') {
       var r3 = await aanroep('POST', '/api/nakijken/afronden', { sessie_ids: Array.from(ST.geselecteerd) });
