@@ -55,9 +55,9 @@ try {
   T.check(r.json.tellers.nog_niet === allNn && allNn >= 2, `tellers.nog_niet klopt (${r.json.tellers.nog_niet} = ${allNn})`);
 
   const NK = require(T.ROOT + '/public/nakijken.js');
-  const st = { filter: 'alle', zoek: '', geselecteerd: new Set(), open: null, tab: 'telling' };
+  const st = { locOpen: Object.fromEntries(r.json.locaties.map((l) => [String(l.kampmoment_id), true])), filter: 'nog_niet', zoek: '', geselecteerd: new Set(), open: null, tab: 'telling' };
   const lh = NK.lijstHtml(r.json, st);
-  T.check(lh.includes('data-a="nog_niet">Nog niet geteld ' + r.json.tellers.nog_niet) && lh.includes('data-a="niet_geteld"'), 'chip "Nog niet geteld" naast de bestaande chips');
+  T.check(lh.includes('data-a="nog_niet">Nog niet geteld ' + (r.json.tellers.nog_niet + r.json.tellers.niet_geteld)), 'chip "Nog niet geteld" naast de bestaande chips');
   T.check(/nog-niet[^>]*opacity:\.55/.test(lh) && lh.includes('nog niet geteld · KV'), 'rij is grijs met "nog niet geteld · <KV-naam>"');
   const gefilterd = NK.zichtbaar(r.json, { ...st, filter: 'nog_niet' });
   T.check(gefilterd.length === allNn && gefilterd.every((b) => b.status === 'nog_niet'), 'filter "nog_niet" toont enkel die rijen');

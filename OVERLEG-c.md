@@ -2227,3 +2227,18 @@ Eigen keuze: push "alles" = nu + vandaag, nooit info. Standaard is "alleen Nu op
 - Een opgelost probleem in Nu oplossen sluit de aanvraag in Beslissen niet; die staat daar nog apart.
 - `v3c-fotos` (2) en `veiligheid` (3: pincode-scrypt en login-blokkering 429 in de testopstelling) zijn rood. Niet door RT1, wel onderzoek waard: de 429-blokkering lijkt niet te werken.
 - Commit per punt niet gehaald: de punten zijn verweven, er zijn drie RT1-commits.
+
+
+## TF12 — KV: niet geleverd, sneller natellen, Nakijken per locatie (chat C, 31/10)
+**Punt 1:** KV-data, Overzicht en Tellen tonen bovenaan "Niet geleverd: 2 × Prints agenten · niet gevonden bij het laden · kantoor is ermee bezig", met stand en geplande rit. Verwacht = wat echt geleverd is; hele bak of attribuut valt weg, losse stukken worden op naam van de bakregel afgetrokken. Tellen van een niet-geleverd stuk: 409. Na levering van de rest-taak: blok "Nageleverd · nog tellen", opnieuw tellen maakt een nieuwe versie. Meer dan verwacht of knop "Toch gevonden": één gebundelde melding "Toch gevonden op de locatie: …", niveau nu. Nakijken: geen tekort, apart blok en status "niet geleverd".
+**Punt 2:** Klopt helemaal (48 px) en Iets klopt niet in de lijst, Ongedaan maken blijft zichtbaar en werkt na herladen (schrijft een nieuwe versie met de vorige stand). In de bak: Minder, Kapot, Te veel, + en −, Bak klaar "n stuks in orde". Bovenaan "12 van 23 stuks · 3 van 7 bakken" en Volgende bak; afgewerkte bak zakt onderaan. Tikken: bak die klopt = 1, 7 bakken = 7 + Versturen = 8.
+**Punt 3:** klopt en geen melding, notitie of foto = bij versturen automatisch nagekeken, gelogd "automatisch nagekeken, alles klopt"; bestaande eenmalig meegenomen (vlag tf12_auto_klaar). Latere afwijking heropent. Eén rij per locatie, volgorde te keuren, niet geteld, rest. Openklappen toont afwijkende bakken, met Toon alle n bakken. Waarschuwing met Herinner de KV pas na de eerste kampdag (volgt de testklok). Vier filters. Gsm: kaart per locatie.
+**Eigen keuzes:** een bak met notitie of foto blijft te keuren. Attributen hebben Klopt helemaal maar geen Ongedaan maken (daar wijzig je via het attribuut zelf).
+**Bewijs:** test-tf12 groen. Browser: 390 KV getikt (blok, voortgang, afgewerkte bak onderaan, Ongedaan maken); 1920 Nakijken: scrollhoogte 900 = venster, met 2 locaties. 10 locaties zijn NIET in de browser getoond: de lijst scrollt in zijn eigen kader. Nakijken op 390 alleen via de HTML-test, niet in de browser.
+**Tests aangepast (met reden):** av2 (notitie: anders gaat de bak automatisch), gf1 (bak eerst nageleverd), kd1, vc1, tf4 (nieuwe filters en locatierijen), tf5 (Bak klaar i.p.v. Rest klopt).
+**GEVONDEN:**
+- Vandaag telde een heropende keuring niet mee (afrondtijd bleef staan): hersteld, want badge en chip verschilden daardoor.
+- Badge Vandaag telt de hele periode, chip Te keuren de gekozen week. Bij bakken in een andere week verschillen ze dus nog. Niet opgelost.
+- Losse stukken koppelen op naam: heet een regel anders dan de bakregel, dan staat het in het blok maar zakt verwacht niet.
+- Commit per punt niet gehaald: verweven in dezelfde bestanden.
+- v3c-fotos en veiligheid blijven rood, zoals al vóór TF5.

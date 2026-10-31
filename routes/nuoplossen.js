@@ -34,6 +34,17 @@ module.exports=function(ctx){
     if(ctx.meldingLive)ctx.meldingLive(mid);
     return mid;
   }
+  // TF12: de KV vond een niet-geleverd stuk toch op de locatie. Eén melding, gebundeld zoals RT1; de beslissing blijft bij kantoor.
+  ctx.nuTochGevonden=(km,naam,n)=>{try{
+    const loc=locNaam(km.locatie_id),sleutel='km'+km.id+'-toch',deel=n+' × '+schoon(naam),nu=new Date().toISOString(),m=get('SELECT * FROM meldingen WHERE bundel=? ORDER BY id DESC LIMIT 1',[sleutel]);
+    if(m&&Date.now()-new Date(m.bijgewerkt_op||m.created_at).getTime()<BUNDEL_MS){
+      if(m.tekst.includes(deel))return m.id;
+      run('UPDATE meldingen SET tekst=?,bijgewerkt_op=?,gelezen_op=NULL WHERE id=?',[m.tekst.replace(' · '+loc,', '+deel+' · '+loc),nu,m.id]);run('DELETE FROM meldingen_gelezen WHERE melding_id=?',[m.id]);
+      if(ctx.meldingLive)ctx.meldingLive(m.id);return m.id;
+    }
+    const id=ins("INSERT INTO meldingen (voor_rol,voor_persoon_id,van_naam,tekst,link,created_at,niveau,bundel,bijgewerkt_op) VALUES ('kantoor',NULL,?,?,'/nakijken',?,'nu',?,?)",[ctx._kvNaam(km)||'KV','Toch gevonden op de locatie: '+deel+' · '+loc,nu,sleutel,nu]);
+    if(ctx.meldingLive)ctx.meldingLive(id);return id;
+  }catch(e){console.error('Toch gevonden mislukt:',e.message);return null;}};
   ctx.nuRestLabel=(reden,qty,naam)=>`${LABEL[reden]}: ${qty} × ${schoon(naam)}`;
   ctx.nuMeld=(req,a)=>{try{rijToe(req,{soort:a.reden,rit:a.rit,taak:a.taak,check:a.check,restTaakId:a.restTaakId,naam:schoon(a.check.item_naam),qty:a.qty,locId:a.taak.van_locatie_id||a.taak.naar_locatie_id});}catch(e){console.error('Nu oplossen mislukt:',e.message);}};
   ctx.nuProbleem=(req,rit,taak,tekst,locId)=>{try{rijToe(req,{soort:'probleem',rit,taak,label:tekst,locId});}catch(e){console.error('Nu oplossen mislukt:',e.message);}};

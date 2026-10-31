@@ -172,7 +172,7 @@ module.exports = function(ctx){
     if(pid){
       // TF3: ook keuringen met een open melding uit de stockage, zonder weekvoorwaarde en inclusief losse meldingen (zonder kampmoment).
       teKeuren=get(`SELECT COUNT(*) AS n FROM nakijk_sessies ns LEFT JOIN kampmomenten km ON km.id=ns.kampmoment_id WHERE (ns.kv_status='ingediend'
-        AND COALESCE(ns.kantoor_status,'') NOT IN ('nagekeken','verwerkt') AND COALESCE(ns.kantoor_afgerond_op,'')='' AND km.periode_id=?)
+        AND COALESCE(ns.kantoor_status,'') NOT IN ('nagekeken','verwerkt') AND (COALESCE(ns.kantoor_afgerond_op,'')='' OR ns.kantoor_status='open') AND km.periode_id=?)
         OR ns.id IN (SELECT sessie_id FROM nakijk_regels WHERE COALESCE(gemeld_soort,'')<>'' AND COALESCE(kantoor_actie,'')='')`,[pid]).n;
       if(teKeuren)nakijken.unshift({id:'tellingen-te-keuren',ico:'🧮',kleur:'blauw',titel:`${teKeuren} telling${teKeuren===1?'':'en'} te keuren`,sub:'ingediend door de KV of gemeld vanuit de stockage',acties:[{label:'Open',primair:true,soort:'link',url:'/nakijken'}]});
       // Bakken van de afgelopen kampweek die niemand telde (ook bakken zonder sessie).
@@ -254,7 +254,7 @@ module.exports = function(ctx){
       const daarna=kies.daarna.concat(wk.length?[{soort:'week',ico:'🏫',tijd:'ma–vr',titel:`Deze week · ${wk.length} locatie${wk.length===1?'':'s'}`,sub:wk.slice(0,5).map(k=>k.locatie).join(', '),url:'/kampmomenten'}]:[]);
       const meldingen=ongelezen(req);
       return {nu:kies.nu,daarna,n_dingen:alle.length,meldingen,beslissen:v.beslissen,periode:v.periode,
-        tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.nakijken.filter(x=>x.id!=='tellingen-te-keuren').length+v.te_keuren,meldingen:meldingen.length}};
+        tellers:{vandaag:v.beslissen.length,transport:v.inplannen.length,voorraad:v.te_keuren,meldingen:meldingen.length}};
     }
     const naam=req.persoon.naam;
     const meld=ongelezen(req);

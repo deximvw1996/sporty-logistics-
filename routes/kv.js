@@ -61,6 +61,11 @@ module.exports = function(ctx){
   let _opgelost=[];
   // Geeft true als dit een afwijking is die kantoor nog moet zien.
   function _pasNatellingToe(req,s,v,kvNaam){
+    if(!v.attribuut_id&&v.geteld==null){ // TF12: Ongedaan maken na versturen: de bak is weer niet geteld
+      const r0=get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_id=?',[s.id,v.item_id]);
+      if(r0&&!r0.kantoor_actie)updateMetLog(req,'nakijk_regels',r0.id,{aangetroffen:null,ontbreekt:0,te_veel:0,kapot_aantal:0,is_kapot:0},'KV natelling: ongedaan');
+      return false;
+    }
     if(v.attribuut_id){
       const regel=get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_naam=?',[s.id,v.item_naam]);
       updateMetLog(req,'UPDATE nakijk_sessies SET notities=? WHERE id=?',[v.status,s.id],'KV natelling');
@@ -116,22 +121,24 @@ module.exports = function(ctx){
     if(linkStand==='dicht')return res.status(403).json({error:'Dit kamp is afgelopen: de link is gesloten. Je tellingen blijven bewaard.',link_stand:'dicht'});
     const versies=_laatsteVersies(km.id);
     const loc=get('SELECT * FROM locaties WHERE id=?',[km.locatie_id]);
-    const {bakken,attributen}=_kvVerwacht(km);
+    const v0=_kvVerwacht(km),ngAlle=ctx._kvNietGeleverd(km),heeftNa=ngAlle.some(n=>n.nageleverd);
+    const bakken=v0.bakken.filter(b=>!ctx._kvBakWeg(km,b)),attributen=v0.attributen.filter(a=>!ctx._kvAttrWeg(km,a.id));
     // V2b: sessies horen bij DIT kampmoment (niet meer locatie+week: dat ving de zomer-sessie van dezelfde week mee).
     const sessies=all("SELECT * FROM nakijk_sessies WHERE kampmoment_id=? AND kv_status IN ('bezig','ingediend')",[km.id]);
     const regelsAll=sessies.length?all(`SELECT * FROM nakijk_regels WHERE sessie_id IN (${sessies.map(()=>'?').join(',')})`,sessies.map(s=>s.id)):[];
     const bakkenOut=bakken.map(b=>{
-      const items=_bakItems(b);
+      const items=ctx._kvItems(km,b);
       const sessie=sessies.find(s=>s.bak_type===b.soort&&(b.soort==='thema'?s.thema_bak_id===b.id:s.vaste_bak_id===b.id));
       const regels=sessie?regelsAll.filter(r=>r.sessie_id===sessie.id):[];
       const itemsOut=items.map(it=>{
         const r0=regels.find(r=>r.item_id===it.id),v=sessie?versies.get('s'+sessie.id+':'+it.id):null; // TF5: de KV ziet zijn laatste telling, ook als die nog niet verstuurd is
-        const r=v?{aangetroffen:v.geteld,kapot_aantal:v.kapot,notitie:v.notitie,foto_path:v.foto_path}:r0;
+        const oudVerw=v?v.verwacht:r0?r0.verwacht:null; // TF12: nageleverd: de oude telling (lager verwacht) telt niet meer, opnieuw tellen maakt een nieuwe versie
+        const r=heeftNa&&oudVerw!=null&&oudVerw<it.qty?null:v?{aangetroffen:v.geteld,kapot_aantal:v.kapot,notitie:v.notitie,foto_path:v.foto_path}:r0;
         const aang=(r&&r.aangetroffen!=null)?r.aangetroffen:null;
         const kap=r?(r.kapot_aantal||0):0;
         return {id:it.id, naam:zonderHaakjes(it.naam), gewenst:it.qty, aangetroffen:aang,
           te_veel:aang!=null&&aang>it.qty?aang-it.qty:0, kapot_aantal:kap, notitie:(r&&r.notitie)||'',
-          foto_url:(r&&r.foto_path)?'/uploads/'+r.foto_path:null, status:_itemStatus(it.qty,r&&aang!=null?{aangetroffen:aang,kapot_aantal:kap}:null)};
+          foto_url:(r&&r.foto_path)?'/uploads/'+r.foto_path:null, klopt_ongedaan:!!(v&&/·klopt$/.test(v.via||'')),status:_itemStatus(it.qty,r&&aang!=null?{aangetroffen:aang,kapot_aantal:kap}:null)};
       });
       const geteld=itemsOut.filter(i=>i.aangetroffen!=null).length;
       const st=itemsOut.map(i=>i.status);
@@ -140,7 +147,7 @@ module.exports = function(ctx){
       const th=b.soort==='thema'?(get('SELECT t.name,t.leeftijdsgroep FROM thema_bak tb JOIN themas t ON t.id=tb.thema_id JOIN kampmoment_themas kt ON kt.thema_id=t.id AND kt.kampmoment_id=? WHERE tb.bak_id=? ORDER BY t.id LIMIT 1',[km.id,b.id])||get('SELECT t.name,t.leeftijdsgroep FROM thema_bak tb JOIN themas t ON t.id=tb.thema_id WHERE tb.bak_id=? ORDER BY t.id LIMIT 1',[b.id])):null;
       const bn=zonderHaakjes(b.naam);
       return {id:b.id, soort:b.soort, code:b.code, naam:th&&/^Themabak/i.test(bn)?th.name+' · '+bn:bn, ingediend:sessie?sessie.kv_status==='ingediend':false,thema:th?th.name:'',groep:th?(th.leeftijdsgroep||''):'',
-        status, geteld, aantal:itemsOut.length, items:itemsOut};
+        kan_ongedaan:itemsOut.some(i=>i.klopt_ongedaan),stuks:itemsOut.reduce((a,i)=>a+(i.gewenst||0),0),stuks_geteld:itemsOut.reduce((a,i)=>a+(i.aangetroffen!=null?(i.gewenst||0):0),0),status, geteld, aantal:itemsOut.length, items:itemsOut};
     });
     const attrSessies=sessies.filter(s=>s.bak_type==='attribuut');
     const attributenOut=attributen.map(a=>{
@@ -160,6 +167,7 @@ module.exports = function(ctx){
     const basis={
       kampNaam:(loc?loc.name:'?')+' — week '+km.week,
       kampLocatie:loc?loc.name:'', week:km.week, dagen, kvNaam:_kvNaam(km), monitor,
+      niet_geleverd:ngAlle.filter(n=>!n.nageleverd),nageleverd:ngAlle.filter(n=>n.nageleverd),
       bakken:bakkenOut, attributen:attributenOut, link_stand:linkStand, einde:_kvEinde(km),
       verstuurd:(l=>l?{op:l.op,wie:l.wie}:null)(_laatsteVerstuurd(km.id)), niet_verstuurd:_wijzigingen(km.id).length,niet_verstuurd_lijst:_wijzigingen(km.id).map(_wijzigTekst)
     };
@@ -202,16 +210,19 @@ module.exports = function(ctx){
     });
   });
 
-  app.post('/api/kv/:token/bakken/:bakId/tellen',(req,res)=>{
+  const NIET_GEL='Dit stuk is niet geleverd, dus je hoeft het niet te tellen. Vond je het toch? Tik op Toch gevonden.';
+  const _tellen=(req,res,viaExtra)=>{
     const km=_kmVan(req,res,false);
     if(!km)return;
     const {bakken}=_kvVerwacht(km);
     const bak=bakken.find(b=>b.id===parseInt(req.params.bakId));
     if(!bak)return res.status(403).json({error:'Deze bak hoort niet bij dit kampmoment'});
+    if(ctx._kvBakWeg(km,bak))return res.status(409).json({error:NIET_GEL});
     // S5.4b: weiger lege/misvormde payload i.p.v. stil ok:true teruggeven.
     const regelsIn=Array.isArray(req.body?.regels)?req.body.regels:null;
     if(!regelsIn||!regelsIn.length)return res.status(400).json({error:'regels is verplicht en mag niet leeg zijn'});
-    const items0=_bakItems(bak);
+    const items0=ctx._kvItems(km,bak);
+    if(regelsIn.some(rin=>rin&&!items0.some(i=>i.id===rin.item_id)&&_bakItems(bak).some(i=>i.id===rin.item_id)))return res.status(409).json({error:NIET_GEL});
     const ongeldig=regelsIn.some(rin=>{
       const itemIdOk=rin&&rin.item_id!=null&&items0.some(i=>i.id===rin.item_id);
       const aangetroffenOk=rin&&rin.aangetroffen!=null&&!isNaN(parseFloat(rin.aangetroffen))&&parseFloat(rin.aangetroffen)>=0;
@@ -237,7 +248,7 @@ module.exports = function(ctx){
       sessieId=_ins(req,`INSERT INTO nakijk_sessies (bak_type,thema_bak_id,vaste_bak_id,locatie_id,week,kampmoment_id,datum,kv_wie,kv_status,kantoor_status) VALUES (?,?,?,?,?,?,?,?,?,?)`,
         [bak.soort, bak.soort==='thema'?bak.id:null, bak.soort==='vast'?bak.id:null, km.locatie_id, km.week, km.id, now(), kvNaam, 'bezig', 'open']);
     }
-    const items=_bakItems(bak);
+    const items=items0;
     regelsIn.forEach(rin=>{
       const item=items.find(i=>i.id===rin.item_id);
       if(!item)return;
@@ -253,9 +264,11 @@ module.exports = function(ctx){
       let fotoPad=vorige?(vorige.foto_path||''):bestaand?(bestaand.foto_path||''):'';
       if(fotoPaden.has(item.id))fotoPad=fotoPaden.get(item.id);
       else if(rin.foto_data==='')fotoPad='';
-      if(!_zelfde(vorige,{geteld:aangetroffen,kapot,status:'',notitie,foto_path:fotoPad})) // TF7: een identieke natelling is geen nieuwe versie
+      const nieuweVersie=!_zelfde(vorige,{geteld:aangetroffen,kapot,status:'',notitie,foto_path:fotoPad});
+      if(nieuweVersie&&teVeel>0&&item.qty_origineel>item.qty&&ctx.nuTochGevonden)ctx.nuTochGevonden(km,item.naam,Math.min(teVeel,item.qty_origineel-item.qty)); // TF12
+      if(nieuweVersie) // TF7: een identieke natelling is geen nieuwe versie
       ins("INSERT INTO kv_telling_versies (kampmoment_id,sessie_id,item_id,code,item_naam,verwacht,geteld,kapot,te_veel,notitie,foto_path,wie,via,op) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-        [km.id,sessieId,item.id,bak.code||'',item.naam,item.qty,aangetroffen,kapot,teVeel,notitie,fotoPad,req.persoon.naam,_toegang(req.params.token).monitor?'monitor-link':'kv-link',isoNu()]);
+        [km.id,sessieId,item.id,bak.code||'',item.naam,item.qty,aangetroffen,kapot,teVeel,notitie,fotoPad,req.persoon.naam,(_toegang(req.params.token).monitor?'monitor-link':'kv-link')+(viaExtra||''),isoNu()]);
       if(sessie&&sessie.kv_status==='ingediend')return; // natelling: telt pas in Nakijken bij het volgende versturen
       if(bestaand) _upd(req,'UPDATE nakijk_regels SET aangetroffen=?,ontbreekt=?,verwacht=?,te_veel=?,kapot_aantal=?,is_kapot=?,notitie=?,foto_path=? WHERE id=?',
         [aangetroffen,ontbreekt,item.qty,teVeel,kapot,kapot>0?1:0,notitie,fotoPad,bestaand.id]);
@@ -263,6 +276,42 @@ module.exports = function(ctx){
         [sessieId,item.naam,item.id,item.qty,aangetroffen,ontbreekt,teVeel,kapot,kapot>0?1:0,notitie,fotoPad]);
     });
     res.json({ok:true});
+  };
+  app.post('/api/kv/:token/bakken/:bakId/tellen',(req,res)=>_tellen(req,res,''));
+  // TF12: één tik voor een hele bak. Bewaart per stuk een versie; een stuk dat al zo stond krijgt er geen.
+  app.post('/api/kv/:token/bakken/:bakId/klopt-helemaal',(req,res)=>{
+    const km=_kmVan(req,res,false);if(!km)return;
+    const bak=_kvVerwacht(km).bakken.find(b=>b.id===parseInt(req.params.bakId));
+    if(!bak)return res.status(403).json({error:'Deze bak hoort niet bij dit kampmoment'});
+    if(ctx._kvBakWeg(km,bak))return res.status(409).json({error:NIET_GEL});
+    req.body={regels:ctx._kvItems(km,bak).map(i=>({item_id:i.id,aangetroffen:i.qty,kapot_aantal:0,notitie:'',foto_data:''}))};
+    if(!req.body.regels.length)return res.json({ok:true});
+    _tellen(req,res,'·klopt');
+  });
+  // Ongedaan maken: een nieuwe versie met de stand van daarvoor. Nooit iets wissen.
+  app.post('/api/kv/:token/bakken/:bakId/ongedaan',(req,res)=>{
+    const km=_kmVan(req,res,false);if(!km)return;
+    const bak=_kvVerwacht(km).bakken.find(b=>b.id===parseInt(req.params.bakId));
+    if(!bak)return res.status(403).json({error:'Deze bak hoort niet bij dit kampmoment'});
+    const veld=bak.soort==='thema'?'thema_bak_id':'vaste_bak_id',sessie=get(`SELECT * FROM nakijk_sessies WHERE bak_type=? AND ${veld}=? AND kampmoment_id=? AND kv_status IN ('bezig','ingediend')`,[bak.soort,bak.id,km.id]);
+    if(!sessie)return res.json({ok:true,hersteld:0});
+    let n=0;
+    ctx._kvItems(km,bak).forEach(it=>{
+      const vs=all('SELECT * FROM kv_telling_versies WHERE sessie_id=? AND item_id=? ORDER BY id',[sessie.id,it.id]),l=vs[vs.length-1];
+      if(!l||!/·klopt$/.test(l.via||''))return;
+      const p=vs[vs.length-2]||{geteld:null,kapot:0,notitie:'',foto_path:'',te_veel:0};n++;
+      ins("INSERT INTO kv_telling_versies (kampmoment_id,sessie_id,item_id,code,item_naam,verwacht,geteld,kapot,te_veel,notitie,foto_path,wie,via,op) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",[km.id,sessie.id,it.id,bak.code||'',it.naam,it.qty,p.geteld,p.kapot||0,p.te_veel||0,p.notitie||'',p.foto_path||'',req.persoon.naam,'ongedaan',isoNu()]);
+      if(sessie.kv_status==='ingediend')return;
+      const r=get('SELECT id FROM nakijk_regels WHERE sessie_id=? AND item_id=?',[sessie.id,it.id]);
+      if(r)_upd(req,'UPDATE nakijk_regels SET aangetroffen=?,ontbreekt=?,te_veel=?,kapot_aantal=?,is_kapot=?,notitie=?,foto_path=? WHERE id=?',[p.geteld,p.geteld==null?0:Math.max(0,it.qty-p.geteld),p.te_veel||0,p.kapot||0,p.kapot>0?1:0,p.notitie||'',p.foto_path||'',r.id]);
+    });
+    res.json({ok:true,hersteld:n});
+  });
+  app.post('/api/kv/:token/toch-gevonden',(req,res)=>{
+    const km=_kmVan(req,res,false);if(!km)return;
+    const n=ctx._kvNietGeleverd(km).find(x=>x.check_id===parseInt(req.body?.check_id));
+    if(!n)return res.status(404).json({error:'Dit stuk staat niet op de lijst van niet geleverd'});
+    ctx.nuTochGevonden(km,n.naam,n.qty);res.json({ok:true});
   });
 
   app.post('/api/kv/:token/attributen/:attrId/status',(req,res)=>{
@@ -271,6 +320,7 @@ module.exports = function(ctx){
     const {attributen}=_kvVerwacht(km);
     const attr=attributen.find(a=>a.id===parseInt(req.params.attrId));
     if(!attr)return res.status(403).json({error:'Dit attribuut hoort niet bij dit kampmoment'});
+    if(ctx._kvAttrWeg(km,attr.id))return res.status(409).json({error:NIET_GEL});
     // S5.4b: weiger een ongeldige status i.p.v. ze stil te vervangen door ''.
     if(!['aanwezig','beschadigd'].includes(req.body?.status))
       return res.status(400).json({error:"status moet 'aanwezig' of 'beschadigd' zijn"});
@@ -308,7 +358,7 @@ module.exports = function(ctx){
     all("SELECT * FROM nakijk_sessies WHERE kampmoment_id=? AND kv_status='bezig' AND bak_type IN ('thema','vast')",[km.id]).forEach(s=>{
       const bak=s.bak_type==='thema'?get('SELECT * FROM bakken WHERE id=?',[s.thema_bak_id]):get('SELECT * FROM bakken WHERE id=?',[s.vaste_bak_id]);
       if(!bak)return;
-      _bakItems(bak).forEach(it=>{
+      ctx._kvItems(km,bak).forEach(it=>{
         if(get('SELECT id FROM nakijk_regels WHERE sessie_id=? AND item_id=?',[s.id,it.id]))return;
         _ins(req,"INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,opmerking) VALUES (?,?,?,?,NULL,0,'niet geteld')",[s.id,it.naam,it.id,it.qty]);
       });
@@ -331,6 +381,7 @@ module.exports = function(ctx){
     }
     _upd(req,"UPDATE nakijk_sessies SET kv_status='ingediend',kv_wie=?,kv_tijdstip=? WHERE kampmoment_id=? AND kv_status='bezig'",
       [kvNaam,now(),km.id]);
+    if(ctx.nakijkAutoKeur)ctx.nakijkAutoKeur(req,km); // TF12: klopt = geen werk
     if(!wijz.length&&!nieuweBak)return res.json({ok:true,gewijzigd:0});
     const op=isoNu(),tot=(get('SELECT MAX(id) AS m FROM kv_telling_versies WHERE kampmoment_id=?',[km.id])||{}).m||0;
     ins('INSERT INTO kv_verstuurd (kampmoment_id,op,wie,aantal,samenvatting,tot_versie) VALUES (?,?,?,?,?,?)',[km.id,op,kvNaam||'KV',wijz.length,wijz.map(_wijzigTekst).join(' · ').slice(0,2000),tot]);

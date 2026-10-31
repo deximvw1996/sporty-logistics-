@@ -87,6 +87,8 @@ module.exports = function(ctx){
   function _rij(km,bak,sessieVast){
     const loc=_locNaam(km.locatie_id),kvNaam=_kvNaam(km);
     const sessie=sessieVast||_sessieVan(km,bak);
+    // TF12: niet geleverd is geen tekort van de KV en vraagt hier geen keuring.
+    if(km.id&&bak.soort!=='melding'&&(bak.soort==='attribuut'?ctx._kvAttrWeg(km,bak.id):ctx._kvBakWeg(km,bak)))return {sessie_id:sessie?sessie.id:null,kampmoment_id:km.id,locatie:loc,week:km.week,kv_naam:kvNaam,bak:{id:bak.id,code:bak.code||'',naam:bak.naam||bak.label||'',soort:bak.soort},geteld:0,totaal:0,uitslag_tekst:'niet geleverd',met_tekort:false,met_kapot:false,status:'niet_geleverd',gemeld:0,gemeld_op:'',ingediend_op:'',nagekeken_op:''};
     let geteld=0,totaal=1,tekst='niet geteld',tekort=0,kapot=0;
     if(bak.soort==='attribuut'){
       const st=sessie?sessie.notities:'';
@@ -95,7 +97,7 @@ module.exports = function(ctx){
     }else if(bak.soort==='melding'){
       totaal=sessie?all("SELECT id FROM nakijk_regels WHERE sessie_id=? AND gemeld_soort<>''",[sessie.id]).length:0;tekst='';
     }else{
-      const items=_bakItems(bak),regels=sessie?all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessie.id]):[];
+      const items=ctx._kvItems(km,bak),regels=sessie?all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessie.id]):[];
       const u=_uitslag(items,regels);geteld=u.geteld;totaal=items.length;tekst=u.tekst;tekort=u.tekort;kapot=u.kapot;
       if(sessie&&sessie.kv_status==='bezig'&&geteld>0)tekst='KV is bezig · '+geteld+'/'+totaal+' geteld';
     }
@@ -117,6 +119,42 @@ module.exports = function(ctx){
       ingediend_op:sessie&&sessie.kv_status==='ingediend'?(sessie.kv_tijdstip||''):'',nagekeken_op:sessie&&_nagekeken(sessie)?(sessie.kantoor_afgerond_op||sessie.kantoor_tijdstip||''):''};
   }
 
+  // TF12 punt 3: klopt = geen werk. Een bak die volledig klopt en geen open melding heeft, gaat bij versturen vanzelf op nagekeken. Een latere afwijking heropent.
+  function _klopt(km,s){
+    if(s.kv_status!=='ingediend'||_nagekeken(s))return false;
+    const regels=all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[s.id]);
+    if(regels.some(r=>r.gemeld_soort))return false;
+    if(s.bak_type==='attribuut')return s.notities==='aanwezig';
+    const bak=get('SELECT * FROM bakken WHERE id=?',[s.bak_type==='thema'?s.thema_bak_id:s.vaste_bak_id]);if(!bak)return false;
+    const items=ctx._kvItems(km,bak);if(!items.length)return false;
+    return items.every(it=>{const r=regels.find(x=>x.item_id===it.id);return r&&r.aangetroffen===it.qty&&!(r.kapot_aantal>0)&&!r.notitie&&!r.foto_path;});
+  }
+  function autoKeur(req,km){
+    let n=0;
+    all("SELECT * FROM nakijk_sessies WHERE kampmoment_id=? AND kv_status='ingediend' AND bak_type IN ('thema','vast','attribuut')",[km.id]).forEach(s=>{
+      if(!_klopt(km,s))return;
+      updateMetLog(req,'nakijk_sessies',s.id,{kantoor_status:'nagekeken',kantoor_afgerond_op:now(),kantoor_wie:'automatisch'},'automatisch nagekeken, alles klopt');
+      logAct('nakijken','automatisch nagekeken',`${_locNaam(km.locatie_id)} (sessie #${s.id}): automatisch nagekeken, alles klopt`,km.locatie_id,_locNaam(km.locatie_id));n++;
+    });
+    return n;
+  }
+  ctx.nakijkAutoKeur=autoKeur;
+  // Eenmalig: bestaande volledig kloppende "te keuren"-bakken.
+  try{if(!get("SELECT waarde FROM app_vlaggen WHERE naam='tf12_auto_klaar'")){all('SELECT * FROM kampmomenten').forEach(km=>autoKeur(null,km));ins("INSERT OR IGNORE INTO app_vlaggen (naam,waarde) VALUES ('tf12_auto_klaar','1')");}}catch(e){console.error('TF12 auto:',e.message);}
+  // Eén rij per locatie, eerst wat een beslissing vraagt.
+  function _locaties(kms,bakken){
+    const vandaag=isoLokaal(new Date());
+    const uit=kms.map(km=>{
+      const b=bakken.filter(x=>x.kampmoment_id===km.id),tel=f=>b.filter(f).length;
+      const inOrde=tel(x=>x.status==='nagekeken'),te=tel(x=>x.status==='te_keuren'),niet=tel(x=>x.status==='nog_niet'||x.status==='niet_geteld'),ng=tel(x=>x.status==='niet_geleverd'),ngStuks=ctx._kvNietGeleverd(km).filter(n=>!n.nageleverd);
+      const ma=_maandag(km),voorbij=!!ma&&vandaag>ma;
+      return {kampmoment_id:km.id,locatie:_locNaam(km.locatie_id),kv_naam:_kvNaam(km),week:km.week,totaal:b.length,in_orde:inOrde,te_keuren:te,niet_geteld:niet,niet_geleverd:ngStuks.map(n=>n.tekst+' · '+n.reden_tekst),niet_geleverd_bakken:ng,
+        waarschuwing:voorbij&&niet>0,
+        tekst:[kvL0(_kvNaam(km)),inOrde+' in orde',te?te+' te keuren':'',niet?niet+' niet geteld':'alles geteld',ngStuks.length?ngStuks.length+' niet geleverd':''].filter(Boolean).join(' · ')};
+    });
+    return uit.sort((a,b)=>(b.te_keuren>0)-(a.te_keuren>0)||(b.niet_geteld>0)-(a.niet_geteld>0)||a.locatie.localeCompare(b.locatie,'nl'));
+  }
+  const kvL0=n=>n?kvL(n):'';
   app.get('/api/nakijken',alleenKantoor,(req,res)=>{
     const datum=/^\d{4}-\d{2}-\d{2}$/.test(req.query.week||'')?req.query.week:isoLokaal(new Date());
     const {kms,maandag,fallback}=_kampmomentenVanWeek(datum,!!req.query.week);
@@ -144,7 +182,7 @@ module.exports = function(ctx){
       if(b.met_kapot)tellers.met_kapot++;
     });
     const periode=kms[0]&&kms[0].periode_id?get('SELECT id,naam FROM vakantieperiodes WHERE id=?',[kms[0].periode_id]):null;
-    res.json({week:{maandag,van:maandag,tot:maandag?plusDagen(maandag,4):null,weeknummer:kms[0]?kms[0].week:null,fallback},periode,tellers,bakken});
+    res.json({week:{maandag,van:maandag,tot:maandag?plusDagen(maandag,4):null,weeknummer:kms[0]?kms[0].week:null,fallback},periode,tellers,bakken,locaties:_locaties(kms,bakken)});
   });
 
   // Detail van één bak: ?sessie=ID (via pad) of ?kampmoment_id=&bak=<soort>:<id> voor een bak zonder sessie.
@@ -165,7 +203,8 @@ module.exports = function(ctx){
       }
     });
   }
-  function _detail(km,bak,sessie){
+  const _detail=(km,bak,sessie)=>({..._detail0(km,bak,sessie),niet_geleverd:km&&km.id?ctx._kvNietGeleverd(km).filter(n=>!n.nageleverd):[]}); // TF12
+  function _detail0(km,bak,sessie){
     const loc=_locNaam(km.locatie_id),kvNaam=_kvNaam(km);
     const kvP=km.kv_persoon_id?get('SELECT telefoon FROM personeel WHERE id=?',[km.kv_persoon_id]):null;
     const melding=bak.soort==='melding';
@@ -181,7 +220,7 @@ module.exports = function(ctx){
         acties:st==='beschadigd'?ACTIES.kapot.map(([waarde,label])=>({waarde,label})):[]}];
     }else{
       const regels=sessie?all('SELECT * FROM nakijk_regels WHERE sessie_id=?',[sessie.id]):[];
-      items=(melding?[]:_bakItems(bak)).map(it=>{
+      items=(melding?[]:ctx._kvItems(km,bak)).map(it=>{
         const r=regels.find(x=>x.item_id===it.id);
         const afw=_afwijking(r,it.qty);
         const aantal=afw==='tekort'?it.qty-r.aangetroffen:afw==='te_veel'?r.aangetroffen-it.qty:afw==='kapot'?(r.kapot_aantal||0):0;

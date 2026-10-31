@@ -61,6 +61,7 @@ try {
   T.check(Array.isArray(v.ritten_morgen) && v.ritten_morgen.some((x) => x.id === rm) && !v.ritten_vandaag.some((x) => x.id === rm), `ritten_morgen bevat rit #${rm} (${v.ritten_morgen.length}); ritten_vandaag niet`);
   const pagina = require('node:fs').readFileSync(T.ROOT + '/public/vandaag.js', 'utf8');
   T.check(/ritten_morgen/.test(pagina) && /Morgen/.test(pagina), 'de Vandaag-pagina toont "Morgen" onder de ritten van vandaag (zelfde rijstijl)');
+  await A('PUT', `/api/transport-taken/${rest.id}/status`, { status: 'gedaan' }); // TF12: de bak kwam niet mee; zo is hij nageleverd en staat hij weer op de KV-lijst
   const kvtok = await T.kvToken(srv.base, tok, km);
   const kv = (m, p, b) => P(m, `/api/kv/${kvtok}${p}`, b);
   await A('POST', `/api/kampmomenten/${km}/themas`, { thema_id: vrij[0].id });
