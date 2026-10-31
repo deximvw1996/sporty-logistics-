@@ -609,3 +609,34 @@ Run 13: **60/60 groen**. De andere runs vielen uit door omgeving, niet door code
 - Themadag-kampmoment gebruikt nog de oude dagdialoog.
 - Rooster-themakeuze geeft geen locatie mee, "elders" kan de huidige locatie bevatten.
 - `public/nav.js`: één PAGINA-regel toegevoegd.
+
+## VERSLAG MOB3 — Gsm gelijk aan desktop, eerste groep
+
+**Bewijs:** `scripts/test-mob3.mjs` = 63 controles groen. Volle run 67/67 groen (twee keer; één tussenrun viel op een poortbotsing van keten-aanvraag, los groen). mob1, mob2, tf10, bw2, tf13 groen.
+
+**Punt 1 — gemeenschappelijk** (`public/gsm-gelijk.css/.js`, geladen door `nav.js`; alles onder 768 px, desktop ongewijzigd):
+- Bulkbalk: vast boven de tabbalk, acties wrappen als knoppen van ≥ 44 px. Alle acties bereikbaar op Kampmomenten (4), Taken (4), Bakken (4), Personeel (3); ook Nakijken.
+- Export en + Nieuw verhuizen uit de subbalk naar een eigen rij (terug op desktop). Scrollbalken fade tot het einde; actieve chip scrolt in beeld.
+- Vinkjes 24 px met aanraakgebied 48 px; knoppen, velden, tekstlinks ≥ 44 px.
+- Tik-uitleg: één gedeelde klik-luisteraar toont de `title` (Voertuigen, Locaties, Rooster Seizoen); een uitgeschakelde knop legt uit waarom.
+- Meting op 390 (iframe, 25 pagina's; klein = onder 44 px, vóór → na): Vandaag 2→0, Taken 1→0, Voertuigen 11→0 (chips nog 2 in eerste meting), Kampmomenten 3→0, Gedeeld 4→0, Bakken 553→1, Thema's 184→0, Pool 178→0, Catalogus 200→0, Personeel 16→0, Logboek 1→0, Meldingen 1→0, Locaties 41→0, Meer 1→0. Horizontale paginascroll: geen op alle 25 (ook `/locaties`: 390 = 390). Daarna extra regel voor `.knop` buiten `.frame`; een hermeting van Opdracht/Rooster/Sportrooster (2 knoppen van 24 px) kan nog uit cache komen: **niet opnieuw bevestigd**. Op 1920 niet opnieuw per pagina gemeten; desktop is bewezen via de CSS (buiten de @media alleen twee `display:none`-regels).
+
+**Punt 2 — Transport (Ritplanning gsm):** knop "Opdracht van <dag>" onder de ritlijst (+ de bestaande knop Opdracht in het ritdetail); schakelaar Dag/Week met weekbeeld (per dag de ritten per bestuurder, tik opent detail); per stop 🔒 vast / 🔓 vrij (zelfde PUT als desktop); Splitsen als eigen scherm (stop, regels als vinkjes, nieuwe datum; zelfde route). Geen slepen nodig.
+
+**Punt 4 — Chauffeur:** `ritten_komend` (klaargezette ritten na morgen, 12 dagen) per dag in tab Ritten + datumkeuze. Niet-klaargezette ritten blijven verborgen. Desktop: chauffeur krijgt de lichte weergave, geen lege kantoorkolommen. Rechten: POST rit, PUT slot en splits geven 403.
+
+**Punt 3 — Vandaag/Nakijken:** Vandaag gsm (kantoor): cijfers onderweg/locaties open + Later deze periode, Deze week, Volgende week, elk ingeklapt onder de Nu-kaart. Groot/Compact deed op gsm niets en is uit Meer gehaald. Nakijken gsm: zoekveld (44 px), vinkje per bak + bulkbalk (Afronden, Herinnering, Printlijst); Eerdere tellingen stond er al (TF7), nu getest.
+
+**Punt 5 — Print (lijst voor Maxim):**
+- Etiketten: printen werkt via het browsermenu; hint toegevoegd op gsm.
+- Printlijst (aanvullijst-print): ongewijzigd, werkt.
+- Back-up terugzetten: werkt (bestand kiezen); op gsm een uitleg dat de pc beter is.
+- Kleurlegende: Sportrooster-legende ongewijzigd; Ritplanning-legende bestuurders hoort bij de agenda die op gsm niet bestaat.
+- Niets weggehaald.
+
+**Niet gedaan / niet bewezen:** geen echte vinger of echte telefoon; schermafbeeldingen alleen deels; tabellen Kampmomenten/Taken/Bakken/Personeel/Logboek zijn nog geen kaartlijst (wacht op mockup), dus de pagina is nog breder dan het scherm en scrollt in het frame; Nakijken-bulk getest op een nagebouwde bak (testdata heeft geen telling).
+
+### GEVONDEN
+- Op gsm lopen de vijf tabellen nog horizontaal binnen hun frame; de bulkbalk is nu wel bereikbaar.
+- De voorkeur Groot/Compact gold alleen voor desktop.
+- Hermeting van 2 knoppen (24 px) op Opdracht/Rooster/Sportrooster staat open.

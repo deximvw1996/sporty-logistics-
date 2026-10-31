@@ -1,0 +1,32 @@
+/* public/gsm-gelijk.css — MOB3: gedeelde gsm-regels (< 768 px) voor de beheerpagina's: bulkbalk, actieknoppen, aanraakmaat, scrollhints, tik-uitleg.
+   Boven 767 px staat hier niets dat de desktop verandert. */
+.gsm-uitleg{display:none}
+.gsm-hint{display:none}
+@media (max-width:767px){
+  /* bulkbalk: vast onderaan boven de tabbalk, alle acties als knop van minstens 44 px */
+  .voet.sel{position:fixed;left:0;right:0;bottom:calc(72px + env(safe-area-inset-bottom));z-index:900;height:auto;flex-wrap:wrap;gap:8px;padding:8px 12px 10px;background:#fff;border-top:1px solid #cbd5e1;box-shadow:0 -6px 18px rgba(15,23,42,.16)}
+  .voet.sel .bulk{display:flex;flex-wrap:wrap;width:100%;margin:0;gap:8px}
+  .voet.sel .bulk .knop{flex:1 1 calc(50% - 8px);min-height:44px;height:auto;white-space:normal;line-height:1.2;padding:6px 10px;font-size:14px}
+  /* Export en + Nieuw: eigen rij onder de subbalk, altijd zichtbaar */
+  .gsm-acties{display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;background:#fff;border-bottom:1px solid #e2e8f0}
+  .gsm-acties .knop,.gsm-acties button,.gsm-acties a{flex:1 1 auto;min-height:44px;height:auto;font-size:14px;padding:6px 12px;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+  .gsm-acties:empty{display:none}
+  /* scrollbare balken tonen dat er meer is */
+  .gsm-scroll{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+  .gsm-scroll.gsm-eind{-webkit-mask-image:none;mask-image:none}
+  /* aanraakmaat */
+  body.heeft-tabs button:not(.x),body.heeft-tabs .knop,body.heeft-tabs .chip,body.heeft-tabs input[type=search],body.heeft-tabs input[type=text],body.heeft-tabs input[type=number],body.heeft-tabs input[type=time],body.heeft-tabs input[type=date]{min-height:44px}
+  .frame button:not(.x),.frame select,.frame .chip,.frame .tab,.frame .dagknop,.frame .dag{min-height:44px}
+  .frame a:not(.logo){min-height:44px;display:inline-flex;align-items:center}
+  .frame input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]),.frame textarea{min-height:44px}
+  input[type=checkbox],input[type=radio]{-webkit-appearance:none;appearance:none;position:relative;width:24px;height:24px;border:2px solid #94a3b8;border-radius:6px;background:#fff;flex:none;vertical-align:middle;cursor:pointer}
+  input[type=radio]{border-radius:50%}
+  input[type=checkbox]::before,input[type=radio]::before{content:"";position:absolute;inset:-12px}
+  input[type=checkbox]:checked{background:#2563eb url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3.2 3L13 4.5' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat;border-color:#2563eb}
+  input[type=radio]:checked{background:radial-gradient(#2563eb 45%,#fff 50%);border-color:#2563eb}
+  /* geen horizontale paginascroll */
+  body.heeft-tabs{overflow-x:hidden}
+  .gsm-hint{display:block!important;margin:8px 12px;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px;line-height:1.4}
+  /* tik-uitleg (vervangt title-hover) */
+  .gsm-uitleg{display:block;position:fixed;left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:3000;background:#0f172a;color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+}

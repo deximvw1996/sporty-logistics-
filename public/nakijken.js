@@ -187,12 +187,16 @@
     var chips = FILTERS.map(function (f) { return '<span class="chip' + (st.filter === f[0] ? ' act' : '') + '" role="button" tabindex="0" data-gk="filter" data-a="' + f[0] + '">' + f[1] + (telVan(t, f[0]) == null ? '' : ' ' + telVan(t, f[0])) + '</span>'; }).join('');
     var gsmRij = function (b) {
       var p = PIL[b.status] || PIL.niet_geteld, kls = b.met_tekort || b.met_kapot ? 'rood' : b.status === 'nagekeken' ? 'groen' : '';
-      return '<div class="bak ' + kls + '" role="button" tabindex="0" data-gk="open" data-a="' + esc(sleutel(b)) + '"><span class="code">' + esc(b.bak.code || '—') + '</span><div class="nm">' + esc(b.bak.naam) + '<b>' + esc(b.locatie) + ' · wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(kvL(b.kv_naam)) : '') + ' · ' + b.geteld + '/' + b.totaal + ' geteld' + (b.uitslag_tekst ? ' · ' + esc(b.uitslag_tekst) : '') + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
+      var sel0 = st.geselecteerd || new Set();
+      var kaart = '<div class="bak ' + kls + '" role="button" tabindex="0" data-gk="open" data-a="' + esc(sleutel(b)) + '"><span class="code">' + esc(b.bak.code || '—') + '</span><div class="nm">' + esc(b.bak.naam) + '<b>' + esc(b.locatie) + ' · wk ' + esc(b.week) + (b.kv_naam ? ' · ' + esc(kvL(b.kv_naam)) : '') + ' · ' + b.geteld + '/' + b.totaal + ' geteld' + (b.uitslag_tekst ? ' · ' + esc(b.uitslag_tekst) : '') + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
+      return b.sessie_id ? '<div style="display:flex;align-items:center;gap:4px"><input type="checkbox" data-act="vink" data-a="' + b.sessie_id + '" aria-label="Selecteer ' + esc(b.bak.naam) + '"' + (sel0.has(b.sessie_id) ? ' checked' : '') + ' style="margin:0 10px"><div style="flex:1;min-width:0">' + kaart + '</div></div>' : kaart;
     };
     var kaarten = locatieLijst(data, st).map(function (x) { return locatieHtml(x, st, 'data-gk', gsmRij); }).join('') || '<div class="hint" style="text-align:center;padding:18px 0">' + ((data.bakken || []).length ? 'Niets in deze filter.' : 'Geen kampmomenten in deze week — kies een andere week.') + '</div>';
     return '<div class="kop2"><div style="flex:1"><b>Nakijken</b><span>' + rijen.length + ' bak' + (rijen.length === 1 ? '' : 'ken') + ' · ' + (t.te_keuren || 0) + ' te keuren</span></div></div>'
       + '<div class="wk"><button type="button" class="knop licht klein" data-gk="week" data-a="-1" aria-label="Vorige week">‹</button><b>Week ' + esc(w.weeknummer != null ? w.weeknummer : '—') + '</b><button type="button" class="knop licht klein" data-gk="week" data-a="1" aria-label="Volgende week">›</button></div>'
-      + '<div class="chipsS">' + chips + '</div><div class="body">' + kaarten + '</div>';
+      + '<div style="padding:0 12px 8px"><input type="search" id="gzoek" data-f="zoek" placeholder="🔍 Zoek locatie, bak, KV, stuk…" aria-label="Zoeken" value="' + esc(st.zoek || '') + '" style="width:100%;min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 12px;font:inherit;background:#fff"></div>'
+      + '<div class="chipsS">' + chips + '</div><div class="body">' + kaarten + '</div>'
+      + ((st.geselecteerd || new Set()).size ? '<div class="voet sel" id="voet"><span><span class="n">' + st.geselecteerd.size + ' geselecteerd</span></span><span class="bulk"><button type="button" class="knop klein" data-act="bulk-afronden">Keuring afronden</button><button type="button" class="knop licht klein" data-act="bulk-herinnering">Herinnering naar KV</button><button type="button" class="knop licht klein" data-act="printlijst">Printlijst</button></span></div>' : '');
   }
   function gsmRegelHtml(det, st) {
     var regels = gsmRegels(det), n = regels.length, i = Math.max(0, Math.min(st.gi || 0, n));
@@ -287,7 +291,9 @@
   function tekenGsm() {
     var e = $('gsm'); if (!e) { e = document.createElement('div'); e.id = 'gsm'; document.body.insertBefore(e, $('overlay')); }
     if (!DATA || !MQ.matches) { e.innerHTML = ''; return; }
+    var zoekAan = document.activeElement && document.activeElement.id === 'gzoek', zpos = zoekAan ? document.activeElement.selectionStart : 0;
     e.innerHTML = ST.gs === 'regel' && DETAIL ? gsmRegelHtml(DETAIL, ST) : gsmLijstHtml(DATA, ST);
+    if (zoekAan) { var gz = $('gzoek'); if (gz) { gz.focus(); gz.setSelectionRange(zpos, zpos); } return; }
     if (root.scrollTo) root.scrollTo(0, 0);
   }
   if (MQ.addEventListener) MQ.addEventListener('change', tekenGsm);

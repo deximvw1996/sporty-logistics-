@@ -281,7 +281,9 @@ module.exports = function(ctx){
       });
       const lijst=_roep('/api/aanvullijst',{datum},req);
       const basis={mijn:true,gebruiker:{naam:req.persoon.naam,rol:req.persoon.rol},datum,datum_tekst:datumLang(datum),
-        ritten_vandaag:rit(datum).sort((a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99'))),ritten_morgen:rit(plus(datum,1)).sort((a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99'))),aanvullen:{open:lijst&&lijst.tellers?lijst.tellers.totaal:0,bakken:lijst&&lijst.tellers?lijst.tellers.bakken:0}};
+        ritten_vandaag:rit(datum).sort((a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99'))),ritten_morgen:rit(plus(datum,1)).sort((a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99'))),
+        // MOB3: de komende klaargezette ritten (na morgen, tot twee weken vooruit) per dag; een chauffeur ziet zo ook rit #22 van overmorgen.
+        ritten_komend:Array.from({length:12},(_,i)=>plus(datum,i+2)).map(d=>({datum:d,datum_tekst:datumLang(d),ritten:rit(d).sort((a,b)=>String(a.tijd||'99').localeCompare(String(b.tijd||'99')))})).filter(x=>x.ritten.length),aanvullen:{open:lijst&&lijst.tellers?lijst.tellers.totaal:0,bakken:lijst&&lijst.tellers?lijst.tellers.bakken:0}};
       return res.json({...basis,...gsmVandaag(req,basis,datum)});
     }
     return alleenKantoor(req,res,()=>res.json(vandaagData(req)));

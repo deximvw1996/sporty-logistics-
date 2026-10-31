@@ -53,3 +53,7 @@ input[name=wg]{position:absolute;opacity:0;pointer-events:none}
 /* MOB1: gsm-weergave staat in #gsm (app-schil.css); de desktop-opbouw is dan verborgen */
 .tel[hidden]{display:none}
 @media (max-width:767px){body>.frame{display:none}#toasts{bottom:84px;left:12px;right:12px}}
+
+/* MOB3: chauffeur op desktop — alleen het lichte blok, geen kantoorkolommen */
+body.alleen-gsm .frame{display:none}
+body.alleen-gsm #gsm{max-width:560px;margin:0 auto}
