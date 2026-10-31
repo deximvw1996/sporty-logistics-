@@ -1163,7 +1163,7 @@ module.exports = function(ctx){
     if(g&&e){const d=_min(e)-_min(g),a=Math.abs(d);delen.push(d===0?'precies op tijd':`${Math.floor(a/60)}u${String(a%60).padStart(2,'0')} ${d>0?'langer':'korter'}`);}
     return {tekst:delen.join(' · '),geschat:g,echt_start:s,echt_einde:e,vorig:_hhmm(rit.einde_vorig||'')};
   }
-  ctx._ritMeting=_meting;
+  ctx._ritMeting=_meting;ctx._ritTijden=_ritTijden;
   app.put('/api/ritten/:id/tijden',alleenKantoor,(req,res)=>{
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
@@ -1638,7 +1638,7 @@ module.exports = function(ctx){
     const _p=rit.personeel_id?get('SELECT id,rol FROM personeel WHERE id=?',[rit.personeel_id]):ctx.persoonOpNaam&&ctx.persoonOpNaam(rit.chauffeur);
     const _rol=_p?(_p.rol||(get('SELECT rol FROM personeel WHERE id=?',[_p.id])||{}).rol):'';
     const _vol=_volVan(rit.id);
-    res.json({..._ritData(rit),vol:{vraag:_volVraag(rit.id),antwoord:_vol.length?_vol[_vol.length-1].antwoord:'',n:_vol.length},kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
+    res.json({...(ctx.wagenExtra?ctx.wagenExtra(rit,_ritData(rit)):_ritData(rit)),vol:{vraag:_volVraag(rit.id),antwoord:_vol.length?_vol[_vol.length-1].antwoord:'',n:_vol.length},kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
   });
 
   // TF7 punt 5: "Hoe vol zat de wagen?" Hint per rit: één antwoord, één keer wijzigen, alles bewaard. Geen berekening en geen score.

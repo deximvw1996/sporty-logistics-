@@ -56,7 +56,7 @@ module.exports = function(ctx){
             geladen:!!get('SELECT 1 AS x FROM verhuis_checks WHERE taak_id=? AND geladen=1 AND COALESCE(gelost,0)=0 LIMIT 1',[t.id]),
             regels:all('SELECT id,naam,qty FROM transport_regels WHERE taak_id=? ORDER BY id',[t.id])};
         });
-        return {id:r.id,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
+        return {id:r.id,datum:r.datum,vertrek:info.vertrek,einde:info.einde,bestuurder:best,
           voertuig:{id:r.voertuig_id||null,naam:r.voertuig||'',soort:r.voertuig_soort||'pool',capaciteit:r.voertuig_capaciteit??null},aanhangwagen_id:r.aanhangwagen_id||null,vol_tekst:ctx.volTekst?ctx.volTekst(r.id):'',
           lading:info.lading,meting:info.meting,status:r.status,klaarzet_status:r.klaarzet_status||'',waarschuwingen:!r.personeel_id&&naam&&!['gedaan','geannuleerd'].includes(r.status)&&ctx.persoonOpNaam&&!ctx.persoonOpNaam(naam)?[...info.waarschuwingen,'⚠ bestuurder niet gekoppeld']:info.waarschuwingen,notitie:info.notitie||'',stops,
           laatste_wijziging:ctx._laatsteRitWijziging?ctx._laatsteRitWijziging(r.id):null};

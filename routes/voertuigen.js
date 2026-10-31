@@ -157,6 +157,7 @@ module.exports = function(ctx){
     if(!isoDatum(datum_van)||!isoDatum(datum_tot))return res.status(400).json({error:'datum_van en datum_tot moeten JJJJ-MM-DD zijn'});
     if(datum_tot<datum_van)return res.status(400).json({error:'datum_tot ligt vóór datum_van'});
     const id=insMetLog(req,'voertuig_onderhoud',['voertuig_id','datum_van','datum_tot','reden'],[v.id,datum_van,datum_tot,String(reden||'').trim()],'voertuigen');
+    insMetLog(req,'afspraken',['soort','voertuig_id','datum','van','tot','waar','status','onderhoud_id','created_at'],[/keuring/i.test(reden||'')?'autokeuring':'garage',v.id,datum_van,'08:00','17:00',String(reden||'').trim(),'open',id,new Date().toISOString()],'voertuigen'); // BW2: onderhoud staat ook in de agenda
     res.json({ok:true,id});
   });
   app.delete('/api/voertuigen/:id/onderhoud/:oid',alleenKantoor,(req,res)=>{

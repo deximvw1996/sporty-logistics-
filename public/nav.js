@@ -21,7 +21,7 @@
     beheer: [['Personeel', '/personeel'], ['Logboek', '/logboek'], ['Back-up & export', '/backup'], ['Instellingen', '/instellingen']] // BH2
   };
   // Welke pagina hoort bij welk onderdeel (en welke subknop).
-  var PAGINA = { '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/aanvullen': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer', '/backup': 'beheer', '/instellingen': 'beheer' };
+  var PAGINA = { '/opdracht': 'transport', '/vandaag': 'vandaag', '/kampmomenten': 'planning', '/rooster': 'planning', '/sportrooster': 'planning', '/gedeeld': 'planning', '/periodes': 'planning', '/ritplanning': 'transport', '/taken': 'transport', '/voertuigen': 'transport', '/bakken': 'materiaal', '/themas': 'materiaal', '/pool': 'materiaal', '/catalogus': 'materiaal', '/nakijken': 'voorraad', '/tekorten': 'voorraad', '/aanvullen': 'voorraad', '/personeel': 'beheer', '/logboek': 'beheer', '/backup': 'beheer', '/instellingen': 'beheer' };
   // MOB1: gsm-schil (< 768 px). Tabbalk per rol (design/MOBIEL-DEFINITIEF.html); dezelfde URL's als op desktop.
   var TABS = {
     kantoor: [['vandaag', '🏠', 'Vandaag', '/vandaag'], ['transport', '🚚', 'Transport', '/ritplanning'], ['voorraad', '🧮', 'Voorraad', '/nakijken'], ['meldingen', '🔔', 'Meldingen', '/meldingen'], ['meer', '☰', 'Meer', '/meer']],
@@ -86,7 +86,7 @@
     }).join('');
   }
   function sub(actief, pad) {
-    return (SUB[actief] || []).map(function (s) { return '<a' + (s[1] === pad ? ' class="act"' : '') + ' href="' + s[1] + '">' + esc(s[0]) + '</a>'; }).join('');
+    return (SUB[actief] || []).map(function (s) { return '<a' + (s[1] === pad || (pad === '/opdracht' && s[1] === '/ritplanning') ? ' class="act"' : '') + ' href="' + s[1] + '">' + esc(s[0]) + '</a>'; }).join('');
   }
   function teken(pad) {
     if (typeof document === 'undefined') return;
