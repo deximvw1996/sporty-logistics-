@@ -111,15 +111,15 @@ module.exports = function(ctx){
     // ── Inplannen ──
     const inplannen=[];
     const link=(label,url,primair=true)=>({label,primair,soort:'link',url}); // TF3: geen /#-adressen meer
-    all(`SELECT * FROM transport_taken WHERE (rit_id IS NULL OR rit_id=0) AND status='gepland'
+    all(`SELECT * FROM transport_taken WHERE (rit_id IS NULL OR rit_id=0) AND status='gepland' AND id NOT IN (SELECT rest_taak_id FROM nu_oplossen WHERE status='open' AND rest_taak_id IS NOT NULL)
       AND ((datum>=? AND datum<=?) OR ((datum IS NULL OR datum='') AND week=?)) ORDER BY datum,tijd,id`,[weekStart,weekEind,week??-1]).forEach(t=>{
       const n=get('SELECT COALESCE(SUM(qty),0) AS q,COUNT(*) AS c FROM transport_regels WHERE taak_id=?',[t.id]);
       const stuks=n.c?`${n.q} ${n.q===1?'stuk':'stuks'}`:'';
-      const rest=/^Rest van rit/.test(t.opmerking||'');
+      const rest=/^(Rest van rit|Niet gevonden:|Past niet:|Kapot:|Gevonden:)/.test(t.opmerking||'');
       const weekend=t.datum&&isWeekend(t.datum);
       let ico=t.aanvraag_id?'📩':t.type==='levering'?'📦':t.type==='ophaling'?'↩':'🔁';
       if(rest)ico='🚚';if(weekend)ico='🏃';
-      const titel=rest?`${t.opmerking.split(':')[0]}: ${_locNaam(t.van_locatie_id)} → ${_locNaam(t.naar_locatie_id)}`
+      const titel=rest?`${/^Rest van rit/.test(t.opmerking)?t.opmerking.split(':')[0]:t.opmerking}: ${_locNaam(t.van_locatie_id)} → ${_locNaam(t.naar_locatie_id)}`
         :t.type==='levering'?`Levering: ${_locNaam(t.naar_locatie_id)}`
         :t.type==='ophaling'?`Ophaling ${_locNaam(t.van_locatie_id)}`
         :`${(t.opmerking||'Transfer').replace(/^🚨\s*/,'')}: ${_locNaam(t.van_locatie_id)} → ${_locNaam(t.naar_locatie_id)}`;
@@ -221,7 +221,7 @@ module.exports = function(ctx){
       periode:periode?{id:periode.id,naam:periode.naam}:null,
       gebruiker:{naam:req.persoon?.naam||''},
       datum,datum_tekst:datumLang(datum),week,
-      beslissen,inplannen,nakijken,te_keuren:teKeuren,ritten_vandaag,ritten_morgen,deze_week,volgende_week,week_label,
+      nu_oplossen:ctx.nuLijst?ctx.nuLijst():[],beslissen,inplannen,nakijken,te_keuren:teKeuren,ritten_vandaag,ritten_morgen,deze_week,volgende_week,week_label,
       cijfers:{ritten_onderweg:ritten_vandaag.filter(r=>r.status==='onderweg').length,locaties_open:deze_week.length}
     };
   }
@@ -231,7 +231,7 @@ module.exports = function(ctx){
   const ritSub=r=>r.stops.map(s=>s.naam+(s.slot==='vrij'?' (vrij)':' 🔒')).join(' → ')+(r.lading?` · ${r.lading}`:'');
   const ritItem=r=>({soort:'rit',ico:'🚚',tijd:r.tijd,titel:ritTitel(r),sub:ritSub(r),url:'/rit/'+r.token,onderweg:r.status==='onderweg'});
   // ME1: de ongelezen meldingen uit routes/meldingen.js, in de vorm die de gsm-weergave leest (titel, sub).
-  const ongelezen=req=>ctx.meldingenVan(req.persoon,true).map(m=>({...m,sub:m.link?'tik om te openen':'',acties:[]}));
+  const ongelezen=req=>ctx.meldingenVan(req.persoon,true).filter(m=>m.niveau!=='info').map(m=>({...m,sub:m.link?'tik om te openen':'',acties:[]}));
   // Tellen bij ophaling: ophalingen van vandaag; de telling loopt via de KV-link van dat kampmoment.
   const tellenVan=datum=>all(`SELECT t.*,r.chauffeur,r.personeel_id,r.id AS rid,km.kv_token FROM transport_taken t JOIN transport_ritten r ON r.id=t.rit_id LEFT JOIN kampmomenten km ON km.id=t.kampmoment_id
       WHERE r.datum=? AND t.type='ophaling' AND t.status NOT IN ('gedaan','geannuleerd') AND r.status<>'geannuleerd' ORDER BY COALESCE(t.tijd,''),t.id`,[datum]).map(t=>{

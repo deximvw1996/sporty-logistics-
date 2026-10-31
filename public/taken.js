@@ -42,6 +42,7 @@
     return d.toLocaleDateString('nl-BE',{weekday:'short',day:'numeric',month:'short'}).replace(/\./g,'')+' '+d.toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-digit'});};
   const pilKlas={rest:'oranje',vrij:'oranje',weekend:'rood'};
 
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad(){
     const r=await api('GET','/api/taken-overzicht'+(Q.get('week')?'?week='+Q.get('week'):'')+(Q.get('alle')?(Q.get('week')?'&':'?')+'alle=1':''));
     if(r.status===401||r.status===403){location.href='/';return;}

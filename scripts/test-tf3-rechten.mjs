@@ -5,7 +5,7 @@ import * as T from './_testhulp.mjs';
 import { createRequire } from 'node:module';
 const { ROL_ROUTES, rolMag, zwakkePin } = createRequire(import.meta.url)('../lib/auth.js');
 const PUBLIEK = ['/api/login', '/api/login-status', '/api/setup-eerste-pincode', '/api/personeel-lijst-login', '/api/eerste-pincode'];
-const isPubliek = (p) => PUBLIEK.includes(p) || p.startsWith('/api/rit-token/') || p.startsWith('/api/kv/');
+const isPubliek = (p) => p === '/api/live' /* RT1: blijft open; test-rt1 bewijst dat de route zelf weigert */ || PUBLIEK.includes(p) || p.startsWith('/api/rit-token/') || p.startsWith('/api/kv/');
 const vul = (p) => p.replace(/:[a-zA-Z_]+/g, '1');
 const TABELLEN = ['themas', 'locaties', 'kampmomenten', 'personeel', 'transport_ritten', 'transport_taken', 'bakken', 'vakantieperiodes', 'aanvragen', 'meldingen'];
 const srv = await T.startServer({ poort: 3371 });
@@ -71,7 +71,7 @@ try {
   T.check((await A('GET', '/api/vandaag')).status === 200 && (await A('GET', '/api/personeel')).status === 200 && (await A('GET', '/api/ritplanning')).status === 200, 'kantoor: Vandaag, personeel en ritplanning ongewijzigd');
   // Pure regels.
   T.check(ROL_ROUTES.every((r) => r[3] && r[3].length > 5), `tabel: ${ROL_ROUTES.length} regels, elk met een reden`);
-  T.check(ROL_ROUTES.every((r) => !(/^(PUT|DELETE)$/.test(r[0]) && r[2].includes('monitor'))) && ROL_ROUTES.filter((r) => r[2].includes('monitor') && r[0] === 'POST').every((r) => /pincode|logout|gelezen/.test(r[1])), 'monitor schrijft alleen eigen pincode, uitloggen en gelezen');
+  T.check(ROL_ROUTES.every((r) => !(/^(PUT|DELETE)$/.test(r[0]) && r[2].includes('monitor') && !/voorkeur/.test(r[1]))) && ROL_ROUTES.filter((r) => r[2].includes('monitor') && r[0] === 'POST').every((r) => /pincode|logout|gelezen|push.(in|uit)schrijven/.test(r[1])), 'monitor schrijft alleen eigen pincode, uitloggen en gelezen');
   T.check(['0000', '1111', '1234', '4321', '1212', '9876'].every(zwakkePin) && !['2468', '1357', '5821', '3334'].some(zwakkePin), 'zwakke pincodes herkend, gewone niet');
 } catch (e) { T.fout('uitzondering: ' + e.message); console.log(srv.log().slice(-1500)); }
 await T.einde(srv);

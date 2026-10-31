@@ -16,7 +16,7 @@ module.exports = function(ctx){
   const regelsQ=id=>get('SELECT COALESCE(SUM(qty),0) AS q,COUNT(*) AS n FROM transport_regels WHERE taak_id=?',[id]);
   const takenVanRit=id=>all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[id]);
   function soortVan(t){
-    if(/^Rest van rit/.test(t.opmerking||''))return 'rest';
+    if(/^(Rest van rit|Niet gevonden:|Past niet:|Kapot:|Gevonden:)/.test(t.opmerking||''))return 'rest';
     if(t.aanvraag_id)return 'aanvraag';
     if(t.datum&&[0,6].includes(d0(t.datum).getDay()))return 'weekend';
     return t.type==='levering'?'levering':t.type==='ophaling'?'ophaling':'terugrit';

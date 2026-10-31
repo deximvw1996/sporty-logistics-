@@ -21,6 +21,7 @@ module.exports = function(ctx){
     return km?{km,monitor:true}:null;
   }
   // Geeft het kampmoment, of beantwoordt de aanvraag met 403 (ongeldig token, of monitor-token op een route die enkel de KV mag).
+  ctx._kvToegang=_toegang; // RT1
   function _kmVan(req,res,alleenKv){
     const t=_toegang(req.params.token);
     if(!t){res.status(403).json({error:'Ongeldige of verlopen link'});return null;}

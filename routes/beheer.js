@@ -169,21 +169,6 @@ module.exports = function(ctx){
     res.json(all(sql,params).map(w=>({...w,oud:parse(w.oud),nieuw:parse(w.nieuw)})));
   });
 
-  // ── PWA ──
-  app.get('/sw.js',(req,res)=>{
-    res.setHeader('Content-Type','application/javascript');
-    res.send(`const CACHE='sporty-v3';const SHELL=['/'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)));self.skipWaiting();});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim();});
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  if(e.request.url.includes('/api/')||e.request.url.includes('/rit/')){
-    e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
-  } else {
-    e.respondWith(fetch(e.request).then(res=>{const clone=res.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));return res;}).catch(()=>caches.match(e.request)));
-  }
-});`);
-  });
-  app.get('/manifest.json',(req,res)=>{res.json({name:'Sporty Logistics',short_name:'Sporty',start_url:'/',display:'standalone',background_color:'#ffffff',theme_color:'#2563eb',icons:[{src:'/favicon.ico',sizes:'64x64',type:'image/x-icon'}]});});
+  // PWA: /sw.js en /manifest.json staan in routes/live.js (RT1)
 
 };

@@ -64,6 +64,7 @@
       rol = w.rol; try { root.localStorage.setItem('sporty-rol', rol); } catch (e) { /* geen opslag */ }
       if (!magOpGsm(rol, pad)) { root.location.replace('/vandaag'); return; }
       zet();
+      root.addEventListener('sporty-live', function () { if (isGsm() || rol !== 'kantoor') root.fetch('/api/vandaag?mijn=1', { headers: { 'x-auth-token': tok } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) { if (v) zet(v.tellers); }).catch(function () { /* geen tellers */ }); }); // RT1
       if (rol === 'kantoor') { if (kantoorTellers) kantoorTellers(); } else ploegMenu();
       if (isGsm() || rol !== 'kantoor') root.fetch('/api/vandaag?mijn=1', { headers: { 'x-auth-token': tok } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (v) { if (v) zet(v.tellers); }).catch(function () { /* geen tellers */ });
     }).catch(function () { /* geen verbinding: de pagina meldt het zelf */ });
@@ -118,7 +119,9 @@
         var tk = (v.nakijken || []).filter(function (x) { return /^\d+ telling/.test(x.titel); })[0];
         zet('b-nakijken', tk ? parseInt(tk.titel, 10) : 0);
       }).catch(function () { /* geen tellers */ });
+      root.fetch('/api/meldingen', { headers: { 'x-auth-token': tok0 } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { var b = document.getElementById('b-meldingen'); if (m && b) { b.textContent = m.ongelezen; b.hidden = !m.ongelezen; } }).catch(function () { /* geen teller */ });
     };
+    root.addEventListener('sporty-live', function () { if (kantoorTellers) kantoorTellers(); }); // RT1
     tekenSchil(pad, tok0);
   }
   // AF1: gedeelde aanroep voor alle kantoorpagina's, met dezelfde herpoging als haal() in rit.js/kv.js (TF2 G3).

@@ -155,7 +155,7 @@ try {
     .replace('/rit/:token', `/rit/${ids.ritToken || 'geen-token'}`);
 
   // ── 5. Elke GET-route aanroepen ──
-  const gets = [...nieuw].filter((r) => r.startsWith('GET ')).map((r) => r.slice(4)).filter((p) => p !== '*');
+  const gets = [...nieuw].filter((r) => r.startsWith('GET ')).map((r) => r.slice(4)).filter((p) => p !== '*' && p !== '/api/live'); // RT1: /api/live blijft open
   let geteld = 0;
   for (const pad of gets) {
     const url = vulIn(pad);

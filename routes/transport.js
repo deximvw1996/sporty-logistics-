@@ -1665,17 +1665,7 @@ module.exports = function(ctx){
     if(c.attribuut_id)return get('SELECT * FROM transport_regels WHERE taak_id=? AND attribuut_id=? ORDER BY id LIMIT 1',[c.taak_id,c.attribuut_id]);
     return get('SELECT * FROM transport_regels WHERE taak_id=? AND naam=? ORDER BY id LIMIT 1',[c.taak_id,c.item_naam]);
   }
-  app.post('/api/rit-token/:token/checks/:checkId/niet-mee',(req,res)=>{
-    const rit=_ritVanToken(req.params.token);
-    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
-    const c=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
-    if(!c||c.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
-    const reden=req.body?.reden??null;
-    const taak=get('SELECT * FROM transport_taken WHERE id=?',[c.taak_id]);
-    if(!taak)return res.status(400).json({error:'Deze regel hangt aan geen taak'});
-    // ── terugdraaien ──
-    if(reden===null){
-      if(!c.niet_mee_reden)return res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[c.id]));
+  function _ritTerugzet(req,c,taak){
       const rr=c.rest_regel_id?get('SELECT * FROM transport_regels WHERE id=?',[c.rest_regel_id]):null;
       const restTaakId=rr?rr.taak_id:null;
       if(rr&&c.rest_gesplitst){
@@ -1691,6 +1681,20 @@ module.exports = function(ctx){
         if(!rest){delMetLog(req,'DELETE FROM verhuis_checks WHERE taak_id=?',[restTaakId],'rit-link');delMetLog(req,'DELETE FROM transport_taken WHERE id=?',[restTaakId],'rit-link');}
       }
       updateMetLog(req,"UPDATE verhuis_checks SET niet_mee_reden=NULL,niet_mee_opmerking='',niet_mee_aantal=0,rest_regel_id=NULL,rest_gesplitst=0 WHERE id=?",[c.id],'rit-link');
+  }
+  ctx._ritTerugzet=_ritTerugzet;
+  app.post('/api/rit-token/:token/checks/:checkId/niet-mee',(req,res)=>{
+    const rit=_ritVanToken(req.params.token);
+    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
+    const c=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
+    if(!c||c.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
+    const reden=req.body?.reden??null;
+    const taak=get('SELECT * FROM transport_taken WHERE id=?',[c.taak_id]);
+    if(!taak)return res.status(400).json({error:'Deze regel hangt aan geen taak'});
+    // ── terugdraaien ──
+    if(reden===null){
+      if(!c.niet_mee_reden)return res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[c.id]));
+      _ritTerugzet(req,c,taak);if(ctx.nuTerug)ctx.nuTerug(req,rit,c); // RT1
       return res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[c.id]));
     }
     if(!['past_niet','niet_gevonden','kapot'].includes(reden))return res.status(400).json({error:"reden moet 'past_niet', 'niet_gevonden' of 'kapot' zijn (of null om terug te draaien)"});
@@ -1707,7 +1711,7 @@ module.exports = function(ctx){
       if(isNaN(mee)||mee<0||mee>=(regel.qty||1))return res.status(400).json({error:`aantal (wat wel mee gaat) moet tussen 0 en ${(regel.qty||1)-1} liggen`});
     }
     const restQty=(regel.qty||1)-mee;
-    const redenTekst={past_niet:'past niet',niet_gevonden:'niet gevonden',kapot:'kapot'}[reden];
+    const redenTekst={past_niet:'past niet',niet_gevonden:'niet gevonden',kapot:'kapot'}[reden],restLabel=ctx.nuRestLabel(reden,restQty,c.item_naam); // RT1: de rest-taak zegt wat er is
     // Eén rest-taak per rit + bestemming (gepland, zonder rit, slot vrij) — wordt aangevuld.
     let rest=get("SELECT * FROM transport_taken WHERE rest_van_rit_id=? AND COALESCE(naar_locatie_id,0)=? AND COALESCE(van_locatie_id,0)=? AND rit_id IS NULL AND status='gepland' ORDER BY id LIMIT 1",
       [rit.id,taak.naar_locatie_id||0,taak.van_locatie_id||0]);
@@ -1718,10 +1722,10 @@ module.exports = function(ctx){
       const kmRest=taak.kampmoment_id?get('SELECT week FROM kampmomenten WHERE id=?',[taak.kampmoment_id]):null;
       const restWeek=taak.week||(kmRest&&kmRest.week)||_weekVanDatum(restDatum);
       const rid=insMetLog(req,'INSERT INTO transport_taken (type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,kampmoment_id,status,created_at,rit_id,week,slot,rest_van_rit_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-        [taak.type,restDatum,taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,`Rest van rit #${rit.id}: ${redenTekst}`,'',taak.kampmoment_id,'gepland',now(),null,restWeek,'vrij',rit.id],'rit-link');
+        [taak.type,restDatum,taak.tijd||'09:00',taak.van_locatie_id,taak.naar_locatie_id,restLabel,'',taak.kampmoment_id,'gepland',now(),null,restWeek,'vrij',rit.id],'rit-link');
       rest=get('SELECT * FROM transport_taken WHERE id=?',[rid]);
-    } else if(!(rest.opmerking||'').includes(redenTekst)){
-      updateMetLog(req,'UPDATE transport_taken SET opmerking=? WHERE id=?',[rest.opmerking+', '+redenTekst,rest.id],'rit-link');
+    } else {
+      updateMetLog(req,'UPDATE transport_taken SET opmerking=? WHERE id=?',[rest.opmerking?rest.opmerking+', '+restLabel:restLabel,rest.id],'rit-link');
     }
     let restRegelId,gesplitst=0;
     if(mee>0){
@@ -1739,6 +1743,7 @@ module.exports = function(ctx){
     const actief=get('SELECT COUNT(*) AS n FROM verhuis_checks WHERE taak_id=? AND (niet_mee_reden IS NULL OR rest_gesplitst=1) AND COALESCE(gelost,0)=0',[taak.id]).n;
     if(!actief&&taak.status!=='gedaan'){const rf=_rondTaakAf(req,taak.id,'rit-link');if(rf.fout)console.warn('niet-mee: taak #'+taak.id+' afronden mislukt:',rf.fout);}
     logAct('transport','niet mee',`Chauffeur ${rit.chauffeur||'?'}: "${c.item_naam}" ${redenTekst}${mee?` (${mee} mee, ${restQty} niet)`:''} — rest-taak #${rest.id}`,_stopLocId(taak),null);
+    if(ctx.nuMeld)ctx.nuMeld(req,{rit,taak,check:get('SELECT * FROM verhuis_checks WHERE id=?',[c.id]),reden,qty:restQty,restTaakId:rest.id}); // RT1
     res.json({check:get('SELECT * FROM verhuis_checks WHERE id=?',[c.id]),rest_taak_id:rest.id});
   });
 

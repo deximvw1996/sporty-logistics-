@@ -8,13 +8,22 @@ module.exports = function(ctx){
   const ROLLEN=['kantoor','chauffeur','monitor'];
   const isoNu=()=>new Date().toISOString();
 
-  function melding(req,{voor_rol,voor_persoon_id,van_naam,tekst,link}){
+  // RT1: drie niveaus. nu = rood, geluid, push; vandaag = teller; info = stil en buiten de teller.
+  function niveauVan(t){
+    if(/niet gevonden|locatie gesloten|probleem/i.test(t))return 'nu';
+    if(/feedback|bestelling.*binnen|geleverd|staat (weer |voor je )?klaar|toch gevonden/i.test(t)&&!/niet meer klaar/i.test(t))return 'info';
+    return 'vandaag'; // kapot, past niet, telling verstuurd, aanvragen, berichten, de rest
+  }
+  function melding(req,{voor_rol,voor_persoon_id,van_naam,tekst,link,niveau}){
     try{
       const pid=voor_persoon_id||null,rol=pid?'':(voor_rol==='coordinator'?'kantoor':voor_rol||''); // TF9
       if(!tekst||(!pid&&!rol))return null;
       const dubbel=get("SELECT id FROM meldingen WHERE tekst=? AND COALESCE(voor_rol,'')=? AND voor_persoon_id IS ? AND gelezen_op IS NULL",[tekst,rol,pid]);
       if(dubbel)return dubbel.id;
-      return insMetLog(req||null,'INSERT INTO meldingen (voor_rol,voor_persoon_id,van_naam,van_persoon_id,tekst,link,created_at) VALUES (?,?,?,?,?,?,?)',[rol,pid,van_naam||'',(req&&req.persoon&&req.persoon.persoon_id)||null,String(tekst),link||'',isoNu()],'melding');
+      const nid=insMetLog(req||null,'INSERT INTO meldingen (voor_rol,voor_persoon_id,van_naam,van_persoon_id,tekst,link,created_at) VALUES (?,?,?,?,?,?,?)',[rol,pid,van_naam||'',(req&&req.persoon&&req.persoon.persoon_id)||null,String(tekst),link||'',isoNu()],'melding');
+      run('UPDATE meldingen SET niveau=?,bijgewerkt_op=? WHERE id=?',[niveau||niveauVan(tekst),isoNu(),nid]);
+      if(ctx.meldingLive)ctx.meldingLive(nid);
+      return nid;
     }catch(e){console.error('Melding mislukt:',e.message);return null;} // een melding mag de echte actie nooit blokkeren
   }
   // Rit-bestuurder: gekoppeld personeelslid, anders exact één actieve persoon met die naam (hoofdletterongevoelig).
@@ -46,8 +55,9 @@ module.exports = function(ctx){
     const oud=recent?recent.tekst.split(' is gewijzigd: ')[1].split(', '):[];
     const tekst=`${ritKop(r)} is gewijzigd: ${[...new Set([...oud,wat])].join(', ')}`;
     try{
-      if(recent)updateMetLog(req,'meldingen',recent.id,{tekst,created_at:isoNu()},'melding bijgewerkt');
-      else melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst,link:ritLink(r)});
+      const niv=r.datum===(d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date())?'nu':'vandaag'; // RT1: eigen rit vandaag = nu
+      if(recent){updateMetLog(req,'meldingen',recent.id,{tekst,created_at:isoNu()},'melding bijgewerkt');run('UPDATE meldingen SET niveau=? WHERE id=?',[niv,recent.id]);if(ctx.meldingLive)ctx.meldingLive(recent.id);}
+      else melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst,link:ritLink(r),niveau:niv});
     }catch(e){console.error('Ritmelding mislukt:',e.message);}
   }
   function ritKlaar(req,ritId){
@@ -70,7 +80,7 @@ module.exports = function(ctx){
     const gel=new Set(all('SELECT melding_id FROM meldingen_gelezen WHERE persoon_id=?',[p.persoon_id]).map(r=>r.melding_id));
     return all(`SELECT * FROM meldingen WHERE ${voorWhere} ORDER BY id DESC LIMIT 200`,[p.persoon_id,p.rol])
       .filter(m=>m.voor_persoon_id||!m.van_persoon_id||m.van_persoon_id!==p.persoon_id) // TF9: een rolmelding gaat niet naar wie de handeling zelf deed
-      .map(m=>({id:m.id,van_naam:m.van_naam||'',tekst:m.tekst,titel:(m.van_naam&&!m.tekst.includes(m.van_naam)?m.van_naam+': ':'')+m.tekst,link:m.link||'',created_at:m.created_at,voor_rol:m.voor_rol||'',voor_persoon_id:m.voor_persoon_id,gelezen:!!(m.gelezen_op||gel.has(m.id))}))
+      .map(m=>({id:m.id,niveau:m.niveau||'vandaag',van_naam:m.van_naam||'',tekst:m.tekst,titel:(m.van_naam&&!m.tekst.includes(m.van_naam)?m.van_naam+': ':'')+m.tekst,link:m.link||'',created_at:m.created_at,voor_rol:m.voor_rol||'',voor_persoon_id:m.voor_persoon_id,gelezen:!!(m.gelezen_op||gel.has(m.id))}))
       .filter(m=>!alleenOngelezen||!m.gelezen);
   }
   function leesVoor(req,m){
@@ -80,7 +90,7 @@ module.exports = function(ctx){
   }
   Object.assign(ctx,{melding,meldingenVan:vanPersoon,persoonOpNaam,meldRitGewijzigd:ritGewijzigd,meldRitKlaar:ritKlaar,meldRitBestuurder:ritBestuurder,meldRitNietKlaar:ritNietKlaar});
 
-  app.get('/api/meldingen',(req,res)=>{const l=vanPersoon(req.persoon,false);res.json({meldingen:l,ongelezen:l.filter(m=>!m.gelezen).length});});
+  app.get('/api/meldingen',(req,res)=>{const l=vanPersoon(req.persoon,false);res.json({meldingen:l,ongelezen:l.filter(m=>!m.gelezen&&m.niveau!=='info').length});});
   app.get('/api/meldingen/ontvangers',alleenKantoor,(req,res)=>res.json({rollen:ROLLEN,personen:all("SELECT id,naam,rol FROM personeel WHERE COALESCE(actief,1)=1 AND rol<>'kv' ORDER BY naam")}));
   app.post('/api/meldingen/alles-gelezen',(req,res)=>{
     const ids=vanPersoon(req.persoon,true);ids.forEach(x=>leesVoor(req,get('SELECT * FROM meldingen WHERE id=?',[x.id])));res.json({ok:true,gelezen:ids.length});

@@ -98,6 +98,7 @@
   const zichtbaarWeek=()=>O.locaties.filter(FW[FW[FILTER]?FILTER:'alle']);
   const zichtbaarSeizoen=()=>(FILTER==='niet_gebruikt'?S.niet_gebruikt:S.themas).filter(FS[FS[FILTER]?FILTER:'alle']).filter(r=>!ZOEK||r.naam.toLowerCase().includes(ZOEK)||r.weken.some(w=>w.locaties.some(l=>l.naam.toLowerCase().includes(ZOEK))));
 
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad(){
     bewaarUrl();
     $('f1')&&($('f1').id='f1');document.querySelector('.frame').id=ZICHT==='week'?'f1':'f2';

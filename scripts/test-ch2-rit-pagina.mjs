@@ -111,7 +111,7 @@ try {
   T.check(reg53.niet_mee?.reden === 'niet_gevonden' && reg53.niet_mee.opmerking === 'niet in rek', 'niet-mee → regel krijgt niet_mee {reden, opmerking} uit de server-data');
   T.check(scherm.includes('class="stuk past"') && scherm.includes('blijft open als nieuwe taak') && scherm.includes('class="k rood"'), 'rode markering zoals in het ontwerp (stuk past, rood vakje, "blijft open als nieuwe taak")');
   const rest = await db("SELECT * FROM transport_taken WHERE rit_id IS NULL AND rest_van_rit_id=?", [rit]);
-  T.check(rest.length === 1 && /niet gevonden/.test(rest[0].opmerking), `rest-taak voor kantoor bestaat (#${rest[0]?.id}: ${rest[0]?.opmerking})`);
+  T.check(rest.length === 1 && /niet gevonden/i.test(rest[0].opmerking), `rest-taak voor kantoor bestaat (#${rest[0]?.id}: ${rest[0]?.opmerking})`);
   await app.klik('nietmee-terug', String(cH53.check_id));
   T.check(!app.data().stops.find((s) => s.taak_id === t3).regels[0].niet_mee && !scherm.includes('class="stuk past"'), 'terugdraaien ({reden:null}) → rode markering weg');
   T.check((await db("SELECT id FROM transport_taken WHERE rit_id IS NULL AND rest_van_rit_id=?", [rit])).length === 0, 'lege rest-taak is verwijderd');

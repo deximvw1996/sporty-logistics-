@@ -68,6 +68,7 @@
   let O=null,D=null,SEL=new Set(),FILTER='open',ZOEK='',TAB='tekort',ROL='kantoor';
   const FILTERS={open:a=>a.stand!=='afgehandeld',te_bestellen:a=>a.stand==='te_bestellen',besteld:a=>a.stand==='besteld',binnen:a=>a.stand==='binnen',uit_voorraad:a=>a.stand==='uit_voorraad',afgehandeld:a=>a.stand==='afgehandeld'};
   const zichtbaar=()=>O.artikels.filter(FILTERS[FILTER]).filter(a=>!ZOEK||a.zoek.includes(ZOEK));
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad(){
     const r=await api('GET','/api/tekorten-overzicht');
     if(r.status===401){location.href='/';return;}

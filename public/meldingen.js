@@ -19,6 +19,7 @@
   const api=(m,u,b)=>window.sportyApi(m,u,b,{token:TOKEN});
   function toast(msg,type){const t=document.createElement('div');t.style.background={error:'#E24B4A',success:'#1D9E75'}[type]||'#378ADD';t.textContent=msg;$('toasts').appendChild(t);setTimeout(()=>t.remove(),3500);}
   let D=null,G=null;
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad(){const r=await api('GET','/api/meldingen');if(!r.ok)return toast(r.json.error||'Laden mislukt','error');D=r.json;$('m').innerHTML=BOUW.html(D,G&&G.rol==='kantoor');}
   async function bericht(){
     const o=await api('GET','/api/meldingen/ontvangers');if(!o.ok)return toast(o.json.error||'Laden mislukt','error');

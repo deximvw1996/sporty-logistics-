@@ -35,7 +35,10 @@ process.on('unhandledRejection', (reason) => {
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
-app.use(testklok.middleware(fs)); // TK1: zet de klok in elke HTML-pagina, alleen met de variabele
+app.use(testklok.middleware(fs));
+const live = require('./lib/live');
+app.use(live.htmlMiddleware(fs)); // RT1: live.js, manifest in elke pagina
+app.use(live.seintjes); // RT1: elke geslaagde schrijfactie stuurt een seintje // TK1: zet de klok in elke HTML-pagina, alleen met de variabele
 
 // ── BEVEILIGING: wachtwoord via HTTP Basic Auth ──
 // Stel APP_PASSWORD in als omgevingsvariabele in Railway om de app te beveiligen.
@@ -47,7 +50,7 @@ if (!APP_PASSWORD) {
 // Werklijst 70 (Maxim 29/10, optie b): de link-pagina's voor chauffeur en KV staan BUITEN de Basic-muur.
 // De token in de URL is daar de toegang (lange willekeurige tokens; foutieve token = 403/404, nooit data).
 // Ook hun statische bestanden en de foto's (willekeurige bestandsnamen, nosniff) zijn zonder wachtwoord bereikbaar.
-const TOKENPADEN = ['/api/testklok', '/rit/', '/kv/', '/tel/', '/api/rit-token/', '/api/kv/', '/uploads/', '/public/'];
+const TOKENPADEN = ['/api/live', '/sw.js', '/manifest.json', '/api/testklok', '/rit/', '/kv/', '/tel/', '/api/rit-token/', '/api/kv/', '/uploads/', '/public/'];
 app.use((req, res, next) => {
   if (!APP_PASSWORD) return next();              // geen wachtwoord ingesteld = open
   if (TOKENPADEN.some((p) => req.path.startsWith(p))) return next();
@@ -131,6 +134,8 @@ async function startServer() {
   // ── Routegebieden, in de volgorde van de oorspronkelijke kopjes ──
   for (const naam of ['locaties','kv','themas','planning','aanvragen','voorraad','transport','bakken','beheer','personeel','sport','conflicten','vandaag','ritplanning','taken','nakijken','kampmomenten','bakken-overzicht','personeel-overzicht','locaties-overzicht','themas-overzicht','pool-overzicht','catalogus-overzicht','voertuigen','sportrooster','tekorten-overzicht','rooster','periodes-overzicht','instellingen','meldingen'])
     require('./routes/' + naam)(ctx);
+  require('./routes/live')(ctx); // RT1
+  require('./routes/nuoplossen')(ctx); // RT1
   if (testklok.AAN) require('./routes/testklok')(ctx);
 
   // Testhaak (ALLEEN met env SPORTY_TESTHOOK=1, nooit in productie): laat een testscript de SIGTERM-handler

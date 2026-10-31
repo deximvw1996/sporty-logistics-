@@ -53,6 +53,7 @@
     const tab=new URLSearchParams(location.search).get('tab')||'';
     let V=null;
     const laadG=async()=>{const r=await api('GET','/api/vandaag?mijn=1');if(!r.ok)return toast(r.json.error||'Vandaag laden mislukt','error');V=r.json;$('gsm').hidden=false;$('gsm').innerHTML=GSM.scherm(V,tab);};
+    window.addEventListener('sporty-live',()=>laadG()); // RT1
     document.addEventListener('click',async e=>{
       const b=e.target.closest('button[data-gk]');if(!b)return;
       const a=V[b.dataset.gk][b.dataset.i].acties[b.dataset.j];
@@ -110,6 +111,7 @@
     $('l-week').innerHTML=wk.length?wk.map(k=>`<div class="rit" data-km="${k.kampmoment_id}" style="cursor:pointer"><div class="u">${esc(k.dagen)}</div><div class="nm"><b>${esc(k.locatie)}</b>${
       esc([k.thema||'geen thema',k.kv_naam?kvL(k.kv_naam):null,...k.markeringen].filter(Boolean).join(' · '))}</div></div>`).join(''):'<div class="leeg">Geen open locaties deze week</div>';
   }
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad(){
     const r=await api('GET','/api/vandaag'+location.search);
     if(r.status===401||r.status===403){location.href='/';return;}

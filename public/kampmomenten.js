@@ -163,6 +163,7 @@
     $('alles').checked = rijen.length > 0 && rijen.every(function (k) { return ST.sel.has(k.id); });
   }
   function tekenDetail() { $('detail').innerHTML = detailHtml(D, ST); }
+  window.addEventListener('sporty-live',()=>laad()); // RT1
   async function laad() {
     var r = await aanroep('GET', '/api/kampmomenten-overzicht' + (Q.get('periode_id') ? '?periode_id=' + Q.get('periode_id') : ''));
     if (r.status === 401 || r.status === 403) { root.location.href = '/'; return; }

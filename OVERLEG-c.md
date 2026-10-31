@@ -2200,3 +2200,30 @@ Vaste en plakkende onderdelen schuiven automatisch onder de balk.
 **Punt 3:** geschat einde bij Nieuwe rit en in detail, oude schatting bewaard; met testklok op Vandaag: "geschat 15:00 · echt 17:20 · 2u20 langer".
 **Bewijs:** `test-tf11` 30/30; rp1, rp2, tf5, tf7, mob2 groen. Browser 1920, 1366, 375 (preset, geen 390) met `SPORTY_TESTKLOK=1`. Volle run 57/60 en 58/60: `v3c-fotos` en `veiligheid` rood zoals vóór TF5; in de eerste run brak `bh2-beheer` af zonder FOUT, in een eerdere `f1-schrijven` en `f1-wijzigingen` (apart groen).
 **Eerlijk:** de volle run is dus niet 2× volledig groen. Eén commit voor de drie punten, geen commit per punt: ze zitten in dezelfde bestanden verweven. Bij een lange dag (05–22) zijn korte blokken minstens 28 px hoog, dus een rit van 30 min oogt daar langer dan ze is. De ritdetailtekst "echt" is via de API en Vandaag gezien, niet op de gsm. De geschatte tijd op een gsm-klok is niet op een echt toestel getest.
+
+## RT1 — Real time (chat C, 31/10)
+**Stand:** alle vijf punten gebouwd. `test-rt1` 46/46. Volle run: alleen `v3c-fotos` en `veiligheid` rood, zoals al vóór TF5 (zie GEVONDEN). Dus niet letterlijk 2× volledig groen.
+**Migraties:** de hoofdchat zette TF11 op 98 op main; RT1 is daarom migratie 99.
+**Gebouwd:**
+- Melding: gebundeld per rit en stop, tekst "Jeroen · rit #38 · Rozenweg: 10 stuks niet gevonden" (bij één stuk "2 × Prints agenten niet gevonden"). Binnen 10 min bijgewerkt en weer ongelezen; push hooguit om de 5 min.
+- Rest-taak "Niet gevonden: 2 × Prints agenten". Vandaag: rood blok Nu oplossen per rit, met belknop, waar normaal, laatste rit, laatste telling. Gevonden / Toch inplannen / Afschrijven, gelogd. Chauffeur: knop "Toch gevonden". Alles afgehandeld = blok weg en melding gelezen. Open rest-taken staan niet in Inplannen.
+- Live: SSE op `/api/live` via fetch (sessietoken in de header, niet in de URL), hartslag 25 s, `X-Accel-Buffering: no`, buiten de Basic-muur want de route controleert zelf (401 zonder login of geldig token; getest). Herverbinden na 3 s, terugval 30 s. KV: geen sein van andere KV-links of ritten; kantoorschrijfacties geven een kaal `{t:'ververs'}` zonder inhoud.
+- Melding bij open app: rode toast, geluid, browsermelding (alleen `nu`). Knop "Meldingen aanzetten", geluid en push in Meer en Meldingen.
+- Push: `web-push`, per persoon en toestel, verlopen (404/410) opgeruimd, iPhone-uitleg op het scherm. Oude ongebruikte `/sw.js` en manifest uit `routes/beheer.js` vervangen.
+**Niveaus:**
+| niveau | soorten |
+|---|---|
+| nu | niet gevonden, probleem chauffeur (locatie gesloten, past niet in lokaal, anders), ritwijziging op de eigen rit van vandaag (chauffeur) |
+| vandaag | kapot, past niet, telling verstuurd, KV-aanvraag en -kapot, tekort, bericht van kantoor, rit toegewezen of niet meer klaar, ritwijziging op een andere dag, alle overige |
+| info | bestelling binnen, geleverd, feedback, rit klaargezet, "toch gevonden" |
+Eigen keuze: push "alles" = nu + vandaag, nooit info. Standaard is "alleen Nu oplossen", zodat `vandaag` standaard geen push geeft.
+**Browser (localhost, geen wachtwoord in een adres):** twee vensters op 1920 en 390. Wijziging na 411 ms zichtbaar met toast. Open venster met getypte tekst en focus bleef, balk "Nieuwe gegevens" verscheen. Geen horizontale scroll op 390. Niet per pagina nagelopen: Ritplanning en Vandaag live gezien; Taken, Nakijken, Tekorten, Aanvullen, Meldingen, Rooster, Kampmomenten, Rit en KV hebben dezelfde aanhaking, maar zijn niet in de browser gecontroleerd.
+**Hoofdchat moet zetten op Railway:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (mailto:). Maken met `npx web-push generate-vapid-keys`. Zonder variabelen staat push stil uit.
+**Alleen op een echt toestel te testen:** echte push (Android en iPhone vanaf beginscherm), geluid (browser eist eerst een klik), browsermelding op de achtergrond, installatie op het beginscherm. SSE op Railway zelf en achter de echte Basic-muur zijn niet getest: het pad staat wel in de uitzonderingen.
+**Aanpassingen in bestaande tests (met reden):** `ch1`, `ch2`, `gr1`: nieuwe rest-taaknaam. `gf1`: rest-taak staat pas na Toch inplannen in Inplannen. `tf3`, `f1-modules`: `/api/live` blijft open en zit niet in de route-veeg; monitor mag eigen push en voorkeur.
+**GEVONDEN:**
+- Een feedbackfunctie bestaat niet in de code: alleen het niveau `info` staat klaar. Moet die er komen, dan is dat aparte bouw.
+- Afschrijven haalt de regel en lege rest-taak weg en logt, maar past de voorraad NIET aan; dat loopt via Nakijken.
+- Een opgelost probleem in Nu oplossen sluit de aanvraag in Beslissen niet; die staat daar nog apart.
+- `v3c-fotos` (2) en `veiligheid` (3: pincode-scrypt en login-blokkering 429 in de testopstelling) zijn rood. Niet door RT1, wel onderzoek waard: de 429-blokkering lijkt niet te werken.
+- Commit per punt niet gehaald: de punten zijn verweven, er zijn drie RT1-commits.
