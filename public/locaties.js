@@ -21,10 +21,10 @@
       const blokFotos=`<div class="blok"><h4>Foto's</h4><div class="fotos">${fotos.map(f=>`<div class="f" style="${f.url?`background-image:url('${esc(f.url)}')`:''}">${esc(f.beschrijving||'foto')}<span class="x" data-fotoweg="${f.id}" title="Foto verwijderen">✕</span></div>`).join('')}<label class="f plus">+ foto<input type="file" accept="image/*" id="foto-in" hidden></label></div></div>`;
       const blokKm=`<div class="blok"><h4>Kampmomenten</h4>${kms.map(k=>`<div class="rij"><div class="nm">${esc(k.periode)} · week ${k.week}${k.thema?' · '+esc(k.thema):''}${k.loopt_nu?' <span class="pil groen">loopt nu</span>':''}<b>${esc([k.kv_naam?kvL(k.kv_naam):'geen KV',k.transport].join(' · '))}</b></div><a class="knop licht klein" style="display:inline-flex;align-items:center;text-decoration:none" href="/kampmomenten?id=${k.kampmoment_id}">Open</a></div>`).join('')||'<div class="rij"><div class="nm">Nog geen kampmomenten</div></div>'}</div>`;
       const blokHist=`<div class="blok"><h4>Historiek (alles gelogd, omkeerbaar)</h4>${historiek.slice(0,tab==='historiek'?100:5).map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc([h.t,h.wie].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" disabled title="Terugdraaien bestaat nog niet als route (GEVONDEN TR1)">↶ Terug</button></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>'}</div>`;
-      const inhoud={gegevens:blokContact+blokFotos+blokKm+blokHist,fotos:blokFotos,kampmomenten:blokKm,historiek:blokHist}[tab]||'';
+      const inhoud={gegevens:blokContact+blokFotos+blokKm+blokHist,fotos:blokFotos,kampmomenten:blokKm,historiek:blokHist}[tab]||(typeof DOSSIER!=='undefined'?DOSSIER.html(D.dos,tab):'');
       const sub=[l.type==='kamp'?'Kamplocatie':l.type==='stockage'?'Stockage':l.type,l.adres].filter(Boolean).map(esc).join(' · ');
       return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(l.naam)}</h2><span>${sub}</span></div><div class="acts"><button class="knop licht" id="d-bewerk">Bewerken</button><button class="knop licht" id="d-kaart">📍 Kaart</button><button class="knop" id="d-rit">Rit plannen</button></div></div>
-        <div class="dtabs">${[['gegevens','Gegevens'],['fotos',`Foto's ${fotos.length}`],['kampmomenten',`Kampmomenten ${kms.length}`],['historiek',`Historiek ${historiek.length}`]].map(([k,t])=>`<a class="${tab===k?'act':''}" data-tab="${k}">${t}</a>`).join('')}</div>
+        ${typeof DOSSIER!=='undefined'?DOSSIER.balk(D.dos):''}<div class="dtabs">${[['gegevens','Gegevens'],...(typeof DOSSIER!=='undefined'?DOSSIER.TABS:[]),['fotos',`Foto's ${fotos.length}`],['kampmomenten',`Kampmomenten ${kms.length}`],['historiek',`Historiek ${historiek.length}`]].map(([k,t])=>`<a class="${tab===k?'act':''}" data-tab="${k}">${t}</a>`).join('')}</div>
         <div class="dgrid"${tab==='gegevens'?'':' style="grid-template-columns:1fr"'}>${inhoud}</div>`;
     }
   };
@@ -56,7 +56,7 @@
   const CONTACTEN=Q.get('weergave')==='contacten';
   let O=null,D=null,SEL=new Set(),FILTER=CONTACTEN?'kamp':'alle',ZOEK='',TAB='gegevens',ZICHT=Q.get('zicht')==='kaart'?'kaart':'lijst',MAP=null,LAAG=null,FOCUS=+Q.get('id')||0;
   if(CONTACTEN){$('sub-loc').classList.remove('act');$('sub-contact').classList.add('act');$('kol-periode').textContent='Contact · telefoon';}
-  const FILTERS={alle:()=>true,kamp:l=>l.type==='kamp',stockage:l=>l.type==='stockage',let_op:l=>l.status==='let',deze_periode:l=>l.periode.length>0,zonder_kaart:l=>!metCoord(l)};
+  const FILTERS={alle:()=>true,kamp:l=>l.type==='kamp',stockage:l=>l.type==='stockage',let_op:l=>l.status==='let',deze_periode:l=>l.periode.length>0,zonder_kaart:l=>!metCoord(l),dossier:l=>(l.dossier_ontbreekt||[]).length>0};
   const metCoord=l=>l.lat!=null&&l.lng!=null&&!isNaN(l.lat)&&!isNaN(l.lng);
   const zichtbaar=()=>O.locaties.filter(FILTERS[FILTER]).filter(l=>!ZOEK||l.zoek.includes(ZOEK));
 
@@ -67,6 +67,7 @@
     O=r.json;SEL=new Set([...SEL].filter(id=>O.locaties.some(l=>l.id===id)));tekenLijst();if(D)await laadDetail(D.locatie.id);
   }
   function tekenLijst(){
+    if(!document.querySelector('.chip[data-f="dossier"]')){const c=document.querySelector('.chip[data-f="let_op"]');if(c)c.insertAdjacentHTML('afterend','<span class="chip" data-f="dossier">Dossier onvolledig <b></b></span>');} // MT2
     document.querySelectorAll('.chip').forEach(c=>{c.classList.toggle('act',c.dataset.f===FILTER);c.querySelector('b').textContent=O.tellers[c.dataset.f];});
     const l=zichtbaar();
     document.querySelectorAll('.seg a').forEach(a=>a.classList.toggle('act',a.dataset.zicht===ZICHT));$('body').classList.toggle('zicht-kaart',ZICHT==='kaart');$('kaartvak').hidden=ZICHT!=='kaart';
@@ -95,7 +96,12 @@
     if(!r.ok){D=null;$('detail').innerHTML='<div class="leegd">Klik een locatie in de lijst voor het detail.</div>';return toast(r.json.error||'Detail laden mislukt','error');}
     D=r.json;teken();document.querySelectorAll('.r').forEach(x=>x.classList.toggle('act',+x.dataset.id===id));$('body').classList.add('toon-detail');
   }
-  function teken(){$('detail').innerHTML=BOUW.detail(D,TAB);const fi=$('foto-in');if(fi)fi.onchange=()=>foto(fi.files[0]);}
+  // MT2
+  window.__locId=()=>D&&D.locatie.id;window.__locToast=(t,k)=>toast(t,k);window.__locHerteken=()=>{if(D){D.dos=null;teken();laadOverzichtStil();}};
+  async function laadOverzichtStil(){const r=await api('GET','/api/locaties-overzicht');if(r.ok){O=r.json;tekenLijst();}}
+  function teken(){
+    if(D&&!D.dos&&!D.dosBezig&&typeof DOSSIER!=='undefined'){const huidig=D;huidig.dosBezig=true;DOSSIER.laad(D.locatie.id).then(x=>{huidig.dos=x;huidig.dosBezig=false;if(D===huidig)teken();});}
+    $('detail').innerHTML=BOUW.detail(D,TAB);const fi=$('foto-in');if(fi)fi.onchange=()=>foto(fi.files[0]);}
   async function foto(bestand){
     if(!bestand)return;
     const data=await new Promise((ok,nok)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=nok;fr.readAsDataURL(bestand);});

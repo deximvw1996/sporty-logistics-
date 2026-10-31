@@ -1084,7 +1084,7 @@ module.exports = function(ctx){
     return w;
   }
   function _ritPlanInfo(rit){const t=_ritTijden(rit);const bezetting=_ritBezetting(rit.id);
-    return {vertrek:t.vertrek,einde:t.einde,bezetting,lading:_ritLading(rit.id),meting:_meting(rit),waarschuwingen:_ritWaarschuwingen(rit,{...t,bezetting}),notitie:''};}
+    return {vertrek:t.vertrek,einde:t.einde,bezetting,lading:_ritLading(rit.id),meting:_meting(rit),waarschuwingen:[..._ritWaarschuwingen(rit,{...t,bezetting}),...(ctx.ritLocMeldingen?ctx.ritLocMeldingen(rit):[])],notitie:''};}
   // TF1 G6: stoptijden volgen de vertrektijd van de rit. Stops zonder tijd of met een tijd vóór het vertrek krijgen een tijd
   // vanaf het vertrek, in volgorde en telkens STOP_STAP_MIN later; een bestaande latere tijd blijft staan.
   const STOP_STAP_MIN=45;

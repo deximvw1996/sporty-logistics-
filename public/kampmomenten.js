@@ -112,7 +112,8 @@
       : tab === 'historiek' ? '<div class="dgrid" style="grid-template-columns:1fr"><div class="blok"><h4>Historiek (alles gelogd)</h4>' + histHtml(D) + '</div></div>'
       : gegevensHtml(D);
     var t = function (k, l) { return '<a class="' + (tab === k ? 'act' : '') + '" role="button" tabindex="0" data-tab="' + k + '">' + l + '</a>'; };
-    return '<div class="detail"><div class="dkop"><div><h2>' + esc(D.locatie.naam) + ' · week ' + esc(D.week) + '</h2><span>' + sub + ' · ' + pil + '</span></div>'
+    var rm = (D.ruimte_meldingen || []).length ? '<div style="background:#fef3c7;color:#92400e;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:13px">🚪 ' + D.ruimte_meldingen.map(esc).join('<br>🚪 ') + '</div>' : ''; // MT2
+    return rm + '<div class="detail"><div class="dkop"><div><h2>' + esc(D.locatie.naam) + ' · week ' + esc(D.week) + '</h2><span>' + sub + ' · ' + pil + '</span></div>'
       + '<div class="acts"><button type="button" class="knop licht" data-act="bewerken">Bewerken</button><button type="button" class="knop licht" data-act="locatie">📍 Locatie</button><button type="button" class="knop licht" data-act="kv-link">KV-link</button><button type="button" class="knop" data-act="thema">Thema kiezen</button></div></div>'
       + '<div class="dtabs">' + t('gegevens', 'Gegevens') + t('thema', 'Thema &amp; materiaal') + t('transport', 'Transport ' + D.transport.length) + t('telling', 'Telling') + t('historiek', 'Historiek ' + D.historiek.length) + '</div>' + inhoud + '</div>';
   }

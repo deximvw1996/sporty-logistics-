@@ -137,6 +137,7 @@ async function startServer() {
   require('./routes/live')(ctx); // RT1
   require('./routes/nuoplossen')(ctx); // RT1
   require('./routes/opdrachten')(ctx); // BW2
+  require('./routes/locatie-dossier')(ctx); // MT2
   if (testklok.AAN) require('./routes/testklok')(ctx);
 
   // Testhaak (ALLEEN met env SPORTY_TESTHOOK=1, nooit in productie): laat een testscript de SIGTERM-handler

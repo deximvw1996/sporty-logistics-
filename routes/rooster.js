@@ -159,6 +159,7 @@ module.exports = function(ctx){
       .map(g=>{const c=km2=>{const t=km2&&km2.themas.find(x=>x.groep===g);return t?{naam:t.name,thema_id:t.thema_id,kt_id:t.id,meldingen:t.meldingen}:null;};return {groep:g,voor:c(voor),deze:c(k),na:c(na)};});
     const let_op=k.themas.flatMap(t=>letOpVan(A,t));
     const wkI=weekInfo(per,w),gesl=geslotenIn(wkI.van,wkI.tot,k.locatie_id);
+    if(ctx.ruimteMeldingen)ctx.ruimteMeldingen(km.periode_id?km:{...km,periode_id:per.id,locatie_id:k.locatie_id,week:w}).forEach(t=>let_op.push({soort:'gesloten',kt_id:null,tekst:'🚪 '+t,uitleg:'Een melding, geen verbod.'})); // MT2
     if(gesl.length)let_op.push({soort:'gesloten',kt_id:null,tekst:'⛔ Gesloten dag in deze week: '+gesl.map(g=>g.tekst).join(', '),uitleg:'Een melding, geen verbod: kijk of de levering en de ophaling nog kloppen.',knop:''});
     const taak=type=>{const x=get(`SELECT datum,rit_id FROM transport_taken WHERE kampmoment_id=? AND type=? AND status<>'geannuleerd' ORDER BY datum LIMIT 1`,[km.id,type]);return x?{datum:x.datum,rit_id:x.rit_id||null}:null;};
     const gedeeld=Object.keys(A.gedeeld[w]||{}).map(key=>stukUit(A,w,key)).filter(s=>s.waar.some(x=>x.kampmoment_id===km.id)||s.aanvaard.some(x=>x.kampmoment_id===km.id))

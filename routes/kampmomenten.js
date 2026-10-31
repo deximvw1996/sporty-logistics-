@@ -183,7 +183,7 @@ module.exports = function(ctx){
       hist.push({tekst:a.beschrijving,wie:'',tijd:a.tijdstip,sorteer:m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}T${m[4].padStart(2,'0')}:${m[5]}`:''});
     });
     hist.sort((a,b)=>String(b.sorteer).localeCompare(String(a.sorteer)));
-    res.json({...rij,
+    res.json({ruimte_meldingen:ctx.ruimteMeldingen?ctx.ruimteMeldingen(get('SELECT * FROM kampmomenten WHERE id=?',[req.params.id])):[],...rij,
       groep:{kinderen,kleuters,lager:kinderen==null||kleuters==null?null:Math.max(0,kinderen-kleuters),monitoren:km.aantal_monitoren==null?null:km.aantal_monitoren},
       standaard_materiaal:km.standaard_materiaal!==0,kookdagen:kook,oven_mee:kook.length>0&&!loc.heeft_eigen_oven,heeft_eigen_oven:!!loc.heeft_eigen_oven,opmerking:km.notities||'',
       locatie_adres:loc.addr||'',themas_beschikbaar:themasBeschikbaar,themas_bezet:themasBezet,materiaal,transport:taken,aanvragen_open:aanvragen,

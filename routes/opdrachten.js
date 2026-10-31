@@ -42,7 +42,7 @@ module.exports=function(ctx){
     return [...m.keys()].sort((a,b)=>plaats(a)-plaats(b)).map(id=>({locatie_id:id,locatie:locNaam(id),lad:'laden voor '+[...m.get(id)].join(' en ')}));
   }
   ctx.wagenExtra=(rit,data)=>{
-    (data.stops||[]).forEach(s=>{const t=get('SELECT * FROM transport_taken WHERE id=?',[s.taak_id]);s.samen=t?samenVan(rit,t):[];});
+    (data.stops||[]).forEach(s=>{const t=get('SELECT * FROM transport_taken WHERE id=?',[s.taak_id]);s.samen=t?samenVan(rit,t):[];if(t&&ctx.stopGeldt)s.geldt=ctx.stopGeldt(t);});
     return {...data,opdracht_id:rit.opdracht_id,mensen:mensen(rit),laadvolgorde:laadVolgorde(rit)};
   };
   // Waarschuwingen; nooit een verbod.

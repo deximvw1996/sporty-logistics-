@@ -2327,3 +2327,19 @@ Op prod kan de lijst anders zijn: ik heb prod niet ingekeken.
 - **Melding:** "Jesse (helpt) · rit #38 · Rozenweg: …"; ook het gebundelde aantal. Nu oplossen belt de melder en toont de bestuurder. Op de losse link zonder keuze blijft het de bestuurder.
 - **Afgerond door:** de stop toont "afgerond door Jesse" op de rit-pagina, het log heeft stop en rit (ook "(helpt)"), de opdracht-API geeft het veld mee. Alleen bij afronden via lossen; afronden doordat alles "niet mee" is of via kantoor vult dit veld niet.
 - **Niet in de browser bekeken:** alleen `test-tf14` en de HTML-opbouw.
+
+## MT2 — Locaties: dossier, weekkaart, ruimtes, leverafspraken (chat C, 31/10)
+**Gebouwd:** `routes/locatie-dossier.js`, `public/locatie-dossier.js`, vlag `migratie_mt2_klaar`. Tabs Weekkaart, Dossier, Leveren, Ruimtes en Feedback in het locatiedetail, balk met wat ontbreekt, filter "Dossier onvolledig". API voor MT3: `ctx.standVan(locatie, week, periode)`.
+- **Weekkaart:** kamp open volgt het kampmoment; dicht binnen of geen toegang met reden, vinkje, ruimte, notitie; bulk. Een week met kampmoment blijft kamp open, ook bij bulk (de overige velden worden wel bewaard).
+- **Ruimtes:** melding in Rooster en Kampmoment, nooit een verbod.
+- **Leveren:** buiten de uren, niet storen en afspraken komen als waarschuwing in Ritplanning en Opdracht, en bij de chauffeur op de stop.
+- **Codes:** eigen tabel `locatie_codes`, dus geen SELECT op locaties neemt ze mee. Niet in `/api/export`, niet in het wijzigingenlog; elke opvraging gelogd zonder de waarde. Kantoor altijd; chauffeur alleen met een stop die dag; op de rit-link alleen op de dag zelf; een helper niet.
+**Bewijs:** test-mt2 33/33; `tf3-rechten`, `f1-modules`, `lo1` groen. Browser: 1920 en 1366 geen paginascroll (met tab Dossier); 390 detail als volgend scherm, velden en tabs 44 px of meer, geen horizontale scroll. Niet aangeklikt in de browser: bewaren op elke tab (via API en HTML-test). Het filter op de gsm is niet apart bekeken.
+**GEVONDEN:**
+- Codes staan WEL in de volledige databaseback-up (`/backup`, nachtback-up): dat is geen export maar het hele bestand. Beslissing nodig: versleutelen of zo laten.
+- Het bestaande veld `sleutel_info` is geen code in deze regeling en blijft zichtbaar zoals vroeger, ook voor de KV en op de rit-data. Staat daar in de praktijk een code in, dan valt die buiten de bescherming: hoort in het nieuwe veld Code.
+- Eén week buiten de periode kan via de API bewaard worden; het scherm toont alleen de weken van de periode.
+- De weekkaart toont maar zoveel rijen als de periode weken heeft; de testdata heeft er 1, dus een lange rij is niet in de browser bekeken.
+- De tabbalk in het detail is met 9 tabs vol op 1366; op gsm schuift ze.
+- Commit per punt niet gehaald: alles in één route en scherm.
+- Routevoorstel en openingsraster niet gebouwd, zoals gevraagd.
