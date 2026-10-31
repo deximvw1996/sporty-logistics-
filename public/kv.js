@@ -15,6 +15,13 @@
     var mA = a.getMonth() === b.getMonth() ? '' : ' ' + MAANDEN[a.getMonth()];
     return DAGEN[a.getDay()].slice(0, 2) + ' ' + a.getDate() + mA + ' – ' + DAGEN[b.getDay()].slice(0, 2) + ' ' + b.getDate() + ' ' + MAANDEN[b.getMonth()];
   }
+  // TF5 G10: één vorm voor elk tijdstip: "vrijdag 30 okt · 14:02" (ISO of "30/10/2026, 14:02").
+  function tijdVorm(t) {
+    var s = String(t || ''), m = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s*(\d{2}):(\d{2})/.exec(s), d = null;
+    if (m) d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]); else if (/^\d{4}-\d{2}-\d{2}T/.test(s)) d = new Date(s);
+    if (!d || isNaN(d)) return s;
+    return DAGEN[d.getDay()] + ' ' + d.getDate() + ' ' + MAANDEN[d.getMonth()] + ' · ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
   var PIL = { ok: ['groen', '✓ ok'], tekort: ['rood', 'tekort'], te_veel: ['blauw', 'te veel'], kapot: ['oranje', 'kapot'] };
   var KLEUR = { ok: 'groen', tekort: 'rood', te_veel: 'blauw', kapot: 'oranje', nog_niet: '' };
 
@@ -81,7 +88,7 @@
   // ── Tellen ──
   function tellenHtml(data, monitor) {
     var ts = telStand(data);
-    var lijst = ts.rijen.map(function (r) {
+    var rijHtml = function (r) {
       var kl = KLEUR[r.status] || '';
       var sub;
       if (r.type === 'bak') {
@@ -90,9 +97,21 @@
       } else sub = 'attribuut';
       var rechts = r.status !== 'nog_niet' && PIL[r.status] ? '<span class="pil ' + PIL[r.status][0] + '">' + PIL[r.status][1] + '</span>' : '<span class="knop klein">Tellen</span>';
       return '<div class="bak ' + kl + '" role="button" tabindex="0" data-act="' + (r.type === 'bak' ? 'bak' : 'attr') + '" data-a="' + r.id + '"><div class="code">' + esc(r.code || '—') + '</div><div class="nm">' + esc(r.naam) + '<b>' + sub + '</b></div>' + rechts + '</div>';
-    }).join('') || '<div class="leeg">Nog geen bakken gekoppeld aan dit kampmoment.</div>';
-    var versturen = monitor ? '' : '<button type="button" class="knop breed" data-act="versturen">Telling versturen (' + ts.klaar + '/' + ts.totaal + ')</button><div class="hint" style="margin-top:8px">Versturen kan ook als nog niet alles geteld is; kantoor ziet wat ontbreekt.</div>';
-    return kopOverzicht(data, 'Tellen · ' + ts.klaar + '/' + ts.totaal + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? ' stuks' : ' bakken'), 'maandag nakijken · tik een bak om te tellen')
+    };
+    // TF5 G3: bij twee thema's staan de bakken per thema en groep.
+    var koppen = {}, groepNaam = function (r) { return r.type === 'bak' && r.ref.thema ? r.ref.thema + (r.ref.groep ? ' · ' + r.ref.groep : '') : ''; };
+    ts.rijen.forEach(function (r) { var g = groepNaam(r); if (g) koppen[g] = 1; });
+    var lijst;
+    if (Object.keys(koppen).length > 1) {
+      lijst = Object.keys(koppen).concat(['']).map(function (g) { var rs = ts.rijen.filter(function (r) { return groepNaam(r) === g; }); return rs.length ? (g ? '<h3 class="groepkop" style="font-size:13px;margin:12px 0 6px">' + esc(g) + '</h3>' : '') + rs.map(rijHtml).join('') : ''; }).join('');
+    } else lijst = ts.rijen.map(rijHtml).join('');
+    // TF5 G5: kamp zonder bak: uitleg en kantoor (zonder nummer: geen nummer tonen).
+    var tel = data.kantoor && data.kantoor.telefoon;
+    if (!lijst) lijst = '<div class="leeg">Voor dit kamp staan er geen bakken op jouw lijst, dus er is niets te tellen. Klopt dat niet? Laat het kantoor weten.' + (tel ? '<br><a class="knop licht klein" style="margin-top:8px" href="tel:' + esc(String(tel).replace(/[^\d+]/g, '')) + '">📞 Bel kantoor · ' + esc(tel) + '</a>' : '') + '</div>';
+    var nv = data.niet_verstuurd || 0;
+    var stand = monitor ? '' : (data.verstuurd ? '<div class="hint" style="margin-top:8px">✓ Verstuurd om ' + esc(tijdVorm(data.verstuurd.op)) + '</div>' : '') + (nv ? '<div class="hint" style="margin-top:8px;color:#c2410c;font-weight:700">' + nv + (nv === 1 ? ' wijziging' : ' wijzigingen') + ' nog niet verstuurd</div>' : '');
+    var versturen = monitor || !ts.totaal ? '' : stand + '<button type="button" class="knop breed" data-act="versturen">Telling versturen (' + ts.klaar + '/' + ts.totaal + ')</button><div class="hint" style="margin-top:8px">Versturen kan ook als nog niet alles geteld is; kantoor ziet wat ontbreekt. Je mag altijd natellen en opnieuw versturen; alles blijft bewaard.</div>';
+    return kopOverzicht(data, 'Tellen · ' + ts.klaar + '/' + ts.totaal + (ts.rijen.some(function (x) { return x.type === 'attr'; }) ? ' stuks' : ' bakken'), 'tik een bak om te tellen · natellen mag de hele week')
       + '<div class="body">' + (!data.levering || data.levering.status !== 'gedaan' ? '<div class="hint">⚠ Levering nog niet aangekomen: tel pas als alles er staat.</div>' : '') + lijst + versturen + '</div>' + tabsHtml(data, 'tellen', monitor);
   }
 
@@ -132,7 +151,8 @@
     return '<div class="kop2"><button type="button" class="terug" data-act="tab" data-a="tellen">‹ Tellen</button><div><b>' + esc(b.code || '') + (b.code ? ' · ' : '') + esc(b.naam) + '</b><span class="s">' + esc(sub) + '</span></div></div>'
       + '<div class="body"><div class="hint">Per stuk: tik <b>✓</b> als het aantal klopt. Anders het echte aantal (ook méér mag). 💥 kapot met foto, 📝 notitie.</div>'
       + (b.items.map(function (it) { return itemHtml(b, it, st); }).join('') || '<div class="leeg">Deze bak heeft nog geen items.</div>') + '</div>'
-      + '<div class="voet"><button type="button" class="knop licht" data-act="rest-klopt">Rest klopt ✓</button><button type="button" class="knop" data-act="bak-klaar">Bak klaar</button></div>';
+      + (st.monitor ? '' : '<div class="body" style="padding-top:0"><button type="button" class="knop licht breed" data-act="sheet-open" data-a="kapot">💥 Kapot melden</button></div>')
+      + '<div class="voet"><button type="button" class="knop licht" data-act="rest-klopt">' + (function () { var n = b.items.filter(function (i) { return i.aangetroffen == null; }).length; return n ? 'Rest klopt ✓ (zet ' + n + (n === 1 ? ' stuk' : ' stuks') + ')' : 'Rest klopt ✓'; })() + '</button><button type="button" class="knop" data-act="bak-klaar">Bak klaar</button></div>';
   }
   function attrHtml(data, attrId) {
     var a = (data.attributen || []).filter(function (x) { return x.id === attrId; })[0];
@@ -150,13 +170,13 @@
   function aanvragenHtml(data) {
     var av = (data.aanvragen || []).map(function (a) {
       var p = AV_PIL[a.status] || AV_PIL.nieuw;
-      return '<div class="rij"><div class="nm">' + esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + '<b>' + esc(a.created_at || '') + ' · ' + esc(a.antwoord || (a.status === 'nieuw' ? 'wacht op kantoor' : p[1])) + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
+      return '<div class="rij"><div class="nm">' + esc(a.tekst) + (a.foto_url ? ' (foto)' : '') + '<b>' + esc(tijdVorm(a.created_at)) + ' · ' + esc(a.antwoord || (a.status === 'nieuw' ? 'wacht op kantoor' : p[1])) + '</b></div><span class="pil ' + p[0] + '">' + p[1] + '</span></div>';
     }).join('') || '<div class="leeg">Nog geen aanvragen.</div>';
     var mc = (data.meldingen_chauffeur || []).map(function (m) {
-      return '<div class="rij"><div class="nm">' + esc(m.tekst) + '<b>' + esc(m.created_at || '') + ' · ' + (m.status === 'afgehandeld' ? 'afgehandeld door kantoor' : m.status === 'nieuw' ? 'wacht op kantoor' : esc(m.status || '')) + '</b></div></div>';
+      return '<div class="rij"><div class="nm">' + esc(m.tekst) + '<b>' + esc(tijdVorm(m.created_at)) + ' · ' + (m.status === 'afgehandeld' ? 'afgehandeld door kantoor' : m.status === 'nieuw' ? 'wacht op kantoor' : esc(m.status || '')) + '</b></div></div>';
     }).join('');
     var mk = (data.meldingen_kantoor || []).map(function (m) {
-      return '<div class="rij"><div class="nm">' + esc(m.tekst) + '<b>' + esc(m.created_at || '') + ' · ' + (m.soort === 'herinnering_kv' ? 'herinnering van kantoor' : 'notitie van kantoor') + '</b></div></div>';
+      return '<div class="rij"><div class="nm">' + esc(m.tekst) + '<b>' + esc(tijdVorm(m.created_at)) + ' · ' + (m.soort === 'herinnering_kv' ? 'herinnering van kantoor' : 'notitie van kantoor') + '</b></div></div>';
     }).join('');
     return kopOverzicht(data, 'Aanvragen', 'materiaal vragen of kapot melden · kantoor antwoordt hier')
       + '<div class="body"><div class="twee"><button type="button" class="knop" data-act="sheet-open" data-a="materiaal">📩 Materiaal vragen</button><button type="button" class="knop licht" data-act="sheet-open" data-a="kapot">💥 Kapot melden</button></div>'
@@ -201,6 +221,7 @@
     else if (st.scherm === 'aanvragen') basis = aanvragenHtml(data);
     else if (st.scherm === 'info') basis = infoHtml(data, hostUrl);
     else basis = overzichtHtml(data);
+    if (data.link_stand === 'lezen') return '<div class="alleenlezen"><style>.alleenlezen .ja,.alleenlezen .voet,.alleenlezen .twee,.alleenlezen [data-act=versturen],.alleenlezen [data-act=sheet-open]{display:none}</style><div class="hint" style="background:#fff7ed;color:#9a3412;padding:12px;font-weight:700">Dit kamp is afgelopen. Je kan alles nog lezen, maar niets meer wijzigen. Je tellingen blijven bewaard.</div>' + basis + '</div>';
     return basis + (st.sheet && !mon ? sheetHtml(data, st.sheet) : '');
   }
 
@@ -237,7 +258,7 @@
     async function laad() {
       try {
         var r = await haal(base + '/data'), j = await r.json();
-        if (!r.ok) { deps.toast(j.error || 'Laden mislukt.', false); return false; }
+        if (!r.ok) { deps.toast(j.error || 'Laden mislukt.', false); if (j.link_stand === 'dicht') deps.mount('<div class="leeg" style="padding:24px">' + esc(j.error) + '</div>'); return false; }
         data = j; offlineGemeld = false;
         if (deps.bewaar) deps.bewaar(j);
         teken(); return true;
@@ -314,7 +335,7 @@
         }
         case 'versturen': {
           var jv = await aanroep('POST', '/versturen', {});
-          if (jv) { deps.toast('✓ Telling verstuurd naar kantoor', true); await laad(); }
+          if (jv) { deps.toast(jv.verstuurd_op ? '✓ Telling verstuurd naar kantoor' : 'Niets nieuws: kantoor heeft dit al', true); await laad(); }
           return;
         }
         case 'sheet-open': st.sheet = { soort: a, tekst: '', aantal: '', foto: '', stuk: '', bezig: false }; return teken();
