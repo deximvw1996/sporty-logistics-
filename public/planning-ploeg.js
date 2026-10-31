@@ -13,6 +13,8 @@
     var j = await r.json(); if (!r.ok) { $('lijst').textContent = j.error || 'Laden mislukt'; return; }
     DAG = j.datum; $('dag').textContent = 'Planning ploeg · ' + new Date(DAG + 'T12:00:00').toLocaleDateString('nl-BE', { weekday: 'short', day: 'numeric', month: 'short' });
     $('lijst').innerHTML = j.personen.map(function (p) { return '<div class="pers' + (p.eigen ? ' eigen' : '') + '"><h3>' + esc(p.naam) + (p.eigen ? ' (ik)' : '') + '</h3>' + (p.items.map(itemHtml).join('') || '<div class="leeg">niets gepland</div>') + '</div>'; }).join('') || '<div class="leeg">niets gepland</div>';
+    // TF14: alleen bekijken.
+    $('kampen').innerHTML = '<h2 style="font-size:16px;margin:8px 0">Kampen deze week</h2>' + ((j.kampen || []).map(function (k) { return '<div class="pers"><h3>' + esc(k.locatie) + '</h3><div class="leeg">' + esc([k.kv ? 'KV ' + k.kv : 'nog geen KV', k.dagen.join(' ')].filter(Boolean).join(' · ')) + '</div>' + k.themas.map(function (t) { return '<div class="it"><div class="nm"><b>' + esc(t.naam) + '</b><small>' + esc([t.groep, t.groepen > 1 ? t.groepen + ' groepen' : '', t.dag].filter(Boolean).join(' · ')) + '</small></div></div>'; }).join('') + '</div>'; }).join('') || '<div class="leeg">geen kampen deze week</div>');
   }
   document.addEventListener('click', function (e) { var b = e.target.closest('[data-d]'); if (!b) return; var d = new Date(DAG + 'T12:00:00'); d.setDate(d.getDate() + +b.dataset.d); DAG = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); laad(); });
   window.addEventListener('sporty-live', laad);

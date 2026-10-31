@@ -2320,3 +2320,10 @@ Op prod kan de lijst anders zijn: ik heb prod niet ingekeken.
 **Aangepaste tests:** `tf12` (wachten), `f1-modules` (padparameters).
 
 **TF13 punt 4 — Planning ploeg:** `/planning-ploeg` en `GET /api/planning-ploeg?datum=` (smal in ROL_ROUTES): dagkiezer, per persoon de klaargezette ritten en afspraken, eigen bovenaan, Meehelpen voor vandaag en morgen, live. Geen schrijfknoppen; concept niet zichtbaar; alleen namen als persoonsgegeven, adres van een afspraak niet. Link staat in het blok Alle ritten op Vandaag en Meer.
+
+## TF14 — Kampen voor chauffeurs, naam van de helper (chat C, 31/10)
+- **Kampen deze week** op `/planning-ploeg`, via de bestaande smalle route: locatie, thema's, groep, aantal groepen, dagen, KV-naam. Geen telefoonnummer. Alleen bekijken.
+- **Concepten:** kampmomenten hebben geen conceptstand in de database. Ik toon alleen kampmomenten met minstens één thema; een ander criterium vraagt een beslissing.
+- **Melding:** "Jesse (helpt) · rit #38 · Rozenweg: …"; ook het gebundelde aantal. Nu oplossen belt de melder en toont de bestuurder. Op de losse link zonder keuze blijft het de bestuurder.
+- **Afgerond door:** de stop toont "afgerond door Jesse" op de rit-pagina, het log heeft stop en rit (ook "(helpt)"), de opdracht-API geeft het veld mee. Alleen bij afronden via lossen; afronden doordat alles "niet mee" is of via kantoor vult dit veld niet.
+- **Niet in de browser bekeken:** alleen `test-tf14` en de HTML-opbouw.

@@ -13,7 +13,8 @@ module.exports=function(ctx){
     rij.forEach(x=>{if(x.soort==='probleem')delen.push(x.label);else tel[x.soort]=(tel[x.soort]||0)+(x.qty||1);});
     const stuks=rij.filter(x=>x.soort!=='probleem');
     const lijst=stuks.length===1?[`${stuks[0].qty} × ${stuks[0].naam} ${WOORD[stuks[0].soort]}`]:Object.keys(tel).map((k,i)=>`${tel[k]} ${tel[k]===1?'stuk':'stuks'} ${WOORD[k]}`);
-    return `${chauffeurVan(rit)} · rit #${rit.id} · ${locNaam(locId)}: ${[...lijst,...delen].join(', ')}`;
+    const wie=[...new Set(rij.map(x=>x.door_naam?x.door_naam+(x.door_helpt?' (helpt)':''):chauffeurVan(rit)))].join(', ');
+    return `${wie||chauffeurVan(rit)} · rit #${rit.id} · ${locNaam(locId)}: ${[...lijst,...delen].join(', ')}`;
   }
   function herbereken(meldingId,rit,locId){
     const rij=all("SELECT soort FROM nu_oplossen WHERE melding_id=?",[meldingId]);
@@ -28,8 +29,8 @@ module.exports=function(ctx){
     return ins("INSERT INTO meldingen (voor_rol,voor_persoon_id,van_naam,tekst,link,created_at,niveau,bundel,bijgewerkt_op) VALUES ('kantoor',NULL,?,'…','/vandaag',?,'vandaag',?,?)",[chauffeurVan(rit),new Date().toISOString(),sleutel,new Date().toISOString()]);
   }
   function rijToe(req,{soort,rit,taak,check,restTaakId,naam,qty,label,locId}){
-    const mid=bundelMelding(rit,taak);
-    ins('INSERT INTO nu_oplossen (soort,rit_id,taak_id,check_id,rest_taak_id,melding_id,naam,qty,label,locatie_id,bak_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',[soort,rit.id,taak.id,check?check.id:null,restTaakId||null,mid,naam||'',qty||1,label||'',locId||null,check?check.bak_id:null,now()]);
+    const mid=bundelMelding(rit,taak),w=ctx._ritWie&&req&&req.headers?ctx._ritWie(req,rit):{};
+    ins('INSERT INTO nu_oplossen (soort,rit_id,taak_id,check_id,rest_taak_id,melding_id,naam,qty,label,locatie_id,bak_id,created_at,door_naam,door_id,door_helpt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',[soort,rit.id,taak.id,check?check.id:null,restTaakId||null,mid,naam||'',qty||1,label||'',locId||null,check?check.bak_id:null,now(),w.bekend?w.naam:'',w.bekend?w.id:null,w.helpt?1:0]);
     herbereken(mid,rit,locId);
     if(ctx.meldingLive)ctx.meldingLive(mid);
     return mid;
@@ -78,8 +79,10 @@ module.exports=function(ctx){
   ctx.nuLijst=()=>{
     const open=all("SELECT * FROM nu_oplossen WHERE status='open' ORDER BY id"),per=new Map();
     open.forEach(x=>{if(!per.has(x.rit_id)){const r=get('SELECT * FROM transport_ritten WHERE id=?',[x.rit_id])||{id:x.rit_id};const p=r.personeel_id?get('SELECT telefoon FROM personeel WHERE id=?',[r.personeel_id]):(ctx.persoonOpNaam&&r.chauffeur?(()=>{const q=ctx.persoonOpNaam(r.chauffeur);return q?get('SELECT telefoon FROM personeel WHERE id=?',[q.id]):null;})():null);
-      per.set(x.rit_id,{rit_id:x.rit_id,chauffeur:chauffeurVan(r),telefoon:(p&&p.telefoon)||'',locatie:locNaam(x.locatie_id),items:[]});}
-      per.get(x.rit_id).items.push(details(x));});
+      per.set(x.rit_id,{rit_id:x.rit_id,chauffeur:chauffeurVan(r),telefoon:(p&&p.telefoon)||'',locatie:locNaam(x.locatie_id),bellen:[],items:[]});}
+      const blok=per.get(x.rit_id);
+      if(x.door_naam&&x.door_naam!==blok.chauffeur&&!blok.bellen.some(b=>b.naam===x.door_naam))blok.bellen.push({naam:x.door_naam,helpt:!!x.door_helpt,telefoon:x.door_id?((get('SELECT telefoon FROM personeel WHERE id=?',[x.door_id])||{}).telefoon||''):''});
+      blok.items.push({...details(x),door:x.door_naam||blok.chauffeur,helpt:!!x.door_helpt});});
     return [...per.values()];
   };
   app.get('/api/nu-oplossen',alleenKantoor,(req,res)=>res.json({ritten:ctx.nuLijst()}));

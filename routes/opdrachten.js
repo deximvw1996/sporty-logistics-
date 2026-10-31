@@ -70,7 +70,7 @@ module.exports=function(ctx){
       const regels=all('SELECT id,naam,qty FROM transport_regels WHERE taak_id=? ORDER BY id',[t.id]),samen=samenVan(r,t),korte=regels.slice(0,3).map(x=>x.qty>1?x.qty+' × '+x.naam:x.naam).join(', ')+(regels.length>3?' +'+(regels.length-3):'');
       const lad=regels.length?(t.type==='ophaling'?'ophalen: ':'lossen: ')+korte+(samen.length?', samen helpen':''):i===0&&t.van_locatie_id===t.naar_locatie_id?'vertrekt zonder lading':samen.length?'helpt, geen lading':'geen lading';
       const door=[...new Set(all('SELECT geladen_door AS a,gelost_door AS b FROM verhuis_checks WHERE taak_id=?',[t.id]).flatMap(c=>[c.a,c.b]).filter(Boolean))];
-      return {taak_id:t.id,gedaan_door:door,tijd:hhmm(t.tijd),locatie:locNaam(stopLoc(t)),locatie_id:stopLoc(t),type:t.type,status:t.status,samen,lad,regels};
+      return {afgerond_door:t.status==='gedaan'?(t.afgerond_door||''):'',taak_id:t.id,gedaan_door:door,tijd:hhmm(t.tijd),locatie:locNaam(stopLoc(t)),locatie_id:stopLoc(t),type:t.type,status:t.status,samen,lad,regels};
     });
     return {rit_id:r.id,token:r.rit_token||'',status:r.status,klaarzet_status:r.klaarzet_status||'',voertuig:{id:r.voertuig_id||null,naam:r.voertuig||''},aanhangwagen_id:r.aanhangwagen_id||null,mensen:mensen(r),
       vertrek:info.vertrek,einde:info.einde,lading:info.lading,laadstops:laadstops(r,taken).map(l=>({...l,tijd:info.vertrek})),stops,waarschuwingen:waarschuwingen(r,info),echte_start:r.echte_start||'',echte_einde:r.echte_einde||''};
@@ -271,9 +271,18 @@ module.exports=function(ctx){
       (ms.length?ms:['Nog niemand']).forEach(n=>bij(n,item));
     });
     all('SELECT * FROM afspraken WHERE datum=? ORDER BY van,id',[datum]).forEach(a=>bij(a.personeel_id?persNaam(a.personeel_id):'Zonder persoon',{soort:'afspraak',titel:SOORT[a.soort]||a.soort,van:a.van,tot:a.tot,voertuig:a.voertuig_id?(get('SELECT naam FROM voertuigen WHERE id=?',[a.voertuig_id])||{}).naam||'':'',klaar:a.status==='klaar'}));
+    // TF14: kampen van die week. Een kampmoment zonder thema is nog niet ingevuld en blijft weg. Geen telefoonnummer.
+    const dW=new Date(datum+'T12:00:00');dW.setDate(dW.getDate()-((dW.getDay()+6)%7));const ma=isoD(dW),DG=['ma','di','wo','do','vr','za','zo'];
+    const kampen=all('SELECT * FROM kampmomenten').map(km=>{
+      const pr=km.periode_id?get('SELECT start_datum FROM vakantieperiodes WHERE id=?',[km.periode_id]):null;if(!pr||!pr.start_datum||!km.week)return null;
+      const m0=new Date(pr.start_datum+'T12:00:00');m0.setDate(m0.getDate()+(km.week-1)*7);m0.setDate(m0.getDate()-((m0.getDay()+6)%7));if(isoD(m0)!==ma)return null;
+      const th=all('SELECT t.name,t.leeftijdsgroep AS tg,kt.leeftijdsgroep AS kg,kt.groepen,kt.dag FROM kampmoment_themas kt JOIN themas t ON t.id=kt.thema_id WHERE kt.kampmoment_id=? ORDER BY kt.dag,t.name',[km.id]);if(!th.length)return null;
+      const dagen=[0,1,2,3,4].filter(i=>{const d=new Date(m0);d.setDate(d.getDate()+i);const iso=isoD(d),k=get('SELECT open FROM kalender_dagen WHERE locatie_id=? AND datum=?',[km.locatie_id,iso]);if(k)return !!k.open;return !get('SELECT id FROM gesloten_dagen WHERE datum=? AND (locatie_id IS NULL OR locatie_id=?) LIMIT 1',[iso,km.locatie_id]);}).map(i=>DG[i]);
+      return {locatie:locNaam(km.locatie_id),week:km.week,kv:ctx._kvNaam(km)||'',dagen,themas:th.map(t=>({naam:t.name,groep:t.kg||t.tg||'',groepen:t.groepen||1,dag:t.dag?DG[t.dag-1]||'':''}))};
+    }).filter(Boolean).sort((a,b)=>a.locatie.localeCompare(b.locatie,'nl'));
     const ik=req.persoon.naam;if(!per.has(ik))per.set(ik,[]);
     const tijd=x=>x.tijd||x.van||'99';
-    res.json({datum,personen:[...per.entries()].map(([naam,items])=>({naam,eigen:naam===ik,items:items.sort((a,b)=>tijd(a).localeCompare(tijd(b)))})).sort((a,b)=>(b.eigen-a.eigen)||a.naam.localeCompare(b.naam,'nl'))});
+    res.json({datum,kampen,personen:[...per.entries()].map(([naam,items])=>({naam,eigen:naam===ik,items:items.sort((a,b)=>tijd(a).localeCompare(tijd(b)))})).sort((a,b)=>(b.eigen-a.eigen)||a.naam.localeCompare(b.naam,'nl'))});
   });
   app.get('/planning-ploeg',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','planning-ploeg.html')));
   app.get('/meehelpen/:id',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','meehelpen.html')));
