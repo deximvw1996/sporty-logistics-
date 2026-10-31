@@ -37,3 +37,5 @@ De app stelt de route voor met uitleg; kantoor beslist (nog door Maxim te bevest
 - Vast verbruik per week; geen rekenwerk met kinderen; de KV meldt wat op is.
 - **Wijziging tijdens de open weken hangt af van locatie, materiaal en week.** Voorbeeld kleurenborden: in een rustige week 5 mogen ze blijven liggen waar ze niet nodig zijn; in een drukke week 8 is elk bord nodig, en een vrij groen bord moet naar de locatie waar er een tekort is.
 - **Kleurenborden worden op voorhand gepland** zodat overal de juiste borden liggen; de app helpt daarbij. Aantal groepen per locatie per week is daarvoor bepalend. Bron te bekijken: `Materiaal\Kleurenschema ZOMER TD Sporty 2026.xls`. Sporthal-voorbeeld: 14 borden (rood, geel, groen 2x, blauw, oranje 2x, paars 2x, grijs, wit, zwart, roze, bruin), 14 palen, 14 voeten.
+- Geen aparte standaardlijst bekend: de foto van de Sporthal is de startlijst, Maxim past aan. Andere locatielijsten: onbekend.
+- Kleuren: de KV ziet welke kleuren die week op de locatie beschikbaar zijn en kiest per groep. Totaal per kleur: geschat 15-20 (schatting, geen telling).
