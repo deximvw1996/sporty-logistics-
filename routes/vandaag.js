@@ -228,7 +228,7 @@ module.exports = function(ctx){
 
   // ── MOB1: de gsm-weergave van Vandaag (design/MOBIEL-DEFINITIEF.html): NU-kaart, Daarna, meldingen, tellers van de tabbalk ──
   const ritTitel=r=>`Rit #${r.id}${r.voertuig?' · '+r.voertuig:''}`;
-  const ritSub=r=>r.stops.map(s=>s.naam+(s.slot==='vrij'?' (vrij)':' 🔒')).join(' → ')+(r.bezetting?` · ${r.bezetting.n}/${r.bezetting.max} bakken${r.bezetting.n>r.bezetting.max?' ⚠':''}`:'');
+  const ritSub=r=>r.stops.map(s=>s.naam+(s.slot==='vrij'?' (vrij)':' 🔒')).join(' → ')+(r.lading?` · ${r.lading}`:'');
   const ritItem=r=>({soort:'rit',ico:'🚚',tijd:r.tijd,titel:ritTitel(r),sub:ritSub(r),url:'/rit/'+r.token,onderweg:r.status==='onderweg'});
   // ME1: de ongelezen meldingen uit routes/meldingen.js, in de vorm die de gsm-weergave leest (titel, sub).
   const ongelezen=req=>ctx.meldingenVan(req.persoon,true).map(m=>({...m,sub:m.link?'tik om te openen':'',acties:[]}));
@@ -270,8 +270,8 @@ module.exports = function(ctx){
       const rit=dag=>all("SELECT * FROM transport_ritten WHERE datum=? AND status<>'geannuleerd' ORDER BY id",[dag]).filter(r=>r.klaarzet_status==='klaar'||(r.status&&r.status!=='gepland')).filter(r=>r.personeel_id?r.personeel_id===req.persoon.persoon_id:((ctx.persoonOpNaam(r.chauffeur)||{}).id===req.persoon.persoon_id)).map(r=>{
         const taken=all("SELECT * FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[r.id]);
         let token=r.rit_token||'';if(!token){token=_genToken(10);run('UPDATE transport_ritten SET rit_token=? WHERE id=?',[token,r.id]);} // MOB1: de NU-kaart opent de rit-weergave
-        let bez=null;try{const i=ctx._ritPlanInfo(r);if(r.voertuig_capaciteit)bez={n:i.bezetting,max:r.voertuig_capaciteit};}catch(e){}
-        return {id:r.id,tijd:r.vertrek||taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',voertuig:r.voertuig||'',status:r.status,stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast',type:t.type,gedaan:t.status==='gedaan'})),token,bezetting:bez};
+        
+        return {id:r.id,tijd:r.vertrek||taken.map(t=>t.tijd).filter(Boolean).sort()[0]||'',voertuig:r.voertuig||'',status:r.status,stops:taken.map(t=>({naam:_locNaam(_stopLoc(t)),slot:t.slot==='vrij'?'vrij':'vast',type:t.type,gedaan:t.status==='gedaan'})),token,lading:ctx._ritLading?ctx._ritLading(r.id).tekst:''};
       });
       const lijst=_roep('/api/aanvullijst',{datum},req);
       const basis={mijn:true,gebruiker:{naam:req.persoon.naam,rol:req.persoon.rol},datum,datum_tekst:datumLang(datum),

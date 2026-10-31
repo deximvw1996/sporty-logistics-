@@ -18,16 +18,16 @@
       const dagen=week.dagen.map(d=>{
         const klas=d.status==='dubbel'?'x':d.status==='onderhoud'?'o':'';
         const blokken=[...(d.status==='onderhoud'?[`<span class="o">onderhoud${d.onderhoud&&d.onderhoud!=='onderhoud'?' · '+esc(d.onderhoud):''}</span>`]:[]),
-          ...d.ritten.map(r=>`<span class="${klas==='o'?'':klas}">${esc(r.van||'?')}–${esc(r.tot||'?')} · rit #${r.id}${r.bestuurder?' · '+esc(r.bestuurder):''}${r.over?` · ${r.bezetting}/${r.plaatsen} ⚠`:''}</span>`)];
+          ...d.ritten.map(r=>`<span class="${klas==='o'?'':klas}">${esc(r.van||'?')}–${esc(r.tot||'?')} · rit #${r.id}${r.bestuurder?' · '+esc(r.bestuurder):''}${r.lading?' · '+esc(r.lading):''}</span>`)];
         return `<div class="dag"><span class="d"${d.weekend?' style="color:#94a3b8"':''}>${esc(d.tekst)}</span>${blokken.length?`<span class="blk">${blokken.join('')}</span>`:'<span class="k">vrij</span>'}</div>`;
       }).join('');
       const blokWeek=`<div class="blok vol"><h4>Deze week</h4>${dagen}</div>`;
       const blokLetOp=letOp.length?`<div class="blok"><h4>Let op</h4>${letOp.map(l=>`<div class="rij"><div class="nm" style="color:${l.soort==='dubbel'?'#b91c1c':'#c2410c'}">${esc(l.tekst)}<b>${esc(l.sub)}</b></div><button class="knop licht klein" data-rit="${l.rit_id}">${esc(l.knop)}</button></div>`).join('')}</div>`:'';
-      const blokGeg=`<div class="blok"><h4>Gegevens</h4>${kv('Nummerplaat',esc(v.nummerplaat||'—'))}${kv('Plaatsen',v.plaatsen==null?'—':v.plaatsen+' (bakken/stuks)')}${kv('Rijbewijs',esc(v.rijbewijs||'—'))}${kv('Standplaats',esc(v.standplaats||'—'))}${kv('Sleutel',esc(v.sleutel_info||'—'))}${kv('Keuring',v.keuring_tot?'tot '+esc(v.keuring_tot.split('-').reverse().join('/')):'—')}${v.soort==='huur'?kv('Huur',esc([v.huur_van,v.huur_tot].map(x=>x?x.split('-').reverse().join('/'):'…').join(' – '))):''}${v.notitie?kv('Notitie',esc(v.notitie)):''}</div>`;
+      const blokGeg=`<div class="blok"><h4>Gegevens</h4>${kv('Nummerplaat',esc(v.nummerplaat||'—'))}${kv('Past ongeveer',v.plaatsen==null?'—':'± '+v.plaatsen+' bakken (info)')}${kv('Rijbewijs',esc(v.rijbewijs||'—'))}${kv('Standplaats',esc(v.standplaats||'—'))}${kv('Sleutel',esc(v.sleutel_info||'—'))}${kv('Keuring',v.keuring_tot?'tot '+esc(v.keuring_tot.split('-').reverse().join('/')):'—')}${v.soort==='huur'?kv('Huur',esc([v.huur_van,v.huur_tot].map(x=>x?x.split('-').reverse().join('/'):'…').join(' – '))):''}${v.notitie?kv('Notitie',esc(v.notitie)):''}</div>`;
       const blokOnd=`<div class="blok"><h4>Onderhoud <a data-act="onderhoud-nieuw" style="cursor:pointer">+ periode</a></h4>${onderhoud.map(o=>`<div class="rij"><div class="nm">${esc(o.datum_van.split('-').reverse().join('/'))} – ${esc(o.datum_tot.split('-').reverse().join('/'))}<b>${esc(o.reden||'onderhoud')}</b></div><button class="knop licht klein" data-ond-weg="${o.id}" aria-label="Verwijderen">✕</button></div>`).join('')||'<div class="rij"><div class="nm">Geen onderhoud gepland</div></div>'}</div>`;
       const blokHist=`<div class="blok"><h4>Historiek (alles gelogd)</h4>${historiek.slice(0,tab==='historiek'?100:5).map(h=>`<div class="rij"><div class="nm">${esc(h.wat)}<b>${esc([h.t,h.wie].filter(Boolean).join(' · '))}</b></div><button class="knop licht klein" disabled title="Terugdraaien bestaat nog niet als route (GEVONDEN)">↶ Terug</button></div>`).join('')||'<div class="rij"><div class="nm">Nog niets gelogd</div></div>'}</div>`;
       const inhoud={planning:blokWeek+blokLetOp+blokGeg,gegevens:blokGeg+blokOnd,historiek:blokHist}[tab]||'';
-      const sub=[v.soort_tekst,v.nummerplaat,v.plaatsen!=null?v.plaatsen+' plaatsen':'',v.rijbewijs?'rijbewijs '+v.rijbewijs:'',v.standplaats?'staat in '+v.standplaats:''].filter(Boolean).map(esc).join(' · ');
+      const sub=[v.soort_tekst,v.nummerplaat,v.plaatsen!=null?'± '+v.plaatsen+' bakken':'',v.rijbewijs?'rijbewijs '+v.rijbewijs:'',v.standplaats?'staat in '+v.standplaats:''].filter(Boolean).map(esc).join(' · ');
       return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(v.naam)}</h2><span>${sub}</span></div><div class="acts">${knop('d-bewerk','Bewerken')}${knop('d-onderhoud','Onderhoud plannen')}${knop('d-rit','Naar ritplanning',false)}</div></div>
         <div class="dtabs">${[['planning','Planning'],['gegevens','Gegevens'],['historiek',`Historiek ${historiek.length}`]].map(([k,x])=>`<a class="${tab===k?'act':''}" data-tab="${k}">${x}</a>`).join('')}</div>
         <div class="dgrid"${tab==='planning'?'':' style="grid-template-columns:1fr"'}>${inhoud}</div>`;
@@ -96,7 +96,7 @@
     return vraag({titel,ok,html:`<label>Naam<input name="naam" value="${esc(v.naam||'')}"></label>
       <label>Soort<select name="soort">${[['eigen','eigen voertuig'],['huur','huurwagen'],['prive','privé wagen']].map(([k,n])=>`<option value="${k}" ${k===(v.soort||'eigen')?'selected':''}>${n}</option>`).join('')}</select></label>
       <label>Nummerplaat<input name="plaat" value="${esc(v.nummerplaat||'')}" placeholder="1-ABC-123"></label>
-      <label>Plaatsen (bakken)<input name="plaatsen" type="number" min="1" value="${v.plaatsen==null?'':v.plaatsen}"></label>
+      <label>Past ongeveer (bakken, alleen info)<input name="plaatsen" type="number" min="1" value="${v.plaatsen==null?'':v.plaatsen}"></label>
       <label>Rijbewijs<input name="rijb" value="${esc(v.rijbewijs||'B')}"></label>
       <label>Standplaats<select name="plek"><option value="">—</option>${locs.map(l=>`<option value="${l.id}" ${l.id===v.standplaats_locatie_id?'selected':''}>${esc(l.naam)}</option>`).join('')}</select></label>
       <label>Sleutel<input name="sleutel" value="${esc(v.sleutel_info||'')}"></label>

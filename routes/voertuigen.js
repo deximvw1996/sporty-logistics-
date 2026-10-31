@@ -30,8 +30,8 @@ module.exports = function(ctx){
     const onderhoud=all('SELECT * FROM voertuig_onderhoud WHERE voertuig_id=? ORDER BY datum_van',[v.id]);
     const ritten=all("SELECT * FROM transport_ritten WHERE voertuig_id=? AND datum>=? AND datum<=? AND status<>'geannuleerd' ORDER BY datum,id",[v.id,w.start,w.eind]).map(r=>{
       const info=_ritPlanInfo(r);
-      return {id:r.id,datum:r.datum,van:info.vertrek||'',tot:info.einde||'',bestuurder:bestuurderVan(r),bezetting:info.bezetting,status:r.status,
-        plaatsen:r.voertuig_capaciteit||v.plaatsen||null,waarschuwingen:info.waarschuwingen.filter(x=>/^voertuig |^huurwagen /.test(x))};
+      return {id:r.id,datum:r.datum,van:info.vertrek||'',tot:info.einde||'',bestuurder:bestuurderVan(r),lading:info.lading?info.lading.tekst:'',status:r.status,
+        waarschuwingen:info.waarschuwingen.filter(x=>/^voertuig |^huurwagen /.test(x))};
     });
     const dubbelPaar=[];
     const week=w.dagen.map(datum=>{
@@ -43,8 +43,7 @@ module.exports = function(ctx){
         if(a0==null||b0==null||(a0<=b1&&b0<=a1)){dubbel=true;dubbelPaar.push({datum,a:dr[i],b:dr[j]});}
       }
       const status=dubbel?'dubbel':ond?'onderhoud':dr.length?'rit':'vrij';
-      return {datum,dag:DAG[d0(datum).getDay()],status,onderhoud:ond?ond.reden||'onderhoud':'',ritten:dr.map(r=>({id:r.id,van:r.van,tot:r.tot,bestuurder:r.bestuurder,bezetting:r.bezetting,plaatsen:r.plaatsen,
-        over:!!(r.plaatsen&&r.bezetting>r.plaatsen)}))};
+      return {datum,dag:DAG[d0(datum).getDay()],status,onderhoud:ond?ond.reden||'onderhoud':'',ritten:dr.map(r=>({id:r.id,van:r.van,tot:r.tot,bestuurder:r.bestuurder}))};
     });
     return {week,ritten,dubbelPaar,onderhoud};
   }
@@ -85,7 +84,6 @@ module.exports = function(ctx){
       letOp.push({soort:'dubbel',rit_id:p.a.id,knop:'Oplossen',tekst:`Dubbel geboekt ${kort(p.datum)}${van?` ${van}–${tot}`:''}`,
         sub:`rit #${p.a.id}${p.a.bestuurder?` (${p.a.bestuurder})`:''} en rit #${p.b.id}${p.b.bestuurder?` (${p.b.bestuurder})`:''} rijden tegelijk met deze wagen`});
     });
-    wv.ritten.filter(x=>x.plaatsen&&x.bezetting>x.plaatsen).forEach(x=>letOp.push({soort:'capaciteit',rit_id:x.id,knop:'Open rit',tekst:`Rit #${x.id}: ${x.bezetting} stuks op ${x.plaatsen} plaatsen`,sub:'ander voertuig of extra rit'}));
     wv.ritten.forEach(x=>x.waarschuwingen.filter(t=>/onderhoud|huurwagen/.test(t)).forEach(t=>letOp.push({soort:'beschikbaar',rit_id:x.id,knop:'Open rit',tekst:`Rit #${x.id} (${kort(x.datum)}): ${t}`,sub:'kies een ander voertuig of pas de datum aan'})));
     // Historiek: het voertuig zelf en zijn onderhoudsperiodes.
     const parse=s=>{try{return JSON.parse(s||'{}')||{};}catch(e){return {};}};

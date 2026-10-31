@@ -769,7 +769,7 @@ module.exports = function(ctx){
     }
     next();
   });
-  app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');updateMetLog(req,'UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type,nieuweDatum,tijd||'09:00',van_locatie_id||null,naar_locatie_id||null,opmerking||'',nieuweWie,status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
+  app.put('/api/transport-taken/:id',(req,res)=>{const{type,datum,tijd,van_locatie_id,naar_locatie_id,opmerking,wie,status}=req.body;const bestaand=get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]);if(!bestaand)return res.status(404).json({error:'Transport niet gevonden'});const nieuweDatum=bestaand.rit_id?bestaand.datum:(datum!==undefined?datum||'':bestaand.datum||'');const nieuweWie=bestaand.rit_id?bestaand.wie:(wie!==undefined?wie||'':bestaand.wie||'');updateMetLog(req,'UPDATE transport_taken SET type=?,datum=?,tijd=?,van_locatie_id=?,naar_locatie_id=?,opmerking=?,wie=?,status=? WHERE id=?',[type!==undefined?type:bestaand.type,nieuweDatum,tijd!==undefined?(tijd||'09:00'):bestaand.tijd,van_locatie_id!==undefined?(van_locatie_id||null):bestaand.van_locatie_id,naar_locatie_id!==undefined?(naar_locatie_id||null):bestaand.naar_locatie_id,opmerking!==undefined?(opmerking||''):(bestaand.opmerking||''),nieuweWie,status||bestaand.status||'gepland',req.params.id]);res.json(get('SELECT * FROM transport_taken WHERE id=?',[req.params.id]));});
   app.delete('/api/transport-taken/:id',(req,res)=>{const r=_verwijderTaak(req,req.params.id);if(r.fout)return res.status(r.status).json({error:r.fout});res.json({ok:true});});
   // ── V3a: ÉÉN afrond-functie voor een taak (knop "gedaan" in kantoor én laatste "gelost" via rit-token) ──
   // Controleert eerst alle bulk-regels (te weinig op de bronlocatie → fout, niets gewijzigd), dan:
@@ -922,6 +922,13 @@ module.exports = function(ctx){
   function _zetRitVelden(req,id,v,context){const k=Object.keys(v);if(k.length)updateMetLog(req,`UPDATE transport_ritten SET ${k.map(x=>x+'=?').join(',')} WHERE id=?`,[...k.map(x=>v[x]),id],context);}
   // Bezetting = wat er maximaal aan boord is (som van de regels): vertrekt met alles behalve ophalingen,
   // lost bij een levering/transfer, laadt bij een ophaling; het maximum over de stops in volgorde.
+  // TF7 punt 1 (Maxim): de app rekent niet uit of iets past; tijdens het laden merk je dat (Past niet). De rit zegt alleen wat erop staat.
+  function _ritLading(ritId){
+    const rij=all("SELECT r.qty,r.bak_id,r.attribuut_id,b.is_bulk FROM transport_regels r JOIN transport_taken t ON t.id=r.taak_id LEFT JOIN bakken b ON b.id=r.bak_id WHERE t.rit_id=? AND t.status<>'geannuleerd'",[ritId]);
+    const bak=rij.filter(r=>(r.bak_id&&!r.is_bulk)||r.attribuut_id).reduce((n,r)=>n+(r.qty||1),0),los=rij.filter(r=>!((r.bak_id&&!r.is_bulk)||r.attribuut_id)).reduce((n,r)=>n+(r.qty||1),0);
+    return {bakken:bak,losse:los,tekst:`${bak} ${bak===1?'bak':'bakken'} + ${los} ${los===1?'los stuk':'losse stuks'}`};
+  }
+  ctx._ritLading=_ritLading;
   function _ritBezetting(ritId){
     const taken=all("SELECT id,type FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[ritId]);
     // TF5 G8: capaciteit telt plaatsen: een bulkregel neemt één plaats, ongeacht het aantal stuks erin.
@@ -938,12 +945,12 @@ module.exports = function(ctx){
   // Waarschuwingen zijn uitleg, nooit een verbod (KERNREGEL).
   function _ritWaarschuwingen(rit,x){
     const w=[];
-    // TF1 G12: capaciteit is enkel een waarschuwing zolang de rit nog moet rijden (gedaan → stille notitie, zie _ritPlanInfo).
     const nogTeRijden=!['gedaan','geannuleerd'].includes(rit.status);
-    if(nogTeRijden&&rit.voertuig_capaciteit&&x.bezetting>rit.voertuig_capaciteit)w.push(`${x.bezetting} bakken op ${rit.voertuig_capaciteit} plaatsen`);
     // TF1 G5: een rit zonder chauffeur of voertuig (bv. een spoedrit uit "Goedkeuren + spoed") vraagt om een keuze.
     if(nogTeRijden&&!(rit.chauffeur||'').trim()&&!rit.personeel_id)w.push('geen chauffeur');
     if(nogTeRijden&&!(rit.voertuig||'').trim())w.push('geen voertuig');
+    // TF7 N6: eerste stop veel later dan het vertrek.
+    if(nogTeRijden&&rit.vertrek){const e=all("SELECT tijd FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' AND tijd<>'' ORDER BY COALESCE(volgorde,1000000),tijd,id",[rit.id]).map(t=>_min(t.tijd)).filter(x=>x!=null)[0],v0=_min(rit.vertrek);if(e!=null&&v0!=null&&e-v0>120)w.push(`eerste stop pas om ${_hm(e)}, vertrek ${_hm(v0)}`);}
     // RP2: stops dichter op elkaar dan STOP_STAP_MIN (bv. na inkorten) → "stops samengedrukt: N stops binnen M min".
     if(nogTeRijden&&rit.vertrek){const tm=all("SELECT tijd FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[rit.id]).map(t=>_min(t.tijd)).filter(x=>x!=null);
       let best=null,a=0;for(let i=1;i<=tm.length;i++){if(i<tm.length&&tm[i]-tm[i-1]<STOP_STAP_MIN)continue;if(i-a>1&&(!best||i-a>best.n))best={n:i-a,m:tm[i-1]-tm[a]};a=i;}
@@ -990,9 +997,7 @@ module.exports = function(ctx){
     return w;
   }
   function _ritPlanInfo(rit){const t=_ritTijden(rit);const bezetting=_ritBezetting(rit.id);
-    // TF1 G12: een gedane rit boven capaciteit krijgt een stille notitie i.p.v. een waarschuwing.
-    const notitie=rit.status==='gedaan'&&rit.voertuig_capaciteit&&bezetting>rit.voertuig_capaciteit?`reed met ${bezetting}/${rit.voertuig_capaciteit}`:'';
-    return {vertrek:t.vertrek,einde:t.einde,bezetting,waarschuwingen:_ritWaarschuwingen(rit,{...t,bezetting}),notitie};}
+    return {vertrek:t.vertrek,einde:t.einde,bezetting,lading:_ritLading(rit.id),waarschuwingen:_ritWaarschuwingen(rit,{...t,bezetting}),notitie:''};}
   // TF1 G6: stoptijden volgen de vertrektijd van de rit. Stops zonder tijd of met een tijd vóór het vertrek krijgen een tijd
   // vanaf het vertrek, in volgorde en telkens STOP_STAP_MIN later; een bestaande latere tijd blijft staan.
   const STOP_STAP_MIN=45;
@@ -1282,12 +1287,9 @@ module.exports = function(ctx){
     if(!naam)return res.status(400).json({error:'Naam is verplicht'});
     const tijdstip=now();
     updateMetLog(req,'UPDATE transport_ritten SET klaarzet_status=?,klaarzet_door=?,klaarzet_op=? WHERE id=?',['klaar',naam,tijdstip,req.params.id]);
-    // TF1 G12: boven capaciteit is geen verbod (KERNREGEL); de pagina vraagt bevestiging en die komt in het log.
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(rit&&ctx.meldRitKlaar)ctx.meldRitKlaar(req,rit.id); // TF3 G28
-    const bez=rit?_ritBezetting(rit.id):0, over=!!(rit&&rit.voertuig_capaciteit&&bez>rit.voertuig_capaciteit);
-    if(over)logAct('transport','klaargezet boven capaciteit',`Rit #${rit.id} klaargezet met ${bez} bakken op ${rit.voertuig_capaciteit} plaatsen${req.body?.bevestigd_over_capaciteit?' — bevestigd':' — zonder bevestiging'} door ${naam}`,null,null);
-    res.json({ok:true,klaarzet_door:naam,klaarzet_op:tijdstip,over_capaciteit:over,bezetting:bez,capaciteit:rit?rit.voertuig_capaciteit:null});
+    res.json({ok:true,klaarzet_door:naam,klaarzet_op:tijdstip,lading:rit?_ritLading(rit.id):null});
   });
 
   // TF5 punt 3: terug op niet-klaargezet zolang de rit niet gestart is; de bestuurder krijgt een melding en ziet de rit niet meer.
