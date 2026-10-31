@@ -87,7 +87,7 @@ try {
   T.check(/Ritten/.test(G.scherm(CH, 'ritten')) && /\/rit\//.test(G.scherm(CH, 'ritten')) && /staat voor je klaar|Geen open meldingen/.test(G.scherm(CH, 'meldingen')), 'tabs Ritten en Meldingen');
   const MB = require(T.ROOT + '/public/meer.js');
   const mk = MB.html({ rol: 'kantoor', naam: 'Maxim' }, { naam: 'Herfst' }), mc = MB.html({ rol: 'chauffeur', naam: 'Jan' });
-  T.check(['Planning', 'Materiaal', 'Locaties', 'Beheer', 'Uitloggen', 'Periode'].every((x) => mk.includes(x)), 'Meer kantoor: Planning, Materiaal, Locaties, Beheer, periode, profiel, uitloggen');
+  T.check(['Rooster', 'Periodes', 'Sportrooster', 'Catalogus', 'Locaties', 'Personeel', 'Instellingen', 'Uitloggen', 'Periode'].every((x) => mk.includes(x)), 'Meer kantoor: Planning, Materiaal, Locaties, Beheer, periode, profiel, uitloggen');
   T.check(!mc.includes('Planning') && !mc.includes('Beheer') && mc.includes('Uitloggen') && mc.includes('pincode wijzigen'), 'Meer chauffeur: alleen wat de rol mag');
 } catch (e) { T.fout('uitzondering: ' + e.stack); }
 await T.einde(srv);

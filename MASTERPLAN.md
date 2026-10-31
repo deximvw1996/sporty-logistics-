@@ -473,3 +473,4 @@ Maxim (2026-08-02): Sporty verhuurt ook materiaal aan bedrijven en particulieren
 - 2026-10-31 — Mockup gsm-lijsten goedgekeurd. Daarna bespreking catalogus, thema's, locaties, standaardmateriaal, stockages met Maxim.
 - 2026-10-31 — TF14 (C) gekeurd en live: 10 ok, volle run 67/67. Bespreking materiaal gestart: BESPREKING-MATERIAAL.md.
 - 2026-10-31 — MOB3 (D) gekeurd en live: 63 ok, volle run 68/68.
+- 2026-10-31 — MOB4 (D) gekeurd en live: 54 ok. Hoofdchat: alle pagina's rechtstreeks in Meer (subbalk weg op de lijsten).
