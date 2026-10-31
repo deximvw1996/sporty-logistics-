@@ -1,7 +1,7 @@
 /* public/vandaag.css — KO1: exacte kopie van de stijlen in design/KANTOOR-DEFINITIEF.html.
    Enige aanpassingen: de demo-balk (.keuze) valt weg en het frame vult het venster i.p.v. vast 1920×900
    (op 1920×900 identiek). Onderaan: lege-kolomtekst, periode-kiezer en toast (geen ontwerpelementen). */
-.frame{width:100%;max-width:1920px;height:100vh;margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
+.frame{width:100%;max-width:1920px;height:calc(100vh - var(--tk-h,0px));margin:0 auto;background:#f5f5f5;overflow:hidden;position:relative}
 button{font:inherit;cursor:pointer;border:0}
 input[name=wg]{position:absolute;opacity:0;pointer-events:none}
 .pil.blauw{background:#dbeafe;color:#1d4ed8}.pil.groen{background:#dcfce7;color:#15803d}.pil.rood{background:#fee2e2;color:#b91c1c}.pil.oranje{background:#ffedd5;color:#c2410c}
@@ -14,7 +14,7 @@ input[name=wg]{position:absolute;opacity:0;pointer-events:none}
 .rit .u{width:48px;font-weight:700;font-size:13px;color:#334155;padding-top:2px;flex:none}
 .rit .nm{flex:1;font-size:13px;line-height:1.35}.rit .nm b{display:block;font-weight:700;font-size:14px}
 .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
-.body{display:grid;grid-template-columns:1fr 400px;gap:20px;padding:20px 28px;height:calc(100vh - 56px)}
+.body{display:grid;grid-template-columns:1fr 400px;gap:20px;padding:20px 28px;height:calc(100vh - var(--tk-h,0px) - 56px)}
 .werk{display:flex;flex-direction:column;min-height:0}
 .kopr{display:flex;align-items:center;gap:14px;margin-bottom:12px}
 .kopr h1{font-size:22px;font-weight:800}.kopr small{font-size:13px;color:#64748b}

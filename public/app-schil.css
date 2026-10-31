@@ -42,3 +42,9 @@
   input[type=search],input[type=text]:not([hidden]),.filters input,#zoek,#q{min-height:44px}
   .per,.per select{min-height:44px}
 }
+
+/* TF10: een verborgen gsm-blok (hidden) mag op desktop nooit ruimte innemen */
+.tel[hidden],#gsm[hidden]{display:none !important}
+
+/* TF10: desktop — Meer en het gsm-blok van Vandaag (rollen zonder kantoorbalk): de pagina scrolt nooit, het blok scrolt */
+@media (min-width:768px){#meer,#gsm{min-height:0;max-height:calc(100vh - var(--tk-h,0px));overflow-y:auto}}

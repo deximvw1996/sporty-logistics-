@@ -61,7 +61,7 @@
       }
       const tabs=[['week','Week'],['zomer','Hele periode'],['sets',`Sets ${D.sets}`]];
       const inhoud=tab==='zomer'?`<div class="blok vol"><h4>Per week</h4>${BOUW.zomerRijen(D)}</div>`:tab==='sets'?BOUW.setsBlok(D):b.raster+b.letOp+b.verhuis;
-      return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(D.soort)} · week ${D.week}</h2><span>${esc(D.samenvatting.week)}</span></div><div class="acts">${knop('d-vorige',`‹ wk ${D.week-1}`)}${knop('d-volgende',`wk ${D.week+1} ›`)}${knop('d-inplannen','+ Inplannen',false)}</div></div>
+      return `<a class="terug" data-act="terug">‹ terug naar de lijst</a><div class="dkop"><div><h2>${esc(D.soort)} · week ${D.week}</h2><span>${esc(D.samenvatting.week)}</span></div><div class="acts">${D.week>1?knop('d-vorige',`‹ wk ${D.week-1}`):''}${D.week<D.weken?knop('d-volgende',`wk ${D.week+1} ›`):''}${knop('d-inplannen','+ Inplannen',false)}</div></div>
         <div class="dtabs">${tabs.map(([k,x])=>`<a class="${tab===k?'act':''}" data-tab="${k}">${x}</a>`).join('')}</div>
         <div class="dgrid"${tab==='week'?'':' style="grid-template-columns:1fr"'}>${inhoud}</div>`;
     },
@@ -189,9 +189,9 @@
     const rij=t.closest('.r[data-soort]');if(rij)return laadDetail(rij.dataset.soort);
     const tab=t.closest('[data-tab]');if(tab){TAB=tab.dataset.tab;return laadDetail(SOORT,true);}
     if(t.closest('[data-act="terug"]')){$('body').classList.remove('toon-detail');return;}
+    if(t.id==='leeg-inplannen')return inplannen(''); // TF10: werkt ook zonder gekozen sport (lege week); stond eerder achter de guard `if(!D)return`
     if(!D)return;
     if(t.id==='d-vorige'||t.id==='d-volgende'){WEEK=Math.max(1,Math.min(D.weken,WEEK+(t.id==='d-vorige'?-1:1)));MODE==='week'&&(W=null);return laad();}
-    if(t.id==='leeg-inplannen')return inplannen('');
     if(t.id==='d-inplannen')return inplannen(D.soort);
     if(t.id==='d-naarweek'){MODE='week';TAB='week';FILTER='alle';return laad();}
     const nw=t.closest('[data-naarweek],[data-oplossen]');if(nw){WEEK=+(nw.dataset.naarweek||nw.dataset.oplossen);MODE='week';TAB='week';FILTER='alle';return laad();}

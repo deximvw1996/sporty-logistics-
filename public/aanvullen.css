@@ -1,7 +1,7 @@
 /* public/aanvullen.css — AV1: Aanvullen (design/mockup-aanvullen-gsm.html, gsm-deel). Eén kolom: op de gsm de volle breedte, op desktop 480 px gecentreerd onder de bovenbalk van nav.js. */
 body{background:#f5f5f5}
 button{font:inherit;cursor:pointer;border:0}
-.av{max-width:480px;margin:0 auto;min-height:calc(100vh - 56px);display:flex;flex-direction:column;background:#f5f5f5;font-size:15px;color:#1a1a1a}
+.av{max-width:480px;margin:0 auto;min-height:calc(100vh - var(--tk-h,0px) - 56px);display:flex;flex-direction:column;background:#f5f5f5;font-size:15px;color:#1a1a1a}
 .av .knop{height:44px;padding:0 16px;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;font-size:15px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;cursor:pointer}
 .av .licht.knop{background:#e8eefc;color:#1e3a8a}.av .knop.klein{height:44px;min-width:44px;padding:0 12px;font-size:14px}.av .knop:disabled{opacity:.4;cursor:default}
 .av .pil{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:#e2e8f0;color:#334155;white-space:nowrap;display:inline-block;margin-left:6px}
