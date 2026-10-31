@@ -829,6 +829,7 @@ module.exports = function(ctx){
         if(r.bak_id||r.attribuut_id)run('UPDATE transport_regels SET verplaatsing_uitgevoerd=1 WHERE id=?',[r.id]);
       });
     }
+    if(oudStatus!=='gedaan'&&_isVerhuis(taak))_setsVolgen(req,taak);
     _sluitRitAlsKlaar(req,taak.rit_id,context);
     return {taak:get('SELECT * FROM transport_taken WHERE id=?',[taak.id])};
   }
@@ -923,7 +924,8 @@ module.exports = function(ctx){
   // lost bij een levering/transfer, laadt bij een ophaling; het maximum over de stops in volgorde.
   function _ritBezetting(ritId){
     const taken=all("SELECT id,type FROM transport_taken WHERE rit_id=? AND status<>'geannuleerd' ORDER BY COALESCE(volgorde,1000000),COALESCE(tijd,''),id",[ritId]);
-    const q=t=>get('SELECT COALESCE(SUM(qty),0) AS q FROM transport_regels WHERE taak_id=?',[t.id]).q;
+    // TF5 G8: capaciteit telt plaatsen: een bulkregel neemt één plaats, ongeacht het aantal stuks erin.
+    const q=t=>get('SELECT COALESCE(SUM(CASE WHEN b.is_bulk=1 THEN 1 ELSE r.qty END),0) AS q FROM transport_regels r LEFT JOIN bakken b ON b.id=r.bak_id WHERE r.taak_id=?',[t.id]).q;
     let boord=taken.filter(t=>t.type!=='ophaling').reduce((s,t)=>s+q(t),0),max=boord;
     taken.forEach(t=>{boord+=t.type==='ophaling'?q(t):-q(t);if(boord>max)max=boord;});
     return max;
@@ -938,7 +940,7 @@ module.exports = function(ctx){
     const w=[];
     // TF1 G12: capaciteit is enkel een waarschuwing zolang de rit nog moet rijden (gedaan → stille notitie, zie _ritPlanInfo).
     const nogTeRijden=!['gedaan','geannuleerd'].includes(rit.status);
-    if(nogTeRijden&&rit.voertuig_capaciteit&&x.bezetting>rit.voertuig_capaciteit)w.push(`${x.bezetting} stuks op ${rit.voertuig_capaciteit} plaatsen`);
+    if(nogTeRijden&&rit.voertuig_capaciteit&&x.bezetting>rit.voertuig_capaciteit)w.push(`${x.bezetting} bakken op ${rit.voertuig_capaciteit} plaatsen`);
     // TF1 G5: een rit zonder chauffeur of voertuig (bv. een spoedrit uit "Goedkeuren + spoed") vraagt om een keuze.
     if(nogTeRijden&&!(rit.chauffeur||'').trim()&&!rit.personeel_id)w.push('geen chauffeur');
     if(nogTeRijden&&!(rit.voertuig||'').trim())w.push('geen voertuig');
@@ -1028,6 +1030,7 @@ module.exports = function(ctx){
     const ctxt=context||_ritCtx(rit.id,`${_dagTekst(rit.datum,oud.vertrek)} → ${_dagTekst(datum,_hm(nieuwM??0))}`);
     updateMetLog(req,'UPDATE transport_ritten SET datum=?,vertrek=? WHERE id=?',[datum,nieuwM!=null?_hm(nieuwM):(rit.vertrek||''),rit.id],ctxt);
     _takenVanRit(rit.id).forEach(t=>{const m=_min(t.tijd);
+      if(t.status==='gedaan')return; // TF5 G3: een afgeronde stop blijft op zijn tijd
       updateMetLog(req,'UPDATE transport_taken SET datum=?,tijd=? WHERE id=?',[dDagen?_plusDagen(t.datum||rit.datum,dDagen):(t.datum||datum),m!=null?_hm(Math.max(0,m+dMin)):t.tijd,t.id],ctxt);});
     return ctxt;
   }
@@ -1163,6 +1166,7 @@ module.exports = function(ctx){
     if(rv.velden.voertuig!==undefined)voertuig=rv.velden.voertuig; // VT1: voertuig_id bepaalt de naam
     // RP2: verandert het vertrek (of de datum met een vertrek), dan schuiven de stops mee — één functie met /verplaats.
     if(rv.velden.vertrek&&rv.velden.vertrek!==_ritTijden(rit).vertrek){
+      if(ctx.meldRitGewijzigd)setImmediate(()=>ctx.meldRitGewijzigd(req,rit.id,'vertrektijd aangepast')); // TF5 G3
       _verschuifRit(req,rit,datum||rit.datum,rv.velden.vertrek);delete rv.velden.vertrek;datum=undefined;rit.datum=get('SELECT datum FROM transport_ritten WHERE id=?',[rit.id]).datum;}
     _zetRitVelden(req,req.params.id,rv.velden);
     updateMetLog(req,'UPDATE transport_ritten SET datum=?,chauffeur=?,personeel_id=?,opmerking=?,status=?,voertuig=? WHERE id=?',
@@ -1282,8 +1286,18 @@ module.exports = function(ctx){
     const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
     if(rit&&ctx.meldRitKlaar)ctx.meldRitKlaar(req,rit.id); // TF3 G28
     const bez=rit?_ritBezetting(rit.id):0, over=!!(rit&&rit.voertuig_capaciteit&&bez>rit.voertuig_capaciteit);
-    if(over)logAct('transport','klaargezet boven capaciteit',`Rit #${rit.id} klaargezet met ${bez} stuks op ${rit.voertuig_capaciteit} plaatsen${req.body?.bevestigd_over_capaciteit?' — bevestigd':' — zonder bevestiging'} door ${naam}`,null,null);
+    if(over)logAct('transport','klaargezet boven capaciteit',`Rit #${rit.id} klaargezet met ${bez} bakken op ${rit.voertuig_capaciteit} plaatsen${req.body?.bevestigd_over_capaciteit?' — bevestigd':' — zonder bevestiging'} door ${naam}`,null,null);
     res.json({ok:true,klaarzet_door:naam,klaarzet_op:tijdstip,over_capaciteit:over,bezetting:bez,capaciteit:rit?rit.voertuig_capaciteit:null});
+  });
+
+  // TF5 punt 3: terug op niet-klaargezet zolang de rit niet gestart is; de bestuurder krijgt een melding en ziet de rit niet meer.
+  app.post('/api/ritten/:id/klaarzet-terug',alleenKantoor,(req,res)=>{
+    const rit=get('SELECT * FROM transport_ritten WHERE id=?',[req.params.id]);
+    if(!rit)return res.status(404).json({error:'Rit niet gevonden'});
+    if((rit.status&&rit.status!=='gepland')||get('SELECT id FROM verhuis_checks WHERE rit_id=? AND (geladen=1 OR gelost=1) LIMIT 1',[rit.id]))return res.status(409).json({error:'Deze rit is al gestart: terugzetten kan niet meer.'});
+    updateMetLog(req,"UPDATE transport_ritten SET klaarzet_status='',klaarzet_door='',klaarzet_op='' WHERE id=?",[rit.id],'klaarzetten teruggedraaid');
+    if(ctx.meldRitNietKlaar)ctx.meldRitNietKlaar(req,rit);
+    res.json({ok:true});
   });
 
   // ── S3.6: chauffeurspagina interactief — twee vink-fases per bak/attribuut ──
@@ -1327,48 +1341,86 @@ module.exports = function(ctx){
     });
   }
   function _ritVanToken(token){ return get('SELECT * FROM transport_ritten WHERE rit_token=?',[token]); }
+  // TF5 punt 3: vóór klaarzetten toont de rit-link alleen dat de rit nog niet klaarstaat; een rit die al gestart is blijft werken.
+  const _nogNietKlaar=r=>r&&r.klaarzet_status!=='klaar'&&(!r.status||r.status==='gepland');
+  app.use('/api/rit-token/:token',(req,res,next)=>{
+    const r=_ritVanToken(req.params.token);
+    if(!_nogNietKlaar(r))return next();
+    if(req.method==='GET')return res.json({niet_klaargezet:true,rit:{id:r.id,datum:r.datum}});
+    return res.status(409).json({error:'Deze rit is nog niet klaargezet.'});
+  });
+  // gezet = true/false zet de stand; zonder gezet wisselt de stand zoals vroeger.
+  function _zetGeladen(req,rit,check,gezet){
+    const nieuw=(gezet===undefined?!check.geladen:!!gezet)?1:0;
+    if(nieuw===(check.geladen?1:0))return {check};
+    if(nieuw&&check.niet_mee_reden&&!check.rest_gesplitst)return {fout:'Dit stuk staat op "niet mee" — draai dat eerst terug',status:409,code:'niet_mee'};
+    updateMetLog(req,'UPDATE verhuis_checks SET geladen=?,geladen_door=?,geladen_op=? WHERE id=?',[nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id],'rit-link');
+    // V3a punt 2: eerste stuk geladen → rit 'onderweg'
+    if(nieuw&&(!rit.status||rit.status==='gepland')){updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[rit.id],'rit-link');rit.status='onderweg';}
+    if(check.taak_id){
+      const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=? AND (niet_mee_reden IS NULL OR rest_gesplitst=1)',[check.taak_id]);
+      const alleGeladen=groep.length>0&&groep.every(c=>c.id===check.id?nieuw:c.geladen);
+      if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg',rit,req);
+    }
+    return {check:get('SELECT * FROM verhuis_checks WHERE id=?',[check.id])};
+  }
+  function _zetGelost(req,rit,check,gezet,toch){
+    const nieuw=(gezet===undefined?!check.gelost:!!gezet)?1:0;
+    if(nieuw===(check.gelost?1:0))return {check};
+    if(nieuw&&check.niet_mee_reden&&!check.rest_gesplitst)return {fout:'Dit stuk staat op "niet mee": het is niet meegegaan. Draai dat eerst terug.',status:409,code:'niet_mee'};
+    if(nieuw&&!check.geladen){
+      if(!toch)return {fout:'Dit stuk staat nog niet op geladen.',status:409,code:'niet_geladen'};
+      const g=_zetGeladen(req,rit,check,true);if(g.fout)return g;check=g.check; // TF5 G7: scherm en data zeggen hetzelfde
+    }
+    // V3a: is dit het laatste stuk van de stop, dan eerst controleren of de taak af kan (bulk-voorraad op de bron) — anders 409 en blijft het vinkje uit.
+    let groep=[],taak=null,wordtVolledig=false;
+    if(check.taak_id){
+      taak=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
+      groep=all('SELECT * FROM verhuis_checks WHERE taak_id=? AND (niet_mee_reden IS NULL OR rest_gesplitst=1)',[check.taak_id]); // CH1: niet-mee telt niet
+      wordtVolledig=nieuw&&groep.length>0&&groep.every(c=>c.id===check.id?nieuw:c.gelost);
+      if(wordtVolledig&&taak&&taak.status!=='gedaan'){const f=_controleerTaakAf(taak);if(f)return {fout:f,status:409};}
+      // TF5: lossen vóór aankomst geeft de aankomst automatisch door.
+      if(nieuw&&taak&&(!taak.status||taak.status==='gepland'))updateMetLog(req,"UPDATE transport_taken SET status='aangekomen' WHERE id=?",[taak.id],'rit-link: aankomst bij lossen');
+    }
+    updateMetLog(req,'UPDATE verhuis_checks SET gelost=?,gelost_door=?,gelost_op=? WHERE id=?',[nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id],'rit-link');
+    // Alle regels van de stop gelost → taak 'gedaan' met exact dezelfde boekhouding als de kantoorknop. (Een vinkje terug uitzetten draait een afgeronde taak NIET terug — dat doet kantoor.)
+    if(wordtVolledig&&taak&&taak.status!=='gedaan'){
+      const r=_rondTaakAf(req,taak.id,'rit-link');
+      if(r.fout){run('UPDATE verhuis_checks SET gelost=0,gelost_door=?,gelost_op=? WHERE id=?',['','',check.id]);return {fout:r.fout,status:r.status};}
+    }
+    return {check:get('SELECT * FROM verhuis_checks WHERE id=?',[check.id])};
+  }
+  const _geefAntw=(res,u)=>u.fout?res.status(u.status).json({error:u.fout,code:u.code}):res.json(u.check);
   app.post('/api/rit-token/:token/checks/:checkId/laden',(req,res)=>{
     const rit=_ritVanToken(req.params.token);
     if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
     const check=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
     if(!check||check.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
-    if(check.niet_mee_reden&&!check.rest_gesplitst)return res.status(409).json({error:'Dit stuk staat op "niet mee" — draai dat eerst terug'});
-    const nieuw=check.geladen?0:1;
-    run('UPDATE verhuis_checks SET geladen=?,geladen_door=?,geladen_op=? WHERE id=?',
-      [nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id]);
-    // V3a punt 2: eerste stuk geladen → rit 'onderweg'
-    if(nieuw&&(!rit.status||rit.status==='gepland'))updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[rit.id],'rit-link');
-    if(check.taak_id){
-      const groep=all('SELECT * FROM verhuis_checks WHERE taak_id=? AND (niet_mee_reden IS NULL OR rest_gesplitst=1)',[check.taak_id]);
-      const alleGeladen=groep.length>0 && groep.every(c=>c.id===check.id?nieuw:c.geladen);
-      if(alleGeladen)_pasBakAttribuutStatusToe(groep,'onderweg',rit,req);
-    }
-    res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
+    _geefAntw(res,_zetGeladen(req,rit,check,req.body?.gezet));
   });
   app.post('/api/rit-token/:token/checks/:checkId/lossen',(req,res)=>{
     const rit=_ritVanToken(req.params.token);
     if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
     const check=get('SELECT * FROM verhuis_checks WHERE id=?',[req.params.checkId]);
     if(!check||check.rit_id!==rit.id)return res.status(403).json({error:'Deze regel hoort niet bij deze rit'});
-    const nieuw=check.gelost?0:1;
-    // V3a: is dit het laatste stuk van de stop, dan eerst controleren of de taak af kan (bulk-voorraad
-    // op de bron) — anders 409 en blijft het vinkje uit.
-    let groep=[],taak=null,wordtVolledig=false;
-    if(check.taak_id){
-      taak=get('SELECT * FROM transport_taken WHERE id=?',[check.taak_id]);
-      groep=all('SELECT * FROM verhuis_checks WHERE taak_id=? AND (niet_mee_reden IS NULL OR rest_gesplitst=1)',[check.taak_id]); // CH1: niet-mee telt niet
-      wordtVolledig=nieuw&&groep.length>0&&groep.every(c=>c.id===check.id?nieuw:c.gelost);
-      if(wordtVolledig&&taak&&taak.status!=='gedaan'){const f=_controleerTaakAf(taak);if(f)return res.status(409).json({error:f});}
-    }
-    run('UPDATE verhuis_checks SET gelost=?,gelost_door=?,gelost_op=? WHERE id=?',
-      [nieuw,nieuw?(rit.chauffeur||''):'',nieuw?now():'',check.id]);
-    // Alle regels van de stop gelost → taak 'gedaan' met exact dezelfde boekhouding als de kantoorknop.
-    // (Een vinkje terug uitzetten draait een afgeronde taak NIET terug — dat doet kantoor.)
-    if(wordtVolledig&&taak&&taak.status!=='gedaan'){
-      const r=_rondTaakAf(req,taak.id,'rit-link');
-      if(r.fout){run('UPDATE verhuis_checks SET gelost=0,gelost_door=?,gelost_op=? WHERE id=?',['','',check.id]);return res.status(r.status).json({error:r.fout});}
-    }
-    res.json(get('SELECT * FROM verhuis_checks WHERE id=?',[check.id]));
+    _geefAntw(res,_zetGelost(req,rit,check,req.body?.gezet,!!req.body?.toch));
+  });
+  // TF5 punt 5: "Alles geladen/gelost" voor een rek, een stop of het laadblok. Slaat "past niet" over en, bij lossen, wat niet geladen is. Eén handeling in het log plus elke regel.
+  app.post('/api/rit-token/:token/alles',(req,res)=>{
+    const rit=_ritVanToken(req.params.token);
+    if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
+    const b=req.body||{},actie=b.actie,gezet=b.gezet===undefined?true:!!b.gezet,ids=Array.isArray(b.check_ids)?b.check_ids.map(Number).filter(Boolean):[];
+    if(!['laden','lossen'].includes(actie)||!ids.length)return res.status(400).json({error:'Kies laden of lossen en minstens één regel'});
+    const verwerkt=[];let overgeslagen=0,fout='';
+    ids.forEach(id=>{
+      const c=get('SELECT * FROM verhuis_checks WHERE id=?',[id]);
+      if(!c||c.rit_id!==rit.id||(gezet&&c.niet_mee_reden&&!c.rest_gesplitst)||(gezet&&actie==='lossen'&&!c.geladen)){overgeslagen++;return;}
+      const u=actie==='laden'?_zetGeladen(req,rit,c,gezet):_zetGelost(req,rit,c,gezet,false);
+      if(u.fout){fout=fout||u.fout;overgeslagen++;return;}
+      verwerkt.push(id);
+    });
+    if(verwerkt.length)logAct('transport',(gezet?'alles ':'ongedaan: ')+(actie==='laden'?'geladen':'gelost'),`${rit.chauffeur||'Chauffeur'}: ${verwerkt.length} stuk${verwerkt.length===1?'':'ken'} in één keer ${gezet?'':'terug van '}${actie==='laden'?'geladen':'gelost'} (rit #${rit.id})`,null,null);
+    res.json({ok:true,verwerkt,overgeslagen,fout});
   });
   // V3a punt 2: chauffeur meldt "aangekomen" per stop.
   app.post('/api/rit-token/:token/taken/:taakId/aangekomen',(req,res)=>{
@@ -1378,6 +1430,8 @@ module.exports = function(ctx){
     if(!taak||taak.rit_id!==rit.id)return res.status(403).json({error:'Deze stop hoort niet bij deze rit'});
     if(taak.status!=='gedaan')updateMetLog(req,"UPDATE transport_taken SET status='aangekomen' WHERE id=?",[taak.id],'rit-link');
     if(!rit.status||rit.status==='gepland')updateMetLog(req,"UPDATE transport_ritten SET status='onderweg' WHERE id=?",[rit.id],'rit-link');
+    // TF5 G1: een stop zonder regels loopt niet dood: aankomen is ook afronden.
+    if(taak.status!=='gedaan'&&!get('SELECT id FROM verhuis_checks WHERE taak_id=? LIMIT 1',[taak.id])&&!get('SELECT id FROM transport_regels WHERE taak_id=? LIMIT 1',[taak.id]))_rondTaakAf(req,taak.id,'rit-link');
     res.json(get('SELECT * FROM transport_taken WHERE id=?',[taak.id]));
   });
 
@@ -1449,7 +1503,7 @@ module.exports = function(ctx){
           geladen:!!c.geladen, gelost:!!c.gelost, aantal_geladen:isBulk?(c.geladen?(c.qty||0):0):null,
           niet_mee:c.niet_mee_reden?{reden:c.niet_mee_reden,opmerking:c.niet_mee_opmerking||'',aantal:c.niet_mee_aantal||0}:null};
       });
-      return {taak_id:t.id, volgorde:t.volgorde, slot:t.slot||'vast', tijd:t.tijd||'', type:t.type||'', status:t.status||'gepland',
+      return {taak_id:t.id, volgorde:t.volgorde, slot:t.slot||'vast', tijd:t.tijd||'', type:t.type||'', verhuis:_isVerhuis(t), status:t.status||'gepland',
         opmerking:t.opmerking||'',
         van:{id:t.van_locatie_id||null,naam:_locNaam(t.van_locatie_id)}, naar:{id:t.naar_locatie_id||null,naam:_locNaam(t.naar_locatie_id)},
         locatie:loc?{id:loc.id,naam:loc.name,adres:loc.addr||'',contact_naam:loc.contact_naam||'',contact_telefoon:loc.contact_tel||'',sleutel_info:loc.sleutel_info||''}:null,
@@ -1457,14 +1511,17 @@ module.exports = function(ctx){
         regels};
     });
     const huidige=stops.find(s=>s.status!=='gedaan');
-    return {rit:{id:rit.id,datum:rit.datum,chauffeur:rit.chauffeur||'',voertuig:rit.voertuig||'',status:rit.status||'gepland'},
+    return {rit:{id:rit.id,datum:rit.datum,chauffeur:rit.chauffeur||'',voertuig:rit.voertuig||'',status:rit.status||'gepland',vertrek:_ritTijden(rit).vertrek},
       voortgang:{stops:stops.length,stops_gedaan:stops.filter(s=>s.status==='gedaan').length,huidige_stop:huidige?huidige.volgorde:null,stuks,geladen,gelost},
       stops};
   }
   app.get('/api/rit-token/:token/data',(req,res)=>{
     const rit=_ritVanToken(req.params.token);
     if(!rit)return res.status(403).json({error:'Ongeldig of verlopen token'});
-    res.json({..._ritData(rit),kantoor:ctx.kantoorContact?ctx.kantoorContact():null}); // BH2: "Bel kantoor" op de rit-pagina
+    // TF5: meldingenteller van de bestuurder op de rit.
+    const _p=rit.personeel_id?get('SELECT id,rol FROM personeel WHERE id=?',[rit.personeel_id]):ctx.persoonOpNaam&&ctx.persoonOpNaam(rit.chauffeur);
+    const _rol=_p?(_p.rol||(get('SELECT rol FROM personeel WHERE id=?',[_p.id])||{}).rol):'';
+    res.json({..._ritData(rit),kantoor:ctx.kantoorContact?ctx.kantoorContact():null,meldingen_ongelezen:_p&&ctx.meldingenVan?ctx.meldingenVan({persoon_id:_p.id,rol:_rol},true).length:0}); // BH2: "Bel kantoor" op de rit-pagina
   });
 
   // Punt 3: "past niet / niet gevonden / kapot" per stuk → rest-taak (zonder rit, slot vrij) voor kantoor.
@@ -1663,6 +1720,22 @@ module.exports = function(ctx){
     });
     return n;
   }
+  // TF5 punt 4: een verhuistaak (sportset of type verhuis) heeft eigen afvinkbare regels: één per set, of één regel met de omschrijving.
+  const _isVerhuis=t=>t.type==='verhuis'||String(t.categorie||'').startsWith('sv:');
+  const _svDeel=t=>/^Sport verhuis: (.+?) \(([^)]*)\) van /.exec(t.opmerking||'');
+  function _maakVerhuisRegels(t){
+    const m=_svDeel(t);
+    const namen=m?m[2].split(',').map(x=>x.trim()).filter(Boolean).map(x=>m[1]+' '+x):[t.opmerking||'Verhuistaak'];
+    namen.forEach(n=>ins('INSERT INTO transport_regels (taak_id,naam,qty,soort) VALUES (?,?,?,?)',[t.id,n,1,'sport']));
+  }
+  // Waar staat de set: bij afronden volgt sport_sets.locatie_id.
+  function _setsVolgen(req,t){
+    const m=_svDeel(t);if(!m||!t.naar_locatie_id)return;
+    m[2].split(',').map(x=>x.trim()).filter(Boolean).forEach(l=>{
+      const set=get("SELECT ss.id FROM sport_sets ss JOIN sport_items si ON si.id=ss.item_id WHERE ss.label=? AND si.name LIKE ? ORDER BY ss.id",[l,m[1]+'%']);
+      if(set)updateMetLog(req,'UPDATE sport_sets SET locatie_id=? WHERE id=?',[t.naar_locatie_id,set.id],'verhuistaak #'+t.id);
+    });
+  }
   function _zorgVoorChecks(rit){
     _syncChecksRit(rit.id);
     const taken=all('SELECT * FROM transport_taken WHERE rit_id=?',[rit.id]);
@@ -1671,6 +1744,7 @@ module.exports = function(ctx){
       if(get('SELECT id FROM verhuis_checks WHERE taak_id=? LIMIT 1',[t.id]))return;
       let regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]);
       if(!regels.length&&t.type==='ophaling'&&_leidOphaalRegelsAf(t))regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]);
+      if(!regels.length&&_isVerhuis(t)){_maakVerhuisRegels(t);regels=all('SELECT * FROM transport_regels WHERE taak_id=?',[t.id]);}
       regels.forEach(r=>ins('INSERT INTO verhuis_checks (rit_id,item_naam,item_soort,qty,status,sort_order,item_type_id,bak_id,attribuut_id,taak_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
         [rit.id,r.naam,r.soort||'andere',r.qty||1,'wacht',volg++,r.item_type_id||resolveItemTypeId(r.naam,undefined,false),r.bak_id||null,r.attribuut_id||null,t.id]));
     });

@@ -160,6 +160,7 @@ try {
   const av = (await A('GET', '/api/aanvullijst')).json.bakken.find((x) => x.sessie_id === rij.sessie_id);
   T.check(av && av.handelingen.length === 1 && av.handelingen[0].soort === 'afschrijven' && av.handelingen[0].stuk === attr.naam, `aanvullijst toont de handeling: ${av?.handelingen[0]?.stuk} → ${av?.handelingen[0]?.soort}`);
   await kv('POST', '/attributen/4/status', { status: 'aanwezig' });
+  await kv('POST', '/versturen', {}); // TF5: een natelling telt bij het volgende versturen
   const n4 = (await db("SELECT kapot_aantal FROM nakijk_regels nr JOIN nakijk_sessies ns ON ns.id=nr.sessie_id WHERE ns.bak_type='attribuut' AND ns.attribuut_id=4 AND ns.kampmoment_id=?", [km]));
   T.check(n4.length === 1 && n4[0].kapot_aantal === 0, 'terug op aanwezig na een kantoor-actie: de regel blijft, maar niet meer kapot');
   // berichten van kantoor

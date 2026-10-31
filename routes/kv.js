@@ -68,7 +68,7 @@ module.exports = function(ctx){
         else insMetLog(req,'INSERT INTO nakijk_regels (sessie_id,item_naam,item_id,verwacht,aangetroffen,ontbreekt,is_kapot,kapot_aantal) VALUES (?,?,NULL,1,1,0,1,1)',[s.id,v.item_naam],'KV natelling');
         return true;
       }
-      if(regel&&!regel.kantoor_actie)updateMetLog(req,'UPDATE nakijk_regels SET kapot_aantal=0,is_kapot=0 WHERE id=?',[regel.id],'KV natelling');
+      if(regel)updateMetLog(req,'UPDATE nakijk_regels SET kapot_aantal=0,is_kapot=0 WHERE id=?',[regel.id],'KV natelling');
       return false;
     }
     const r=get('SELECT * FROM nakijk_regels WHERE sessie_id=? AND item_id=?',[s.id,v.item_id]);
@@ -152,8 +152,7 @@ module.exports = function(ctx){
       kampNaam:(loc?loc.name:'?')+' — week '+km.week,
       kampLocatie:loc?loc.name:'', week:km.week, dagen, kvNaam:_kvNaam(km), monitor,
       bakken:bakkenOut, attributen:attributenOut, link_stand:linkStand, einde:_kvEinde(km),
-      verstuurd:(l=>l?{op:l.op,wie:l.wie}:null)(_laatsteVerstuurd(km.id)), niet_verstuurd:_wijzigingen(km.id).length,
-      kantoor:{telefoon:(get("SELECT waarde FROM app_vlaggen WHERE naam='kantoor_telefoon'")||{}).waarde||''}
+      verstuurd:(l=>l?{op:l.op,wie:l.wie}:null)(_laatsteVerstuurd(km.id)), niet_verstuurd:_wijzigingen(km.id).length
     };
     if(monitor)return res.json(basis); // monitor-stand: enkel het telscherm
     // Monitor-link voor dit kampmoment (lazy aangemaakt, zelfde opzet als kv_token).

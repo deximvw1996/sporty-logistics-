@@ -47,6 +47,7 @@ try {
   await P('POST', `/api/rit-token/${rt}/taken/${taakId}/probleem`, { soort: 'gesloten', tekst: 'deur Me1' });
   T.check((await nieuw(tok, /deur Me1/)).length === 1 && (await nieuw(lot.tok, /deur Me1/)).length === 0, 'chauffeur meldt iets → één melding voor kantoor');
   const ritR = (await A('GET', '/api/ritten')).json.find((r) => r.id === ritId);
+  await A('POST', `/api/ritten/${ritId}/klaarzet-terug`, {}); // TF5: T.ritToken zet klaar; hier hoort de rit nog niet klaar te staan
   await A('PUT', `/api/ritten/${ritId}`, { voertuig: 'Me wagen' });
   T.check((await nieuw(jan.tok, /is gewijzigd/)).length === 0, 'rit gewijzigd die nog niet klaarstond → geen melding');
   await A('POST', `/api/ritten/${ritId}/klaarzet`, {});
@@ -93,6 +94,7 @@ try {
   // ── punt 2 ──
   const r2 = (await A('POST', '/api/ritten', { datum: ritR.datum, chauffeur: 'me JAN', opmerking: 'op naam' })).json;
   const r3 = (await A('POST', '/api/ritten', { datum: ritR.datum, chauffeur: 'Onbekend Me', opmerking: 'x' })).json;
+  await A('POST', `/api/ritten/${r2.id}/klaarzet`, {}); await A('POST', `/api/ritten/${r3.id}/klaarzet`, {}); // TF5: pas na klaarzetten zichtbaar
   const jv2 = (await T.api(srv.base, jan.tok, 'GET', `/api/vandaag?mijn=1&datum=${ritR.datum}`)).json;
   T.check(jv2.ritten_vandaag.some((r) => r.id === r2.id) && !jv2.ritten_vandaag.some((r) => r.id === r3.id), 'rit op naam (hoofdletterongevoelig) verschijnt in Vandaag; onbekende naam niet');
   T.check(!(await T.leesDb(srv.dbPad, 'SELECT personeel_id FROM transport_ritten WHERE id=?', [r2.id]))[0]?.personeel_id, 'niets automatisch overschreven (personeel_id blijft leeg)');

@@ -40,7 +40,7 @@ module.exports = function(ctx){
   // Tien snelle wijzigingen = één melding: de ongelezen melding van de laatste 2 minuten voor dezelfde rit en persoon wordt bijgewerkt.
   function ritGewijzigd(req,ritOfId,wat){
     const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritOfId&&ritOfId.id||ritOfId]);
-    if(!r||r.klaarzet_status!=='klaar'||['gedaan','geannuleerd'].includes(r.status))return;
+    if(!r||(r.klaarzet_status!=='klaar'&&r.status!=='onderweg')||['gedaan','geannuleerd'].includes(r.status))return; // TF5 G4: een gestarte rit krijgt altijd een melding
     const pid=pidVan(r);if(zelf(req,pid))return;
     const prefix=`Rit #${r.id} `,recent=all('SELECT * FROM meldingen WHERE voor_persoon_id=? AND gelezen_op IS NULL ORDER BY id DESC LIMIT 20',[pid]).find(m=>m.tekst.startsWith(prefix)&&Date.now()-new Date(m.created_at).getTime()<SAMEN_MS);
     const oud=recent&&recent.tekst.includes(' is gewijzigd: ')?recent.tekst.split(' is gewijzigd: ')[1].split(', '):[];
@@ -55,11 +55,12 @@ module.exports = function(ctx){
     const pid=pidVan(r);if(zelf(req,pid))return;
     melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst:`${ritKop(r)} staat voor je klaar`,link:ritLink(r)});
   }
+  function ritNietKlaar(req,r){const pid=pidVan(r);if(!zelf(req,pid))melding(req,{voor_persoon_id:pid,van_naam:'Kantoor',tekst:`${ritKop(r)} staat niet meer klaar: kantoor past ze nog aan`,link:'/vandaag?tab=ritten'});}
   // Bestuurderswissel na klaarzetten: de oude én de nieuwe krijgen er één. Geeft true als er gewisseld is.
   function ritBestuurder(req,voor,ritId){
     const r=get('SELECT * FROM transport_ritten WHERE id=?',[ritId]);if(!r)return false;
     const oud=pidVan(voor),nw=pidVan(r);
-    if(oud===nw||r.klaarzet_status!=='klaar')return false;
+    if(oud===nw||(r.klaarzet_status!=='klaar'&&r.status!=='onderweg'))return false;
     if(!zelf(req,oud))melding(req,{voor_persoon_id:oud,van_naam:'Kantoor',tekst:`${ritKop(r)} rijd je niet meer: een andere bestuurder neemt ze over`,link:'/vandaag?tab=ritten'});
     if(!zelf(req,nw))melding(req,{voor_persoon_id:nw,van_naam:'Kantoor',tekst:`${ritKop(r)} is aan jou toegewezen`,link:ritLink(r)});
     return true;
@@ -76,7 +77,7 @@ module.exports = function(ctx){
     else if(!get('SELECT id FROM meldingen_gelezen WHERE melding_id=? AND persoon_id=?',[m.id,req.persoon.persoon_id]))
       insMetLog(req,'INSERT INTO meldingen_gelezen (melding_id,persoon_id,gelezen_op) VALUES (?,?,?)',[m.id,req.persoon.persoon_id,isoNu()],'melding gelezen');
   }
-  Object.assign(ctx,{melding,meldingenVan:vanPersoon,persoonOpNaam,meldRitGewijzigd:ritGewijzigd,meldRitKlaar:ritKlaar,meldRitBestuurder:ritBestuurder});
+  Object.assign(ctx,{melding,meldingenVan:vanPersoon,persoonOpNaam,meldRitGewijzigd:ritGewijzigd,meldRitKlaar:ritKlaar,meldRitBestuurder:ritBestuurder,meldRitNietKlaar:ritNietKlaar});
 
   app.get('/api/meldingen',(req,res)=>{const l=vanPersoon(req.persoon,false);res.json({meldingen:l,ongelezen:l.filter(m=>!m.gelezen).length});});
   app.get('/api/meldingen/ontvangers',alleenKantoor,(req,res)=>res.json({rollen:ROLLEN,personen:all("SELECT id,naam,rol FROM personeel WHERE COALESCE(actief,1)=1 AND rol<>'kv' ORDER BY naam")}));
@@ -98,5 +99,37 @@ module.exports = function(ctx){
     logAct('melding','bericht',`Bericht van ${req.persoon.naam} aan ${pid?(get('SELECT naam FROM personeel WHERE id=?',[pid])||{}).naam:rol}: ${tekst}`,null,null);
     res.json({ok:true,id});
   });
+  // ── TF5 punt 6: coördinator zoekt op. Smalle leesroutes: alleen de velden hieronder, geen personeelsgegevens. Eén schrijfroute: bericht aan kantoor. ──
+  const _zoek=req=>String(req.query.q||'').trim().toLowerCase();
+  const _vandaag=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+  const _ln=id=>id?(get('SELECT name FROM locaties WHERE id=?',[id])||{}).name||'':'';
+  app.get('/api/opzoeken/bakken',(req,res)=>{
+    const q=_zoek(req);if(q.length<1)return res.json({bakken:[]});
+    res.json({bakken:all('SELECT id,code,naam,huidige_locatie_id,thuislocatie_id,status,rek,plank,is_bulk FROM bakken ORDER BY code,naam').filter(b=>(String(b.code||'')+' '+String(b.naam||'')).toLowerCase().includes(q)).slice(0,30).map(b=>{
+      const rit=get("SELECT tr.id,tr.datum,tr.vertrek,t.type FROM transport_regels r JOIN transport_taken t ON t.id=r.taak_id JOIN transport_ritten tr ON tr.id=t.rit_id WHERE r.bak_id=? AND t.status NOT IN ('gedaan','geannuleerd') AND tr.status NOT IN ('gedaan','geannuleerd') AND tr.datum>=? ORDER BY tr.datum,tr.vertrek LIMIT 1",[b.id,_vandaag()]);
+      const rek=b.rek||(/^[A-Za-z]/.test(b.code||'')?String(b.code)[0].toUpperCase():'');
+      return {id:b.id,code:b.code||'',naam:b.naam||'',locatie:_ln(b.huidige_locatie_id||b.thuislocatie_id),status:b.status||'',plaats:[rek?'rek '+rek:'',b.plank?'plank '+b.plank:''].filter(Boolean).join(' · '),rit:rit?{id:rit.id,datum:rit.datum,vertrek:rit.vertrek||'',type:rit.type||''}:null};
+    })});
+  });
+  app.get('/api/opzoeken/artikelen',(req,res)=>{
+    const q=_zoek(req),id=parseInt(req.query.id)||0;if(!q&&!id)return res.json({artikelen:[]});
+    res.json({artikelen:all('SELECT id,naam,eenheid,pool_plaats FROM item_types ORDER BY naam').filter(a=>id?a.id===id:String(a.naam||'').toLowerCase().includes(q)).slice(0,30).map(a=>({id:a.id,naam:a.naam,eenheid:a.eenheid||'',plaats:a.pool_plaats||'',
+      voorraad:all('SELECT l.name AS stockage,s.qty FROM item_type_stock s JOIN locaties l ON l.id=s.locatie_id WHERE s.item_type_id=? ORDER BY l.name',[a.id]),
+      bakken:all('SELECT b.code,b.naam FROM bak_items i JOIN bakken b ON b.id=i.bak_id WHERE i.item_type_id=? ORDER BY b.code LIMIT 10',[a.id])}))});
+  });
+  app.get('/api/opzoeken/locaties',(req,res)=>{
+    const q=_zoek(req);if(!q)return res.json({locaties:[]});
+    res.json({locaties:all('SELECT id,name,addr,gemeente,type,contact_naam,contact_tel,sleutel_info,lat,lng FROM locaties ORDER BY name').filter(l=>(String(l.name||'')+' '+String(l.addr||'')+' '+String(l.gemeente||'')).toLowerCase().includes(q)).slice(0,30).map(l=>({id:l.id,naam:l.name,adres:l.addr||'',type:l.type||'',contact_naam:l.contact_naam||'',contact_telefoon:l.contact_tel||'',sleutel_info:l.sleutel_info||'',
+      kaart:l.lat&&l.lng?`https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lng}`:l.addr?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.addr)}`:''}))});
+  });
+  app.get('/api/opzoeken/kantoor',(req,res)=>res.json({telefoon:(get("SELECT waarde FROM app_vlaggen WHERE naam='kantoor_telefoon'")||{}).waarde||''}));
+  app.post('/api/bericht-kantoor',(req,res)=>{
+    const tekst=String(req.body?.tekst||'').trim().slice(0,500);
+    if(!tekst)return res.status(400).json({error:'Schrijf eerst een korte tekst'});
+    const id=melding(req,{voor_rol:'kantoor',van_naam:req.persoon.naam,tekst});
+    logAct('melding','bericht',`Bericht van ${req.persoon.naam} aan kantoor: ${tekst}`,null,null);
+    res.json({ok:true,id});
+  });
+  app.get('/zoeken',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','zoeken.html')));
   app.get('/meldingen',(req,res)=>res.sendFile(path.join(ROOT_DIR,'public','meldingen.html')));
 };

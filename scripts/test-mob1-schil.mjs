@@ -65,6 +65,7 @@ try {
   const gen = (await A('POST', '/api/transport-genereer')).json;
   const vs = gen.find((v) => v.type === 'levering');
   const { ritId } = await T.voorstelNaarRit(srv.base, tok, vs, { chauffeur: { id: ch, naam: 'Mob Jan' } });
+  await A('POST', `/api/ritten/${ritId}/klaarzet`, {}); // TF5
   const dat = (await A('GET', `/api/ritten`)).json; const datum = (Array.isArray(dat) ? dat : []).find((r) => r.id === ritId)?.datum || vs.datum;
   const CH = (await T.api(srv.base, goed.json.token, 'GET', `/api/vandaag?mijn=1&datum=${datum}`)).json;
   T.check(CH.nu && CH.nu.soort === 'rit' && /^\/rit\/\w+/.test(CH.nu.url) && CH.nu.titel.startsWith(`Rit #${ritId}`) && CH.tellers.ritten === 1, `NU chauffeur (echte data): "${CH.nu && CH.nu.titel}" → ${CH.nu && CH.nu.url.slice(0, 6)}…`);
@@ -83,7 +84,7 @@ try {
   const G = require(T.ROOT + '/public/vandaag.js');
   const hc = G.scherm(CH, '');
   T.check(/class="kopA"/.test(hc) && /Hallo Mob Jan/.test(hc) && /class="nukaart"/.test(hc) && /Start ›/.test(hc) && /chauffeur · /.test(hc), `Vandaag chauffeur: ${t(hc).slice(0, 200)}`);
-  T.check(/Ritten/.test(G.scherm(CH, 'ritten')) && /\/rit\//.test(G.scherm(CH, 'ritten')) && /Geen open meldingen/.test(G.scherm(CH, 'meldingen')), 'tabs Ritten en Meldingen');
+  T.check(/Ritten/.test(G.scherm(CH, 'ritten')) && /\/rit\//.test(G.scherm(CH, 'ritten')) && /staat voor je klaar|Geen open meldingen/.test(G.scherm(CH, 'meldingen')), 'tabs Ritten en Meldingen');
   const MB = require(T.ROOT + '/public/meer.js');
   const mk = MB.html({ rol: 'kantoor', naam: 'Maxim' }, { naam: 'Herfst' }), mc = MB.html({ rol: 'chauffeur', naam: 'Jan' });
   T.check(['Planning', 'Materiaal', 'Locaties', 'Beheer', 'Uitloggen', 'Periode'].every((x) => mk.includes(x)), 'Meer kantoor: Planning, Materiaal, Locaties, Beheer, periode, profiel, uitloggen');
