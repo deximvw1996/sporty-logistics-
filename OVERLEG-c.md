@@ -2193,3 +2193,10 @@ Vaste en plakkende onderdelen schuiven automatisch onder de balk.
 2. Terug naar eerder: latere regels staan "in de toekomst"; niets crasht. Een gewiste rit of telling komt niet terug: de klok is geen tijdmachine voor de data.
 3. Op de testomgeving blijft een eerdere stand staan na herstart zolang niemand ⟲ tikt.
 4. De balk neemt 40 of 48 px; schermen van `100vh` krijgen zoveel extra verticale scroll.
+
+## TF11 — Rit krijgt inhoud, agenda klopt, geschatte eindtijd (chat C, 31/10)
+**Punt 1:** + Stop en + Materiaal op desktop en gsm (scherm per stap, knoppen 44 px of meer). Zoeken in bakken, attributen, sportsets, artikels, of vrije tekst. Regels wijzigen en verwijderen (409 als al geladen). Schrijft naar dezelfde taken, regels en checks; telling werkt bij. Bak elders of niet thuis: melding, geen verbod. Gelogd; klaargezette rit krijgt de gewone wijzigingsmelding.
+**Punt 2:** migratie 96 (`einde`, `einde_vorig`, `echte_start`, `echte_einde`). Blok volgt het einde; onderrand echt gesleept: 12:00 → 15:00, 38 → 75 px op 1366. Agenda groeit mee: 05:30 en 21:00 getest, uurkolom loopt gelijk met de kolom. Kop en kolom: x en breedte identiek op 1920 en 1366.
+**Punt 3:** geschat einde bij Nieuwe rit en in detail, oude schatting bewaard; met testklok op Vandaag: "geschat 15:00 · echt 17:20 · 2u20 langer".
+**Bewijs:** `test-tf11` 30/30; rp1, rp2, tf5, tf7, mob2 groen. Browser 1920, 1366, 375 (preset, geen 390) met `SPORTY_TESTKLOK=1`. Volle run 57/60 en 58/60: `v3c-fotos` en `veiligheid` rood zoals vóór TF5; in de eerste run brak `bh2-beheer` af zonder FOUT, in een eerdere `f1-schrijven` en `f1-wijzigingen` (apart groen).
+**Eerlijk:** de volle run is dus niet 2× volledig groen. Eén commit voor de drie punten, geen commit per punt: ze zitten in dezelfde bestanden verweven. Bij een lange dag (05–22) zijn korte blokken minstens 28 px hoog, dus een rit van 30 min oogt daar langer dan ze is. De ritdetailtekst "echt" is via de API en Vandaag gezien, niet op de gsm. De geschatte tijd op een gsm-klok is niet op een echt toestel getest.
