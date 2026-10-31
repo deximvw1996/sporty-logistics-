@@ -30,3 +30,10 @@ De app stelt de route voor met uitleg; kantoor beslist (nog door Maxim te bevest
 - Groepen: verbruiksmateriaal schaalt mee met het aantal groepen; meestal is de inhoud voorzien voor 2 groepen. Bakken zelf blijven gelijk. Per artikel is dus nodig: verbruik en "voorzien voor n groepen" (standaard 2).
 - Info invullen: hoofdchat leest de PDF-bundels, maakt een voorstel per thema, Maxim keurt goed.
 - Kamp en themadag: bijna altijd twee aparte versies met volledig gesplitste bakken. Ze kunnen op hetzelfde moment op twee locaties. Dus geen "dubbel"-melding tussen kamp- en themadagversie, en het blijven aparte thema's (wel koppelbaar als familie).
+
+## 5. Standaardmateriaal (Maxim 31/10)
+- Bron: foto's `D:\Sporty\Sporty data voor de app\Materiaal\20260625_195415.jpg` (Specifiek materiaal Kleuterklas Sporthal) en `20260625_195436.jpg` (lijst Sporthal Kessel-Lo: Van, Wat, Aantal, Opmerkingen; blokken Administratiemateriaal, Varia, Thema- en sportmateriaal). Oude db-backup bevat ook een korte lijst (Ehbo kist, Administratie kast, Muziekbox, Programmabord, Zak plastic ballen, Zak mousse ballen) en 18 locatie-regels.
+- Eén standaardlijst, en elke locatie een eigen aangepaste lijst (de meeste wijken af).
+- Vast verbruik per week; geen rekenwerk met kinderen; de KV meldt wat op is.
+- **Wijziging tijdens de open weken hangt af van locatie, materiaal en week.** Voorbeeld kleurenborden: in een rustige week 5 mogen ze blijven liggen waar ze niet nodig zijn; in een drukke week 8 is elk bord nodig, en een vrij groen bord moet naar de locatie waar er een tekort is.
+- **Kleurenborden worden op voorhand gepland** zodat overal de juiste borden liggen; de app helpt daarbij. Aantal groepen per locatie per week is daarvoor bepalend. Bron te bekijken: `Materiaal\Kleurenschema ZOMER TD Sporty 2026.xls`. Sporthal-voorbeeld: 14 borden (rood, geel, groen 2x, blauw, oranje 2x, paars 2x, grijs, wit, zwart, roze, bruin), 14 palen, 14 voeten.
