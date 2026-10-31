@@ -56,7 +56,7 @@
     var tl = stops.map(function (s, i) {
       var klaar = s.status === 'gedaan', nu = s.volgorde === huidig && !klaar;
       var chip = klaar ? 'klaar' : s.status === 'aangekomen' ? 'bezig' : nu ? 'volgende' : 'gepland';
-      var kv = s.kv && s.kv.naam ? ' · KV ' + esc(s.kv.naam) : '';
+      var kv = (s.kv && s.kv.naam ? ' · KV ' + esc(s.kv.naam) : '') + (s.afgerond_door ? ' · afgerond door ' + esc(s.afgerond_door) : '');
       var rechts;
       if (s.slot === 'vrij') {
         var vorige = stops[i - 1], volgende = stops[i + 1];
@@ -190,7 +190,7 @@
     var kaart = '<div class="kaart"><div class="soort">' + soort + '</div><div class="naar">' + esc(stopNaam(s)) + '</div>' + reis + (regelKop ? '<div class="van">' + regelKop + '</div>' : '') + sleutel
       + (contacten ? '<div class="contact">' + contacten + '</div>' : '') + '</div>';
     var aan = s.status === 'aangekomen' || s.status === 'gedaan';
-    var groot = aan ? '<button type="button" class="groot klaar" disabled>' + (s.status === 'gedaan' ? '✓ Stop afgerond' : '✓ Aangekomen') + '</button>'
+    var groot = aan ? '<button type="button" class="groot klaar" disabled>' + (s.status === 'gedaan' ? '✓ Stop afgerond' + (s.afgerond_door ? ' door ' + esc(s.afgerond_door) : '') : '✓ Aangekomen') + '</button>'
       : '<button type="button" class="groot" data-act="aangekomen" data-a="' + s.taak_id + '">📍 Ik ben aangekomen</button>';
     var groepen = rekGroepen(s.regels).map(function (g) {
       var mee = g.regels.filter(function (x) { return !isNietMee(x); });

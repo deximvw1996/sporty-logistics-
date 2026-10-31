@@ -1457,14 +1457,15 @@ module.exports = function(ctx){
   const _actief=new Map();
   const _helper=(req,rit)=>{const s=req.headers['x-auth-token']&&ctx.checkSessie?ctx.checkSessie(req.headers['x-auth-token']):null;if(!s||s.persoon_id===rit.personeel_id||(ctx.isOpWagen&&ctx.isOpWagen(rit.id,s.persoon_id)))return null;return s;};
   function _ritWie(req,rit){
-    let naam='',bekend=false;
+    let naam='',bekend=false,id=null;
     const s=req.headers['x-auth-token']&&ctx.checkSessie?ctx.checkSessie(req.headers['x-auth-token']):null;
-    if(s){naam=s.naam;bekend=true;}
-    else if(req.headers['x-wie']){const id=parseInt(req.headers['x-wie']);if(id===rit.personeel_id||(ctx.isOpWagen&&ctx.isOpWagen(rit.id,id))){naam=(get('SELECT naam FROM personeel WHERE id=?',[id])||{}).naam||'';bekend=!!naam;}}
+    if(s){naam=s.naam;bekend=true;id=s.persoon_id;}
+    else if(req.headers['x-wie']){const x=parseInt(req.headers['x-wie']);if(x===rit.personeel_id||(ctx.isOpWagen&&ctx.isOpWagen(rit.id,x))){naam=(get('SELECT naam FROM personeel WHERE id=?',[x])||{}).naam||'';bekend=!!naam;if(bekend)id=x;}}
     if(!naam)naam=rit.chauffeur||'';
     if(bekend){if(!_actief.has(rit.id))_actief.set(rit.id,new Map());_actief.get(rit.id).set(naam,Date.now());}
-    return {naam,bekend};
+    return {naam,bekend,id,helpt:bekend&&id!==rit.personeel_id&&!(ctx.isOpWagen&&ctx.isOpWagen(rit.id,id))};
   }
+  ctx._ritWie=_ritWie;
   const _actieven=ritId=>{const m=_actief.get(ritId);if(!m)return [];const g=Date.now()-5*60*1000;return [...m.entries()].filter(([,t])=>t>g).map(([n])=>n);};
   // Terugzetten van wat een ander deed vraagt een bevestiging met de naam.
   const _vanAnder=(req,w,door)=>w.bekend&&door&&door!==w.naam&&!(req.body&&req.body.bevestigd);
@@ -1521,6 +1522,10 @@ module.exports = function(ctx){
     if(wordtVolledig&&taak&&taak.status!=='gedaan'){
       const r=_rondTaakAf(req,taak.id,'rit-link');
       if(r.fout){run('UPDATE verhuis_checks SET gelost=0,gelost_door=?,gelost_op=? WHERE id=?',['','',check.id]);return {fout:r.fout,status:r.status};}
+      // TF14: het laatste stuk sluit de stop (en de rit) vanzelf; zichtbaar wie dat deed.
+      run('UPDATE transport_taken SET afgerond_door=? WHERE id=?',[wie.naam,taak.id]);
+      logAct('transport','stop afgerond',`Stop ${_locNaam(_stopLocId(taak))} (rit #${rit.id}) afgerond door ${wie.naam||'?'}${wie.helpt?' (helpt)':''}`,_stopLocId(taak),null);
+      if((get('SELECT status FROM transport_ritten WHERE id=?',[rit.id])||{}).status==='gedaan')logAct('transport','rit afgerond',`Rit #${rit.id} afgerond door ${wie.naam||'?'}${wie.helpt?' (helpt)':''}`,null,null);
     }
     return {check:get('SELECT * FROM verhuis_checks WHERE id=?',[check.id])};
   }
@@ -1642,7 +1647,7 @@ module.exports = function(ctx){
           geladen:!!c.geladen, gelost:!!c.gelost, geladen_door:c.geladen?(c.geladen_door||''):'', gelost_door:c.gelost?(c.gelost_door||''):'', aantal_geladen:isBulk?(c.geladen?(c.qty||0):0):null,
           niet_mee:c.niet_mee_reden?{reden:c.niet_mee_reden,opmerking:c.niet_mee_opmerking||'',aantal:c.niet_mee_aantal||0}:null};
       });
-      return {taak_id:t.id, volgorde:t.volgorde, slot:t.slot||'vast', tijd:t.tijd||'', type:t.type||'', verhuis:_isVerhuis(t), status:t.status||'gepland',
+      return {afgerond_door:t.status==='gedaan'?(t.afgerond_door||''):'',taak_id:t.id, volgorde:t.volgorde, slot:t.slot||'vast', tijd:t.tijd||'', type:t.type||'', verhuis:_isVerhuis(t), status:t.status||'gepland',
         opmerking:t.opmerking||'',
         van:{id:t.van_locatie_id||null,naam:_locNaam(t.van_locatie_id)}, naar:{id:t.naar_locatie_id||null,naam:_locNaam(t.naar_locatie_id)},
         locatie:loc?{id:loc.id,naam:loc.name,adres:loc.addr||'',contact_naam:loc.contact_naam||'',contact_telefoon:loc.contact_tel||'',sleutel_info:loc.sleutel_info||''}:null,
